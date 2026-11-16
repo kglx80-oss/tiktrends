@@ -49,7 +49,10 @@ async function personaDuBrief(ctx: ContexteStudio, brandId: string, brief: Brief
 
 /**
  * Un LOT D'ANGLES · les consignes RETENUES de N projets peuvent-elles partir
- * ensemble ? À appeler AVANT tout devis ou appel payant du lot. Lit, dans la
+ * ensemble ? RÈGLE PRÊTE, PAS ENCORE RACCORDÉE · aucun chemin payant
+ * multi-angles n'existe aujourd'hui (les lots d'images sont mono-projet), donc
+ * rien ne l'appelle encore hors de ses tests. Le futur lancement d'un lot
+ * d'angles devra l'appeler AVANT son devis. Lit, dans la
  * portée, la consigne courante de chaque projet et son angle, puis applique
  * `controlerVarieteLot` · un refus dit la raison et les projets dont la
  * consigne est à régénérer (`compilerConsigneImage`, un appel texte sous la
@@ -57,6 +60,7 @@ async function personaDuBrief(ctx: ContexteStudio, brandId: string, brief: Brief
  */
 export async function controlerVarieteLotPour(ctx: ContexteStudio, projectIds: readonly unknown[]): Promise<({ ok: true; verdict: VerdictVarieteLot }) | ErreurStudio> {
   if (!projectIds.length || projectIds.length > 24 || !projectIds.every(estUuid)) return erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, violations: [{ chemin: 'projectIds', raison: 'de 1 à 24 identifiants de projet attendus' }] });
+  if (new Set((projectIds as string[]).map((x) => x.toLowerCase())).size !== projectIds.length) return erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, violations: [{ chemin: 'projectIds', raison: 'un même projet figure deux fois dans le lot' }] });
   const projets = await lireProjetsDeLaPortee(ctx, projectIds);
   const lot: ConsigneDuLot[] = [];
   for (const id of projectIds as string[]) {
@@ -68,7 +72,8 @@ export async function controlerVarieteLotPour(ctx: ContexteStudio, projectIds: r
     const c = consigneDuContenu(contenu);
     if (!c) return erreurStudio('MISSING_REFERENCE', { traceId: ctx.traceId, targetIds: [p.id], message: `« ${p.title} » n’a pas de consigne image retenue · compile-la d’abord. Rien n’a été généré.` });
     const b = (contenu.brief ?? {}) as Partial<BriefCanonique>;
-    const angle = (typeof b.angle === 'string' && b.angle.trim()) || b.angleRef?.label || p.title;
+    // L'angle du brief seulement · jamais le titre du projet (deux projets de même titre ne sont pas un même angle).
+    const angle = (typeof b.angle === 'string' && b.angle.trim()) || (typeof b.angleRef?.label === 'string' ? b.angleRef.label : '');
     lot.push({ id: p.id, angle, generationInstruction: c.consigne.generationInstruction });
   }
   return { ok: true, verdict: controlerVarieteLot(lot) };

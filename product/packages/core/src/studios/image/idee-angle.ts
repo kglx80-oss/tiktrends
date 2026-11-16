@@ -19,17 +19,25 @@
  *  · `resumerPersona` · le persona RELU (résolu par le serveur dans la portée
  *    de la marque), réduit à quatre traits bornés · qui, frustration, désir,
  *    contexte. Jamais ses sources (avis, entretiens), jamais un courriel, un
- *    numéro, une adresse web ou un pseudonyme · ce sont des archétypes, pas des
- *    personnes ;
- *  · `choisirDirection` · la direction artistique la plus juste parmi celles
- *    qui EXISTENT (`AD_DIRECTIONS`, recettes `styleRecipes` du pack), lue dans
- *    l'intention de style du brief · aucune n'est inventée, une égalité ou une
- *    absence rend `null` (le silence est une conclusion valable) ;
+ *    numéro, une adresse web ou un pseudonyme (le segment qui en contenait part
+ *    en entier) · ce sont des archétypes, pas des personnes. Un persona
+ *    « proposé » est lu (il a été choisi au brief, qui ne bloque pas sur la
+ *    validation) ; rejeté ou archivé, non ;
+ *  · `choisirDirection` · la direction artistique NOMMÉE par l'intention de
+ *    style, parmi celles qui EXISTENT (`AD_DIRECTIONS`, recettes
+ *    `styleRecipes` du pack) · libellé complet d'au moins deux mots, ou
+ *    « direction <libellé ou clé> » ; un mot courant seul (« main »,
+ *    « preuve »), une négation (« pas de », « sans »), une égalité ou une
+ *    absence rendent `null` (en cas de doute, le silence) ;
  *  · `lignesIdee` · les lignes ajoutées au résumé du brief ; VIDE quand le
  *    brief n'a ni angle, ni concept, ni persona, ni direction reconnue · le
  *    contexte reste alors celui d'avant, au caractère près ;
  *  · `controlerVarieteLot` · un lot de N angles n'a le droit de partir que si
- *    ses N consignes montrent N scènes différentes.
+ *    ses N consignes montrent N scènes différentes. RÈGLE PRÊTE, PAS ENCORE
+ *    RACCORDÉE à un chemin payant · les lots d'aujourd'hui sont mono-projet
+ *    (même consigne, ou formats dérivés), aucun lancement multi-angles
+ *    n'existe. Doublons EXACTS seulement (clé de scène normalisée) · un seuil
+ *    de similarité reste à MESURER avant d'en poser un.
  */
 
 import { AD_DIRECTIONS } from '../../ad-directions';
@@ -50,21 +58,34 @@ export interface PersonaResume { qui: string; frustration: string; desir: string
 /** Bornes du résumé, en caractères · un persona éclaire la scène, il ne la remplit pas. */
 export const BORNES_PERSONA = { qui: 80, frustration: 160, desir: 160, contexte: 240 } as const;
 
-const COURRIEL = /[^\s@]+@[^\s@]+\.[^\s@]+/g;
-const ADRESSE_WEB = /\b(?:https?:\/\/|www\.)\S+/gi;
-const TELEPHONE = /\+?\d[\d .-]{7,}\d/g;
-const PSEUDO = /(^|\s)@[\w.]{2,}/g;
+const COURRIEL = /[^\s@]+@[^\s@]+\.[^\s@]+/;
+const ADRESSE_WEB = /\b(?:https?:\/\/|www\.)\S+/i;
+/** Neuf chiffres au moins (un numéro français en a dix) · une date « 12.03.1985 » en a huit. */
+const TELEPHONE = /\+?\d(?:[ .-]?\d){8,}/;
+const PSEUDO = /(?:^|\s)@[\w.]{2,}/;
+const COORDONNEES = [COURRIEL, ADRESSE_WEB, TELEPHONE, PSEUDO];
+/** Les séparateurs de segment · « · », virgule, point-virgule, fin de phrase (un point entre deux chiffres n'en est pas une). */
+const SEPARATEUR = /(\s*[·,;]\s*|(?<=[.!?])\s+)/;
 
 /**
  * Un trait de persona, sûr pour le contexte · une seule ligne (un retour à la
- * ligne ne peut pas imiter un autre champ du brief), sans coordonnée, borné.
+ * ligne ne peut pas imiter un autre champ du brief), borné. Un segment (entre
+ * « · », virgules, points-virgules ou phrases) qui contenait une coordonnée
+ * part EN ENTIER · ni « joignable à », ni « tel , » ne reste derrière.
  */
 export function traitSur(x: unknown, max: number): string {
   if (typeof x !== 'string') return '';
-  const t = x
-    .replace(COURRIEL, ' ').replace(ADRESSE_WEB, ' ').replace(TELEPHONE, ' ').replace(PSEUDO, '$1')
-    .replace(/[\u0000-\u001f\u007f\u2028\u2029]+/g, ' ')
-    .replace(/\s+/g, ' ').trim();
+  const morceaux = x.replace(/[\u0000-\u001f\u007f\u2028\u2029]+/g, ' ').replace(/\s+/g, ' ').trim().split(SEPARATEUR);
+  let t = '';
+  for (let i = 0; i < morceaux.length; i += 2) {
+    const seg = morceaux[i]!.trim();
+    if (!seg || COORDONNEES.some((r) => r.test(seg))) continue;
+    if (!t) { t = seg; continue; }
+    const avant = morceaux[i - 1]!.trim();
+    // Une fin de phrase portée par un segment retiré se remet en place.
+    t += avant === '·' ? ` · ${seg}` : avant ? `${avant} ${seg}` : `${/[.!?]$/.test(t) ? '' : '.'} ${seg}`;
+  }
+  t = t.replace(/\s*[·,;]\s*$/, '').trim();
   if ([...t].length <= max) return t;
   return `${[...t].slice(0, max - 1).join('').trimEnd()}…`;
 }
@@ -110,38 +131,69 @@ export type DirectionChoisie =
 const VIDES = new Set(['a', 'au', 'aux', 'd', 'de', 'des', 'du', 'en', 'et', 'l', 'la', 'le', 'les', 'un', 'une']);
 
 export function mots(t: string): string[] {
-  return t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+  return t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
     .split(/[^a-z0-9]+/).filter((m) => m && !VIDES.has(m));
 }
 
-interface Candidat { mots: string[][]; d: DirectionChoisie }
+/** Ce qui annonce un refus dans la même proposition · « pas de », « sans », « surtout pas »… */
+const NEGATIONS = new Set(['pas', 'sans', 'jamais', 'aucun', 'aucune', 'ni', 'non', 'hors', 'eviter', 'evite', 'evitez']);
+/** Une proposition finit sur une ponctuation ou sur « mais ». */
+const PROPOSITION = /[,;:.!?·\n]|\bmais\b/i;
+
+/**
+ * Les formes qui NOMMENT une direction :
+ *  · son libellé complet, s'il compte au moins deux mots distinctifs (« Nuit
+ *    cinématique », « Vue du dessus ») ;
+ *  · « direction <libellé> » ou « direction <clé> » (avec ou sans
+ *    « artistique ») · seule forme admise pour les libellés d'un mot
+ *    (« Témoignage », « En main ») et pour les clés, dont plusieurs sont des
+ *    mots courants (`main`, `preuve`, `affiche`, `studio`, `promo`…).
+ */
+interface Candidat { formes: string[][]; d: DirectionChoisie }
+
+function explicites(...noms: string[][]): string[][] {
+  return noms.filter((n) => n.length).flatMap((n) => [['direction', ...n], ['direction', 'artistique', ...n]]);
+}
 
 function candidats(recettes: readonly RecetteStyleLue[]): Candidat[] {
   return [
-    ...AD_DIRECTIONS.map((d) => ({
-      // Le libellé (tous ses mots) OU la clé, consignée dans les recettes produites.
-      mots: [mots(d.label), [d.key]],
-      d: { origine: 'direction' as const, cle: d.key, libelle: d.label, lumiere: d.lumiere, finition: d.finition },
-    })),
-    ...recettes.map((r) => ({
-      mots: [mots(r.title)],
-      d: { origine: 'recette' as const, cle: r.id, libelle: r.title, matiere: r.material, lumiere: r.lighting },
-    })),
+    ...AD_DIRECTIONS.map((d) => {
+      const l = mots(d.label);
+      return {
+        formes: [...(l.length >= 2 ? [l] : []), ...explicites(l, [d.key])],
+        d: { origine: 'direction' as const, cle: d.key, libelle: d.label, lumiere: d.lumiere, finition: d.finition },
+      };
+    }),
+    ...recettes.map((r) => {
+      const l = mots(r.title);
+      return {
+        formes: [...(l.length >= 2 ? [l] : []), ...explicites(l, mots(r.id))],
+        d: { origine: 'recette' as const, cle: r.id, libelle: r.title, matiere: r.material, lumiere: r.lighting },
+      };
+    }),
   ];
 }
 
+/** La forme apparaît-elle d'un seul tenant, sans négation avant elle dans la proposition ? */
+function nommee(proposition: readonly string[], forme: readonly string[]): boolean {
+  for (let i = 0; i + forme.length <= proposition.length; i++) {
+    if (forme.every((m, j) => proposition[i + j] === m)) return !proposition.slice(0, i).some((m) => NEGATIONS.has(m));
+  }
+  return false;
+}
+
 /**
- * La direction que l'intention de style NOMME · une direction est nommée quand
- * TOUS les mots de son libellé (ou sa clé) y figurent. Plusieurs nommées : la
- * plus précise (le plus de mots) l'emporte ; à égalité, aucune (on ne devine
- * pas). Aucune nommée : `null`, rien n'est inventé.
+ * La direction que l'intention de style NOMME (voir les formes ci-dessus).
+ * Une direction refusée dans sa proposition (« pas de », « sans »…) ne compte
+ * pas. Plusieurs nommées : la forme la plus longue l'emporte ; à égalité,
+ * aucune. En cas de doute : `null` · rien n'est deviné, rien n'est inventé.
  */
 export function choisirDirection(styleIntent: string, recettes: readonly RecetteStyleLue[] = []): DirectionChoisie | null {
-  const presents = new Set(mots(styleIntent));
-  if (!presents.size) return null;
+  const propositions = styleIntent.split(PROPOSITION).map(mots).filter((p) => p.length);
+  if (!propositions.length) return null;
   let meilleur: { n: number; d: DirectionChoisie | null } = { n: 0, d: null };
   for (const c of candidats(recettes)) {
-    const n = Math.max(0, ...c.mots.filter((m) => m.length && m.every((x) => presents.has(x))).map((m) => m.length));
+    const n = Math.max(0, ...c.formes.filter((f) => propositions.some((p) => nommee(p, f))).map((f) => f.length));
     if (n === 0) continue;
     if (n > meilleur.n) meilleur = { n, d: c.d };
     else if (n === meilleur.n && meilleur.d?.cle !== c.d.cle) meilleur = { n, d: null };
@@ -199,20 +251,23 @@ export interface ConsigneDuLot { id: string; angle: string; generationInstructio
 export const PREFIXE_SCENE = 'Scène :';
 
 /**
- * La scène d'une consigne · la phrase « Scène : … » que le gabarit impose en
- * tête ; à défaut (consigne d'avant 1.1.0), la première phrase.
+ * La scène d'une consigne · la phrase « Scène : … » que le gabarit 1.1.0
+ * impose en tête. Une consigne compilée sous 1.0.0 n'en a pas · `''` (elle
+ * n'est pas comparée, voir `controlerVarieteLot`). La scène finit au premier
+ * point, point d'exclamation ou d'interrogation · un point entre deux chiffres
+ * (« 10.5 cl ») n'en est pas un.
  */
 export function sceneDeConsigne(instruction: string): string {
   const t = instruction.replace(/\s+/g, ' ').trim();
-  const m = /(?:^|[.!?]\s)Sc[eè]ne\s*:\s*([^.!?]*)/i.exec(t);
-  const brut = m ? m[1]! : (/^[^.!?]*/.exec(t)?.[0] ?? '');
-  return brut.trim();
+  const m = /(?:^|[.!?]\s)Sc[eè]ne\s*:\s*((?:[^.!?]|(?<=\d)\.(?=\d))*)/i.exec(t);
+  return m ? m[1]!.trim() : '';
 }
 
 /**
  * La clé de comparaison d'une scène · mots sans accents ni casse, mots vides
  * retirés, dédoublonnés et triés · « Salle de bain, flacon sur le lavabo » et
- * « flacon sur lavabo · salle de bain » sont la même scène.
+ * « flacon sur lavabo · salle de bain » sont la même scène. Doublons EXACTS de
+ * cette clé seulement · un seuil de similarité reste à mesurer.
  */
 export function cleScene(scene: string): string {
   return [...new Set(mots(scene).filter((m) => !['sur', 'dans', 'avec', 'sous', 'pour', 'par'].includes(m)))].sort().join(' ');
@@ -221,45 +276,52 @@ export function cleScene(scene: string): string {
 export interface DoublonScene { ids: [string, string]; angles: [string, string]; scene: string }
 
 export type VerdictVarieteLot =
-  | { ok: true; scenes: string[] }
-  | { ok: false; doublons: DoublonScene[]; aRegenerer: string[]; raison: string };
+  | { ok: true; scenes: string[]; avertissements: string[] }
+  | { ok: false; doublons: DoublonScene[]; aRegenerer: string[]; raison: string; avertissements: string[] };
 
 /**
- * Le lot ne part que si chaque consigne montre une scène À ELLE · deux
- * consignes de même scène (ou un même angle deux fois, ou une consigne sans
- * scène lisible) le refusent AVANT tout appel payant, avec la raison et la
- * consigne à régénérer (la seconde de chaque paire · un appel texte, sous la
- * barrière de dépense existante). Rien n'est généré par cette règle.
+ * Le lot ne passe que si chaque consigne comparable montre une scène À ELLE ·
+ * deux consignes de même scène le refusent, avec la raison et la consigne à
+ * régénérer (la seconde de chaque paire · un appel texte, sous la barrière de
+ * dépense existante). Rien n'est généré par cette règle.
+ *
+ * Ne refuse PAS · le même angle deux fois (une itération garde son angle et
+ * change de scène · avertissement) ; une consigne sans « Scène : » (gabarit
+ * 1.0.0 · ignorée du contrôle, et c'est dit).
  */
 export function controlerVarieteLot(lot: readonly ConsigneDuLot[]): VerdictVarieteLot {
   const doublons: DoublonScene[] = [];
   const raisons: string[] = [];
+  const avertissements: string[] = [];
   const parScene = new Map<string, ConsigneDuLot>();
   const parAngle = new Map<string, ConsigneDuLot>();
   const aRegenerer = new Set<string>();
-  for (const c of lot) {
-    const scene = sceneDeConsigne(c.generationInstruction);
+  const nom = (c: ConsigneDuLot) => (c.angle.trim() ? `« ${c.angle.trim()} »` : `la consigne n° ${lot.indexOf(c) + 1}`);
+  const scenes = lot.map((c) => sceneDeConsigne(c.generationInstruction));
+  lot.forEach((c, i) => {
+    const scene = scenes[i]!;
     const cle = cleScene(scene);
     if (!cle) {
-      aRegenerer.add(c.id);
-      raisons.push(`la consigne de « ${c.angle} » ne nomme aucune scène`);
-      continue;
+      avertissements.push(`la consigne de ${nom(c)} a été compilée sans « ${PREFIXE_SCENE} » (gabarit 1.0.0) · ignorée du contrôle, recompile-la pour qu’elle compte`);
+      return;
     }
-    const memeAngle = parAngle.get(cleScene(c.angle));
-    if (memeAngle && cleScene(c.angle)) raisons.push(`« ${c.angle} » figure deux fois dans le lot`);
-    else if (cleScene(c.angle)) parAngle.set(cleScene(c.angle), c);
+    const cleAngle = cleScene(c.angle);
     const deja = parScene.get(cle);
+    if (cleAngle) {
+      // Même angle, autre scène · une itération, dite. Même angle, même scène · le refus ci-dessous suffit.
+      if (parAngle.has(cleAngle)) { if (!deja) avertissements.push(`${nom(c)} figure deux fois dans le lot, avec deux scènes différentes`); }
+      else parAngle.set(cleAngle, c);
+    }
     if (deja) {
       doublons.push({ ids: [deja.id, c.id], angles: [deja.angle, c.angle], scene });
       aRegenerer.add(c.id);
-      raisons.push(`les consignes de « ${deja.angle} » et de « ${c.angle} » montrent la même scène (« ${scene} »)`);
+      raisons.push(`les consignes de ${nom(deja)} et de ${nom(c)} montrent la même scène (« ${scene} »)`);
     } else parScene.set(cle, c);
-  }
-  if (!raisons.length) return { ok: true, scenes: lot.map((c) => sceneDeConsigne(c.generationInstruction)) };
-  const ids = [...aRegenerer];
-  const qui = lot.filter((c) => aRegenerer.has(c.id)).map((c) => `« ${c.angle} »`).join(', ');
+  });
+  if (!raisons.length) return { ok: true, scenes, avertissements };
+  const qui = lot.filter((c) => aRegenerer.has(c.id)).map(nom).join(', ');
   return {
-    ok: false, doublons, aRegenerer: ids,
-    raison: `Lot refusé avant tout appel payant · ${raisons.join(' ; ')}.${qui ? ` Régénère la consigne de ${qui} (un appel texte, sous la barrière de dépense) avant de lancer le lot.` : ''} Rien n’a été généré.`,
+    ok: false, doublons, aRegenerer: [...aRegenerer], avertissements,
+    raison: `Lot refusé · ${raisons.join(' ; ')}. Régénère la consigne de ${qui} (un appel texte, sous la barrière de dépense) avant de lancer le lot.${avertissements.length ? ` À noter · ${avertissements.join(' ; ')}.` : ''} Rien n’a été généré.`,
   };
 }

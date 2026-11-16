@@ -7,7 +7,9 @@ import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vites
  * concept, ni le persona du brief V5 · le modèle compilait la même scène pour
  * chaque angle. Maintenant le contexte les porte (persona RELU dans la portée de
  * la marque), le gabarit 1.1.0 demande une scène par angle, et un lot d'angles
- * dont deux consignes montrent la même scène est refusé avant tout appel payant.
+ * dont deux consignes montrent la même scène est refusé par la règle de variété
+ * (règle prête, pas encore raccordée à un chemin payant, faute de chemin
+ * multi-angles · on l'éprouve ici sur des consignes réellement compilées).
  *
  * Vraie base (pglite, migrations réelles), registre publié depuis le pack
  * embarqué, VRAI adaptateur (`adaptateurAnthropicGarde` → `guardedAnthropic` →
@@ -57,7 +59,7 @@ const MAIN = JSON.parse(readFileSync(join(__dirname, 'fixtures/idee-angle-contex
 const ctx = () => ctxDe(ids, 'ua');
 let cat: Catalogue;
 let srv: FauxModeleTexte;
-const personas = { a1: '', a2: '', b1: '' };
+const personas = { a1: '', a2: '', b1: '', rejete: '', archive: '', propose: '' };
 const avantEnv = { cle: process.env.ANTHROPIC_API_KEY, url: process.env.ANTHROPIC_BASE_URL, modele: process.env.ANTHROPIC_GEN_MODEL, cap: process.env.AI_SPEND_CAP_USD };
 
 /* ── Le faux modèle · une scène par angle reçu (ou la même pour tous) ─────── */
@@ -137,6 +139,12 @@ beforeAll(async () => {
   const [a2] = await db.insert(schema.personas).values({ brandId: ids.brandA2, name: 'PERSONA-AUTRE-MARQUE', pains: ['FRUSTRATION-AUTRE-MARQUE'] }).returning();
   const [b1] = await db.insert(schema.personas).values({ brandId: ids.brandB1, name: 'PERSONA-AUTRE-ESPACE', pains: ['FRUSTRATION-AUTRE-ESPACE'] }).returning();
   personas.a1 = a1!.id; personas.a2 = a2!.id; personas.b1 = b1!.id;
+  const [rj, ar, pr] = await db.insert(schema.personas).values([
+    { brandId: ids.brandA1, name: 'PERSONA-REJETE', pains: ['FRUSTRATION-REJETE'], status: 'rejected' },
+    { brandId: ids.brandA1, name: 'PERSONA-ARCHIVE', pains: ['FRUSTRATION-ARCHIVE'], status: 'archived' },
+    { brandId: ids.brandA1, name: 'Persona proposé', pains: ['Frustration proposée'], status: 'proposed' },
+  ]).returning();
+  personas.rejete = rj!.id; personas.archive = ar!.id; personas.propose = pr!.id;
 }, 120_000);
 afterAll(async () => {
   await srv.fermer();
@@ -166,7 +174,7 @@ describe('le contexte envoyé à image.compile', () => {
       'Audience : Coureurs 25-40 ans',
       'Angle : Peur · tes lunettes glissent en pleine course',
       'Concept : La course sous la pluie',
-      'Persona : qui · Camille, coureuse du dimanche ; frustration · Ses lunettes glissent dès qu’elle transpire ; désir · Finir sa course sans les remonter ; contexte · Urbaine active · Court 10 km le long du canal · joignable à',
+      'Persona : qui · Camille, coureuse du dimanche ; frustration · Ses lunettes glissent dès qu’elle transpire ; désir · Finir sa course sans les remonter ; contexte · Urbaine active · Court 10 km le long du canal',
     ]);
     // Le devis à blanc (recette, mode shadow) calcule la MÊME requête que celle qui est partie.
     const rc = await requeteCompilationPas1(ctx(), { projectId, mode: 'generative_scene', maintenant: O.maintenant, modelePour: () => 'claude-sonnet-5' });
@@ -186,6 +194,26 @@ describe('le contexte envoyé à image.compile', () => {
       expect(briefRecu(srv.recus[0]!)).not.toMatch(/^Persona :/m);
       expect(briefRecu(srv.recus[0]!)).toMatch(/^Angle : Preuve$/m);
     }
+  });
+
+  it('un persona rejeté ou archivé de la marque n’est jamais lu', async () => {
+    for (const id of [personas.rejete, personas.archive]) {
+      srv.recus.length = 0;
+      const projectId = await projetEpingle();
+      await avecIdee(projectId, { angle: 'Preuve', personaRef: { id, label: 'Ancien' } });
+      await compiler(projectId);
+      expect(srv.recus.length).toBe(1);
+      const tout = JSON.stringify(srv.recus[0]);
+      for (const absent of ['PERSONA-REJETE', 'FRUSTRATION-REJETE', 'PERSONA-ARCHIVE', 'FRUSTRATION-ARCHIVE']) expect(tout, `« ${absent} » est parti vers le modèle (persona rejeté ou archivé)`).not.toContain(absent);
+      expect(briefRecu(srv.recus[0]!)).not.toMatch(/^Persona :/m);
+    }
+  });
+
+  it('un persona « proposé » (pas encore validé) EST lu · il a été choisi au brief, le brief ne bloque pas sur la validation', async () => {
+    const projectId = await projetEpingle();
+    await avecIdee(projectId, { angle: 'Preuve', personaRef: { id: personas.propose, label: 'Proposé' } });
+    await compiler(projectId);
+    expect(briefRecu(srv.recus[0]!)).toMatch(/^Persona : qui · Persona proposé ; frustration · Frustration proposée$/m);
   });
 
   it('le gabarit reçu est image.compile 1.1.0 du pack embarqué, identique au JSON source', async () => {
@@ -210,10 +238,10 @@ describe('variété d’un lot d’angles · mesurée sur les consignes compilé
     await compilerEtRetenir(peur);
     await compilerEtRetenir(preuve);
     const r = await controlerVarieteLotPour(ctx(), [peur, preuve]);
-    expect(r).toEqual({ ok: true, verdict: { ok: true, scenes: [SCENES.Peur, SCENES.Preuve] } });
+    expect(r).toEqual({ ok: true, verdict: { ok: true, scenes: [SCENES.Peur, SCENES.Preuve], avertissements: [] } });
   });
 
-  it('un doublon de scène · refus avec la raison, avant tout appel payant ; régénérer la consigne (appel texte sous la barrière) lève le refus', async () => {
+  it('un doublon de scène · refus avec la raison, sans écriture ; régénérer la consigne (appel texte sous la barrière) lève le refus', async () => {
     const peur = await projetEpingle();
     const preuve = await projetEpingle();
     await avecIdee(peur, { angle: 'Peur' });
@@ -228,9 +256,9 @@ describe('variété d’un lot d’angles · mesurée sur les consignes compilé
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.verdict).toEqual({
-      ok: false, aRegenerer: [preuve],
+      ok: false, aRegenerer: [preuve], avertissements: [],
       doublons: [{ ids: [peur, preuve], angles: ['Peur', 'Preuve'], scene: SCENES.Peur }],
-      raison: `Lot refusé avant tout appel payant · les consignes de « Peur » et de « Preuve » montrent la même scène (« ${SCENES.Peur} »). Régénère la consigne de « Preuve » (un appel texte, sous la barrière de dépense) avant de lancer le lot. Rien n’a été généré.`,
+      raison: `Lot refusé · les consignes de « Peur » et de « Preuve » montrent la même scène (« ${SCENES.Peur} »). Régénère la consigne de « Preuve » (un appel texte, sous la barrière de dépense) avant de lancer le lot. Rien n’a été généré.`,
     });
 
     // Régénérer la consigne désignée · UN appel texte, réservé par la barrière (une ligne ai_spend), aucun devis ni job.
@@ -240,7 +268,24 @@ describe('variété d’un lot d’angles · mesurée sur les consignes compilé
     await compilerEtRetenir(preuve);
     const d = delta(avantRegen, await compter(db));
     expect({ appels: srv.recus.length, depenses: d.depenses, devis: d.devis, jobs: d.jobs }).toEqual({ appels: 1, depenses: 1, devis: undefined, jobs: undefined });
-    expect(await controlerVarieteLotPour(ctx(), [peur, preuve])).toEqual({ ok: true, verdict: { ok: true, scenes: [SCENES.Peur, SCENES.Preuve] } });
+    expect(await controlerVarieteLotPour(ctx(), [peur, preuve])).toEqual({ ok: true, verdict: { ok: true, scenes: [SCENES.Peur, SCENES.Preuve], avertissements: [] } });
+  });
+
+  it('deux projets de même titre, sans angle, scènes différentes · le lot passe (aucun repli sur le titre)', async () => {
+    const a = await projetEpingle();
+    const b = await projetEpingle();
+    await db.update(schema.studioProjects).set({ title: 'Lunettes · même titre' }).where(eq(schema.studioProjects.id, b));
+    await db.update(schema.studioProjects).set({ title: 'Lunettes · même titre' }).where(eq(schema.studioProjects.id, a));
+    sceneFixe = SCENES.Peur!;
+    await compilerEtRetenir(a);
+    sceneFixe = SCENES.Preuve!;
+    await compilerEtRetenir(b);
+    expect(await controlerVarieteLotPour(ctx(), [a, b]), 'deux projets de même titre refusés comme un même angle').toEqual({ ok: true, verdict: { ok: true, scenes: [SCENES.Peur, SCENES.Preuve], avertissements: [] } });
+  });
+
+  it('le même projet deux fois · refus INVALID_SCHEMA, rien lu', async () => {
+    const a = await projetEpingle();
+    expect(await controlerVarieteLotPour(ctx(), [a, a.toUpperCase()]), 'un projet compté deux fois dans le lot').toMatchObject({ ok: false, code: 'INVALID_SCHEMA' });
   });
 
   it('un projet sans consigne retenue · refus MISSING_REFERENCE, rien d’écrit', async () => {

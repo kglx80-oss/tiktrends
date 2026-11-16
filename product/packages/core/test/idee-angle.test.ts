@@ -80,7 +80,7 @@ describe('le contexte porte l’angle, le concept et le persona relus', () => {
 describe('le persona, résumé borné, sans donnée personnelle', () => {
   it('ni courriel, ni numéro, ni adresse web, ni pseudonyme · quatre traits bornés', () => {
     const r = resumerPersona({
-      name: 'Julie @julie.run', segment: 'Urbaine', description: `Écrire à julie@exemple.fr ou au 06 12 34 56 78, voir https://exemple.fr/julie\n${'x'.repeat(400)}`,
+      name: 'Julie @julie.run', segment: 'Urbaine', description: `Écrire à julie@exemple.fr ou au 06 12 34 56 78, voir https://exemple.fr/julie\nCourt le soir · ${'x'.repeat(400)}`,
       pains: ['', 'Lunettes qui glissent'], desires: ['Courir tranquille'],
     })!;
     const tout = lignePersona(r);
@@ -88,6 +88,15 @@ describe('le persona, résumé borné, sans donnée personnelle', () => {
     expect(r.frustration).toBe('Lunettes qui glissent');
     expect([...r.contexte].length).toBeLessThanOrEqual(BORNES_PERSONA.contexte);
     expect(r.contexte.endsWith('…')).toBe(true);
+  });
+  it('un segment qui contenait une coordonnée part EN ENTIER, sans résidu (« joignable à », « tel , »)', () => {
+    const r = resumerPersona({ name: 'Camille', segment: 'Urbaine active', description: 'Court 10 km le long du canal · joignable à camille@exemple.fr' })!;
+    expect(r.contexte, 'un résidu de coordonnée est resté').toBe('Urbaine active · Court 10 km le long du canal');
+    const t = resumerPersona({ name: 'Léa', description: 'tel 06 12 34 56 78, née le 12.03.1985; voir www.exemple.fr. Aime courir.' })!;
+    expect(t.contexte, 'un résidu de coordonnée est resté').toBe('née le 12.03.1985. Aime courir.');
+  });
+  it('une date n’est pas un téléphone', () => {
+    expect(resumerPersona({ name: 'Léa', description: 'Née le 12.03.1985' })!.contexte).toBe('Née le 12.03.1985');
   });
   it('un persona vide ne produit aucune ligne', () => {
     expect(resumerPersona({ name: '  ', pains: [], desires: null })).toBeNull();
@@ -99,23 +108,42 @@ describe('la direction artistique · la plus juste parmi celles qui existent, ja
   // Tableau mesuré · intention de style → direction retenue (null = aucune nommée, ou égalité).
   const CAS: Array<[string, string | null]> = [
     ['Nuit cinématique, contre-jour', 'cinematic'],
-    ['ambiance cinematic, néons', 'cinematic'],
     ['Éditorial magazine, beaucoup de blanc', 'editorial'],
     ['Illustration éditoriale en aplats', 'editorial_flat'],
     ['Papier découpé, couches mates', 'paper_layers'],
     ['Vue du dessus, objets rangés', 'flatlay'],
-    ['Produit tenu en main, fond flou', 'main'],
+    ['direction Témoignage, face caméra', 'temoignage'],
+    ['direction artistique cinematic', 'cinematic'],
+    ['sans éditorial magazine, plutôt nature organique', 'nature'],
+    // Relecture de #1095 · un mot courant, une clé seule ou une négation ne choisissent rien.
+    ['Savon fait main, lumière douce', null],
+    ['Une preuve visuelle forte', null],
+    ['Le logo s’affiche en grand', null],
+    ['Pas de promo, ambiance luxe', null],
+    ['surtout pas de témoignage', null],
+    ['surtout pas de nuit cinématique', null],
+    ['sans nuit cinématique', null],
+    ['ambiance cinematic, néons', null],
+    ['Produit tenu en main, fond flou', null],
+    ['studio photo lumineux', null],
+    ['nature et cinématique, nuit tombante', null],
     ['lumière douce et naturelle', null],
     ['ambiance cinématique', null],
-    ['Témoignage puis Comparatif', null],
+    ['direction Témoignage puis direction Comparatif', null],
     ['', null],
   ];
   it.each(CAS)('« %s » → %s', (intention, attendu) => {
     expect(choisirDirection(intention, RECETTES)?.cle ?? null).toBe(attendu);
   });
-  it('chaque direction et chaque recette se nomme par son libellé exact', () => {
-    for (const d of AD_DIRECTIONS) expect(choisirDirection(d.label, RECETTES)?.cle, d.label).toBe(d.key);
+  it('chaque direction et chaque recette se nomme par son libellé exact (d’un mot · « direction » devant)', () => {
+    for (const d of AD_DIRECTIONS) {
+      expect(choisirDirection(`direction ${d.label}`, RECETTES)?.cle, d.label).toBe(d.key);
+      expect(choisirDirection(`direction ${d.key}`, RECETTES)?.cle, d.key).toBe(d.key);
+    }
     for (const r of RECETTES) expect(choisirDirection(r.title, RECETTES)?.cle, r.title).toBe(r.id);
+  });
+  it('un libellé d’un seul mot ne suffit pas sans « direction » devant', () => {
+    for (const l of ['Témoignage', 'Comparatif', 'En main']) expect(choisirDirection(l, RECETTES), l).toBeNull();
   });
   it('une recette passe sa matière et sa lumière, pas sa composition', () => {
     const r = RECETTES.find((x) => x.id === 'paper_layers')!;
@@ -143,7 +171,7 @@ describe('variété d’un lot d’angles · mesurée sans modèle', () => {
   const ennemi = { id: 'p2', angle: 'Ennemi commun', generationInstruction: 'Scène : rayon de supermarché saturé de flacons génériques · éclairage néon. Notre flacon seul en tête de gondole.' };
   const preuve = { id: 'p3', angle: 'Preuve', generationInstruction: 'Scène : mètre ruban le long d’une longueur de cheveux · coiffeuse en bois. Flacon à côté.' };
   it('trois angles, trois scènes · le lot passe', () => {
-    expect(controlerVarieteLot([peur, ennemi, preuve]), 'la scène lue n’est pas la phrase « Scène : … » de la consigne').toEqual({ ok: true, scenes: [
+    expect(controlerVarieteLot([peur, ennemi, preuve]), 'la scène lue n’est pas la phrase « Scène : … » de la consigne').toEqual({ ok: true, avertissements: [], scenes: [
       'bonde de douche pleine de cheveux · salle de bain carrelée',
       'rayon de supermarché saturé de flacons génériques · éclairage néon',
       'mètre ruban le long d’une longueur de cheveux · coiffeuse en bois',
@@ -156,14 +184,26 @@ describe('variété d’un lot d’angles · mesurée sans modèle', () => {
     if (v.ok) return;
     expect(v.aRegenerer).toEqual(['p3']);
     expect(v.doublons).toEqual([{ ids: ['p1', 'p3'], angles: ['Peur', 'Preuve'], scene: 'SALLE DE BAIN carrelee · bonde de douche pleine de cheveux' }]);
-    expect(v.raison).toBe('Lot refusé avant tout appel payant · les consignes de « Peur » et de « Preuve » montrent la même scène (« SALLE DE BAIN carrelee · bonde de douche pleine de cheveux »). Régénère la consigne de « Preuve » (un appel texte, sous la barrière de dépense) avant de lancer le lot. Rien n’a été généré.');
+    expect(v.raison).toBe('Lot refusé · les consignes de « Peur » et de « Preuve » montrent la même scène (« SALLE DE BAIN carrelee · bonde de douche pleine de cheveux »). Régénère la consigne de « Preuve » (un appel texte, sous la barrière de dépense) avant de lancer le lot. Rien n’a été généré.');
   });
-  it('un même angle deux fois, ou une consigne sans scène · refus', () => {
-    expect(controlerVarieteLot([peur, { ...ennemi, angle: 'peur' }])).toMatchObject({ ok: false, raison: expect.stringContaining('« peur » figure deux fois dans le lot') });
-    expect(controlerVarieteLot([peur, { ...preuve, generationInstruction: '' }])).toMatchObject({ ok: false, aRegenerer: ['p3'], raison: expect.stringContaining('ne nomme aucune scène') });
+  it('un même angle deux fois, scènes différentes (itération) · le lot passe, avertissement seulement', () => {
+    const v = controlerVarieteLot([peur, { ...ennemi, angle: 'peur' }]);
+    expect(v, 'un doublon d’angle bloque l’itération').toMatchObject({ ok: true, avertissements: ['« peur » figure deux fois dans le lot, avec deux scènes différentes'] });
   });
-  it('une consigne d’avant 1.1.0 (sans « Scène : ») se lit par sa première phrase', () => {
-    expect(sceneDeConsigne('Coureuse sur une piste au lever du jour. Lunettes portées.')).toBe('Coureuse sur une piste au lever du jour');
+  it('deux consignes sans angle ne sont pas un doublon d’angle', () => {
+    expect(controlerVarieteLot([{ ...peur, angle: '' }, { ...preuve, angle: '' }])).toMatchObject({ ok: true, avertissements: [] });
+  });
+  it('une consigne compilée sous 1.0.0 (sans « Scène : ») est IGNORÉE du contrôle, et c’est dit', () => {
+    const ancienne = { id: 'p4', angle: 'Héritage', generationInstruction: 'Bonde de douche pleine de cheveux · salle de bain carrelée. Flacon.' };
+    const v = controlerVarieteLot([peur, ancienne]);
+    expect(v, 'une consigne 1.0.0 a été comparée par sa première phrase').toEqual({ ok: true, scenes: [sceneDeConsigne(peur.generationInstruction), ''], avertissements: ['la consigne de « Héritage » a été compilée sans « Scène : » (gabarit 1.0.0) · ignorée du contrôle, recompile-la pour qu’elle compte'] });
+    const r = controlerVarieteLot([peur, ancienne, { ...preuve, generationInstruction: peur.generationInstruction }]);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.raison).toContain('ignorée du contrôle');
+    expect(sceneDeConsigne('Coureuse sur une piste au lever du jour. Lunettes portées.')).toBe('');
     expect(cleScene('Salle de bain, flacon sur le lavabo')).toBe(cleScene('flacon sur lavabo · salle de bain'));
+  });
+  it('un point entre deux chiffres ne termine pas la scène (« 10.5 cl »)', () => {
+    expect(sceneDeConsigne('Scène : flacon de 10.5 cl posé sur un lavabo · salle de bain. Lumière douce.')).toBe('flacon de 10.5 cl posé sur un lavabo · salle de bain');
   });
 });
