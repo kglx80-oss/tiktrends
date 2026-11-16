@@ -4,3 +4,4 @@
  */
 export * from './parcours';
 export * from './pub-entiere';
+export * from './idee-angle';

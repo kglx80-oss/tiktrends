@@ -57,7 +57,7 @@ function capturer() {
   const l = lignesDuDevis(plan as never);
   if (!l.ok) throw new Error('l');
   const v = avecControleVision(l.lignes, { modele: 'claude-sonnet-5' });
-  const ec = entreeCompilation({ prep: { ok: true, violations: [], references: brief.references as never, referenceIds: ['pph_a'], interditsTransfert: [], composantsProteges: ['bandeau'], invariants: ['x'], avertissements: [] }, brief: brief as never, versionId: 'v1', mode: 'generative_scene', largeur: 1080, hauteur: 1350 });
+  const ec = entreeCompilation({ prep: { ok: true, violations: [], references: brief.references as never, referenceIds: ['pph_a'], interditsTransfert: [], composantsProteges: ['bandeau'], invariants: ['x'], avertissements: [], vuesProduit: [], vuesProposees: [] }, brief: brief as never, versionId: 'v1', mode: 'generative_scene', largeur: 1080, hauteur: 1350 });
   return { requete: r, sansRef, prompt: promptFal(consigne), familles, consigne: c.consigne, empreinte: empreinteConsigne(c.consigne), parametres: parametresDepuisConsigne(c.consigne), lu: lireConsignePersistee(c.consigne) !== null, lignes: l, vision: v, PRICING_VERSION, libelle: libelleCaseControleVision(borneControleVisionParImageMicros('claude-sonnet-5')), entreeCompilation: ec };
 }
 
@@ -199,7 +199,7 @@ describe('pub entière · le mode choisi va jusqu’au corps fal EXACT', () => {
   });
 
   it('compilation · le concept dit que le générateur dessine les textes (calques inchangé)', () => {
-    const prep = { ok: true, violations: [], references: brief.references as never, referenceIds: ['pph_a'], interditsTransfert: [], composantsProteges: ['bandeau'], invariants: ['x'], avertissements: [] };
+    const prep = { ok: true, violations: [], references: brief.references as never, referenceIds: ['pph_a'], interditsTransfert: [], composantsProteges: ['bandeau'], invariants: ['x'], avertissements: [], vuesProduit: [], vuesProposees: [] };
     const ec = entreeCompilation({ prep, brief: brief as never, versionId: 'v1', mode: 'generative_scene', largeur: 1080, hauteur: 1350, typographie: 'entiere' });
     const concept = (ec.resolvedDocuments[1]!.content as { claim: string }).claim;
     expect(concept).toContain('Textes : dessinés dans l’image par le générateur, mot pour mot');

@@ -42,7 +42,7 @@ import {
 import { borneControlePubMicros, CONTROLE_MODEL } from '@tiktrends/ai';
 import * as depotPrompts from '../lib/studios/prompts/depot-prompts';
 import { chargerCatalogueProjet } from '../lib/studios/produit/catalogue';
-import { epinglerProduitPour } from '../lib/studios/produit/commandes';
+import { epinglerProduitPour, definirFicheProduitPour } from '../lib/studios/produit/commandes';
 import { enregistrerVersion } from '../lib/studios/depot';
 import { compilerEtAttesterPour, retenirConsignePour } from '../lib/studios/image/consigne';
 import { lireParcoursImagePour, devisImagePour, approuverImagePour, controlerMediaPour } from '../lib/studios/image/parcours';
@@ -288,6 +288,25 @@ describe('pub entière · du choix à la compilation au corps fal exact, relue �
     expect(r).toMatchObject({ ok: false, code: 'INVALID_SCHEMA', message: expect.stringContaining('goût « fruit rouge » annoncé, « mangue » sur le produit') });
     expect(texte.recues).toHaveLength(0);
     expect(delta(avant, await compter(db))).toEqual({});
+  }, 120_000);
+});
+
+describe('pub entière · vues choisies du même produit (#1097)', () => {
+  it('épinglée + 2 vues choisies ⇒ 3 références, épinglée en tête ; la consigne et l’invariant disent UN article, au même compte', async () => {
+    const { projectId } = await projet(TEXTES);
+    const c = await chargerCatalogueProjet(ctxDe(ids, 'ua'), projectId, O);
+    if (!c.ok) throw new Error(c.code);
+    const photos = c.catalogue.produits.find((x) => x.produit.id === cat.produit.id)!.photos;
+    const v = await courante(projectId);
+    const f = await definirFicheProduitPour(ctxDe(ids, 'ua'), { projectId, baseVersionId: v.id, fiche: null, vues: [photos[2]!.assetId, photos[1]!.assetId] }, O);
+    if (!f.ok) throw new Error(JSON.stringify(f));
+    await retenue(projectId, 'entiere');
+    await generer(projectId);
+    const corps = JSON.parse(appels.filter((x) => x.methode === 'POST')[0]!.corps!) as { image_urls: string[]; prompt: string };
+    expect(corps.image_urls).toEqual([PHOTOS[4], PHOTOS[2], PHOTOS[1]]);
+    expect(corps.prompt).toContain('The first 3 provided images are views of the SAME single product');
+    expect(corps.prompt).toContain('Plusieurs exemplaires du produit : les photos produit 1 à 3 sont des vues du même article');
+    expect(corps.prompt).not.toContain('The provided image is the EXACT product.');
   }, 120_000);
 });
 
