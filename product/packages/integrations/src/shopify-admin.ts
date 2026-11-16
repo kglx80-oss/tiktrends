@@ -2,6 +2,8 @@
  * Shopify Admin API (app personnalisée · token shpat_...).
  * Remonte les vraies données commerce d'une boutique pour nourrir l'analyse (et Jarvis).
  */
+import { fetchPublicSansRedirection } from './safe-fetch';
+
 const API_VERSION = '2024-10';
 
 export interface ShopifyCommerceInsights {
@@ -13,16 +15,37 @@ export interface ShopifyCommerceInsights {
   topProducts: Array<{ title: string; units: number; revenue: number }>;
 }
 
-function normDomain(domain: string): string {
-  return domain.trim().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+/**
+ * Le domaine d'une boutique, nu · schéma et chemin retirés (comme avant). null
+ * si ce n'est pas un nom d'hôte simple · un PORT explicite (`boutique.com:8443`,
+ * `127.0.0.1:5432`), des identifiants (`a@b`), des crochets IPv6, un espace ou
+ * une requête sont refusés. Le jeton Admin ne part que vers `https://<hôte>`
+ * sur le port 443.
+ */
+export function domaineBoutiqueAdmin(domain: string): string | null {
+  const d = domain.trim().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+  return /^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/i.test(d) ? d : null;
 }
 
+/**
+ * L'appel GraphQL de l'API Admin · il porte le jeton (`X-Shopify-Access-Token`).
+ *
+ * ── Ce qui manquait ──────────────────────────────────────────────────────────
+ * Un `fetch` brut vers `https://<domaine saisi>` · port compris, adresse résolue
+ * jamais regardée, redirection suivie · un 307 vers un service interne y
+ * rejouait le POST AVEC le jeton. Désormais · domaine nu sans port
+ * (`domaineBoutiqueAdmin`), adresse publique (`assertPublicUrl`), aucune
+ * redirection suivie (`fetchPublicSansRedirection`).
+ */
 async function adminGraphQL<T>(domain: string, token: string, query: string, variables?: Record<string, unknown>): Promise<T> {
-  const res = await fetch(`https://${normDomain(domain)}/admin/api/${API_VERSION}/graphql.json`, {
+  const d = domaineBoutiqueAdmin(domain);
+  if (!d) throw new Error('Shopify : domaine invalide · indique le domaine de la boutique, sans port (ex : ta-boutique.myshopify.com).');
+  const res = await fetchPublicSansRedirection(`https://${d}/admin/api/${API_VERSION}/graphql.json`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-Shopify-Access-Token': token },
     body: JSON.stringify({ query, variables: variables ?? {} }),
   });
+  if (!res) throw new Error('Shopify : adresse refusée · seul le domaine public de la boutique (.myshopify.com) est accepté, sans redirection.');
   if (!res.ok) throw new Error(`Shopify HTTP ${res.status}${res.status === 401 ? ' · token invalide' : ''}`);
   const json = await res.json() as { data?: T; errors?: Array<{ message: string }> };
   if (json.errors?.length) throw new Error('Shopify : ' + json.errors.map((e) => e.message).join(', '));
