@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
   cleFournisseurDuJob, corpsFalImage, ratioFal, idDepenseDuJob, ErreurFournisseurCertaine, ErreurFournisseurIncertaine,
-  estErreurCertaine, inspecterMedia, type DemandeFournisseur,
+  estErreurCertaine, inspecterMedia, SCHEMA_PARAMETRES_CLIP, type DemandeFournisseur,
 } from '@tiktrends/core';
 import { FournisseurFal, type PreparationFal } from '../src/studios-fal';
 import { BarriereDepenseStudio, DepenseRefusee, type PortDepense } from '../src/plafond-depense';
@@ -309,42 +309,72 @@ describe('le corps natif est celui que le produit envoie déjà (`falGenerateIma
   }
 });
 
-/* ── Animation d'un plan · même file, même barrière, forfait vidéo ── */
+/* ── Animation d'un plan · même file, même barrière, tarif catalogue du modèle ── */
 describe('animation · clip image → vidéo sous la barrière, sortie vidéo rattachée au clip', () => {
   const REQ_V = 'b2c3d4e5-0000-4000-8000-0000000c11e0';
   const MODELE_V = 'fal-ai/kling-video/v2.5-turbo/pro/image-to-video';
   const BASE_V = `https://queue.fal.run/${MODELE_V}/requests/${REQ_V}`;
   const CLIP = 'https://v3.fal.media/files/zebra/clip.mp4';
-  const demandeClip: DemandeFournisseur = { cleIdempotence: cleFournisseurDuJob(JOB), operations: [{ operation: 'clip:s1', profil: 'animation' }], parametres: {} };
+  const PARAMS_CLIP = {
+    schema: SCHEMA_PARAMETRES_CLIP, operation: 'clip:s1', shotId: 's1', source: { assetId: 'sta_22222222-2222-4222-8222-222222222222', sha256: 'a'.repeat(64) },
+    consigne: 'Mouvement : sourit.', interdits: ['texte incrusté'], dureeS: 5, modele: MODELE_V, audio: false, resolution: null, ratio: null,
+  };
+  const demandeClip: DemandeFournisseur = { cleIdempotence: cleFournisseurDuJob(JOB), operations: [{ operation: 'clip:s1', profil: 'animation' }], parametres: PARAMS_CLIP };
   const corpsClip = { prompt: 'Mouvement : sourit.', image_url: 'https://cdn.tiktrends.test/studio/kf.png', duration: '5', negative_prompt: 'texte incrusté' };
   const modeles: string[] = [];
   class PortModele extends PortMemoire {
     async reserver(l: Parameters<PortDepense['reserver']>[0], o: Parameters<PortDepense['reserver']>[1]) { modeles.push(String(l.model)); return super.reserver(l, o); }
   }
-  function fournisseurClip() {
+  function fournisseurClip(modelePrepare = MODELE_V, corps: Record<string, unknown> = corpsClip) {
     port = new PortModele();
     const barriere = new BarriereDepenseStudio({ port, env: { AI_SPEND_CAP_USD: '10' }, horloge: () => new Date(maintenant) });
     return new FournisseurFal({
       apiKey: CLE_FAL, fetch: fetchRejoue, barriere,
-      preparer: async () => ({ ok: true as const, workspaceId: ESPACE, modele: MODELE_V, corps: corpsClip }),
+      preparer: async () => ({ ok: true as const, workspaceId: ESPACE, modele: modelePrepare, corps }),
       operationsDuJob: async () => ['clip:s1'],
       verifierAdresse: async () => true, horloge: () => new Date(maintenant), journal: (e) => journal.push(e),
     });
   }
   beforeEach(() => { modeles.length = 0; });
 
-  it('POST au modèle image → vidéo, corps préparé, réserve au forfait vidéo de la grille (poste fal_video)', async () => {
+  it('POST au modèle image → vidéo, corps préparé, réserve au tarif catalogue · Kling 5 s = 0,35 $ (poste fal_video)', async () => {
     route(estPost, json(200, { request_id: REQ_V, response_url: BASE_V, status_url: `${BASE_V}/status`, cancel_url: `${BASE_V}/cancel` }));
     await fournisseurClip().soumettre(demandeClip);
     expect(appels.map((a) => [a.methode, a.url])).toEqual([['POST', `https://queue.fal.run/${MODELE_V}`]]);
     expect(appels[0]!.corps).toEqual(corpsClip);
-    expect(ligne()).toEqual({ usd: 0.6, actual: 0.6, workspaceId: ESPACE, action: 'studio.generation' });
+    expect(ligne()).toEqual({ usd: 0.35, actual: 0.35, workspaceId: ESPACE, action: 'studio.generation' });
     expect(modeles).toEqual(['fal_video']);
   });
 
-  it('plafond trop bas pour le forfait vidéo : AUCUNE requête', async () => {
+  it('Veo 3.1 Fast 8 s avec voix · réserve EXACTE 8 × 0,15 $ = 1,20 $, avant l’envoi', async () => {
+    const VEO = 'fal-ai/veo3.1/fast/image-to-video';
+    const BASE_VEO = `https://queue.fal.run/${VEO}/requests/${REQ_V}`;
+    route(estPost, json(200, { request_id: REQ_V, response_url: BASE_VEO, status_url: `${BASE_VEO}/status`, cancel_url: `${BASE_VEO}/cancel` }));
+    const corpsVeo = { ...corpsClip, duration: '8s', aspect_ratio: '9:16', resolution: '1080p', generate_audio: true };
+    await fournisseurClip(VEO, corpsVeo).soumettre({ ...demandeClip, parametres: { ...PARAMS_CLIP, modele: VEO, dureeS: 8, audio: true, resolution: '1080p', ratio: '9:16' } });
+    expect(appels.map((a) => [a.methode, a.url])).toEqual([['POST', `https://queue.fal.run/${VEO}`]]);
+    expect(appels[0]!.corps).toEqual(corpsVeo);
+    expect(ligne()).toEqual({ usd: 1.2, actual: 1.2, workspaceId: ESPACE, action: 'studio.generation' });
+  });
+
+  it('modèle préparé différent du modèle devisé : rien réservé, AUCUNE requête', async () => {
+    const e = await erreurDe(fournisseurClip('fal-ai/veo3.1/fast/image-to-video').soumettre(demandeClip));
+    expect(e).toBeInstanceOf(ErreurFournisseurCertaine);
+    expect((e as Error).message).toMatch(/^modèle préparé \(fal-ai\/veo3\.1\/fast\/image-to-video\) différent du modèle devisé/);
+    expect(appels).toEqual([]);
+    expect(port.lignes.size).toBe(0);
+  });
+
+  it('paramètres du clip absents ou illisibles : rien réservé, AUCUNE requête', async () => {
+    const e = await erreurDe(fournisseurClip().soumettre({ ...demandeClip, parametres: {} }));
+    expect((e as Error).message).toMatch(/^paramètres du clip illisibles/);
+    expect(appels).toEqual([]);
+    expect(port.lignes.size).toBe(0);
+  });
+
+  it('plafond trop bas pour le tarif du clip : AUCUNE requête', async () => {
     const f = fournisseurClip();
-    port.depenseExterne = 9.5;
+    port.depenseExterne = 9.7;
     const e = await erreurDe(f.soumettre(demandeClip));
     expect(e).toBeInstanceOf(DepenseRefusee);
     expect(appels).toEqual([]);

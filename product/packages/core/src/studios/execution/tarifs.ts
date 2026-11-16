@@ -50,8 +50,11 @@ export interface TarifProfil {
  *  · image · prix fixe connu par image (`FIXED_COSTS.fal_image`, la même
  *    somme que le worker réserve par soumission) ⇒ borne ;
  *  · calcul · déterministe, local, aucun fournisseur payant ⇒ borne (0 $) ;
- *  · animation · forfait (`FIXED_COSTS.fal_video`), le prix réel dépend de la
- *    durée et du modèle ⇒ estimation ;
+ *  · animation · la ligne du clip est REPRISE au devis au tarif du catalogue
+ *    vidéo (`lignesAvecTarifClip`, `fournisseurs/catalogue-video.ts` : prix à
+ *    la seconde du modèle × durée, motif propre) ; ce forfait reste celui du
+ *    benchmark et du repli hors catalogue ⇒ estimation dans tous les cas (prix
+ *    non rapprochés d'une facture) ;
  *  · voix · aucun tarif (refusée au devis), nature sans objet.
  * Hors grille (`PRICING_VERSION` inchangée) : la nature ne change aucun prix.
  */
@@ -267,7 +270,7 @@ export function controleVisionApprouve(lignes: unknown): { unites: number; usdMi
 export function libelleLigneDevis(l: Pick<LigneDevis, 'operation' | 'profil' | 'unites'>): string {
   if (l.profil === PROFIL_CONTROLE_VISION) return `Contrôle visuel · ${l.unites} image${l.unites > 1 ? 's' : ''}`;
   if (l.profil === 'image_generation') return `Image · ${l.operation}`;
-  if (l.profil === 'animation') return `Animation · ${l.operation}`;
+  if (l.profil === 'animation') return `Animation · ${l.operation}${l.unites > 1 ? ` · ${l.unites} s` : ''}`;
   if (l.profil === 'calcul') return `Calcul · ${l.operation}`;
   return l.operation;
 }

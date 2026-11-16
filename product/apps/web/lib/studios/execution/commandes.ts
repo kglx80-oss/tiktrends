@@ -225,7 +225,8 @@ export async function creerDevis(ctx: ContexteStudio, e: EntreeDevis, base: Base
       // L6-A · images clés des plans : consigne `shot.image` retenue, attestée, à jour, références intactes.
       const plans = await raccordPlansDevis(tx, ctx, { projet, contenu: courante.content as ContenuVersion, lignes: l.lignes });
       if (!plans.ok) throw new Refus(plans);
-      // Animation d'un plan : clip seul, image clé valide, paramètres construits par le serveur.
+      // Animation d'un plan : clip seul, image clé valide, paramètres construits par le serveur,
+      // ligne du clip reprise au tarif catalogue du modèle (prix à la seconde × durée).
       const clips = await raccordClipsDevis(tx, ctx, { projet, contenu: courante.content as ContenuVersion, lignes: l.lignes });
       if (!clips.ok) throw new Refus(clips);
       const empreinteImage = image.empreinte ?? plans.empreinte ?? clips.empreinte;
@@ -233,7 +234,7 @@ export async function creerDevis(ctx: ContexteStudio, e: EntreeDevis, base: Base
       // ajouté après coup) · ajoutée par défaut, retirée si décochée, absente
       // quand il ne peut pas s'exécuter ici. Les totaux l'incluent.
       const regimeDevis = await regimeEspace(ctx.workspaceId);
-      const v = avecControleVision(l.lignes, {
+      const v = avecControleVision(clips.lignes, {
         actif: controleVisionActif({ demande: e.controleVision, fournisseurVision: adaptateurAnthropicGarde() !== null, devisImage: exigenceImageDuDevis(l.lignes).concerne, parDefaut: regimeDevis !== 'v2' }),
         modele: modeleTexte(),
       });

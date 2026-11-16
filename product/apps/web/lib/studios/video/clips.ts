@@ -2,7 +2,7 @@ import 'server-only';
 import { and, eq } from 'drizzle-orm';
 import { schema } from '@tiktrends/db';
 import {
-  parametresDuClip, empreinteParametresClip, lireParametresClip, planDeClip, erreurStudio,
+  parametresDuClip, empreinteParametresClip, lireParametresClip, planDeClip, erreurStudio, modeleAnimationStudio, lignesAvecTarifClip, refusTarifClipChange,
   type ContenuVersion, type ErreurStudio, type LigneDevis, type ParametresClipSnapshot,
 } from '@tiktrends/core';
 import type { ContexteStudio } from '../garde';
@@ -15,11 +15,14 @@ import { mediasProduits } from './lecture';
  *
  *  · au devis : un clip se devise SEUL ; son plan doit avoir une image clé
  *    PRODUITE et encore valide pour la version courante (média du projet,
- *    stocké) ; les paramètres sont construits par le serveur et leur empreinte
- *    entre dans `inputHash` ;
- *  · à l'approbation : `snapshot.parametres` = `studio_clip/1`, reconstruit
+ *    stocké) ; les paramètres sont construits par le serveur (modèle
+ *    `FAL_VIDEO_MODEL_STUDIO`, durée permise, voix) et leur empreinte entre
+ *    dans `inputHash` ; la ligne du clip est REPRISE au tarif catalogue du
+ *    modèle (une unité par seconde, `lignesAvecTarifClip`) ;
+ *  · à l'approbation : `snapshot.parametres` = `studio_clip/2`, reconstruit
  *    depuis la version DEVISÉE et les médias relus MAINTENANT · une image clé
- *    remplacée ou retirée entre-temps ⇒ refus, rien débité.
+ *    remplacée ou retirée entre-temps, ou un tarif qui ne vaut plus la ligne
+ *    du devis ⇒ refus, rien débité.
  */
 
 interface Portee { workspaceId: string; brandId: string; projectId: string }
@@ -57,22 +60,29 @@ async function parametres(ex: ExecStudio, ctx: ContexteStudio, p: Portee, conten
   }
   const sid = x.plans[0]!;
   const keyframe = await keyframeValideDuPlan(ex, p, contenu, sid);
-  const r = parametresDuClip({ contenu, shotId: sid, keyframe });
+  const r = parametresDuClip({ contenu, shotId: sid, keyframe, modele: modeleAnimationStudio(process.env) });
   if (!r.ok) return erreurStudio(r.code, { traceId: ctx.traceId, targetIds: [`clip:${sid}`], message: `${r.motif}${suffixe}` });
   return { ok: true, parametres: r.parametres };
 }
 
-/** Au devis · paramètres du clip construits par le serveur ; leur empreinte entre dans `inputHash`. */
+/**
+ * Au devis · paramètres du clip construits par le serveur ; leur empreinte
+ * entre dans `inputHash`. `lignes` · les lignes du devis, celle du clip
+ * reprise au tarif catalogue (inchangées hors clip).
+ */
 export async function raccordClipsDevis(
   ex: ExecStudio, ctx: ContexteStudio,
   e: { projet: { id: string; workspaceId: string; brandId: string }; contenu: ContenuVersion; lignes: ReadonlyArray<LigneDevis> },
-): Promise<{ ok: true; empreinte: string | null } | ErreurStudio> {
+): Promise<{ ok: true; empreinte: string | null; lignes: LigneDevis[] } | ErreurStudio> {
   const r = await parametres(ex, ctx, { workspaceId: e.projet.workspaceId, brandId: e.projet.brandId, projectId: e.projet.id }, e.contenu, e.lignes, '');
   if (!r.ok) return r;
-  return { ok: true, empreinte: r.parametres ? empreinteParametresClip(r.parametres) : null };
+  if (!r.parametres) return { ok: true, empreinte: null, lignes: [...e.lignes] };
+  const t = lignesAvecTarifClip(e.lignes, r.parametres);
+  if (!t.ok) return erreurStudio('UNSUPPORTED_CAPABILITY', { traceId: ctx.traceId, targetIds: [r.parametres.operation], message: `Clip sans tarif · ${t.motif}. Retire-le du devis.` });
+  return { ok: true, empreinte: empreinteParametresClip(r.parametres), lignes: t.lignes };
 }
 
-/** À l'approbation · `studio_clip/1` relu des données SERVEUR de la version devisée · `null` hors clips. */
+/** À l'approbation · `studio_clip/2` relu des données SERVEUR de la version devisée, tarif revérifié · `null` hors clips. */
 export async function parametresClipsApprobation(
   ex: ExecStudio, ctx: ContexteStudio,
   q: { workspaceId: string; brandId: string; projectId: string; projectVersionId: string; lines: unknown },
@@ -87,5 +97,8 @@ export async function parametresClipsApprobation(
   if (!r.ok) return r;
   const lu = lireParametresClip(r.parametres);
   if (!lu.ok) return erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, violations: lu.violations.map((raison) => ({ chemin: 'parametres', raison })) });
+  // La réserve du worker vaudra le tarif de CES paramètres : il doit être celui que le devis a annoncé.
+  const change = refusTarifClipChange(q.lines, lu.parametres);
+  if (change) return erreurStudio('VERSION_CONFLICT', { traceId: ctx.traceId, targetIds: [lu.parametres.operation], message: change });
   return { ok: true, parametres: r.parametres as unknown as Record<string, unknown> };
 }

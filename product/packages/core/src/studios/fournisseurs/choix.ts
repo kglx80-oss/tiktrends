@@ -16,7 +16,7 @@
  * ici : il vit dans un module que la production n'importe pas.
  */
 
-import { MODELE_FAL_ANIMATION_DEFAUT } from './fal-video';
+import { modeleAnimationStudio } from './catalogue-video';
 
 export type DecisionFournisseur =
   | { ok: true; apiKey: string; queueUrl: string | null; modeles: { generation: string; edition: string; animation: string } }
@@ -44,8 +44,11 @@ export function decisionFournisseurStudio(env: Readonly<Record<string, string | 
     modeles: {
       generation: env.FAL_IMAGE_MODEL || MODELE_FAL_GENERATION_DEFAUT,
       edition: env.FAL_IMAGE_MODEL_EDIT || MODELE_FAL_EDITION_DEFAUT,
-      // Même variable et même défaut que `falGenerateVideo` (image → vidéo).
-      animation: env.FAL_VIDEO_MODEL_I2V || MODELE_FAL_ANIMATION_DEFAUT,
+      // Variable PROPRE aux Studios (`FAL_VIDEO_MODEL_STUDIO`, défaut Kling 2.5
+      // turbo pro) · `FAL_VIDEO_MODEL_I2V` reste celle de l'ancien « Vidéo IA ».
+      // Ne décide que pour un instantané `studio_clip/1` : un clip devisé part
+      // au modèle de son devis.
+      animation: modeleAnimationStudio(env),
     },
   };
 }

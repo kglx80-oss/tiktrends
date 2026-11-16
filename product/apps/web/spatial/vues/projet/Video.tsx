@@ -191,7 +191,7 @@ export function Video({ vue: v, marque, variantesHref, planInitial }: PropsVideo
     disponibilite: { consigne: disponibilite.consigne, montage: disponibilite.montage, devis: disponibilite.devis, lancement: disponibilite.lancement, animation: disponibilite.animation },
     keyframe: { etat: k.etat, consigneEnAttente: !!k.enAttente, consigneRetenue: k.retenue ? { ok: k.retenue.verdict.ok, motif: k.retenue.verdict.ok ? '' : k.retenue.verdict.motif } : null, devisCredits: k.devis?.credits ?? null },
     clip: { keyframePrete: c.keyframePrete, devisCredits: c.devis?.credits ?? null },
-    prixImageCredits: v.prix.credits, prixClip: { credits: v.prixClip.credits, dureeS: v.prixClip.dureeS }, coutTexte: mentionAppelTexte(regime, v.coutTexteUsd),
+    prixImageCredits: v.prix.credits, prixClip: prixClipGeste(c.prix, v.prixClip), coutTexte: mentionAppelTexte(regime, v.coutTexteUsd),
   }) : [];
   const gesteChoisi = gestes.find((g) => g.cle === geste) ?? null;
   // Pendant l'envoi, seul le bouton qui l'a lancé dit « En cours… » ; il reste focalisable.
@@ -524,6 +524,13 @@ function libelleConfirmation(cle: CleGestePlan, devisImage: number | null, devis
   }
 }
 
+/** Le prix du clip d'un plan pour ses gestes · modèle et durée du plan, ou la raison du refus · repli au forfait. */
+function prixClipGeste(x: DonneesVideo['clips'][string]['prix'], repli: DonneesVideo['prixClip']): { credits: number; dureeS: number; libelle?: string | null; refus?: string | null } {
+  if (x?.ok) return { credits: x.credits, dureeS: x.dureeS, libelle: x.libelleModele };
+  if (x && !x.ok) return { credits: repli.credits, dureeS: repli.dureeS, refus: x.raison };
+  return { credits: repli.credits, dureeS: repli.dureeS };
+}
+
 function DetailGeste({ cle, k, c, vue, coutTexte }: {
   cle: CleGestePlan; k: DonneesVideo['keyframes'][string]; c: DonneesVideo['clips'][string]; vue: DonneesVideo; coutTexte: string;
 }) {
@@ -535,7 +542,15 @@ function DetailGeste({ cle, k, c, vue, coutTexte }: {
     {p(`Une image clé · ${libellePrix(vue.prix)} · le devis ne débite rien.`)}
   </>;
   if (cle === 'lancer') return k.devis ? p(`Devis · ${libelleCredits(k.devis.credits)} · valable jusqu’à ${heure(k.devis.expiresAt)}. Débite ${libelleCredits(k.devis.credits)} maintenant · rendus si aucune image n’est livrée.`) : p('Demande d’abord un devis.');
-  if (cle === 'devis-clip') return p(`Un clip de ${vue.prixClip.dureeS} s depuis l’image clé · ${libelleCredits(vue.prixClip.credits)} · le devis ne débite rien.`);
+  if (cle === 'devis-clip') {
+    const x = c.prix;
+    if (x && !x.ok) return p(x.raison);
+    if (x?.ok) return <>
+      {p(`Un clip de ${x.dureeS} s · ${x.libelleModele}${x.audio ? ' avec voix native' : ' muet'} · depuis l’image clé · ${libelleCredits(x.credits)} · le devis ne débite rien.`)}
+      {x.limites.length > 0 && p(x.limites.join(' · '))}
+    </>;
+    return p(`Un clip de ${vue.prixClip.dureeS} s depuis l’image clé · ${libelleCredits(vue.prixClip.credits)} · le devis ne débite rien.`);
+  }
   return c.devis ? p(`Devis du clip · ${libelleCredits(c.devis.credits)} · valable jusqu’à ${heure(c.devis.expiresAt)}. Les crédits sont réservés, rendus si aucun clip n’est livré.`) : p('Demande d’abord le devis du clip.');
 }
 

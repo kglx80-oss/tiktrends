@@ -144,7 +144,12 @@ export interface EntreeGestesPlan {
   keyframe: { etat: EtatSortie; consigneEnAttente: boolean; consigneRetenue: { ok: boolean; motif: string } | null; devisCredits: number | null };
   clip: { keyframePrete: boolean; devisCredits: number | null };
   prixImageCredits: number;
-  prixClip: { credits: number; dureeS: number };
+  /**
+   * Prix du clip DE CE PLAN annoncé avant le devis · `libelle` le modèle,
+   * `refus` la raison pour laquelle ce modèle ne sait pas faire ce plan
+   * (prise parlée dans une langue qu'il ne parle pas, format non couvert).
+   */
+  prixClip: { credits: number; dureeS: number; libelle?: string | null; refus?: string | null };
   /** Coût maximal d'un appel texte, déjà dit en clair (`libelleCoutTexteEstime`). */
   coutTexte: string;
 }
@@ -157,13 +162,13 @@ export function gestesPlan(e: EntreeGestesPlan): GestePlan[] {
   const k = e.keyframe;
   const retenueOk = !!k.consigneRetenue?.ok;
   const raisonDevis = !k.consigneRetenue ? 'Retiens d’abord une consigne compilée pour ce plan.' : !k.consigneRetenue.ok ? k.consigneRetenue.motif : !d.devis.disponible ? d.devis.raison : null;
-  const raisonClip = !d.animation.disponible ? d.animation.raison : !e.clip.keyframePrete ? 'Produis d’abord l’image clé de ce plan : le clip part d’elle.' : !d.devis.disponible ? d.devis.raison : null;
+  const raisonClip = !d.animation.disponible ? d.animation.raison : e.prixClip.refus ? e.prixClip.refus : !e.clip.keyframePrete ? 'Produis d’abord l’image clé de ce plan : le clip part d’elle.' : !d.devis.disponible ? d.devis.raison : null;
   return [
     { cle: 'consigne', titre: 'Consigne de l’image', sous: 'Jarvis écrit la consigne du plan', prix: e.coutTexte, payant: true, actif: d.consigne.disponible, raison: d.consigne.disponible ? null : d.consigne.raison },
     { cle: 'retenir', titre: 'Retenir la consigne', sous: 'Nouvelle version · aucun coût', prix: cr(0), payant: false, actif: k.consigneEnAttente && d.montage.disponible, raison: !k.consigneEnAttente ? 'Aucune consigne compilée en attente.' : d.montage.disponible ? null : d.montage.raison },
     { cle: 'devis', titre: k.etat === 'valide' ? 'Devis d’une variante' : 'Devis de l’image clé', sous: 'Prix figé · rien n’est débité', prix: cr(e.prixImageCredits), payant: false, actif: retenueOk && d.devis.disponible, raison: raisonDevis },
     { cle: 'lancer', titre: 'Lancer l’image clé', sous: 'Débite le devis au lancement', prix: cr(k.devisCredits ?? e.prixImageCredits), payant: true, actif: k.devisCredits !== null && d.lancement.disponible, raison: k.devisCredits === null ? 'Demande d’abord un devis.' : d.lancement.disponible ? null : d.lancement.raison },
-    { cle: 'devis-clip', titre: 'Devis du clip animé', sous: `Clip de ${e.prixClip.dureeS} s depuis l’image clé`, prix: cr(e.prixClip.credits), payant: false, actif: raisonClip === null, raison: raisonClip },
+    { cle: 'devis-clip', titre: 'Devis du clip animé', sous: e.prixClip.libelle ? `Clip de ${e.prixClip.dureeS} s · ${e.prixClip.libelle}` : `Clip de ${e.prixClip.dureeS} s depuis l’image clé`, prix: cr(e.prixClip.credits), payant: false, actif: raisonClip === null, raison: raisonClip },
     { cle: 'lancer-clip', titre: 'Animer le plan', sous: 'Débite le devis du clip', prix: cr(e.clip.devisCredits ?? e.prixClip.credits), payant: true, actif: e.clip.devisCredits !== null && d.lancement.disponible && d.animation.disponible, raison: e.clip.devisCredits === null ? 'Demande d’abord le devis du clip.' : !d.animation.disponible ? d.animation.raison : d.lancement.disponible ? null : d.lancement.raison },
   ];
 }

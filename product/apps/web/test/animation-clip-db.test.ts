@@ -8,9 +8,10 @@ import type { IdsStudios, SessionTest } from './studios-semis';
  * n'est envoyé.
  *
  *  · sans image clé produite pour le plan ⇒ devis refusé, aucune ligne ;
- *  · image clé produite et valide ⇒ devis d'un clip au forfait vidéo, écran
- *    « clip à animer » avec devis ; approbation ⇒ job dont l'instantané porte
- *    `studio_clip/1` (image clé et son empreinte) ;
+ *  · image clé produite et valide ⇒ devis d'un clip au tarif catalogue du
+ *    modèle (Kling 5 s · 5 × 0,07 $), écran « clip à animer » avec devis ;
+ *    approbation ⇒ job dont l'instantané porte `studio_clip/2` (image clé et
+ *    son empreinte, modèle devisé) ;
  *  · worker ⇒ corps image → vidéo (adresse publique de l'image clé, 5 s) ;
  *    image clé modifiée depuis ⇒ bloqué avant tout envoi ;
  *  · fournisseur non branché ⇒ devis refusé, comme avant.
@@ -33,7 +34,7 @@ vi.mock('../lib/auth', () => ({ getSession: async () => etat.session }));
 vi.mock('next/cache', () => ({ revalidatePath: () => {} }));
 
 import { db, schema, eq } from '@tiktrends/db';
-import { cleFournisseurDuJob, lireSnapshotJob, GRILLE_STUDIO, SCHEMA_PARAMETRES_CLIP, type SondeVideo } from '@tiktrends/core';
+import { cleFournisseurDuJob, lireSnapshotJob, SCHEMA_PARAMETRES_CLIP, type SondeVideo } from '@tiktrends/core';
 import { publicUrlFor, type StorageConfig } from '@tiktrends/integrations';
 import { semer } from './studios-semis';
 import { ctxDe, poserSolde, projetTest, banc, jusquAuBout } from './l3-harnais';
@@ -80,7 +81,7 @@ describe('animation d’un plan · devis, approbation, corps fal', () => {
     expect(l.ok && l.vue.clips[PLAN]).toMatchObject({ etat: 'a_produire', keyframePrete: false, devis: null });
   });
 
-  it('image clé produite (job réel, worker du banc) ⇒ devis d’un clip au forfait vidéo, l’écran le montre', async () => {
+  it('image clé produite (job réel, worker du banc) ⇒ devis d’un clip au tarif catalogue, l’écran le montre', async () => {
     const dk = await creerDevis(ctxDe(ids, 'ua'), { projectId: projet.projectId, operations: [`keyframe:${PLAN}`], variante: true }, base, new Date());
     if (!dk.ok) throw new Error(dk.code);
     const ak = await approuverEtMettreEnFile(ctxDe(ids, 'ua'), { quoteId: dk.devis.id, inputHash: dk.devis.inputHash, creditsAnnonces: dk.devis.maximumCredits, idempotencyKey: `k-${dk.devis.id}` }, { illimite: false });
@@ -94,14 +95,15 @@ describe('animation d’un plan · devis, approbation, corps fal', () => {
     const d = await devisClip();
     expect(d.ok, !d.ok ? `${d.code} ${d.message}` : '').toBe(true);
     if (!d.ok) return;
-    const lignes = (await db.select().from(schema.studioQuotes).where(eq(schema.studioQuotes.id, d.devis.id)))[0]!.lines as Array<{ operation: string; profil: string; usdMicros: number }>;
-    expect(lignes.filter((x) => x.profil !== 'calcul').map((x) => [x.operation, x.profil, x.usdMicros])).toEqual([[`clip:${PLAN}`, 'animation', GRILLE_STUDIO.animation.usdMicros]]);
+    const lignes = (await db.select().from(schema.studioQuotes).where(eq(schema.studioQuotes.id, d.devis.id)))[0]!.lines as Array<{ operation: string; profil: string; usdMicros: number; unites: number; credits: number }>;
+    expect(lignes.filter((x) => x.profil !== 'calcul').map((x) => [x.operation, x.profil, x.unites, x.usdMicros, x.credits])).toEqual([[`clip:${PLAN}`, 'animation', 5, 70_000, 40]]);
+    expect([d.devis.maximumCredits, d.devis.maximumUsdMicros]).toEqual([200, 350_000]);
     const l = await lireVideoPour(ctxDe(ids, 'ua'), projet.projectId, LECTURE);
     expect(l.ok && l.vue.disponibilite.animation.disponible).toBe(true);
     expect(l.ok && l.vue.clips[PLAN]).toMatchObject({ etat: 'a_produire', keyframePrete: true, devis: { id: d.devis.id } });
   });
 
-  it('approbation ⇒ job en file dont l’instantané porte studio_clip/1 (image clé et son empreinte)', async () => {
+  it('approbation ⇒ job en file dont l’instantané porte studio_clip/2 (image clé et son empreinte, modèle devisé)', async () => {
     const d = await devisClip();
     if (!d.ok) throw new Error(d.code);
     const r = await approuverEtMettreEnFile(ctxDe(ids, 'ua'), { quoteId: d.devis.id, inputHash: d.devis.inputHash, creditsAnnonces: d.devis.maximumCredits, idempotencyKey: `c-${d.devis.id}` }, { illimite: false });
@@ -109,7 +111,7 @@ describe('animation d’un plan · devis, approbation, corps fal', () => {
     if (!r.ok) return;
     const [job] = await db.select().from(schema.studioJobs).where(eq(schema.studioJobs.id, r.job.id));
     const p = lireSnapshotJob(job!.snapshot)?.parametres as Record<string, unknown>;
-    expect(p).toMatchObject({ schema: SCHEMA_PARAMETRES_CLIP, operation: `clip:${PLAN}`, source: { assetId: `sta_${keyframe.id}`, sha256: keyframe.sha256 }, dureeS: 5 });
+    expect(p).toMatchObject({ schema: SCHEMA_PARAMETRES_CLIP, operation: `clip:${PLAN}`, source: { assetId: `sta_${keyframe.id}`, sha256: keyframe.sha256 }, dureeS: 5, modele: MODELES.animation, audio: false, resolution: null, ratio: null });
     expect(String(p.consigne)).toMatch(/^Mouvement : /);
 
     // Le VRAI préparateur du worker · corps image → vidéo, adresse signée temporaire de l'image clé.
