@@ -5,11 +5,12 @@ import { useRouter } from 'next/navigation';
 import {
   ACCEPT_PHOTO_IMPORT, EFFET_ROLE, LIBELLES_MODE_IMAGE, LIBELLES_PORTEE, LIBELLES_ROLE, LIBELLES_TRANSFORMATION,
   PORTEES_REFERENCE, ROLES_REFERENCE, TRANSFORMATIONS_PAR_DEFAUT, TRANSFORMATIONS_PRODUIT,
-  affichageImportPhoto, etatProduitPret, raisonAssociation, raisonEpinglage, raisonFermeture, raisonImportPhoto, resumeVersionPhoto, verdictFichierPhoto,
-  type ErreurStudio, type EtatImportPhoto, type ModeImage, type RecuperationImport, type TransformationProduit,
+  ECHELLES_PRODUIT, EXEMPLES_ECHELLE, FICHE_TEXTE_MAX, FICHE_VIDE, LIBELLES_ECHELLE, LIBELLES_ORIGINE_VUE, VUES_PRODUIT_MAX,
+  affichageImportPhoto, etatProduitPret, raisonAssociation, raisonEpinglage, raisonFermeture, raisonFiche, raisonImportPhoto, raisonVue, resumeVersionPhoto, verdictFichierPhoto,
+  type ErreurStudio, type EtatImportPhoto, type FicheProduit, type ModeImage, type RecuperationImport, type TransformationProduit,
 } from '@tiktrends/core';
 import type { VueProduit } from '../../../lib/studios/produit/vue';
-import { associerReference, epinglerProduit, importerPhotoProduit, retirerReference } from '../../../app/actions/studios/produit';
+import { associerReference, definirFicheProduit, epinglerProduit, importerPhotoProduit, retirerReference } from '../../../app/actions/studios/produit';
 import { compresserPhoto } from '../../../lib/studios/produit/compression-photo';
 import { useSpatial } from '../../coquille/contexte';
 import { Ic, Vue } from '../../communs';
@@ -241,6 +242,11 @@ export function Produit({ vue, atelier }: PropsProduit) {
         )}
       </section>
 
+      {e && (
+        <FicheEtVues vue={vue} occupe={occupe} enCours={enCours === 'fiche'} horsLigne={horsLigne}
+          enregistrer={(fiche, vues) => agir('fiche', 'Fiche enregistrée · nouvelle version du projet.', () => definirFicheProduit({ projectId: vue.projet.id, baseVersionId: vue.version.id, fiche, vues }))} />
+      )}
+
       {e && <ParcoursImage projectId={vue.projet.id} versionId={vue.version.id} />}
 
       <section className="tile sec" data-zone="references" style={{ display: 'grid', gap: 12 }}>
@@ -300,6 +306,112 @@ export function Produit({ vue, atelier }: PropsProduit) {
         )}
       </section>
     </Vue>
+  );
+}
+
+/**
+ * La fiche du produit épinglé et ses vues · ce que le modèle d'images reçoit
+ * en plus de la photo épinglée. Les vues : jusqu'à deux autres photos du MÊME
+ * produit (par défaut les suivantes de la fiche, ou choisies ici). La fiche :
+ * taille réelle et son repère, ce que les photos ne montrent pas, ce qu'un
+ * achat contient, l'emballage · chaque champ rempli devient une règle de la
+ * consigne. Saisie à la main, gratuite · rien n'est généré à cette étape.
+ */
+export function FicheEtVues({ vue, occupe, enCours, horsLigne, enregistrer }: {
+  vue: VueProduit; occupe: boolean; enCours: boolean; horsLigne: boolean;
+  enregistrer: (fiche: FicheProduit, vues: string[] | null) => Promise<boolean>;
+}) {
+  const id = useId();
+  const e = vue.epingle!;
+  const [fiche, setFiche] = useState<FicheProduit>({ ...FICHE_VIDE, ...(e.fiche ?? {}) });
+  const [choix, setChoix] = useState<boolean>(Array.isArray(e.vuesChoisies));
+  const [vues, setVues] = useState<string[]>(e.vuesChoisies ?? []);
+  const autres = (vue.produits.find((p) => p.id === e.productId)?.photos ?? []).filter((ph) => ph.assetId !== e.photo.assetId);
+  const envoyees = vue.preparation.generative_scene.vuesProduit;
+  const positions = new Map((vue.produits.find((p) => p.id === e.productId)?.photos ?? []).map((ph) => [ph.assetId, ph.position]));
+  const champ = (k: keyof FicheProduit) => (x: { target: { value: string } }) => setFiche((f) => ({ ...f, [k]: x.target.value }));
+  const raison = raisonFermeture(horsLigne, raisonFiche({ peutModifier: vue.peutModifier, fiche }));
+
+  return (
+    <section className="tile sec" data-zone="fiche-produit" style={{ display: 'grid', gap: 12 }}>
+      <div className="sech" style={{ margin: 0 }}><h2>Ce que le modèle sait du produit</h2><span className="faint" style={{ fontSize: '12.5px' }}>Saisi par toi · gratuit, aucune génération à cette étape</span></div>
+
+      <div data-zone="vues-produit" style={{ display: 'grid', gap: 8 }}>
+        <div className="lbl">Photos envoyées au modèle · {VUES_PRODUIT_MAX} au plus</div>
+        <ol style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 2 }} data-liste="vues-envoyees">
+          {envoyees.map((v) => (
+            <li key={v.assetId} data-vue={v.assetId} data-origine={v.origine} style={{ fontSize: '12.5px' }}>Photo {v.position ?? positions.get(v.assetId) ?? '?'} · {LIBELLES_ORIGINE_VUE[v.origine]}</li>
+          ))}
+        </ol>
+        <small className="faint" style={{ fontSize: '11.5px' }}>Une autre vue du même produit (dos, côté, gros plan de l’étiquette) aide le modèle à le redessiner fidèlement · jamais la photo d’un autre produit.</small>
+        {autres.length > 0 && (
+          <>
+            <div className="kc" role="radiogroup" aria-label="Choix des autres vues">
+              <button type="button" className="chip" role="radio" aria-checked={!choix} disabled={!vue.peutModifier} style={{ minHeight: 44 }} data-geste="vues-defaut" onClick={() => setChoix(false)}>Par défaut · les photos suivantes</button>
+              <button type="button" className="chip" role="radio" aria-checked={choix} disabled={!vue.peutModifier} style={{ minHeight: 44 }} data-geste="vues-choix" onClick={() => setChoix(true)}>Je choisis les vues</button>
+            </div>
+            {choix && (
+              <div className="kc" data-zone="vues-choix">
+                {autres.map((ph) => {
+                  const choisie = vues.includes(ph.assetId);
+                  const r = raisonVue({ peutModifier: vue.peutModifier, choisie, nombreChoisies: vues.length });
+                  return (
+                    <span key={ph.assetId} style={{ display: 'grid', gap: 2 }}>
+                      <button type="button" className="chip" aria-pressed={choisie} disabled={!!r} style={{ minHeight: 44 }} data-vue-choix={ph.position}
+                        aria-describedby={r ? `${id}-vue-${ph.position}` : undefined}
+                        onClick={() => setVues((l) => (l.includes(ph.assetId) ? l.filter((x) => x !== ph.assetId) : [...l, ph.assetId]))}>Photo {ph.position}</button>
+                      {r && <small className="faint" style={{ fontSize: '11.5px' }} id={`${id}-vue-${ph.position}`} data-raison="vue">{r}</small>}
+                    </span>
+                  );
+                })}
+                {vues.length === 0 && <small className="faint" style={{ fontSize: '11.5px' }} data-etat="vue-seule">Aucune vue choisie · seule la photo épinglée partira.</small>}
+              </div>
+            )}
+          </>
+        )}
+        {autres.length === 0 && <small className="faint" style={{ fontSize: '11.5px' }} data-etat="une-seule-photo">Ce produit n’a qu’une photo · importe un autre angle plus bas pour l’envoyer aussi.</small>}
+      </div>
+
+      <div className="fields" style={{ display: 'grid', gap: 10 }}>
+        <label className="field">Taille réelle
+          <input value={fiche.tailleReelle} maxLength={FICHE_TEXTE_MAX} disabled={!vue.peutModifier} onChange={champ('tailleReelle')} placeholder="Ex. 12 cm de haut, 4 cm de diamètre" style={{ minHeight: 44 }} />
+        </label>
+        <label className="field">Comparée à
+          <select value={fiche.echelle ?? ''} disabled={!vue.peutModifier} onChange={(x) => setFiche((f) => ({ ...f, echelle: (x.target.value || null) as FicheProduit['echelle'] }))} style={{ minHeight: 44 }}>
+            <option value="">Choisir un repère</option>
+            {ECHELLES_PRODUIT.map((k) => <option key={k} value={k}>{LIBELLES_ECHELLE[k]}</option>)}
+          </select>
+        </label>
+        {fiche.echelle && (
+          <label className="field">{fiche.echelle === 'objet' ? 'Quel objet' : 'Ce que donne la comparaison'}
+            <input value={fiche.echelleDetail} maxLength={FICHE_TEXTE_MAX} disabled={!vue.peutModifier} onChange={champ('echelleDetail')} placeholder={EXEMPLES_ECHELLE[fiche.echelle]} style={{ minHeight: 44 }} />
+          </label>
+        )}
+        <label className="field">Ce que les photos ne montrent pas
+          <textarea value={fiche.nonMontre} maxLength={FICHE_TEXTE_MAX} rows={2} disabled={!vue.peutModifier} onChange={champ('nonMontre')} placeholder="Ex. le dos porte la liste des ingrédients en blanc, le bouchon est doré mat" />
+        </label>
+        <label className="field">Ce qu’un achat contient
+          <textarea value={fiche.contenuAchat} maxLength={FICHE_TEXTE_MAX} rows={2} disabled={!vue.peutModifier} onChange={champ('contenuAchat')} placeholder="Ex. 1 flacon de 50 ml et sa pipette" />
+        </label>
+        <label className="field">Emballage
+          <input value={fiche.emballage} maxLength={FICHE_TEXTE_MAX} disabled={!vue.peutModifier} onChange={champ('emballage')} placeholder="Ex. boîte en carton blanc, étui en velours" style={{ minHeight: 44 }} />
+          <small className="faint" style={{ fontSize: '11.5px', fontWeight: 500 }}>Il fait partie du produit · ce n’est pas un autre produit, il n’est jamais montré comme un second article.</small>
+        </label>
+      </div>
+      <small className="faint" style={{ fontSize: '11.5px' }}>Chaque champ rempli devient une règle que l’image respecte. Cette fiche suit ce projet et ce produit, même si tu changes de photo.</small>
+
+      {vue.peutModifier ? (
+        <div className="kc" style={{ alignItems: 'center' }}>
+          <button className="btn sm pri" type="button" data-geste="fiche" style={CIBLE} aria-describedby={`${id}-fiche-raison`}
+            {...boutonAction({ presse: enCours, occupe, ferme: raison !== null, surClic: () => void enregistrer(fiche, choix ? vues : null) })}>
+            <Ic n="check" />{enCours ? 'Enregistrement…' : 'Enregistrer la fiche'}
+          </button>
+          {raison
+            ? <RaisonFermee id={`${id}-fiche-raison`} cle="fiche" data-raison="fiche">{raison}</RaisonFermee>
+            : <small className="faint" style={{ fontSize: '11.5px' }} data-raison="fiche" id={`${id}-fiche-raison`}>Gratuit · aucune génération à cette étape.</small>}
+        </div>
+      ) : <small className="faint" style={{ fontSize: '11.5px' }}>Ton rôle permet de consulter, pas de modifier la fiche.</small>}
+    </section>
   );
 }
 

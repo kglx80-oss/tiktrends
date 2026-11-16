@@ -78,7 +78,7 @@ const choisir = (el: HTMLSelectElement, valeur: string) => act(() => { el.value 
 /* ──────────────────────────────── Produit ─────────────────────────────────── */
 
 function vueProduit(): VueProduit {
-  const prep = { ok: true, violations: [], composantsProteges: [], interditsTransfert: [], avertissements: [] };
+  const prep = { ok: true, violations: [], composantsProteges: [], interditsTransfert: [], avertissements: [], vuesProduit: [] };
   return {
     projet: { id: 'p1', title: 'Sérum', marque: 'Éclat' }, version: { id: 'v1', n: 1 }, briefPresent: true,
     produits: [{ id: 'pr1', nom: 'Sérum Clarté', photos: [{ assetId: 'ph1', assetVersion: 'v', sha256: 'a'.repeat(64), nature: 'contenu', position: 1, apercu: '/x.png' }] }],

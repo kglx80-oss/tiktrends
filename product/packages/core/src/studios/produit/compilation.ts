@@ -25,6 +25,8 @@ import type { FichierCatalogue } from './catalogue';
 import { controlerAssociations, LIBELLES_ROLE, ROLES_PERMIS_CONCURRENT } from './references';
 import { documentBrief, documentResolu } from '../textes/textes';
 import type { ReferenceProduitEpinglee } from './epinglage';
+import { attributsFiche, lireFicheProduit } from './fiche';
+import { vuesProduit, type VueEnvoyee } from './vues';
 
 export type ModeImage = 'faithful_composite' | 'generative_scene';
 export const LIBELLES_MODE_IMAGE: Readonly<Record<ModeImage, string>> = {
@@ -35,8 +37,14 @@ export const LIBELLES_MODE_IMAGE: Readonly<Record<ModeImage, string>> = {
 export interface PreparationCompilation {
   ok: boolean;
   violations: ViolationStudio[];
-  /** Les associations transmises à la tâche, dans l'ordre du brief. */
+  /**
+   * Les associations transmises à la tâche · d'abord les vues du produit
+   * (l'épinglée, puis jusqu'à deux autres photos du MÊME produit, `vues.ts`),
+   * puis les autres rôles dans l'ordre du brief.
+   */
   references: ReferenceBrief[];
+  /** Les photos du produit qui partent, dans l'ordre d'envoi · vide sans produit épinglé. */
+  vuesProduit: VueEnvoyee[];
   referenceIds: string[];
   /** Interdits de transfert, un par référence concurrente · ajoutés par le serveur à la consigne. */
   interditsTransfert: string[];
@@ -74,6 +82,14 @@ export function controlerAvantCompilation(e: {
   }
   v.push(...controlerAssociations(refs, e.fichiers, e.produit));
 
+  // Les vues du produit · l'association Produit de l'épinglée d'abord, puis
+  // les autres vues du même produit (choisies, sinon les suivantes), dans la
+  // place que laisse la borne de l'appel. Les autres associations Produit du
+  // brief ne partent pas en plus : elles sont des vues, ou rien.
+  const vues = e.produit ? vuesProduit({ produit: e.produit, references: refs, fichiers: e.fichiers }) : null;
+  avertissements.push(...(vues?.avertissements ?? []));
+  const transmises = vues ? [...vues.references, ...refs.filter((r) => r.role !== 'product')] : [...refs];
+
   const rolesParFichier = new Map<string, RoleReference[]>();
   for (const r of refs) rolesParFichier.set(r.assetId, [...(rolesParFichier.get(r.assetId) ?? []), r.role]);
   const interdits: string[] = [];
@@ -85,11 +101,13 @@ export function controlerAvantCompilation(e: {
   const invariants = [
     ...(e.brief?.invariants ?? []),
     ...(e.produit?.attributsImmuables ?? []),
+    // La fiche saisie par la personne · rien quand elle est vide (`fiche.ts`).
+    ...attributsFiche(lireFicheProduit(e.produit?.fiche)),
     ...composants.map((c) => `Composant obligatoire visible : ${c}`),
     ...interdits,
   ].slice(0, 100);
   return {
-    ok: v.length === 0, violations: v, references: [...refs], referenceIds: [...new Set(refs.map((r) => r.assetId))],
+    ok: v.length === 0, violations: v, references: transmises, referenceIds: [...new Set(transmises.map((r) => r.assetId))], vuesProduit: vues?.vues ?? [],
     interditsTransfert: interdits, composantsProteges: composants, invariants, avertissements,
   };
 }
@@ -136,11 +154,19 @@ export function controlerSortieCompilation(r: ConsigneImage, prep: PreparationCo
 
 /**
  * La consigne finale · les interdits de transfert et les composants protégés
- * du SERVEUR s'ajoutent à ceux du modèle (jamais l'inverse).
+ * du SERVEUR s'ajoutent à ceux du modèle (jamais l'inverse). Les vues du
+ * produit sont LIÉES par le serveur, en tête et dans leur ordre (l'épinglée,
+ * puis les autres) : une vue que le modèle a omise part quand même, et le
+ * fournisseur les reçoit dans cet ordre (`requeteFalImage` place le produit
+ * d'abord sans réordonner ses vues).
  */
 export function consigneFinale(r: ConsigneImage, prep: PreparationCompilation): ConsigneImage {
+  const ids = prep.vuesProduit.map((x) => x.assetId);
+  const produit = ids.map((id) => r.referenceBindings.find((b) => b.referenceId === id && b.role === 'product') ?? { referenceId: id, role: 'product', scope: 'product' });
+  const reste = r.referenceBindings.filter((b) => !(b.role === 'product' && ids.includes(b.referenceId)));
   return {
     ...r,
+    referenceBindings: [...produit, ...reste].slice(0, 100),
     negativeConstraints: [...new Set([...r.negativeConstraints, ...prep.interditsTransfert])].slice(0, 100),
     protectedComponents: [...new Set([...r.protectedComponents, ...prep.composantsProteges])].slice(0, 100),
   };

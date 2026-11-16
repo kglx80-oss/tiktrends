@@ -439,6 +439,7 @@ const ACTIONS: Readonly<Record<string, Readonly<Record<string, Appel | readonly 
   'app/actions/studios/produit.ts': {
     lireProduitProjet: L(PI), epinglerProduit: A(() => [{ ...PV()[0], productId: s.produit, photoId: 'x' }]),
     importerPhotoProduit: A(() => [{ ...PV()[0], productId: s.produit, dataUri: 'data:image/png;base64,iVBORw0KGgo=' }]),
+    definirFicheProduit: A(() => [{ ...PV()[0], fiche: { tailleReelle: '12 cm', echelle: 'main' }, vues: null }]),
     associerReference: A(() => [{ projectId: s.projetImage, baseVersionId: s.versionImage, assetId: `bib_${s.fichier}`, role: 'identity', scope: 'subject' }]), retirerReference: A(() => [{ projectId: s.projetImage, baseVersionId: s.versionImage, assetId: `bib_${s.fichier}`, role: 'style' }]),
     definirDroitsAsset: A(() => [{ assetId: s.fichier, licence: 'interne' }]), controlerCompilation: A(() => [{ projectId: s.projet, mode: 'composee' }]),
     compilerConsigneImage: A(() => [{ projectId: s.projet, mode: 'composee' }]), trancherComposants: A(() => [{ jobId: s.job, constats: [] }]),
