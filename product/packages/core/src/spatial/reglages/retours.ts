@@ -45,5 +45,6 @@ export function messagesRetourConnexions(): Record<string, string> {
     meta_token: 'Échange du jeton Meta impossible.', meta_exchange: 'Erreur lors de la connexion Meta.', nobrand: 'Sélectionne une marque active.',
     shopify_config: 'Connexion Shopify non configurée côté serveur.', shopify_shop: 'Domaine .myshopify.com attendu.', shopify_state: 'Session de connexion expirée, réessaie.',
     shopify_hmac: 'Vérification Shopify échouée.', shopify_token: 'Échange du jeton Shopify impossible.', shopify_exchange: 'Erreur lors de la connexion Shopify.', shopify_session: 'Session invalide, reconnecte-toi.',
+    forbidden: 'Brancher un connecteur est réservé aux administrateurs de l’espace.',
   });
 }
