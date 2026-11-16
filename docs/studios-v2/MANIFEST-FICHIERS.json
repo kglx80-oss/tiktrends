@@ -12,8 +12,8 @@
     },
     {
       "path": "02-PROMPTS.json",
-      "bytes": 50853,
-      "sha256": "a5267308cb7feb7441f24bb750dd1f8d60340f82b682e2a8918cb14ae40645c0"
+      "bytes": 51551,
+      "sha256": "a56cb92a00e3ddab88214b66634d21021eee6dd4a2500bfced8d94b514b19622"
     },
     {
       "path": "03-CONTRATS.schema.json",
@@ -37,8 +37,8 @@
     },
     {
       "path": "07-PROMPTS-LISIBLES.md",
-      "bytes": 22011,
-      "sha256": "5e64a2029d358e93d08c50a8039dc0eb7dd6fbcb3b44beac84c0855bd894d976"
+      "bytes": 22709,
+      "sha256": "2474f3ad4fc3bfc94095a5c3b41fc4500d1157668bf27f9519b0f8f991e91f96"
     },
     {
       "path": "08-EXEMPLES-CONTRATS.json",
