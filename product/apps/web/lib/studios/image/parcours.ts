@@ -32,6 +32,7 @@ import { roleAtLeast } from '../../rbac';
 // Pub entière · choix, copie dessinée, prix catalogue annoncé avant le clic, relecture sur le rendu.
 import {
   LIBELLES_TYPOGRAPHIE, LIBELLES_RELECTURE, CLE_RELECTURE_JOB, lireParametresImage, lireVerdictRelecture, moteurRecommande, pubEntiereDuBrief, tarifPubEntiere,
+  limitesVisiblesPubEntiere, phraseFormatServi,
   type CopieDessinee, type StatutRelecture, type TypographieImage,
 } from '@tiktrends/core';
 import { borneControlePubMicros, CONTROLE_MODEL } from '@tiktrends/ai';
@@ -86,6 +87,8 @@ export interface ConsigneVue {
   typographie?: TypographieImage;
   libelleTypographie?: string;
   copie?: CopieDessinee | null;
+  /** Pub entière · ce qui ne partira pas tel quel (références écartées, format servi), dit avant le clic. */
+  limitesPubEntiere?: string[];
 }
 
 export interface MediaVue { assetId: string; url: string; largeur: number | null; hauteur: number | null }
@@ -106,6 +109,8 @@ export interface JobImageVue {
   creeLe: string;
   /** Pub entière · le job a été produit en pub entière. */
   pubEntiere?: boolean;
+  /** La ligne « contrôle visuel » (et la relecture) était au devis approuvé de ce job. */
+  relectureAuDevis?: boolean;
   /** Pub entière · le verdict de la relecture, `null` tant qu'elle n'a pas eu lieu. */
   relecture?: { statut: StatutRelecture; libelle: string; raisons: string[]; nonVerifie: string[] } | null;
 }
@@ -145,6 +150,8 @@ export interface VueParcoursImage {
     copie: CopieDessinee | null;
     raisonSansCopie: string | null;
     ecartes: Array<{ texte: string; raison: string }>;
+    /** Le format que le générateur sert pour le format du projet, quand il diffère · `null` sinon. */
+    formatServi: string | null;
   };
   composantsObligatoires: string[];
   peutRelire: boolean;
@@ -164,6 +171,7 @@ function vueConsigne(c: ConsigneImagePersistee, noms: ReadonlyMap<string, { libe
     format: { ...c.format }, compileeLe: c.compileeLe,
     typographie: c.pubEntiere ? 'entiere' : 'calques', libelleTypographie: LIBELLES_TYPOGRAPHIE[c.pubEntiere ? 'entiere' : 'calques'],
     copie: c.pubEntiere ? { ...c.pubEntiere.copie, benefits: [...c.pubEntiere.copie.benefits] } : null,
+    limitesPubEntiere: limitesVisiblesPubEntiere(c),
   };
 }
 
@@ -238,7 +246,7 @@ export async function lireParcoursImagePour(ctx: ContexteStudio, projectId: unkn
       raisonEchec: e.vue.etat === 'failed' ? raisonEchec(j.error) : null, annulable: e.vue.annulable, terminal: e.vue.terminal,
       qualite: e.vue.qualite,
       // Pub entière · un écart venu de la RELECTURE ne se dit pas « un composant manque ».
-      libelleQualite: rl.relecture?.statut === 'a_reprendre' && e.vue.qualite === 'rejected' ? 'Écarté · la relecture demande de reprendre la pub' : libelleQualiteImage(e.vue.etat, e.vue.qualite),
+      libelleQualite: rl.relecture?.statut === 'a_reprendre' && e.vue.qualite === 'requires_review' ? 'À relire · la relecture demande de reprendre la pub' : libelleQualiteImage(e.vue.etat, e.vue.qualite),
       creditsReserves: e.vue.creditsReserves, creditsRendus: e.vue.creditsRendus,
       media: m ? { assetId: m.id, url: ROUTE_APERCU_MEDIA(m.id), largeur: m.width, hauteur: m.height } : null,
       creeLe: j.createdAt.toISOString(),
@@ -256,7 +264,7 @@ export async function lireParcoursImagePour(ctx: ContexteStudio, projectId: unkn
       devis, jobs, composantsObligatoires: ref ? [...ref.composantsObligatoires] : [],
       // R3 · la case « contrôle visuel » n'existe que si la vision peut s'exécuter ici.
       controleVision: { disponible: o.fournisseurTexte, borneParImageUsdMicros: borneControleVisionParImageMicros(modeleTexte()) },
-      pubEntiere: vuePubEntiere(cat.brief),
+      pubEntiere: vuePubEntiere(cat.brief, formatImageDuContenu(contenu)),
       peutRelire: aPermissionEspace(ctx.permissions, 'studio.propose'),
       logosAReimporter,
     },
@@ -287,21 +295,24 @@ async function logosAReimporterDuProjet(
 }
 
 /** Pub entière · le job a-t-il été produit en pub entière, et qu'a dit sa relecture ? */
-function relectureDuJob(j: { snapshot: unknown; result: unknown }): Required<Pick<JobImageVue, 'pubEntiere' | 'relecture'>> {
-  const p = lireParametresImage(lireSnapshotJob(j.snapshot)?.parametres);
+function relectureDuJob(j: { snapshot: unknown; result: unknown }): Required<Pick<JobImageVue, 'pubEntiere' | 'relecture' | 'relectureAuDevis'>> {
+  const snap = lireSnapshotJob(j.snapshot);
+  const relectureAuDevis = controleVisionApprouve(snap?.lignes) !== null;
+  const p = lireParametresImage(snap?.parametres);
   const pubEntiere = p.ok && !!p.parametres.pubEntiere;
   const v = pubEntiere ? lireVerdictRelecture((j.result as Record<string, unknown> | null)?.[CLE_RELECTURE_JOB]) : null;
-  return { pubEntiere, relecture: v ? { statut: v.statut, libelle: LIBELLES_RELECTURE[v.statut], raisons: [...v.raisons], nonVerifie: [...v.nonVerifie] } : null };
+  return { pubEntiere, relectureAuDevis, relecture: v ? { statut: v.statut, libelle: LIBELLES_RELECTURE[v.statut], raisons: [...v.raisons], nonVerifie: [...v.nonVerifie] } : null };
 }
 
 /** Pub entière · prix du moteur du mode, borne du contrôle et copie, avant tout clic. */
-function vuePubEntiere(brief: Parameters<typeof pubEntiereDuBrief>[0]): NonNullable<VueParcoursImage['pubEntiere']> {
+function vuePubEntiere(brief: Parameters<typeof pubEntiereDuBrief>[0], format: { largeur: number; hauteur: number }): NonNullable<VueParcoursImage['pubEntiere']> {
   const t = tarifPubEntiere(moteurRecommande('entiere'));
   const c = pubEntiereDuBrief(brief);
   return {
     prix: t.ok ? { credits: t.credits, usdMicros: t.usdMicros } : null, motif: t.motif, libelleMoteur: t.ok ? t.libelleMoteur : null,
     borneControleParImageUsdMicros: borneControleVisionParImageMicros(modeleTexte()) + borneControlePubMicros(CONTROLE_MODEL),
     copie: c.ok ? c.pub.copie : null, raisonSansCopie: c.ok ? null : c.raison, ecartes: c.ok ? c.ecartes : [],
+    formatServi: phraseFormatServi(moteurRecommande('entiere'), format.largeur, format.hauteur),
   };
 }
 

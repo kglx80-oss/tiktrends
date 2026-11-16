@@ -36,7 +36,7 @@ import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { db, schema, eq, and } from '@tiktrends/db';
 import {
-  borneControleVisionParImageMicros, borneMaxAppel, consigneDuContenu, promptFal, tarifPubEntiere, moteurRecommande, OPERATION_IMAGE, OPERATION_CONTROLE_VISION, CLE_RELECTURE_JOB,
+  borneControleVisionParImageMicros, borneMaxAppel, consigneDuContenu, CLE_MARQUEUR_CONTROLE_VISION, promptFal, tarifPubEntiere, moteurRecommande, OPERATION_IMAGE, OPERATION_CONTROLE_VISION, CLE_RELECTURE_JOB,
   type ContenuVersion, type SnapshotJob, type DecisionFournisseur, type StockageStudio, type LigneDevis,
 } from '@tiktrends/core';
 import { borneControlePubMicros, CONTROLE_MODEL } from '@tiktrends/ai';
@@ -249,7 +249,11 @@ describe('pub entière · du choix à la compilation au corps fal exact, relue �
     lu = { texteLu: ['Tes lunettes tiennent', 'Je les essaie', 'VISIO'], produitFidele: true, ecartsProduit: [], texteLisible: true, problemesLisibilite: [] };
     const avant = await compter(db);
     const r = await controlerMediaPour(ctxDe(ids, 'ua'), { jobId }, { medias: resolveurMediasStudio(lecteur), relecture: { lireReference: reference } });
-    expect(r, JSON.stringify(r)).toEqual({ ok: true, qualite: 'rejected' });
+    // « À reprendre » n'est pas définitif · à relire par une personne, qui tranche (seul un composant absent écarte).
+    expect(r, JSON.stringify(r)).toEqual({ ok: true, qualite: 'requires_review' });
+    // La raison posée sur le média dit « À reprendre » et pourquoi (pas seulement le statut des composants).
+    const [ctl] = await db.select().from(schema.studioAuditEvents).where(and(eq(schema.studioAuditEvents.targetId, jobId), eq(schema.studioAuditEvents.action, 'media.quality.control')));
+    expect(ctl!.reason, 'la relecture « à reprendre » n’a pas pesé sur la qualité posée').toContain('À reprendre · accroche réécrit · lu « Tes lunettes tiennent » (mot manquant « enfin »)');
     const rel = recus.filter((x) => x.tools?.some((t2) => t2.name === 'relire_la_pub'));
     expect(rel.map((x) => [x.model, x.messages[0]!.content.filter((b) => b.type === 'image').length])).toEqual([[CONTROLE_MODEL, 2]]);
     // La requête RÉELLEMENT reçue tient dans la borne ajoutée au devis.
@@ -261,7 +265,7 @@ describe('pub entière · du choix à la compilation au corps fal exact, relue �
     const d = delta(avant, await compter(db));
     for (const k of ['jobs', 'devis', 'approbations', 'credits'] as const) expect(d[k], k).toBeUndefined();
     const vue = await lireParcoursImagePour(ctxDe(ids, 'ua'), projectId, { ...O, ...LECTURE });
-    expect(vue.ok && vue.vue.jobs[0]).toMatchObject({ id: jobId, qualite: 'rejected', libelleQualite: 'Écarté · la relecture demande de reprendre la pub', pubEntiere: true, relecture: { statut: 'a_reprendre', libelle: 'À reprendre', raisons: ['accroche réécrit · lu « Tes lunettes tiennent » (mot manquant « enfin »)'] } });
+    expect(vue.ok && vue.vue.jobs[0]).toMatchObject({ id: jobId, qualite: 'requires_review', libelleQualite: 'À relire · la relecture demande de reprendre la pub', pubEntiere: true, relectureAuDevis: true, relecture: { statut: 'a_reprendre', libelle: 'À reprendre', raisons: ['accroche réécrit · lu « Tes lunettes tiennent » (mot manquant « enfin »)'] } });
     expect(vue.ok && vue.vue.retenue).toMatchObject({ typographie: 'entiere', copie: { headline: 'Tes lunettes tiennent enfin' } });
   }, 120_000);
 
@@ -270,7 +274,7 @@ describe('pub entière · du choix à la compilation au corps fal exact, relue �
     await retenue(projectId, 'entiere');
     const { jobId } = await generer(projectId);
     lu = { texteLu: ['Un goût fruits rouges qui fait du bien', 'naali', 'Goût mangue', '60 gommes'], produitFidele: true, ecartsProduit: [], texteLisible: true, problemesLisibilite: [] };
-    expect(await controlerMediaPour(ctxDe(ids, 'ua'), { jobId }, { medias: resolveurMediasStudio(lecteur), relecture: { lireReference: reference } })).toEqual({ ok: true, qualite: 'rejected' });
+    expect(await controlerMediaPour(ctxDe(ids, 'ua'), { jobId }, { medias: resolveurMediasStudio(lecteur), relecture: { lireReference: reference } })).toEqual({ ok: true, qualite: 'requires_review' });
     expect(((await jobDe(jobId)).result as Record<string, unknown>)[CLE_RELECTURE_JOB]).toMatchObject({
       statut: 'a_reprendre', raisons: ['accroche « Un goût fruits rouges qui fait du bien » contredit le produit · goût « fruit rouge » annoncé, « mangue » sur le produit'],
     });
@@ -284,6 +288,39 @@ describe('pub entière · du choix à la compilation au corps fal exact, relue �
     expect(r).toMatchObject({ ok: false, code: 'INVALID_SCHEMA', message: expect.stringContaining('goût « fruit rouge » annoncé, « mangue » sur le produit') });
     expect(texte.recues).toHaveLength(0);
     expect(delta(avant, await compter(db))).toEqual({});
+  }, 120_000);
+});
+
+describe('pub entière · relecture qui ne peut pas conclure', () => {
+  const marqueur = async (id: string) => ((await jobDe(id)).result as Record<string, { etat?: string } | undefined>)[CLE_MARQUEUR_CONTROLE_VISION]?.etat;
+
+  it('erreur du stockage APRÈS l’envoi du contrôle visuel · relecture « non conclue » avec le motif, marqueur conclu, aucun conflit au tour suivant', async () => {
+    const { projectId } = await projet(TEXTES);
+    await retenue(projectId, 'entiere');
+    const { jobId } = await generer(projectId);
+    const reel = resolveurMediasStudio(lecteur);
+    let n = 0;
+    // Le contrôle visuel lit le média (1er appel) ; la relecture tombe sur une panne du stockage (2e appel).
+    const medias: typeof reel = async (portee, idsM) => { n += 1; if (n > 1) throw new Error('S3 indisponible (simulé)'); return reel(portee, idsM); };
+    const r = await controlerMediaPour(ctxDe(ids, 'ua'), { jobId }, { medias, relecture: { lireReference: reference } });
+    expect(r, JSON.stringify(r)).toEqual({ ok: true, qualite: 'requires_review' });
+    expect(await marqueur(jobId), 'le marqueur reste « engagé » · toute relance serait refusée à tort').toBe('conclu');
+    expect(((await jobDe(jobId)).result as Record<string, unknown>)[CLE_RELECTURE_JOB]).toMatchObject({ statut: 'non_conclue', nonVerifie: [expect.stringContaining('S3 indisponible (simulé)')] });
+    expect(await controlerMediaPour(ctxDe(ids, 'ua'), { jobId }, { medias, relecture: { lireReference: reference } })).toEqual({ ok: true, qualite: 'requires_review' });
+  }, 120_000);
+
+  it('contrôle au devis mais pas lancé (plafond atteint) · la VRAIE raison est écrite et lue sur le rendu', async () => {
+    const { projectId } = await projet(TEXTES);
+    await retenue(projectId, 'entiere');
+    const { jobId } = await generer(projectId);
+    const cap = process.env.AI_SPEND_CAP_USD;
+    process.env.AI_SPEND_CAP_USD = '0';
+    try {
+      expect(await controlerMediaPour(ctxDe(ids, 'ua'), { jobId }, { medias: resolveurMediasStudio(lecteur), relecture: { lireReference: reference } })).toEqual({ ok: true, qualite: 'requires_review' });
+    } finally { process.env.AI_SPEND_CAP_USD = cap; }
+    expect(recus.filter((x) => x.tools?.some((t) => t.name === 'relire_la_pub'))).toHaveLength(0);
+    const vue = await lireParcoursImagePour(ctxDe(ids, 'ua'), projectId, { ...O, ...LECTURE });
+    expect(vue.ok && vue.vue.jobs[0]).toMatchObject({ relectureAuDevis: true, relecture: { statut: 'non_conclue', nonVerifie: ['mots, packaging et lisibilité non relus · le plafond de dépense est atteint'] } });
   }, 120_000);
 });
 
@@ -306,7 +343,7 @@ describe('mode calques · inchangé de bout en bout', () => {
     expect(recus.filter((x) => x.tools?.some((t) => t.name === 'relire_la_pub'))).toHaveLength(0);
     expect(CLE_RELECTURE_JOB in ((await jobDe(jobId)).result as Record<string, unknown>)).toBe(false);
     const vue = await lireParcoursImagePour(ctxDe(ids, 'ua'), projectId, { ...O, ...LECTURE });
-    expect(vue.ok && vue.vue.jobs[0]).toMatchObject({ pubEntiere: false, relecture: null });
+    expect(vue.ok && vue.vue.jobs[0]).toMatchObject({ pubEntiere: false, relecture: null, relectureAuDevis: true });
   }, 120_000);
 });
 

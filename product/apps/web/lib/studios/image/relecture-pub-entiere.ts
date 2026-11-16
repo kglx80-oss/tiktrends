@@ -10,6 +10,7 @@ import { controlePubEntiere, requeteControlePub, type ImageJointe } from '@tiktr
 import { safeFetch } from '@tiktrends/integrations/src/safe-fetch';
 import { hacherImage } from '../produit/catalogue';
 import { octetsDataUri } from '../../import-image';
+import sharp from 'sharp';
 
 /**
  * Studios · relecture d'une PUB ENTIÈRE à sa génération · le générateur a écrit
@@ -40,15 +41,43 @@ export interface DependancesRelecture {
   lireReference?: (url: string) => Promise<ImageJointe | null>;
 }
 
-const OCTETS_REFERENCE_MAX = 6_000_000;
+const OCTETS_REFERENCE_MAX = 12_000_000;
+
+/**
+ * Le fournisseur de vision refuse une image de plus de 5 Mo · la limite porte
+ * sur l'image ENCODÉE en base64 (×4/3). On borne donc les octets bruts à
+ * 3 750 000 (5 000 000 en base64), et toute image plus lourde est réduite.
+ */
+export const OCTETS_IMAGE_VISION_MAX = 3_750_000;
+/** Côté le plus long d'une image réduite · au-delà, le fournisseur la réduit lui-même. */
+const COTE_VISION_MAX = 1568;
+
+/**
+ * Une image prête pour la relecture · telle quelle si elle tient sous la limite,
+ * sinon réduite (sharp, JPEG) ; illisible ou impossible à réduire, refusée avec
+ * la raison (la relecture le dit, rien n'est envoyé).
+ */
+export async function imagePourVision(octets: Uint8Array): Promise<{ ok: true; image: ImageJointe } | { ok: false; motif: string }> {
+  const type = typeMediaReel(octets);
+  if (type !== 'image/png' && type !== 'image/jpeg' && type !== 'image/webp' && type !== 'image/gif') return { ok: false, motif: 'fichier qui n’est pas une image lisible' };
+  if (octets.length <= OCTETS_IMAGE_VISION_MAX) return { ok: true, image: { mediaType: type, base64: Buffer.from(octets).toString('base64') } };
+  try {
+    for (const [cote, qualite] of [[COTE_VISION_MAX, 85], [1024, 75], [768, 65]] as const) {
+      const r = await sharp(octets).rotate().resize({ width: cote, height: cote, fit: 'inside', withoutEnlargement: true }).jpeg({ quality: qualite }).toBuffer();
+      if (r.length <= OCTETS_IMAGE_VISION_MAX) return { ok: true, image: { mediaType: 'image/jpeg', base64: r.toString('base64') } };
+    }
+  } catch {
+    return { ok: false, motif: 'image trop lourde pour la relecture, et illisible pour la réduire' };
+  }
+  return { ok: false, motif: 'image trop lourde pour la relecture, même réduite' };
+}
 
 /** La photo du produit, en octets · jamais une adresse transmise au fournisseur de vision. */
 export async function lireReferenceParDefaut(url: string): Promise<ImageJointe | null> {
   const octets = url.startsWith('data:') ? octetsDataUri(url) : (await safeFetch(url, { maxBytes: OCTETS_REFERENCE_MAX, timeoutMs: 15_000 }))?.body ?? null;
   if (!octets) return null;
-  const type = typeMediaReel(new Uint8Array(octets));
-  if (type !== 'image/png' && type !== 'image/jpeg' && type !== 'image/webp' && type !== 'image/gif') return null;
-  return { mediaType: type, base64: Buffer.from(octets).toString('base64') };
+  const r = await imagePourVision(new Uint8Array(octets));
+  return r.ok ? r.image : null;
 }
 
 /** L'adresse de la photo épinglée (`pph_…`) dans le catalogue de la MARQUE du job · `null` sinon. */
@@ -76,7 +105,10 @@ export async function relirePubEntiere(e: {
   const non = (motif: string) => relecturePubEntiere({ copie: e.pub.copie, constat: null, faits: e.faits, motif });
   if (!e.sortie) return non('média livré illisible');
   if (!d.client) return non('le fournisseur de vision n’est pas configuré sur ce serveur');
-  const image: ImageJointe = { mediaType: e.sortie.mime, base64: Buffer.from(e.sortie.octets).toString('base64') };
+  // La pub livrée (souvent un PNG 2K) passe sous la limite par image du fournisseur.
+  const pret = await imagePourVision(e.sortie.octets);
+  if (!pret.ok) return non(`média livré · ${pret.motif}`);
+  const image = pret.image;
   let reference: ImageJointe | null = null;
   if (e.referenceUrl) {
     try { reference = await (d.lireReference ?? lireReferenceParDefaut)(e.referenceUrl); } catch { reference = null; }

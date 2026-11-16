@@ -217,6 +217,12 @@ export function promptPubEntiere(o: {
   sceneMax?: number;
   /** Un logo de la marque est fourni parmi les images de référence. */
   logo?: boolean;
+  /**
+   * Nombre de VUES du même produit fournies (Studios peut en envoyer jusqu'à
+   * trois) · au-delà d'une, la consigne dit que ce sont des vues d'un seul
+   * exemplaire, pour qu'aucun modèle ne dessine trois produits.
+   */
+  vuesProduit?: number;
 }): string {
   const c = o.copie;
   const textes = [
@@ -229,7 +235,9 @@ export function promptPubEntiere(o: {
     ligne('brand wordmark, small', c.brandName),
   ].filter(Boolean).join('\n');
 
-  const produit = o.avecProduit
+  const produit = o.avecProduit && (o.vuesProduit ?? 1) > 1
+    ? `The first ${o.vuesProduit} provided images are views of the SAME single product · one physical item seen from different angles, never several items. Reproduce it strictly identically: same packaging shape, same cap, same label artwork, same label text and its typography, same badges and logos, same colours, same real-world proportions. Do not redraw, restyle, translate or paraphrase anything printed on the packaging. The label must stay as sharp and legible as in the references.`
+    : o.avecProduit
     ? 'The provided image is the EXACT product. Reproduce it strictly identically: same packaging shape, same cap, same label artwork, same label text and its typography, same badges and logos, same colours, same real-world proportions. Do not redraw, restyle, translate or paraphrase anything printed on the packaging. The label must stay as sharp and legible as in the reference.'
     : 'No product photo is provided · invent nothing branded, and keep the composition centred on the scene.';
 

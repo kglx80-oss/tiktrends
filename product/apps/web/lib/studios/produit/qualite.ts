@@ -23,7 +23,10 @@ import {
 import { controleIncertainReconcilie } from '@tiktrends/core';
 import type { EnvironnementPrompts } from '../prompts/environnement';
 // Pub entière · relecture (mots, packaging, lisibilité, cohérence) payée par la MÊME ligne approuvée.
-import { lireParametresImage, faitsDuProduit, LIBELLES_RELECTURE, type VerdictRelecturePubEntiere, type BriefCanonique } from '@tiktrends/core';
+import { lireParametresImage, faitsDuProduit, relecturePubEntiere, LIBELLES_RELECTURE, type VerdictRelecturePubEntiere, type BriefCanonique } from '@tiktrends/core';
+
+/** Le message d'une panne, court · jamais une pile, jamais plus de 160 caractères. */
+const messageCourt = (e: unknown) => (e instanceof Error ? e.message : String(e)).replace(/\s+/g, ' ').slice(0, 160);
 import { borneControlePubMicros, CONTROLE_MODEL } from '@tiktrends/ai';
 import { resolveurMediasStudio } from '../prompts/resolveur';
 import { guardedAnthropic } from '../../spend-guard';
@@ -376,6 +379,7 @@ export async function controlerSortieParVision(ctx: ContexteStudio, e: { jobId: 
   let relecture: VerdictRelecturePubEntiere | null = null;
   const v = await lireVersion(ctx, job.projectVersionId);
   if (!v.ok) return v;
+  const faitsPub = pub ? faitsDuProduit({ produit: lireReferenceEpinglee((v.version.content as { productRef?: unknown }).productRef), brief: ((v.version.content as { brief?: unknown }).brief ?? null) as BriefCanonique | null }) : [];
   const ref = lireReferenceEpinglee((v.version.content as { productRef?: unknown }).productRef);
   const requis = ref ? [...ref.composantsObligatoires] : [];
 
@@ -427,20 +431,25 @@ export async function controlerSortieParVision(ctx: ContexteStudio, e: { jobId: 
         throw err;
       }
       // Pub entière · relecture sous le MÊME marqueur (aucun second lancement ne la refait), dans sa part.
+      // Tout le bloc est gardé : une panne (stockage, base) donne « non conclue » avec son motif, et le
+      // marqueur est conclu juste après, toujours · jamais un « engagé » orphelin qui bloquerait la suite.
       if (pub) {
-        const premier = ids[0]!;
-        const [lue, a] = await Promise.all([(d.medias ?? resolveurMediasStudio())({ workspaceId: job.workspaceId, brandId: job.brandId }, [`sta_${premier}`]), lireAsset(ctx, premier)]);
-        const m = lue.get(`sta_${premier}`);
-        relecture = await relirePubEntiere({
-          pub, approuveMicros: partRelecture,
-          sortie: m?.ok && a.ok ? { octets: m.octets, mime: a.asset.mime } : null,
-          referenceUrl: ref ? await adressePhotoProduit({ workspaceId: job.workspaceId, brandId: job.brandId }, ref.photo.assetId) : null,
-          faits: faitsDuProduit({ produit: ref, brief: ((v.version.content as { brief?: unknown }).brief ?? null) as BriefCanonique | null }),
-        }, {
-          client: d.relecture?.client !== undefined ? d.relecture.client : guardedAnthropic({ workspaceId: job.workspaceId, action: 'studio:relecture-pub-entiere' }),
-          ...(d.relecture?.lireReference ? { lireReference: d.relecture.lireReference } : {}),
-        });
-        await ecrireRelecture(job.id, job.workspaceId, relecture);
+        try {
+          const premier = ids[0]!;
+          const [lue, a] = await Promise.all([(d.medias ?? resolveurMediasStudio())({ workspaceId: job.workspaceId, brandId: job.brandId }, [`sta_${premier}`]), lireAsset(ctx, premier)]);
+          const m = lue.get(`sta_${premier}`);
+          relecture = await relirePubEntiere({
+            pub, approuveMicros: partRelecture,
+            sortie: m?.ok && a.ok ? { octets: m.octets, mime: a.asset.mime } : null,
+            referenceUrl: ref ? await adressePhotoProduit({ workspaceId: job.workspaceId, brandId: job.brandId }, ref.photo.assetId) : null,
+            faits: faitsPub,
+          }, {
+            client: d.relecture?.client !== undefined ? d.relecture.client : guardedAnthropic({ workspaceId: job.workspaceId, action: 'studio:relecture-pub-entiere' }),
+            ...(d.relecture?.lireReference ? { lireReference: d.relecture.lireReference } : {}),
+          });
+        } catch (err) {
+          relecture = relecturePubEntiere({ copie: pub.copie, constat: null, faits: faitsPub, motif: `relecture interrompue · ${messageCourt(err)}` });
+        }
       }
       const fin = new Date().toISOString();
       await conclureMarqueur(job, temoin.echec === 'incertaine'
@@ -461,8 +470,13 @@ export async function controlerSortieParVision(ctx: ContexteStudio, e: { jobId: 
   const verdict = verdictComposants({ requis, controle });
   let raison = controle ? verdict.raison : `${verdict.raison} Aucun contrôle visuel : ${motif}.`;
   // Pub entière · « à reprendre » écarte la pub (raison dite) ; une relecture non conclue ne laisse jamais « accepté ».
+  // Pub entière · contrôle au devis mais pas lancé (plafond, fournisseur, média) : la VRAIE raison est écrite.
+  if (pub && !relecture) relecture = relecturePubEntiere({ copie: pub.copie, constat: null, faits: faitsPub, motif: motif ?? 'contrôle visuel non lancé' });
+  if (pub && relecture) await ecrireRelecture(job.id, job.workspaceId, relecture).catch((err) => console.error(`[studios:relecture] ${ctx.traceId} écriture du verdict`, messageCourt(err)));
   let statut = verdict.statut;
-  if (relecture?.statut === 'a_reprendre') { statut = 'rejected'; raison = `${LIBELLES_RELECTURE.a_reprendre} · ${relecture.raisons.join(' · ')}. ${raison}`; }
+  // « À reprendre » n'est pas définitif : à relire par une personne (`deciderQualite`). `rejected` reste
+  // réservé aux composants obligatoires absents, comme avant.
+  if (relecture?.statut === 'a_reprendre') { statut = statut === 'rejected' ? 'rejected' : 'requires_review'; raison = `${LIBELLES_RELECTURE.a_reprendre} · ${relecture.raisons.join(' · ')}. ${raison}`; }
   else if (relecture?.statut === 'non_conclue' && statut === 'passed') { statut = 'requires_review'; raison = `${LIBELLES_RELECTURE.non_conclue} · ${relecture.nonVerifie.join(' · ')}. ${raison}`; }
   const p = await poser(ctx, job, statut, 'controle', { ...verdict, statut, raison }, 'media.quality.control');
   if (!p.ok) return p;

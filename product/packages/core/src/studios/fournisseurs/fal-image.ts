@@ -27,7 +27,9 @@
 import { empreinteContenu } from '../version';
 import type { ConsigneImage } from '../produit/compilation';
 import type { ProfilOperation } from '../execution/tarifs';
-import { violationsPubEntiere, promptFalPubEntiere, moteurEnvoye, type PubEntiere } from '../image/pub-entiere';
+import {
+  violationsPubEntiere, promptFalPubEntiere, moteurEnvoye, selectionReferencesPubEntiere, PROMPT_PUB_ENTIERE_MAX, REFERENCES_PUB_ENTIERE_MAX, type PubEntiere,
+} from '../image/pub-entiere';
 
 export const SCHEMA_PARAMETRES_IMAGE = 'studio_image/1' as const;
 
@@ -201,6 +203,23 @@ export function familleModele(modele: string): FamilleModele {
 }
 
 /**
+ * Le ratio que le moteur SERT réellement pour un ratio demandé · Nano Banana
+ * reçoit le ratio natif ; GPT Image et les autres une taille fal (`portrait_4_3`
+ * pour une 4:5, soit 3:4). Sert à la pub entière : la consigne annonce le
+ * format servi, et l'écart au format du projet est dit (la pub n'est pas recadrée).
+ */
+export function ratioServi(modele: string, ratio: RatioFal): { ratio: string; taille: string | null; exact: boolean } {
+  const f = familleModele(modele);
+  if (f === 'nano') return { ratio, taille: null, exact: true };
+  const taille = f === 'gpt1' ? TAILLE_GPT1[ratio] : TAILLE_FAL[ratio];
+  const servi: Readonly<Record<string, string>> = {
+    portrait_16_9: '9:16', portrait_4_3: '3:4', square_hd: '1:1', landscape_16_9: '16:9', '1024x1536': '2:3', '1024x1024': '1:1', '1536x1024': '3:2',
+  };
+  const r = servi[taille] ?? ratio;
+  return { ratio: r, taille, exact: r === ratio };
+}
+
+/**
  * Le corps fal d'une génération d'image · même aiguillage que `falGenerateImage`
  * (ratio natif pour Nano Banana, taille en pixels pour GPT Image 1, vocabulaire
  * fal pour GPT Image 2 et les autres, une seule image de départ pour Flux).
@@ -293,9 +312,17 @@ export function requeteFalImage(e: {
 
   // Les références LIÉES par la consigne, chacune une fois · le produit d'abord.
   const roleDeclare = new Map(p.references.map((r) => [r.assetId, r] as const));
-  const liees: string[] = [];
+  let liees: string[] = [];
   for (const b of p.consigne.referenceBindings) if (!liees.includes(b.referenceId)) liees.push(b.referenceId);
   liees.sort((a, b) => Number(roleDeclare.get(b)?.role === 'product') - Number(roleDeclare.get(a)?.role === 'product'));
+  // Pub entière · au plus 3 références (vues du produit, puis logo) · le reste écarté AVANT la résolution, et dit.
+  const pe = p.pubEntiere ?? null;
+  let ecartees: string[] = [];
+  if (pe) {
+    const sel = selectionReferencesPubEntiere(liees.map((id) => ({ assetId: id, role: roleDeclare.get(id)?.role ?? '' })));
+    liees = sel.gardees.map((r) => r.assetId);
+    ecartees = sel.ecartees.map((r) => `${r.assetId} (${r.role})`);
+  }
 
   const parId = new Map(e.medias.map((m) => [m.assetId, m] as const));
   const bloquees: string[] = [];
@@ -315,7 +342,6 @@ export function requeteFalImage(e: {
 
   // Pub entière · le moteur du CATALOGUE recommandé pour le mode (`moteurRecommande`),
   // son adresse et ses paramètres de qualité · en calques, les modèles routés d'avant.
-  const pe = p.pubEntiere ?? null;
   const envoye = pe ? moteurEnvoye(pe.moteur, urls.length > 0) : null;
   if (pe && !envoye) return { ok: false, code: 'UNSUPPORTED_CAPABILITY', motif: `moteur « ${pe.moteur} » absent du catalogue`, cibles: [] };
   const modele = envoye ? envoye.modele : urls.length ? e.modeles.edition : e.modeles.generation;
@@ -323,13 +349,18 @@ export function requeteFalImage(e: {
     return { ok: false, code: 'UNSUPPORTED_CAPABILITY', motif: `le modèle routé ${modele} ne reçoit qu’une image de départ`, cibles: urls.map((u) => u.assetId) };
   }
   const { ratio, exact } = ratioFal(p.format.largeur, p.format.hauteur);
+  const servi = ratioServi(modele, ratio);
   const entiere = pe ? promptFalPubEntiere({
-    consigne: p.consigne, pub: pe, ratio,
+    consigne: p.consigne, pub: pe, ratio: servi.ratio,
     avecProduit: p.references.some((r) => r.role === 'product' && urls.some((u) => u.assetId === r.assetId)),
     logo: p.references.some((r) => r.role === 'logo' && urls.some((u) => u.assetId === r.assetId)),
+    vuesProduit: p.references.filter((r) => r.role === 'product' && urls.some((u) => u.assetId === r.assetId)).length,
   }) : null;
   const prompt = entiere ? entiere.prompt : promptFal(p.consigne);
   if (contientEmplacement(prompt)) return { ok: false, code: 'INVALID_SCHEMA', motif: 'emplacement de gabarit non résolu dans la consigne', cibles: [] };
+  if (entiere && prompt.length > PROMPT_PUB_ENTIERE_MAX) {
+    return { ok: false, code: 'INVALID_SCHEMA', motif: `consigne de pub entière de ${prompt.length.toLocaleString('fr-FR')} caractères, au-delà de ${PROMPT_PUB_ENTIERE_MAX.toLocaleString('fr-FR')} caractères acceptés par le moteur · raccourcis la scène ou les contraintes`, cibles: [] };
+  }
 
   const corps = corpsFalImage({ modele, prompt, ratio, references: urls.map((u) => u.url), images: images.length, ...(envoye ? { params: envoye.params } : {}) });
   const expurge: Record<string, unknown> = { ...corps, modele };
@@ -340,5 +371,7 @@ export function requeteFalImage(e: {
   if (p.consigne.negativeConstraints.length) limites.push('instruction négative non supportée par le modèle · intégrée à la consigne');
   if (!exact) limites.push(`format ${p.format.largeur}×${p.format.hauteur} servi au ratio ${ratio}`);
   if (entiere?.retires.length) limites.push(`pub entière · consigne « pas de texte » retirée : ${entiere.retires.join(' ; ')}`);
+  if (entiere && !servi.exact) limites.push(`pub entière · format ${ratio} demandé, servi en ${servi.ratio} (${servi.taille}) par le moteur · la pub n’est pas recadrée`);
+  if (ecartees.length) limites.push(`pub entière · référence écartée (au plus ${REFERENCES_PUB_ENTIERE_MAX} : vues du produit puis logo) : ${ecartees.join(', ')}`);
   return { ok: true, modele, corps, operations: images, expurge, empreinte: empreinteContenu(expurge), limites };
 }

@@ -191,6 +191,42 @@ export function moteurEnvoye(cle: string, avecReference: boolean): { modele: str
   return { modele: falModelFor(s, avecReference), params: { ...(s.params ?? {}) } };
 }
 
+/* ──────────────────────── Références et consigne bornées ──────────────────── */
+
+/**
+ * Au plus TROIS références en pub entière · les vues du produit d'abord (la
+ * photo épinglée en tête, dans l'ordre de la consigne), puis le logo s'il reste
+ * une place. Le reste (style, composition…) est écarté et DIT dans les limites.
+ *
+ * ── Pourquoi ce plafond ──────────────────────────────────────────────────────
+ *
+ * GPT Image 2 en édition facture aussi les images d'ENTRÉE. Le prix catalogue
+ * (0,049 $ en quality medium) et la réserve du worker (0,08 $ par image,
+ * inchangée) n'ont jamais été confrontés à une facture fal avec huit
+ * références : aucune facture n'est lisible depuis la session. On plafonne
+ * donc à ce que la chaîne produit sait déjà envoyer (jusqu'à trois vues du
+ * même produit, #1097) et on le MESURE au lot de contrôle (1 / 2 / 3
+ * références). Tant que ce n'est pas mesuré, la ligne du devis dit
+ * « estimation » et la réserve (0,08 $) reste au-dessus de l'estimation.
+ * Le mode calques n'a aucun plafond nouveau.
+ */
+export const REFERENCES_PUB_ENTIERE_MAX = 3;
+
+export function selectionReferencesPubEntiere<R extends { assetId: string; role: string }>(liees: readonly R[]): { gardees: R[]; ecartees: R[] } {
+  const produit = liees.filter((r) => r.role === 'product').slice(0, REFERENCES_PUB_ENTIERE_MAX);
+  const logo = produit.length < REFERENCES_PUB_ENTIERE_MAX ? liees.filter((r) => r.role === 'logo').slice(0, 1) : [];
+  const gardees = [...produit, ...logo];
+  return { gardees, ecartees: liees.filter((r) => !gardees.includes(r)) };
+}
+
+/**
+ * Longueur maximale de la consigne TOTALE envoyée en pub entière · 32 000
+ * caractères, la limite documentée du prompt des modèles GPT Image d'OpenAI
+ * (le moteur que le mode recommande). Au-delà, refus avant l'appel : couper
+ * ferait tomber la copie ou les interdits, jamais acceptable.
+ */
+export const PROMPT_PUB_ENTIERE_MAX = 32_000;
+
 /* ───────────────────────────── Le prix ───────────────────────────────────── */
 
 const micros = (usd: number): number => Math.round(usd * 1_000_000);
@@ -290,7 +326,7 @@ export function sansInterditDeTexte(c: Pick<ConsigneImage, 'generationInstructio
  * puis les composants protégés et les interdits du serveur, comme en calques
  * (`promptFal`). Jamais de « pas de texte ».
  */
-export function promptFalPubEntiere(e: { consigne: ConsigneImage; pub: PubEntiere; ratio: string; avecProduit: boolean; logo: boolean }): { prompt: string; retires: string[] } {
+export function promptFalPubEntiere(e: { consigne: ConsigneImage; pub: PubEntiere; ratio: string; avecProduit: boolean; logo: boolean; vuesProduit?: number }): { prompt: string; retires: string[] } {
   const s = sansInterditDeTexte(e.consigne);
   const copie: CopiePub = {
     headline: e.pub.copie.headline,
@@ -298,7 +334,7 @@ export function promptFalPubEntiere(e: { consigne: ConsigneImage; pub: PubEntier
     ...(e.pub.copie.benefits.length ? { benefits: [...e.pub.copie.benefits] } : {}),
     ...(e.pub.copie.cta ? { cta: e.pub.copie.cta } : {}),
   };
-  const parties = [promptPubEntiere({ copie, sceneBrief: s.instruction, avecProduit: e.avecProduit, format: e.ratio, sceneMax: TEXTE_MAX, logo: e.logo })];
+  const parties = [promptPubEntiere({ copie, sceneBrief: s.instruction, avecProduit: e.avecProduit, format: e.ratio, sceneMax: TEXTE_MAX, logo: e.logo, ...(e.vuesProduit && e.vuesProduit > 1 ? { vuesProduit: e.vuesProduit } : {}) })];
   if (e.consigne.protectedComponents.length) parties.push(`Composants à préserver à l’identique : ${e.consigne.protectedComponents.join(' ; ')}.`);
   if (s.negatives.length) parties.push(`À éviter absolument : ${s.negatives.join(' ; ')}.`);
   return { prompt: parties.join('\n\n'), retires: s.retires };
@@ -316,15 +352,54 @@ export function promptFalPubEntiere(e: { consigne: ConsigneImage; pub: PubEntier
  * ── Ce qu'on compare, et pourquoi si peu ─────────────────────────────────────
  *
  * Deux natures d'attribut seulement, celles qu'une accroche affirme et qu'une
- * étiquette porte en clair : le GOÛT (goût, saveur, parfum, arôme suivis d'une
- * saveur connue) et la QUANTITÉ (« 60 gommes », « 50 ml »). Une valeur n'est
- * retenue que si elle nomme une saveur du lexique : « le goût du bonheur »,
- * « un goût unique » n'affirment rien de vérifiable et se taisent. Le silence
- * est la conclusion la plus fréquente, et la bonne.
+ * étiquette porte en clair. Le silence est la conclusion la plus fréquente, et
+ * la bonne : une règle qui condamne une pub juste à tort est pire que pas de
+ * règle (relecture indépendante de #1096 · faux positifs sondés ci-dessous).
  *
- * Deux valeurs sont COMPATIBLES si l'une contient l'autre (« fruits rouges
+ *  · le GOÛT · goût, saveur, parfum, arôme, suivi IMMÉDIATEMENT d'une saveur du
+ *    lexique (articles permis). Un premier mot hors lexique et la lecture se
+ *    tait (« le goût du bonheur », « un goût unique », « goût intense de… ») ;
+ *    « couleur » n'est pas un goût ; « passion » et « nature » derrière un
+ *    article sont des métaphores (« le goût de la passion »), seul « fruit de
+ *    la passion » ou « goût passion » est une saveur. Les mots invariables du
+ *    lexique (« bois », « cassis », « ananas », « anis ») ne sont pas mis au
+ *    singulier ;
+ *  · la QUANTITÉ · seulement la CONTENANCE : « pot / boîte / flacon / bouteille
+ *    / tube… (de) N unité ». Côté produit, une ligne d'étiquette qui n'est QUE
+ *    la quantité (« 60 GOMMES ») compte aussi. Même unité seulement (ml, cl, L
+ *    convertis en ml ; g, kg en g) ; une dose (« par jour », « par prise »), une
+ *    offre (« offerts »), un « 0 g de », un dosage en mg ne sont pas des
+ *    contenances. Une quantité de la pub qui n'est pas une contenance est dite
+ *    « non vérifiée » par la relecture, jamais bloquante.
+ *
+ * Deux saveurs sont COMPATIBLES si l'une contient l'autre (« fruits rouges
  * intense » et « fruits rouges ») ou si l'une est la famille de l'autre
- * (« fruits rouges » et « fraise »). Sinon, c'est une contradiction.
+ * (« fruits rouges » et « fraise »). Deux contenances, si elles sont égales.
+ *
+ * Tableau des cas (`test/pub-entiere.test.ts`, tous gardés) :
+ *
+ *   texte de la pub                  fait du produit           verdict
+ *   Un goût fruits rouges qui…        Goût mangue               contradiction
+ *   Goût fruit de la passion          Goût mangue               contradiction
+ *   Goût cassis                       Goût fraise               contradiction
+ *   Le pot de 30 gommes               60 GOMMES (étiquette)     contradiction
+ *   Flacon de 50 ml                   Flacon de 100 ml          contradiction
+ *   Bouteille de 1 L                  Bouteille 50 cl           contradiction
+ *   Le goût du bonheur / un goût unique   Goût mangue           silence
+ *   Le goût de la passion             Goût mangue               silence
+ *   Une peau douce et rose            Parfum vanille            silence
+ *   Couleur orange                    Goût fraise               silence
+ *   Goût fruits des bois              Goût myrtille             silence (famille)
+ *   Goût fruits exotiques             Goût mangue               silence (famille)
+ *   Goût cassis / Saveur ananas / Parfum anis   le même         silence
+ *   0 g de sucre ajouté               Pot de 60 gommes          silence
+ *   2 gommes par jour suffisent       Pot de 60 gommes          silence (non vérifiée)
+ *   3 sachets offerts                 Boîte de 30 sachets       silence
+ *   1 L par jour                      Bouteille 50 cl           silence
+ *   60 gommes pour un mois            Boîte de 30 gommes        silence (non vérifiée)
+ *   Un sachet de 5 g par jour         Boîte de 30 sachets       silence
+ *   Boîte de 60 gélules               Boîte de 60 gommes        silence (autre unité)
+ *   Flacon de 50 ml                   Flacon 5 cl               silence (égal)
  */
 
 export type NatureAttribut = 'gout' | 'quantite';
@@ -334,42 +409,46 @@ export interface Assertion { nature: NatureAttribut; valeur: string; brut: strin
 const plat = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[’‘`]/g, '\'');
 const singulier = (m: string) => (m.length > 3 && /[sx]$/.test(m) ? m.slice(0, -1) : m);
 
-/** Saveurs reconnues (formes au singulier, sans accent) · un mot hors lexique n'affirme rien. */
+/** Saveurs reconnues (sans accent, au singulier sauf les invariables) · un mot hors lexique n'affirme rien. */
 const LEXIQUE_SAVEURS = new Set([
   'fruit', 'rouge', 'agrume', 'exotique', 'bois', 'fraise', 'framboise', 'cerise', 'groseille', 'cassis', 'mure', 'myrtille', 'canneberge', 'grenade',
-  'citron', 'orange', 'pamplemousse', 'mandarine', 'clementine', 'yuzu', 'bergamote', 'lime', 'mangue', 'ananas', 'passion', 'papaye', 'goyave', 'litchi',
+  'citron', 'orange', 'pamplemousse', 'mandarine', 'clementine', 'yuzu', 'bergamote', 'lime', 'mangue', 'ananas', 'passion', 'fruitdelapassion', 'papaye', 'goyave', 'litchi',
   'coco', 'peche', 'abricot', 'pomme', 'poire', 'banane', 'raisin', 'prune', 'melon', 'pasteque', 'kiwi', 'figue', 'vanille', 'chocolat', 'cacao', 'caramel',
   'menthe', 'cafe', 'matcha', 'cannelle', 'gingembre', 'miel', 'noisette', 'amande', 'pistache', 'cola', 'lavande', 'rose', 'violette', 'nature',
   'neutre', 'sale', 'fumee', 'barbecue', 'fromage', 'tomate', 'basilic', 'olive', 'truffe', 'curcuma', 'reglisse', 'anis', 'coquelicot', 'sureau',
 ]);
+/** Métaphores fréquentes derrière un article · « le goût de la passion », « le goût de la nature ». */
+const AMBIGUS_APRES_ARTICLE = new Set(['passion', 'nature']);
 /** Familles · « fruits rouges » couvre la fraise, pas la mangue. */
 const FAMILLES: ReadonlyArray<{ famille: string[]; membres: string[] }> = [
   { famille: ['fruit', 'rouge'], membres: ['fraise', 'framboise', 'cerise', 'groseille', 'cassis', 'mure', 'myrtille', 'canneberge', 'grenade'] },
   { famille: ['fruit', 'bois'], membres: ['fraise', 'framboise', 'mure', 'myrtille', 'cassis', 'groseille'] },
   { famille: ['agrume'], membres: ['citron', 'orange', 'pamplemousse', 'mandarine', 'clementine', 'yuzu', 'bergamote', 'lime'] },
-  { famille: ['fruit', 'exotique'], membres: ['mangue', 'ananas', 'passion', 'papaye', 'goyave', 'litchi', 'coco', 'banane', 'kiwi'] },
+  { famille: ['fruit', 'exotique'], membres: ['mangue', 'ananas', 'passion', 'fruitdelapassion', 'papaye', 'goyave', 'litchi', 'coco', 'banane', 'kiwi'] },
 ];
 const ARTICLES = new Set(['de', 'du', 'des', 'd', 'la', 'le', 'les', 'l', 'a', 'au', 'aux', 'en', 'un', 'une']);
-/** Ce qui suit la saveur sans en faire partie · la valeur s'arrête là. */
-const FIN_VALEUR = new Set(['qui', 'que', 'qu', 'pour', 'avec', 'sans', 'dans', 'sur', 'par', 'est', 'sont', 'fait', 'donne', 'vraiment', 'enfin', 'comme', 'car', 'mais', 'si', 'tu', 'vous', 'on', 'il', 'elle', 'ton', 'ta', 'tes', 'votre', 'vos', 'notre', 'nos']);
 
-const motsDe = (s: string) => plat(s).replace(/[^a-z0-9' -]/g, ' ').split(/[\s'-]+/).filter(Boolean);
+/** Le mot du lexique, tel quel (invariable) ou au singulier · `null` hors lexique. */
+const motDuLexique = (m: string): string | null => (LEXIQUE_SAVEURS.has(m) ? m : LEXIQUE_SAVEURS.has(singulier(m)) ? singulier(m) : null);
 
-/** Les saveurs affirmées par un texte · « goût mangue et passion » donne deux valeurs. */
+/** Les saveurs affirmées par un texte · fenêtre IMMÉDIATE après le mot-clé ; « goût mangue et passion » donne deux valeurs. */
 function saveursDe(texte: string): Assertion[] {
   const out: Assertion[] = [];
-  const p = plat(texte);
-  for (const m of p.matchAll(/\b(?:gout|saveur|parfum|arome)s?\b([^.;:!?·\n]*)/g)) {
+  const p = plat(texte).replace(/\bfruits? de la passion\b/g, 'fruitdelapassion');
+  for (const m of p.matchAll(/\b(?:gout|saveur|parfum|arome)s?\b([^.;:!?·\n,]*)/g)) {
     const mots = (m[1] ?? '').replace(/[^a-z0-9' -]/g, ' ').split(/[\s']+/).filter(Boolean);
-    let courant: string[] = [];
     const valeurs: string[][] = [];
-    for (const brut of mots) {
-      if (FIN_VALEUR.has(brut)) break;
-      if (brut === 'et' || brut === 'ou' || brut === '&') { if (courant.length) valeurs.push(courant); courant = []; continue; }
-      if (ARTICLES.has(brut)) continue;
-      const mot = singulier(brut);
-      if (!LEXIQUE_SAVEURS.has(mot)) { if (courant.length) { valeurs.push(courant); courant = []; } if (valeurs.length) break; continue; }
+    let courant: string[] = [];
+    let apresArticle = false;
+    for (let i = 0; i < mots.length; i++) {
+      const brut = mots[i]!;
+      if (ARTICLES.has(brut)) { apresArticle = true; continue; }
+      if ((brut === 'et' || brut === 'ou') && courant.length) { valeurs.push(courant); courant = []; apresArticle = false; continue; }
+      const mot = motDuLexique(brut);
+      // Un mot hors lexique, ou une métaphore derrière un article, clôt la fenêtre.
+      if (!mot || (apresArticle && AMBIGUS_APRES_ARTICLE.has(mot) && courant.length === 0)) break;
       courant.push(mot);
+      apresArticle = false;
     }
     if (courant.length) valeurs.push(courant);
     for (const v of valeurs) out.push({ nature: 'gout', valeur: v.join(' '), brut: m[0].trim() });
@@ -377,25 +456,66 @@ function saveursDe(texte: string): Assertion[] {
   return out;
 }
 
-const UNITES: Readonly<Record<string, string>> = {
-  gomme: 'gomme', gommes: 'gomme', gelule: 'gélule', gelules: 'gélule', capsule: 'capsule', capsules: 'capsule', comprime: 'comprimé', comprimes: 'comprimé',
-  sachet: 'sachet', sachets: 'sachet', dose: 'dose', doses: 'dose', ml: 'ml', cl: 'cl', l: 'l', g: 'g', kg: 'kg', mg: 'mg',
+/** Unités d'une contenance et leur conversion vers l'unité de base de leur famille. */
+const UNITES_CONTENANCE: Readonly<Record<string, { base: string; facteur: number }>> = {
+  gomme: { base: 'gomme', facteur: 1 }, gommes: { base: 'gomme', facteur: 1 }, gelule: { base: 'gélule', facteur: 1 }, gelules: { base: 'gélule', facteur: 1 },
+  capsule: { base: 'capsule', facteur: 1 }, capsules: { base: 'capsule', facteur: 1 }, comprime: { base: 'comprimé', facteur: 1 }, comprimes: { base: 'comprimé', facteur: 1 },
+  sachet: { base: 'sachet', facteur: 1 }, sachets: { base: 'sachet', facteur: 1 }, dose: { base: 'dose', facteur: 1 }, doses: { base: 'dose', facteur: 1 },
+  ml: { base: 'ml', facteur: 1 }, cl: { base: 'ml', facteur: 10 }, l: { base: 'ml', facteur: 1000 }, g: { base: 'g', facteur: 1 }, kg: { base: 'g', facteur: 1000 },
 };
+const UNITES_ALT = 'gommes?|gelules?|capsules?|comprimes?|sachets?|doses?|ml|cl|l|g|kg';
+const UNITE = `(${UNITES_ALT})(?![a-z])`;
+const NOMBRE = '(\\d+(?:[.,]\\d+)?)';
+const CONTENANTS = '(?:pot|boite|flacon|bouteille|tube|etui|coffret|bocal|paquet|recharge|canette|brique|bidon|cure)s?';
+/** Une dose ou une offre juste après la quantité · ce n'est pas une contenance. */
+const PAS_UNE_CONTENANCE = /^\s*(?:par\s+(?:jour|prise|dose|repas|semaine)|\/\s*(?:jour|j)\b|offerts?|gratuits?|en\s+plus)/;
 
-function quantitesDe(texte: string): Assertion[] {
+function contenance(n: string, u: string, brut: string): Assertion {
+  const x = UNITES_CONTENANCE[u]!;
+  return { nature: 'quantite', valeur: `${Math.round(Number(n.replace(',', '.')) * x.facteur * 1000) / 1000} ${x.base}`, brut };
+}
+
+/**
+ * Les contenances d'un texte · « contenant (de) N unité » ; côté produit, une
+ * ligne qui n'est QUE « N unité » (« 60 GOMMES » en tête d'étiquette) aussi.
+ */
+function contenancesDe(texte: string, cote: 'pub' | 'produit'): Assertion[] {
+  const p = plat(texte);
   const out: Assertion[] = [];
-  for (const m of plat(texte).matchAll(/(\d+(?:[.,]\d+)?)\s*(gommes?|gelules?|capsules?|comprimes?|sachets?|doses?|ml|cl|l|g|kg|mg)(?![a-z])/g)) {
-    out.push({ nature: 'quantite', valeur: `${Number(m[1]!.replace(',', '.'))} ${UNITES[m[2]!]}`, brut: m[0] });
+  for (const m of p.matchAll(new RegExp(`\\b${CONTENANTS}\\s+(?:de\\s+|d')?${NOMBRE}\\s*${UNITE}`, 'g'))) {
+    if (PAS_UNE_CONTENANCE.test(p.slice(m.index! + m[0].length))) continue;
+    out.push(contenance(m[1]!, m[2]!, m[0]));
+  }
+  if (cote === 'produit') {
+    const seule = new RegExp(`^\\s*${NOMBRE}\\s*${UNITE}\\s*$`).exec(p);
+    if (seule) out.push(contenance(seule[1]!, seule[2]!, seule[0].trim()));
   }
   return out;
 }
 
-/** Ce qu'un texte affirme du produit · goût et quantité, rien d'autre. */
-export function assertionsDe(texte: string): Assertion[] {
-  return [...saveursDe(texte), ...quantitesDe(texte)];
+/** Ce qu'un texte affirme du produit · goût et contenance, rien d'autre. */
+export function assertionsDe(texte: string, cote: 'pub' | 'produit' = 'pub'): Assertion[] {
+  return [...saveursDe(texte), ...contenancesDe(texte, cote)];
+}
+
+/**
+ * Les quantités d'un texte de la pub qui ne sont PAS des contenances (« 2 gommes
+ * par jour », « 60 gommes pour un mois ») · jamais comparées, jamais bloquantes,
+ * dites « non vérifiées » par la relecture.
+ */
+export function quantitesNonComparees(texte: string): string[] {
+  const p = plat(texte);
+  const contenances = new Set(contenancesDe(texte, 'pub').map((a) => a.brut));
+  const out: string[] = [];
+  for (const m of p.matchAll(new RegExp(`${NOMBRE}\\s*(${UNITES_ALT}|mg)(?![a-z])`, 'g'))) {
+    if ([...contenances].some((c) => c.includes(m[0]))) continue;
+    out.push(texte.slice(m.index!, m.index! + m[0].length));
+  }
+  return out;
 }
 
 function compatibles(nature: NatureAttribut, a: string, b: string): boolean {
+  // Deux contenances de la même unité (le filtre de `contradictionsProduit`) · égales ou contradictoires.
   if (nature === 'quantite') return a === b;
   const x = new Set(a.split(' ')); const y = new Set(b.split(' '));
   const inclus = (p: Set<string>, q: Set<string>) => [...p].every((t) => q.has(t));
@@ -422,11 +542,12 @@ export interface ContradictionProduit {
  * faits ne mentionnent pas ne se juge pas (aucune référence, aucun verdict).
  */
 export function contradictionsProduit(textes: readonly ChaineImposee[], faits: readonly string[]): ContradictionProduit[] {
-  const duProduit = faits.flatMap(assertionsDe);
+  const duProduit = faits.flatMap((f) => assertionsDe(f, 'produit'));
   const out: ContradictionProduit[] = [];
   for (const t of textes) {
-    for (const a of assertionsDe(t.texte)) {
-      const memes = duProduit.filter((p) => p.nature === a.nature);
+    for (const a of assertionsDe(t.texte, 'pub')) {
+      // Une contenance ne se compare qu'à une contenance de la MÊME unité · sinon, silence.
+      const memes = duProduit.filter((p) => p.nature === a.nature && (a.nature !== 'quantite' || p.valeur.split(' ')[1] === a.valeur.split(' ')[1]));
       if (!memes.length) continue;
       if (memes.some((p) => compatibles(a.nature, a.valeur, p.valeur))) continue;
       if (out.some((c) => c.role === t.role && c.nature === a.nature && c.annonce === a.valeur)) continue;
@@ -533,6 +654,7 @@ export function relecturePubEntiere(e: { copie: CopieDessinee; constat: ConstatP
   const lusPris = new Set(copie.lignes.map((l) => l.lu).filter((x): x is string => !!x));
   const lusProduit = k.texteLu.filter((t) => !lusPris.has(t));
   const contradictions = contradictionsProduit(imposees, [...e.faits, ...lusProduit]);
+  for (const t of imposees) for (const q of quantitesNonComparees(t.texte)) nonVerifie.push(`quantité « ${q} » de l’${t.role} non comparée au produit (ce n’est pas une contenance)`);
   raisons.push(...contradictions.map(phraseContradiction));
   return { schema: SCHEMA_RELECTURE, statut: raisons.length ? 'a_reprendre' : 'conforme', raisons, nonVerifie, copie, contradictions };
 }

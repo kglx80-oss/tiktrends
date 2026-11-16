@@ -18,12 +18,12 @@ import { createRoot, type Root } from 'react-dom/client';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const m = vi.hoisted(() => ({ lire: vi.fn(), compiler: vi.fn(), retenir: vi.fn(), devis: vi.fn(), lancer: vi.fn(), controler: vi.fn(), annuler: vi.fn(), trancher: vi.fn(), refresh: vi.fn() }));
+const m = vi.hoisted(() => ({ lire: vi.fn(), compiler: vi.fn(), retenir: vi.fn(), devis: vi.fn(), lancer: vi.fn(), controler: vi.fn(), annuler: vi.fn(), trancher: vi.fn(), refresh: vi.fn(), accepter: vi.fn(), rejeter: vi.fn() }));
 vi.mock('../app/actions/studios/image', () => ({
   lireParcoursImage: m.lire, compilerConsigneImage: m.compiler, retenirConsigneImage: m.retenir, demanderDevisImage: m.devis,
   approuverEtLancerImage: m.lancer, controlerMediaImage: m.controler,
 }));
-vi.mock('../app/actions/studios/execution', () => ({ annulerJob: m.annuler }));
+vi.mock('../app/actions/studios/execution', () => ({ annulerJob: m.annuler, accepterMedia: m.accepter, rejeterMedia: m.rejeter }));
 vi.mock('../app/actions/studios/produit', () => ({ trancherComposants: m.trancher }));
 vi.mock('next/navigation', () => ({ usePathname: () => '/studio/projets/p1/produit', useRouter: () => ({ refresh: m.refresh, push: () => {} }) }));
 
@@ -37,12 +37,14 @@ const COPIE = { headline: 'Tes lunettes tiennent enfin', subhead: null, benefits
 const PE: NonNullable<VueParcoursImage['pubEntiere']> = {
   prix: { credits: 50, usdMicros: 49_000 }, motif: 'prix catalogue', libelleMoteur: 'GPT Image 2', borneControleParImageUsdMicros: 166_328,
   copie: COPIE, raisonSansCopie: null, ecartes: [{ texte: 'Voir', raison: 'un seul bouton par pub' }],
+  formatServi: 'Format servi par le générateur · 3:4 (format du projet 4:5) · la pub n’est pas recadrée.',
 };
 const CONSIGNE: ConsigneVue = {
   runId: '11111111-1111-4111-8111-111111111111', mode: 'generative_scene', libelleMode: 'Mise en scène générée',
   generationInstruction: 'Coureur portant les lunettes, piste au lever du jour.', negativeConstraints: [], protectedComponents: ['lunettes'], liaisons: [],
   format: { largeur: 1080, hauteur: 1350 }, compileeLe: '2026-11-16T10:00:00Z',
   typographie: 'entiere', libelleTypographie: 'Pub entière · le générateur dessine les textes et le logo', copie: COPIE,
+  limitesPubEntiere: ['Non envoyé au générateur (au plus 3 : vues du produit puis logo) · sta_1 (rôle Style).', 'Format servi par le générateur · 3:4 (format du projet 4:5) · la pub n’est pas recadrée.'],
 };
 const OK: VerdictConsigne = { ok: true };
 function vue(o: Partial<VueParcoursImage> = {}): VueParcoursImage {
@@ -57,8 +59,8 @@ function vue(o: Partial<VueParcoursImage> = {}): VueParcoursImage {
 }
 const job = (o: Partial<JobImageVue> = {}): JobImageVue => ({
   id: 'j1', etat: 'completed', libelleEtat: 'Terminé', message: 'Terminé', raisonEchec: null, annulable: false, terminal: true,
-  qualite: 'rejected', libelleQualite: 'Écarté · la relecture demande de reprendre la pub', creditsReserves: 50, creditsRendus: null,
-  media: { assetId: 'a1', url: '/api/studios/media/a1', largeur: 1080, hauteur: 1350 }, creeLe: '2026-11-16T10:05:00Z', pubEntiere: true,
+  qualite: 'requires_review', libelleQualite: 'À relire · la relecture demande de reprendre la pub', creditsReserves: 50, creditsRendus: null,
+  media: { assetId: 'a1', url: '/api/studios/media/a1', largeur: 1080, hauteur: 1350 }, creeLe: '2026-11-16T10:05:00Z', pubEntiere: true, relectureAuDevis: true,
   relecture: { statut: 'a_reprendre', libelle: 'À reprendre', raisons: ['accroche réécrit · lu « Tes lunettes tiennent » (mot manquant « enfin »)'], nonVerifie: [] }, ...o,
 });
 
@@ -89,6 +91,7 @@ describe('pub entière · au HTML rendu', () => {
     expect(txt(d, '[data-champ="copie-dessinee"]')).toContain('Textes dessinés mot pour mot par le générateur (GPT Image 2) · une image · 50 crédits.');
     expect(txt(d, '[data-champ="copie"]')).toBe('Accroche · « Tes lunettes tiennent enfin »Bouton · « Je les essaie »');
     expect(txt(d, '[data-champ="textes-ecartes"]')).toBe('Hors de l’image · « Voir » (un seul bouton par pub)');
+    expect(txt(d, '[data-champ="format-servi"]')).toBe('Format servi par le générateur · 3:4 (format du projet 4:5) · la pub n’est pas recadrée.');
   });
 
   it('le choix part avec la compilation (calques : aucun champ, le serveur garde son défaut)', async () => {
@@ -114,6 +117,7 @@ describe('pub entière · au HTML rendu', () => {
     expect(c.getAttribute('aria-pressed')).toBe('true');
     expect(txt(d, '[data-case="controle-vision"]')).toBe('Contrôle visuel et relecture de la pub entière (mots, packaging, lisibilité) · inclus, aucun crédit débité · coché par défaut, décocher pour s’en passer');
     expect(txt(d, '[data-champ="typographie"]')).toBe('Textes · Pub entière · le générateur dessine les textes et le logo');
+    expect(txt(d, '[data-champ="limites-pub-entiere"]')).toBe('Non envoyé au générateur (au plus 3 : vues du produit puis logo) · sta_1 (rôle Style). Format servi par le générateur · 3:4 (format du projet 4:5) · la pub n’est pas recadrée.');
   });
 
   it('régime V2 · la case est cochée d’office en pub entière (prix en crédits dit), décochée en calques comme avant', () => {
@@ -132,6 +136,27 @@ describe('pub entière · au HTML rendu', () => {
     expect(r.textContent).toContain('Aucune reprise automatique · pour régénérer, redemande un prix');
     expect(m.lancer).not.toHaveBeenCalled();
     expect(m.devis).not.toHaveBeenCalled();
+  });
+
+  it('« à reprendre » n’est pas définitif · la personne tranche (accepter quand même, ou écarter)', async () => {
+    m.accepter.mockResolvedValue({ ok: true, job: {}, qualite: 'passed' });
+    m.rejeter.mockResolvedValue({ ok: true, job: {}, qualite: 'rejected' });
+    m.lire.mockResolvedValue({ ok: true, vue: vue({ retenue: { ...CONSIGNE, verdict: OK }, jobs: [job()] }) });
+    const d = rendre(vue({ retenue: { ...CONSIGNE, verdict: OK }, jobs: [job()] }));
+    expect(txt(d, '[data-qualite="requires_review"]')).toBe('Qualité');
+    await act(async () => { d.querySelector<HTMLButtonElement>('[data-bouton="accepter-pub"]')!.click(); });
+    expect(m.accepter).toHaveBeenCalledWith({ jobId: 'j1', raison: 'Pub entière relue « à reprendre », acceptée par une personne' });
+    await act(async () => { d.querySelector<HTMLButtonElement>('[data-bouton="ecarter-pub"]')!.click(); });
+    expect(m.rejeter).toHaveBeenCalledWith({ jobId: 'j1', raison: 'Pub entière écartée après relecture' });
+  });
+
+  it('relecture absente ou non conclue · la VRAIE raison est dite (pas au devis, non enregistrée, plafond)', () => {
+    const pasAuDevis = rendre(vue({ jobs: [job({ relecture: null, relectureAuDevis: false, qualite: 'requires_review' })] }));
+    expect(txt(pasAuDevis, '[data-relecture-pub="aucune"]')).toBe('Pub entière · non relue (la relecture n’était pas au devis) · relis les textes toi-même.');
+    const nonEnregistree = rendre(vue({ jobs: [job({ relecture: null, relectureAuDevis: true, qualite: 'requires_review' })] }));
+    expect(txt(nonEnregistree, '[data-relecture-pub="aucune"]')).toBe('Pub entière · relecture au devis mais non enregistrée · relis les textes toi-même.');
+    const plafond = rendre(vue({ jobs: [job({ relecture: { statut: 'non_conclue', libelle: 'Relecture non conclue · relis la pub toi-même', raisons: [], nonVerifie: ['mots, packaging et lisibilité non relus · le plafond de dépense est atteint'] } })] }));
+    expect(txt(plafond, '[data-relecture-pub="non_conclue"]')).toContain('Non vérifié · mots, packaging et lisibilité non relus · le plafond de dépense est atteint');
   });
 
   it('calques · ni relecture ni case de relecture', () => {

@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 import { requeteFalImage, parametresImageDuDevis, promptFal, corpsFalImage, lireParametresImage } from '../src/studios/fournisseurs';
-import { construireConsignePersistee, parametresDepuisConsigne, empreinteConsigne, lireConsignePersistee } from '../src/studios/image/parcours';
+import { construireConsignePersistee, parametresDepuisConsigne, empreinteConsigne, lireConsignePersistee, limitesVisiblesPubEntiere, phraseFormatServi } from '../src/studios/image/parcours';
 import {
   lignesDuDevis, avecControleVision, PRICING_VERSION, libelleCaseControleVision, borneControleVisionParImageMicros, OPERATION_CONTROLE_VISION,
 } from '../src/studios/execution/tarifs';
@@ -11,7 +11,7 @@ import { entreeCompilation } from '../src/studios/produit/compilation';
 import {
   pubEntiereDuBrief, copieDuBrief, tarifPubEntiere, lignesAuTarifPubEntiere, promptFalPubEntiere, interditLeTexte, sansInterditDeTexte,
   contradictionsProduit, assertionsDe, relecturePubEntiere, ecartMots, chainesDeLaCopie, faitsDuProduit, lirePubEntiere, moteurEnvoye,
-  RESERVE_WORKER_IMAGE_MICROS, SCHEMA_PUB_ENTIERE, TYPOGRAPHIE_PAR_DEFAUT, libelleCaseRelecturePubEntiere, controleCocheParDefaut,
+  RESERVE_WORKER_IMAGE_MICROS, PROMPT_PUB_ENTIERE_MAX, SCHEMA_PUB_ENTIERE, TYPOGRAPHIE_PAR_DEFAUT, libelleCaseRelecturePubEntiere, controleCocheParDefaut,
   type PubEntiere, type CopieDessinee, type ConstatPubEntiere,
 } from '../src/studios/image/pub-entiere';
 import { IMAGE_MODELS, moteurRecommande } from '../src/economics';
@@ -89,7 +89,7 @@ const mediasLogo = [...medias, { assetId: 'logo_m', etat: 'autorise' as const, u
 
 /** La consigne complète envoyée en pub entière · écrite ici en entier, pour la lire. */
 const PROMPT_ENTIERE = [
-  'Produce a COMPLETE, ready-to-publish 4:5 social media advertisement · not a bare photograph.',
+  'Produce a COMPLETE, ready-to-publish 3:4 social media advertisement · not a bare photograph.',
   'The provided image is the EXACT product. Reproduce it strictly identically: same packaging shape, same cap, same label artwork, same label text and its typography, same badges and logos, same colours, same real-world proportions. Do not redraw, restyle, translate or paraphrase anything printed on the packaging. The label must stay as sharp and legible as in the reference.',
   'Scene: Lunettes posées sur une table en chêne, lumière du matin.',
   'Render the advertising typography DIRECTLY INSIDE the image, integrated into the design.',
@@ -109,14 +109,17 @@ describe('pub entière · le mode choisi va jusqu’au corps fal EXACT', () => {
     expect(r.modele).toBe('openai/gpt-image-2/edit');
     expect(r.corps).toEqual({
       prompt: PROMPT_ENTIERE, num_images: 1, image_size: 'portrait_4_3',
-      image_urls: ['https://cdn.marque.test/p.png', 'https://s3.test/b/style.png'], quality: 'medium',
+      image_urls: ['https://cdn.marque.test/p.png'], quality: 'medium',
     });
     for (const t of [COPIE.headline, COPIE.subhead!, ...COPIE.benefits, COPIE.cta!]) expect(r.corps.prompt).toContain(t);
     expect(r.corps.prompt).not.toContain('Aucun texte écrit dans l’image');
     expect(r.corps.prompt).not.toContain('Pas de texte dans l’image');
     expect(interditLeTexte(String(r.corps.prompt)), 'une consigne « pas de texte » est partie en pub entière').toBe(false);
     expect(r.limites).toContain('pub entière · consigne « pas de texte » retirée : Pas de texte dans l’image');
-    expect(r.expurge).toMatchObject({ modele: 'openai/gpt-image-2/edit', quality: 'medium', image_urls: [{ assetId: 'pph_a', sha256: SHA_P }, { assetId: 'sta_style', sha256: SHA_S }] });
+    expect(r.expurge).toMatchObject({ modele: 'openai/gpt-image-2/edit', quality: 'medium', image_urls: [{ assetId: 'pph_a', sha256: SHA_P }] });
+    // Le ratio RÉELLEMENT servi est annoncé, et l'écart au format du projet est dit.
+    expect(r.limites).toContain('pub entière · format 4:5 demandé, servi en 3:4 (portrait_4_3) par le moteur · la pub n’est pas recadrée');
+    expect(r.limites).toContain('pub entière · référence écartée (au plus 3 : vues du produit puis logo) : sta_style (style)');
   });
 
   it('sans référence · l’adresse sans référence du catalogue ; format 9:16 servi et dit dans la consigne', () => {
@@ -133,6 +136,8 @@ describe('pub entière · le mode choisi va jusqu’au corps fal EXACT', () => {
     const nano = requeteFalImage({ operations: ops, parametres: parametresEntiere('nano'), medias, modeles });
     if (!haute.ok || !nano.ok) throw new Error('requête');
     expect([haute.modele, haute.corps.resolution, haute.corps.aspect_ratio]).toEqual(['fal-ai/nano-banana-2/edit', '2K', '4:5']);
+    expect(String(haute.corps.prompt)).toMatch(/^Produce a COMPLETE, ready-to-publish 4:5 social media/);
+    expect(haute.limites.some((l) => l.includes('servi en'))).toBe(false);
     expect(Object.keys(nano.corps).sort()).toEqual(['aspect_ratio', 'image_urls', 'num_images', 'prompt']);
     expect(moteurEnvoye('gpt2_high', true)).toEqual({ modele: 'openai/gpt-image-2/edit', params: { quality: 'high' } });
   });
@@ -140,8 +145,38 @@ describe('pub entière · le mode choisi va jusqu’au corps fal EXACT', () => {
   it('un logo lié est transmis et nommé dans la consigne', () => {
     const r = requeteFalImage({ operations: ops, parametres: parametresEntiere(undefined, { logo: true }), medias: mediasLogo, modeles });
     if (!r.ok) throw new Error(r.motif);
-    expect(r.corps.image_urls).toEqual(['https://cdn.marque.test/p.png', 'https://s3.test/b/style.png', 'https://cdn.marque.test/logo.png']);
+    expect(r.corps.image_urls).toEqual(['https://cdn.marque.test/p.png', 'https://cdn.marque.test/logo.png']);
     expect(String(r.corps.prompt)).toContain('The brand logo is provided among the reference images');
+  });
+
+  it('au plus 3 références · vues du produit d’abord (photo épinglée en tête), le logo s’il reste une place, le reste écarté et dit', () => {
+    const shaN = (n: string) => createHash('sha256').update(n).digest('hex');
+    const vues = ['pph_1', 'pph_2', 'pph_3'];
+    const p = parametresImageDuDevis({
+      consigne: { ...consigne, referenceBindings: [{ referenceId: 'sta_style', role: 'style', scope: 'background' }, ...vues.map((v) => ({ referenceId: v, role: 'product', scope: 'product' })), { referenceId: 'logo_m', role: 'logo', scope: 'global' }] },
+      references: [{ assetId: 'sta_style', assetVersion: 'v', sha256: SHA_S, role: 'style' }, ...vues.map((v) => ({ assetId: v, assetVersion: 'v', sha256: shaN(v), role: 'product' })), { assetId: 'logo_m', assetVersion: 'v', sha256: SHA_L, role: 'logo' }],
+      largeur: 1080, hauteur: 1350, pubEntiere: pub(),
+    });
+    const m = [...vues.map((v) => ({ assetId: v, etat: 'autorise' as const, url: `https://cdn.marque.test/${v}.png`, sha256: shaN(v) })), { assetId: 'sta_style', etat: 'autorise' as const, url: 'https://s3.test/b/style.png', sha256: SHA_S }, { assetId: 'logo_m', etat: 'autorise' as const, url: 'https://cdn.marque.test/logo.png', sha256: SHA_L }];
+    const r = requeteFalImage({ operations: ops, parametres: p, medias: m, modeles });
+    if (!r.ok) throw new Error(r.motif);
+    expect(r.corps.image_urls).toEqual(['https://cdn.marque.test/pph_1.png', 'https://cdn.marque.test/pph_2.png', 'https://cdn.marque.test/pph_3.png']);
+    expect(r.limites).toContain('pub entière · référence écartée (au plus 3 : vues du produit puis logo) : sta_style (style), logo_m (logo)');
+    expect(String(r.corps.prompt)).not.toContain('brand logo');
+    // Plusieurs vues du MÊME article · la consigne le dit, un seul exemplaire.
+    expect(String(r.corps.prompt)).toContain('The first 3 provided images are views of the SAME single product · one physical item seen from different angles, never several items.');
+    expect(String(r.corps.prompt)).not.toContain('The provided image is the EXACT product.');
+    // Calques · aucun plafond nouveau, toutes les références liées partent comme avant.
+    const { pubEntiere: _pe, ...calques } = p;
+    void _pe;
+    const c = requeteFalImage({ operations: ops, parametres: calques, medias: m, modeles });
+    expect(c.ok && (c.corps.image_urls as string[]).length).toBe(5);
+  });
+
+  it('la consigne totale envoyée en pub entière est bornée · au-delà, refus AVANT l’appel', () => {
+    const longues = Array.from({ length: 4 }, (_, i) => `contrainte ${i} ${'x'.repeat(9_000)}`);
+    const p = parametresImageDuDevis({ consigne: { ...consigne, negativeConstraints: longues }, references: refs, largeur: 1080, hauteur: 1350, pubEntiere: pub() });
+    expect(requeteFalImage({ operations: ops, parametres: p, medias, modeles })).toMatchObject({ ok: false, code: 'INVALID_SCHEMA', motif: expect.stringContaining(`au-delà de ${PROMPT_PUB_ENTIERE_MAX.toLocaleString('fr-FR')} caractères`) });
   });
 
   it('instantané mal formé ⇒ refus AVANT tout appel (moteur hors catalogue, champ inventé)', () => {
@@ -226,6 +261,22 @@ describe('pub entière · le devis annonce le prix CATALOGUE du moteur et du par
   });
 });
 
+describe('pub entière · ce qui ne part pas tel quel est dit à l’écran', () => {
+  it('références écartées et format servi · phrases lues sur la consigne retenue ; Nano au 4:5 ⇒ rien à dire', () => {
+    const base = { runId: '11111111-1111-4111-8111-111111111111', mode: 'generative_scene' as const, sourceVersionId: '22222222-2222-4222-8222-222222222222', contenu: { brief: brief as never, productRef: null }, consigne, referencesTransmises: brief.references as never, largeur: 1080, hauteur: 1350, compileeLe: new Date('2026-11-15T10:00:00Z') };
+    const e = construireConsignePersistee({ ...base, pubEntiere: pub() });
+    if (!e.ok) throw new Error('construction');
+    expect(limitesVisiblesPubEntiere(e.consigne)).toEqual([
+      'Non envoyé au générateur (au plus 3 : vues du produit puis logo) · sta_style (rôle Style).',
+      'Format servi par le générateur · 3:4 (format du projet 4:5) · la pub n’est pas recadrée.',
+    ]);
+    expect(phraseFormatServi('nano_high', 1080, 1350)).toBeNull();
+    expect(phraseFormatServi('gpt2', 1080, 1920)).toBeNull();
+    const c = construireConsignePersistee(base);
+    expect(c.ok && limitesVisiblesPubEntiere(c.consigne)).toEqual([]);
+  });
+});
+
 describe('consigne « pas de texte » · retirée en pub entière, l’interdit de transfert reste', () => {
   it.each([
     ['Pas de texte dans l’image', true], ['Aucun texte.', true], ['sans typographie', true], ['No text on the image', true], ['text-free background', true],
@@ -256,15 +307,40 @@ describe('cohérence de l’accroche avec les faits du produit', () => {
     ['Goût fraise intense', ['Saveur fruits rouges'], 0],
     ['Goût fruits exotiques', ['Goût mangue'], 0],
     ['Goût fruits rouges', ['Goût fruits exotiques'], 1],
-    ['60 gommes pour un mois', ['Boîte de 30 gommes'], 1],
-    ['60 gommes pour un mois', ['60 gommes'], 0],
     ['Un goût vanille', ['Description sans goût annoncé'], 0],
+    // Quantités · faux positifs sondés à la relecture indépendante (silence attendu).
+    ['0 g de sucre ajouté', ['Pot de 60 gommes'], 0],
+    ['2 gommes par jour suffisent', ['Pot de 60 gommes'], 0],
+    ['3 sachets offerts', ['Boîte de 30 sachets'], 0],
+    ['1 L par jour', ['Bouteille 50 cl'], 0],
+    ['60 gommes pour un mois', ['Boîte de 30 gommes'], 0],
+    ['Un sachet de 5 g par jour', ['Boîte de 30 sachets'], 0],
+    ['Boîte de 60 gélules', ['Boîte de 60 gommes'], 0],
+    ['Flacon de 50 ml', ['Flacon 5 cl'], 0],
+    ['Un flacon de 10 ml par jour', ['Flacon de 50 ml'], 0],
+    ['Un goût qui rappelle la fraise', ['Goût mangue'], 0],
+    // Quantités · vrais positifs (contenance contre contenance, même unité).
+    ['Le pot de 30 gommes', ['60 GOMMES'], 1],
+    ['Flacon de 50 ml', ['Flacon de 100 ml'], 1],
+    ['Bouteille de 1 L', ['Bouteille 50 cl'], 1],
+    // Saveurs · faux positifs sondés (silence attendu).
+    ['Une peau douce et rose', ['Parfum vanille'], 0],
+    ['Couleur orange', ['Goût fraise'], 0],
+    ['Le goût de la passion', ['Goût mangue'], 0],
+    ['Goût cassis', ['Goût cassis'], 0],
+    ['Saveur ananas', ['Goût ananas'], 0],
+    ['Goût fruits des bois', ['Goût myrtille'], 0],
+    ['Parfum anis', ['Arôme anis étoilé'], 0],
+    // Saveurs · vrais positifs.
+    ['Goût fruit de la passion', ['Goût mangue'], 1],
+    ['Goût cassis', ['Goût fraise'], 1],
   ] as const)('« %s » face à %j ⇒ %i contradiction(s)', (texte, faits, n) => {
     expect(contradictionsProduit([{ role: 'accroche', texte }], faits)).toHaveLength(n);
   });
 
   it('les assertions lues · goût (plusieurs valeurs) et quantité', () => {
-    expect(assertionsDe('Goût mangue et passion · 60 gommes · 2,5 ml').map((a) => [a.nature, a.valeur])).toEqual([['gout', 'mangue'], ['gout', 'passion'], ['quantite', '60 gomme'], ['quantite', '2.5 ml']]);
+    expect(assertionsDe('Goût mangue et passion · Pot de 60 gommes · flacon de 2,5 cl').map((a) => [a.nature, a.valeur])).toEqual([['gout', 'mangue'], ['gout', 'passion'], ['quantite', '60 gomme'], ['quantite', '25 ml']]);
+    expect(assertionsDe('Goût cassis, saveur ananas, parfum bois').map((a) => a.valeur)).toEqual(['cassis', 'ananas', 'bois']);
   });
 
   it('seuls les faits du produit comptent · un fait relevé sur une annonce concurrente est ignoré', () => {
@@ -317,6 +393,13 @@ describe('relecture d’une pub entière · perception de la vision, jugement en
   it('sans constat (vision absente) ⇒ non conclue, jamais conforme ; une contradiction avec la fiche reste dite', () => {
     expect(relecturePubEntiere({ copie: COPIE, constat: null, faits: [], motif: 'vision absente' })).toMatchObject({ statut: 'non_conclue', raisons: [], nonVerifie: ['mots, packaging et lisibilité non relus · vision absente'] });
     expect(relecturePubEntiere({ copie: { ...COPIE, headline: 'Goût fraise' }, constat: null, faits: ['Goût mangue'] })).toMatchObject({ statut: 'a_reprendre' });
+  });
+
+  it('« 2 gommes par jour » avec l’étiquette lue « 60 GOMMES » ⇒ conforme, la quantité est dite non comparée (jamais bloquante)', () => {
+    const c: CopieDessinee = { headline: '2 gommes par jour suffisent', subhead: null, benefits: [], cta: null };
+    const v = relecturePubEntiere({ copie: c, constat: constat(['2 gommes par jour suffisent', 'naali', '60 GOMMES']), faits: ['Pot de 60 gommes'] });
+    expect(v.statut).toBe('conforme');
+    expect(v.nonVerifie).toEqual(['quantité « 2 gommes » de l’accroche non comparée au produit (ce n’est pas une contenance)']);
   });
 
   it('packaging non comparé (aucune référence) · dit « non vérifié », pas « fidèle »', () => {
