@@ -33,13 +33,23 @@
  *    permise, marquée « à valider à l'écoute » (seul le propriétaire peut
  *    l'entendre), jamais présentée comme acquise.
  *
- * ── Le repli ────────────────────────────────────────────────────────────────
+ * ── Hors catalogue ──────────────────────────────────────────────────────────
  *
  * Un modèle HORS catalogue (posé à la main dans `FAL_VIDEO_MODEL_STUDIO`) n'a
- * pas de prix à la seconde : il garde le comportement d'avant le catalogue ·
- * corps Kling de 5 s, une unité au forfait `FIXED_COSTS.fal_video` (0,60 $),
- * `CREDIT_COSTS.video` crédits. C'est désormais le SEUL usage studio de ce
- * forfait.
+ * pas de prix : il est REFUSÉ au devis (`MOTIF_HORS_CATALOGUE`), jamais
+ * envoyé au forfait d'un prix inconnu.
+ *
+ * ── La réserve, tant qu'aucune facture n'est rapprochée ──────────────────────
+ *
+ * Les prix ci-dessous sont relevés, pas encore rapprochés d'une facture fal.
+ * Le DEVIS affiche l'estimation catalogue (prix × durée, « estimation ») ; la
+ * RÉSERVE (ligne `ai_spend`, barrière du worker) ne descend jamais sous
+ * l'ancien forfait de main pour un clip (`FIXED_COSTS.fal_video`, 0,60 $) :
+ * Kling 5 s réserve 0,60 $ et non 0,35 $. Baisse de la réserve après
+ * rapprochement d'une facture · quand le propriétaire fournit la ligne de
+ * facture fal d'un modèle, on l'inscrit dans `FACTURES_FAL_RAPPROCHEES`, et
+ * ce modèle réserve alors exactement prix × durée. Un modèle plus cher que le
+ * forfait (Veo Fast 8 s, 1,20 $) réserve déjà prix × durée.
  */
 
 import { CREDIT_COSTS } from '../../credits';
@@ -143,6 +153,11 @@ export function entreeCatalogueVideo(endpoint: string | null | undefined): Entre
  * La durée du clip pour un plan · la plus proche durée PERMISE au moins égale
  * à la durée du plan, bornée à la plus longue du modèle. `bornee` dit qu'un
  * plan plus long que le clip maximal sera coupé au montage.
+ *
+ * Saut assumé · chez Kling, un plan de 5,1 s part en 10 s (0,70 $ au lieu de
+ * 0,35 $) : aucune tolérance n'est posée tant qu'aucune mesure ne dit combien
+ * de dixièmes un montage absorbe sans gêne. Le prix du plan (durée comprise)
+ * est annoncé AVANT le clic (`prixClipDuPlan`).
  */
 export function dureeClipPour(e: Pick<EntreeCatalogueVideo, 'dureesS'>, dureePlanMs: number): { dureeS: number; bornee: boolean } {
   const ds = [...e.dureesS].sort((a, b) => a - b);
@@ -208,6 +223,16 @@ export function decisionAudioNatif(e: { entree: EntreeCatalogueVideo | null; lan
   return { audio: true, refus: null, limite: null };
 }
 
+/**
+ * Le modèle rend-il une voix native utilisable dans cette langue ? LA source
+ * pour le son et le montage (prise parlée à l'image) · définie par
+ * `decisionAudioNatif` (prise parlée), jamais recalculée ailleurs. Vrai pour
+ * Veo 3.1 (voix « à valider à l'écoute »), faux pour Kling et hors catalogue.
+ */
+export function modeleRendLaVoix(entree: EntreeCatalogueVideo | null, langue: string): boolean {
+  return decisionAudioNatif({ entree, langue, parole: 'lipsync' }).audio;
+}
+
 /* ─────────────────────────────── Tarif ──────────────────────────────────── */
 
 /**
@@ -228,18 +253,37 @@ export function creditsPourUsdMicros(usdMicros: number): number {
 
 /** Motif de nature du montant d'une ligne au catalogue · prix publié, pas encore rapproché d'une facture. */
 export const MOTIF_PRIX_CATALOGUE = `prix catalogue fal relevé le ${DATE_RELEVE_CATALOGUE_VIDEO}, non encore rapproché d’une facture`;
-export const MOTIF_PRIX_REPLI = 'modèle hors catalogue · forfait vidéo de repli (FIXED_COSTS.fal_video), prix réel inconnu';
+/** Refus d'un modèle Studios hors catalogue · aucun prix, aucun envoi. */
+export const MOTIF_HORS_CATALOGUE = 'Modèle vidéo non chiffré au catalogue · ajoute-le au catalogue avec son prix avant de l’utiliser';
+
+/**
+ * Factures fal rapprochées, par modèle · VIDE tant que le propriétaire n'a
+ * fourni aucune ligne de facture. Une entrée (référence de la facture) fait
+ * descendre la réserve de ce modèle au prix catalogue exact.
+ */
+export const FACTURES_FAL_RAPPROCHEES: Readonly<Partial<Record<IdModeleVideo, string>>> = {};
+/** Plancher de réserve d'un clip · l'ancien forfait de main (`FIXED_COSTS.fal_video`). */
+export const PLANCHER_RESERVE_CLIP_USD_MICROS = Math.round(FIXED_COSTS.fal_video * 1_000_000);
 
 export interface TarifClip {
-  /** `catalogue` · prix à la seconde ; `repli` · modèle hors catalogue, une unité au forfait. */
-  base: 'catalogue' | 'repli';
-  /** Unités facturées · les secondes du clip (catalogue), 1 (repli). */
+  /** Unités facturées · les secondes du clip. */
   unites: number;
   usdMicrosParUnite: number;
   creditsParUnite: number;
+  /** Estimation catalogue · prix × durée, ce que le devis affiche. */
   usdMicros: number;
   credits: number;
+  /** Ce que la barrière RÉSERVE · jamais sous le plancher sans facture rapprochée. */
+  reserveUsdMicros: number;
   motif: string;
+}
+
+/** La réserve d'un clip · prix × durée, relevé au plancher tant que le modèle n'a pas de facture rapprochée. */
+export function reserveClipUsdMicros(
+  m: Pick<EntreeCatalogueVideo, 'id'>, t: Pick<TarifClip, 'usdMicros'>,
+  rapprochees: Readonly<Partial<Record<IdModeleVideo, string>>> = FACTURES_FAL_RAPPROCHEES,
+): number {
+  return rapprochees[m.id] ? t.usdMicros : Math.max(t.usdMicros, PLANCHER_RESERVE_CLIP_USD_MICROS);
 }
 
 export type ResultatTarifClip = { ok: true; tarif: TarifClip } | { ok: false; motif: string };
@@ -254,11 +298,7 @@ const usdTexte = (micros: number) => `${(micros / 1_000_000).toFixed(2).replace(
  */
 export function tarifClip(e: { modele: string; dureeS: number; audio: boolean; resolution: ResolutionVideo | null }): ResultatTarifClip {
   const m = entreeCatalogueVideo(e.modele);
-  if (!m) {
-    if (e.dureeS !== 5 || e.audio) return { ok: false, motif: 'modèle hors catalogue · seule la durée de base de 5 s, muette, a un prix (forfait de repli)' };
-    const usd = Math.round(FIXED_COSTS.fal_video * 1_000_000);
-    return { ok: true, tarif: { base: 'repli', unites: 1, usdMicrosParUnite: usd, creditsParUnite: CREDIT_COSTS.video, usdMicros: usd, credits: CREDIT_COSTS.video, motif: MOTIF_PRIX_REPLI } };
-  }
+  if (!m) return { ok: false, motif: `${MOTIF_HORS_CATALOGUE} (${e.modele})` };
   if (!m.dureesS.includes(e.dureeS)) return { ok: false, motif: `${m.libelle} n’accepte que ${m.dureesS.join(', ')} s · ${e.dureeS} s n’a pas de prix` };
   const resolution = e.resolution ?? m.resolutionDefaut;
   const p = m.prix[resolution];
@@ -266,11 +306,12 @@ export function tarifClip(e: { modele: string; dureeS: number; audio: boolean; r
   const parSeconde = e.audio ? p.audioUsdMicros : p.muetUsdMicros;
   if (parSeconde === null) return { ok: false, motif: `${m.libelle} ne produit pas de voix · aucun prix avec audio` };
   const creditsParUnite = creditsPourUsdMicros(parSeconde);
+  const usdMicros = parSeconde * e.dureeS;
   return {
     ok: true,
     tarif: {
-      base: 'catalogue', unites: e.dureeS, usdMicrosParUnite: parSeconde, creditsParUnite,
-      usdMicros: parSeconde * e.dureeS, credits: creditsParUnite * e.dureeS,
+      unites: e.dureeS, usdMicrosParUnite: parSeconde, creditsParUnite,
+      usdMicros, credits: creditsParUnite * e.dureeS, reserveUsdMicros: reserveClipUsdMicros(m, { usdMicros }),
       motif: `${m.libelle} · ${e.dureeS} s × ${usdTexte(parSeconde)}/s${e.audio ? ' avec voix native' : ' muet'} · ${MOTIF_PRIX_CATALOGUE}`,
     },
   };

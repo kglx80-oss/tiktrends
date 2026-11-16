@@ -75,10 +75,11 @@ export type CoutSoumissionStudio =
 /**
  * Le coût PLAFOND d'une soumission studio, image OU animation · un job porte
  * des images (au tarif image chacune) ou UN clip, jamais un mélange. Le clip
- * se réserve EXACTEMENT à son tarif catalogue (`tarifDuClip` : prix à la
- * seconde du modèle devisé × durée, voix comprise), le même montant que la
- * ligne du devis. `FIXED_COSTS.fal_video` n'est plus qu'un repli, pour un
- * modèle hors catalogue (5 s, muet). Sans paramètres de clip lisibles, rien
+ * se réserve à son tarif catalogue (`tarifDuClip` : prix à la seconde du
+ * modèle devisé × durée, voix comprise), relevé au plancher de l'ancien
+ * forfait (`FIXED_COSTS.fal_video`) tant qu'aucune facture fal de ce modèle
+ * n'est rapprochée (`reserveClipUsdMicros`). Un modèle hors catalogue n'a pas
+ * de tarif : rien n'est réservé ni envoyé. Sans paramètres lisibles, rien
  * n'est réservé. La voix (sans tarif) est refusée : on ne réserve pas un prix
  * qu'on ne sait pas dire.
  *
@@ -103,7 +104,7 @@ export function coutSoumissionStudio(
   if (lu.parametres.operation !== clips[0]!.operation) return { ok: false, motif: 'les paramètres ne correspondent pas au clip du job' };
   const t = tarifDuClip(lu.parametres, clip.modele);
   if (!t.ok) return { ok: false, motif: t.motif };
-  return { ok: true, usd: t.tarif.usdMicros / 1_000_000, usdMicros: t.tarif.usdMicros, medias: 1, poste: 'fal_video', modele: t.modele };
+  return { ok: true, usd: t.tarif.reserveUsdMicros / 1_000_000, usdMicros: t.tarif.reserveUsdMicros, medias: 1, poste: 'fal_video', modele: t.modele };
 }
 
 /**

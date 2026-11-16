@@ -27,8 +27,12 @@
  *    sans ambiguïté.
  *
  * Schéma `studio_clip/2` (modèle, voix, résolution, ratio). Un instantané
- * `studio_clip/1` écrit avant le catalogue reste lisible : 5 s, muet, modèle
- * du worker, corps Kling.
+ * `studio_clip/1` écrit avant le catalogue (job déjà en file au déploiement)
+ * reste lisible : 5 s, muet, modèle du worker s'il est Kling du catalogue,
+ * réservé au moins à son prix de devis (plancher, `catalogue-video.ts`) ;
+ * tout autre modèle le refuse avant envoi (échec certain, crédits rendus).
+ * Un DEVIS d'avant le catalogue (ligne sans choix du clip) est refusé à
+ * l'approbation (`MESSAGE_DEVIS_AVANT_CATALOGUE`).
  */
 
 import { empreinteContenu } from '../version';
@@ -38,7 +42,7 @@ import { dureePlanMs } from '../video/plans';
 import { formatVideo } from '../video/consigne-plan';
 import { adresseTransmissible, contientEmplacement, type MediaResolu } from './fal-image';
 import {
-  MODELE_VIDEO_STUDIO_DEFAUT, corpsFalVideo, decisionAudioNatif, dureeClipPour, entreeCatalogueVideo, langueDuProjet, ratioPourModele, tarifClip,
+  MODELE_VIDEO_STUDIO_DEFAUT, MOTIF_HORS_CATALOGUE, corpsFalVideo, decisionAudioNatif, dureeClipPour, entreeCatalogueVideo, langueDuProjet, ratioPourModele, tarifClip,
   type RatioVideo, type ResolutionVideo, type TarifClip,
 } from './catalogue-video';
 /** Le plan réservé de l'image fixe du parcours image (`image/parcours.ts`) · jamais animé. */
@@ -128,14 +132,12 @@ export function choixClipDuPlan(e: { contenu: ContenuVersion; shotId: string; mo
   if (!p) return { ok: false, code: 'NOT_FOUND', motif: 'Ce plan n’existe plus dans la version courante.' };
   const modele = (e.modele ?? '').trim() || MODELE_FAL_ANIMATION_DEFAUT;
   const m = entreeCatalogueVideo(modele);
+  // Un modèle sans prix n'est jamais devisé · aucun forfait d'un prix inconnu.
+  if (!m) return { ok: false, code: 'UNSUPPORTED_CAPABILITY', motif: `${MOTIF_HORS_CATALOGUE} (${modele}).` };
   const limites: string[] = [];
   const audio = decisionAudioNatif({ entree: m, langue: langueDuProjet(e.contenu), parole: p.speechMode });
   if (audio.refus) limites.push(audio.refus);
   if (audio.limite) limites.push(audio.limite);
-  if (!m) {
-    limites.push('modèle hors catalogue · 5 s au forfait de repli');
-    return { ok: true, choix: { modele, dureeS: DUREE_CLIP_S, audio: false, resolution: null, ratio: null }, limites };
-  }
   const ratio = ratioPourModele(m, formatVideo(e.contenu));
   if (!ratio.ok) return { ok: false, code: 'UNSUPPORTED_CAPABILITY', motif: ratio.raison };
   const d = dureeClipPour(m, dureePlanMs(p));
@@ -227,10 +229,7 @@ export function lireParametresClip(x: unknown): { ok: true; parametres: Parametr
       if (o.ratio !== null) v.push('/parametres/ratio : déduit de l’image clé pour ce modèle');
     }
   } else if (modele) {
-    // Hors catalogue · le comportement d'avant le catalogue, et lui seul.
-    if (o.dureeS !== DUREE_CLIP_S) v.push(`/parametres/dureeS : ${DUREE_CLIP_S} s seulement (modèle hors catalogue)`);
-    if (o.audio !== false) v.push('/parametres/audio : muet seulement (modèle hors catalogue)');
-    if (o.resolution !== null || o.ratio !== null) v.push('/parametres/resolution, ratio : aucun pour un modèle hors catalogue');
+    v.push(`/parametres/modele : ${MOTIF_HORS_CATALOGUE.toLowerCase()} (${modele})`);
   }
   return v.length ? { ok: false, violations: v } : { ok: true, parametres: o as unknown as ParametresClipSnapshot };
 }
@@ -248,10 +247,26 @@ export function tarifDuClip(p: ParametresClipSnapshot, modeleWorker?: string | n
   return t.ok ? { ok: true, tarif: t.tarif, modele } : t;
 }
 
+/** Ce qui partira au fournisseur, figé dans la ligne du clip du devis. */
+export type ChoixClipDevise = Pick<ParametresClipSnapshot, 'dureeS' | 'audio' | 'resolution' | 'ratio'> & { modele: string };
+export type LigneClipDevis = LigneDevis & { clip: ChoixClipDevise };
+
+const choixDe = (p: ParametresClipSnapshot, modele: string): ChoixClipDevise => ({ modele, dureeS: p.dureeS, audio: p.audio, resolution: p.resolution, ratio: p.ratio });
+
+/** Le choix figé dans la ligne du clip d'un devis · `null` pour un devis d'avant le catalogue. */
+export function choixClipDuDevis(lignes: unknown, operation: string): ChoixClipDevise | null {
+  const ls = Array.isArray(lignes) ? (lignes as Array<Partial<LigneClipDevis> | null>) : [];
+  const c = ls.find((x) => x?.operation === operation && x?.profil === 'animation')?.clip;
+  return c && typeof c.modele === 'string' && typeof c.dureeS === 'number' && typeof c.audio === 'boolean' ? c : null;
+}
+
+export const MESSAGE_DEVIS_AVANT_CATALOGUE = 'Ce devis date d’avant le catalogue vidéo · redemande un devis. Rien n’a été débité.';
+
 /**
  * La ligne du clip d'un devis, AU CATALOGUE · une unité par seconde, prix et
- * crédits à la seconde (une unité au forfait pour un modèle hors catalogue).
- * Les autres lignes sont rendues telles quelles.
+ * crédits à la seconde (l'estimation), et ce qui partira (modèle, durée,
+ * voix, résolution, ratio) figé dans `clip`. Les autres lignes sont rendues
+ * telles quelles.
  */
 export function lignesAvecTarifClip(lignes: readonly LigneDevis[], p: ParametresClipSnapshot): { ok: true; lignes: LigneDevis[] } | { ok: false; motif: string } {
   const t = tarifDuClip(p);
@@ -260,20 +275,30 @@ export function lignesAvecTarifClip(lignes: readonly LigneDevis[], p: Parametres
   return {
     ok: true,
     lignes: lignes.map((l) => (l.operation === p.operation && l.profil === 'animation'
-      ? { ...l, unites: t.tarif.unites, credits: t.tarif.creditsParUnite, usdMicros: t.tarif.usdMicrosParUnite, inclus: false, natureCout: 'estimation' as const, motifEstimation: t.tarif.motif }
+      ? { ...l, unites: t.tarif.unites, credits: t.tarif.creditsParUnite, usdMicros: t.tarif.usdMicrosParUnite, inclus: false, natureCout: 'estimation' as const, motifEstimation: t.tarif.motif, clip: choixDe(p, t.modele) }
       : l)),
   };
 }
 
 /**
- * À l'approbation · la ligne du clip du devis stocké vaut-elle EXACTEMENT le
- * tarif des paramètres relus maintenant ? Sinon (catalogue, modèle ou durée
- * changés depuis le devis) : la phrase du refus, rien n'est débité.
+ * À l'approbation · ce qui partirait maintenant (paramètres relus) est-il
+ * EXACTEMENT ce que le devis a figé (modèle, durée, voix, résolution, ratio),
+ * et la ligne vaut-elle encore son tarif ? Comparé même à tarif égal (deux
+ * modèles ou deux résolutions au même prix). Sinon la phrase du refus, rien
+ * n'est débité. Un devis d'avant le catalogue est refusé à part.
  */
 export function refusTarifClipChange(lignes: unknown, p: ParametresClipSnapshot): string | null {
   const ls = Array.isArray(lignes) ? (lignes as Array<Partial<LigneDevis> | null>) : [];
   const l = ls.find((x) => x?.operation === p.operation && x?.profil === 'animation');
+  const fige = choixClipDuDevis(lignes, p.operation);
+  if (l && !fige) return MESSAGE_DEVIS_AVANT_CATALOGUE;
   const t = tarifDuClip(p);
+  if (fige && t.ok) {
+    const envoi = choixDe(p, t.modele);
+    if ((Object.keys(envoi) as Array<keyof ChoixClipDevise>).some((k) => envoi[k] !== fige[k])) {
+      return 'Le modèle, la durée, la voix ou le format du clip ont changé depuis ce devis · redemande un devis. Rien n’a été débité.';
+    }
+  }
   if (!l || !t.ok) return 'Le clip de ce devis n’a plus de tarif · redemande un devis. Rien n’a été débité.';
   if (l.unites !== t.tarif.unites || l.credits !== t.tarif.creditsParUnite || l.usdMicros !== t.tarif.usdMicrosParUnite) {
     return 'Le modèle, la durée ou le prix du clip ont changé depuis ce devis · redemande un devis. Rien n’a été débité.';
@@ -326,21 +351,22 @@ export function requeteFalAnimation(e: {
   if (p.operation !== clips[0]!.operation) return { ok: false, code: 'INVALID_SCHEMA', motif: 'les paramètres ne correspondent pas au clip du job', cibles: [clips[0]!.operation] };
   const modele = p.modele ?? e.modele;
   const m = entreeCatalogueVideo(modele);
+  if (!m) return { ok: false, code: 'INVALID_SCHEMA', motif: `${MOTIF_HORS_CATALOGUE} (${modele}) · rien n’est envoyé`, cibles: [p.operation] };
   // Un instantané d'avant le catalogue n'a ni ratio ni durée Veo : jamais envoyé à Veo.
-  if (p.modele === null && m && m.famille !== 'kling') return { ok: false, code: 'INVALID_SCHEMA', motif: `instantané studio_clip/1 (5 s, sans ratio) incompatible avec ${m.libelle} · redemande un devis`, cibles: [p.operation] };
+  if (p.modele === null && m.famille !== 'kling') return { ok: false, code: 'INVALID_SCHEMA', motif: `instantané studio_clip/1 (5 s, sans ratio) incompatible avec ${m.libelle} · redemande un devis`, cibles: [p.operation] };
   const s = e.source;
   if (!s || s.assetId !== p.source.assetId) return { ok: false, code: 'MISSING_REFERENCE', motif: 'image clé non résolue · aucune substitution', cibles: [p.source.assetId] };
   if (s.etat !== 'autorise') return { ok: false, code: 'MISSING_REFERENCE', motif: `image clé indisponible · ${s.motif}`, cibles: [s.assetId] };
   if (s.sha256 !== p.source.sha256) return { ok: false, code: 'MISSING_REFERENCE', motif: 'image clé modifiée depuis le devis · aucune substitution', cibles: [s.assetId] };
   if (!adresseTransmissible(s.url) || s.url.startsWith('data:')) return { ok: false, code: 'MISSING_REFERENCE', motif: 'image clé sans adresse transmissible au fournisseur', cibles: [s.assetId] };
-  const famille = m?.famille ?? 'kling';
+  const famille = m.famille;
   const corps = corpsFalVideo({
     famille, prompt: p.consigne, imageUrl: s.url, dureeS: p.dureeS, negatif: p.interdits.join(', '),
     ratio: p.ratio, resolution: p.resolution, audio: p.audio,
   });
   const expurge: Record<string, unknown> = { ...corps, modele, image_url: { assetId: s.assetId, sha256: s.sha256 } };
   const limites = famille === 'kling'
-    ? ['ratio déduit de l’image clé par le modèle', `durée ${p.dureeS} s`, ...(m ? [] : ['modèle hors catalogue · corps Kling'])]
+    ? ['ratio déduit de l’image clé par le modèle', `durée ${p.dureeS} s`]
     : [`ratio ${p.ratio}`, `durée ${p.dureeS} s`, `résolution ${p.resolution}`, p.audio ? 'voix native · à valider à l’écoute' : 'muet'];
   return { ok: true, modele, corps, operations: [p.operation], expurge, empreinte: empreinteContenu(expurge), limites };
 }

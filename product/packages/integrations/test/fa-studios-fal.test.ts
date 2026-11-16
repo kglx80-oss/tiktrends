@@ -337,12 +337,12 @@ describe('animation · clip image → vidéo sous la barrière, sortie vidéo ra
   }
   beforeEach(() => { modeles.length = 0; });
 
-  it('POST au modèle image → vidéo, corps préparé, réserve au tarif catalogue · Kling 5 s = 0,35 $ (poste fal_video)', async () => {
+  it('POST au modèle image → vidéo, corps préparé, réserve au plancher de l’ancien forfait · Kling 5 s = 0,60 $ sans facture rapprochée (poste fal_video)', async () => {
     route(estPost, json(200, { request_id: REQ_V, response_url: BASE_V, status_url: `${BASE_V}/status`, cancel_url: `${BASE_V}/cancel` }));
     await fournisseurClip().soumettre(demandeClip);
     expect(appels.map((a) => [a.methode, a.url])).toEqual([['POST', `https://queue.fal.run/${MODELE_V}`]]);
     expect(appels[0]!.corps).toEqual(corpsClip);
-    expect(ligne()).toEqual({ usd: 0.35, actual: 0.35, workspaceId: ESPACE, action: 'studio.generation' });
+    expect(ligne()).toEqual({ usd: 0.6, actual: 0.6, workspaceId: ESPACE, action: 'studio.generation' });
     expect(modeles).toEqual(['fal_video']);
   });
 

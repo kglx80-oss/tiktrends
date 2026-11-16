@@ -97,8 +97,8 @@ describe('requête fal image → vidéo · rien ne part si un doute subsiste', (
 });
 
 describe('coût, résultat, fournisseur · le clip au tarif catalogue de son modèle', () => {
-  it('un clip ⇒ tarif catalogue (Kling 5 s = 0,35 $), poste fal_video ; sans paramètres ⇒ rien réservé ; images ⇒ poste fal_image ; mélange refusé', () => {
-    expect(coutSoumissionStudio(ops, { parametres: params(), modele: null })).toEqual({ ok: true, usd: 0.35, usdMicros: 350_000, medias: 1, poste: 'fal_video', modele: MODELE_FAL_ANIMATION_DEFAUT });
+  it('un clip ⇒ réserve au tarif catalogue relevé au plancher (Kling 5 s = 0,60 $ sans facture rapprochée), poste fal_video ; sans paramètres ⇒ rien réservé ; images ⇒ poste fal_image ; mélange refusé', () => {
+    expect(coutSoumissionStudio(ops, { parametres: params(), modele: null })).toEqual({ ok: true, usd: 0.6, usdMicros: 600_000, medias: 1, poste: 'fal_video', modele: MODELE_FAL_ANIMATION_DEFAUT });
     expect(coutSoumissionStudio(ops)).toMatchObject({ ok: false, motif: expect.stringMatching(/paramètres du clip absents/) });
     expect(coutSoumissionStudio([{ operation: 'keyframe:s1', profil: 'image_generation' }])).toMatchObject({ ok: true, poste: 'fal_image', usdMicros: GRILLE_STUDIO.image_generation.usdMicros });
     expect(coutSoumissionStudio([...ops, { operation: 'keyframe:s1', profil: 'image_generation' }]).ok).toBe(false);

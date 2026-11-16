@@ -50,17 +50,32 @@ FAL_IMAGE_MODEL_TEXT=fal-ai/ideogram/v3          # image avec texte lisible
 FAL_IMAGE_MODEL_EDIT=fal-ai/nano-banana-2/edit   # mise en scène produit : proportions + réalisme
 ```
 
-**La vidéo (Kling 2) passe aussi par cette clé Fal** — image ET vidéo avec une seule clé.
-Options vidéo (Kling 2 par défaut) :
+**La vidéo passe aussi par cette clé Fal** · image ET vidéo avec une seule clé.
+
+Ancien « Vidéo IA » uniquement (défaut Kling 2.5 turbo pro) · ces deux variables
+ne pilotent PLUS les Studios :
 ```
-FAL_VIDEO_MODEL=fal-ai/kling-video/v2/master/text-to-video
-FAL_VIDEO_MODEL_I2V=fal-ai/kling-video/v2/master/image-to-video
+FAL_VIDEO_MODEL=fal-ai/kling-video/v2.5-turbo/pro/text-to-video
+FAL_VIDEO_MODEL_I2V=fal-ai/kling-video/v2.5-turbo/pro/image-to-video
 FAL_QUEUE_URL=https://queue.fal.run
 ```
 
+Studios (animation des plans) · variable PROPRE, choisie parmi le catalogue
+chiffré (`packages/core/src/studios/fournisseurs/catalogue-video.ts`) :
+```
+FAL_VIDEO_MODEL_STUDIO=                                    # vide = Kling 2.5 turbo pro (5 ou 10 s, muet, 0,07 $/s)
+# FAL_VIDEO_MODEL_STUDIO=fal-ai/veo3.1/fast/image-to-video  # 4/6/8 s, 0,10 $/s muet, 0,15 $/s avec voix
+# FAL_VIDEO_MODEL_STUDIO=fal-ai/veo3.1/lite/image-to-video  # 4/6/8 s, 720p 0,03 / 0,05 $/s, 1080p 0,05 / 0,08 $/s
+```
+Un modèle hors de ce catalogue est refusé au devis (« modèle vidéo non chiffré
+au catalogue »). Kling 2 master n'est plus recommandé pour les Studios. Si
+`FAL_VIDEO_MODEL_I2V` est posée sans `FAL_VIDEO_MODEL_STUDIO`, le worker le dit
+au démarrage et les Studios utilisent Kling 2.5 turbo pro. La voix française de
+Veo est à valider à l'écoute sur un premier clip.
+
 ## 3. Vidéo IA — Higgsfield (optionnel)
 
-`FAL_KEY` suffit pour la vidéo (Kling 2). Higgsfield reste **optionnel** : ne le
+`FAL_KEY` suffit pour la vidéo (Kling). Higgsfield reste **optionnel** : ne le
 branche que si tu veux ses contrôles caméra/presets spécifiques. Si `FAL_KEY`
 est présente, c'est Fal (Kling) qui est utilisé en priorité.
 

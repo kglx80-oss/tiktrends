@@ -8,10 +8,14 @@ import type { IdsStudios, SessionTest } from './studios-semis';
  * règle du worker (`coutSoumissionStudio`), rien n'est envoyé.
  *
  *  · `FAL_VIDEO_MODEL_STUDIO` = Veo 3.1 Lite ⇒ l'écran annonce le prix du plan,
- *    le devis le reprend à la seconde, l'approbation débite ces crédits, le
- *    worker prépare le corps Veo du modèle DEVISÉ (pas le sien) et réserve
- *    EXACTEMENT le maximum du devis ;
- *  · modèle changé entre le devis et l'approbation ⇒ refus nommé, rien débité ;
+ *    le devis le reprend à la seconde (estimation), l'approbation débite ces
+ *    crédits, le worker prépare le corps Veo du modèle DEVISÉ (pas le sien) et
+ *    réserve au plancher de l'ancien forfait (aucune facture rapprochée) ;
+ *  · modèle de l'environnement changé entre le devis et l'approbation ⇒ le
+ *    job part au modèle FIGÉ au devis ; devis d'avant le catalogue ⇒ refus
+ *    nommé, rien débité ; modèle hors catalogue ⇒ devis refusé ;
+ *  · instantané `studio_clip/1` en file ⇒ Kling 5 s au prix de son devis, ou
+ *    refus avant envoi ;
  *  · Kling + prise parlée en français ⇒ voix native refusée (raison écrite à
  *    l'écran avant le clic), clip muet au prix muet.
  */
@@ -94,6 +98,7 @@ describe('catalogue vidéo · écran, devis, approbation, préparation et réser
     if (!d.ok) return;
     const clip = d.devis.lignes.filter((x) => x.profil === 'animation');
     expect(clip.map((x) => [x.operation, x.unites, x.usdMicros, x.credits])).toEqual([[`clip:${PLAN}`, 4, 30_000, 18]]);
+    expect((clip[0] as unknown as { clip: unknown }).clip).toEqual({ modele: VEO_LITE, dureeS: 4, audio: false, resolution: '720p', ratio: '9:16' });
     expect(clip[0]!.motifEstimation).toMatch(/^Veo 3\.1 Lite · 4 s × 0,03 \$\/s muet · prix catalogue fal relevé le 16\/11\/2026/);
     expect([d.devis.maximumCredits, d.devis.maximumUsdMicros]).toEqual([72, 120_000]);
 
@@ -111,24 +116,90 @@ describe('catalogue vidéo · écran, devis, approbation, préparation et réser
     expect(prep.modele).toBe(VEO_LITE);
     expect(prep.corps).toEqual({ prompt: snap.parametres.consigne, image_url: expect.stringMatching(/^https:\/\//), duration: '4s', aspect_ratio: '9:16', resolution: '720p', generate_audio: false, negative_prompt: expect.any(String) });
 
-    // La règle que le worker applique avant d'envoyer · réserve = maximum du devis = réserve du registre.
+    // La règle que le worker applique avant d'envoyer · réserve au plancher (0,60 $) tant qu'aucune facture n'est rapprochée ; le devis dit l'estimation (0,12 $).
     const reserve = coutSoumissionStudio(operationsDuSnapshot(snap), { parametres: snap.parametres, modele: prep.modele });
-    expect(reserve).toMatchObject({ ok: true, usdMicros: 120_000, modele: VEO_LITE, poste: 'fal_video' });
+    expect(reserve).toMatchObject({ ok: true, usdMicros: 600_000, modele: VEO_LITE, poste: 'fal_video' });
     expect(snap.reserve.usdMicros).toBe(120_000);
   });
 
-  it('modèle changé entre le devis et l’approbation ⇒ refus nommé, aucun job, rien débité', async () => {
+  it('modèle de l’environnement changé après le devis ⇒ le job part au modèle FIGÉ au devis, au prix annoncé', async () => {
     modeleStudio(VEO_FAST);
     const d = await devisClip();
     if (!d.ok) throw new Error(`${d.code} ${d.message}`);
     expect([d.devis.maximumCredits, d.devis.maximumUsdMicros]).toEqual([232, 400_000]);
     modeleStudio(KLING);
     const avant = await solde(db, ids.wsA);
-    const jobs = (await db.select().from(schema.studioJobs)).length;
     const r = await approuver(d.devis);
-    expect(r).toMatchObject({ ok: false, code: 'VERSION_CONFLICT', message: 'Le modèle, la durée ou le prix du clip ont changé depuis ce devis · redemande un devis. Rien n’a été débité.' });
+    if (!r.ok) throw new Error(`${r.code} ${'message' in r ? r.message : ''}`);
+    expect(avant - (await solde(db, ids.wsA))).toBe(232);
+    const [job] = await db.select().from(schema.studioJobs).where(eq(schema.studioJobs.id, r.job.id));
+    expect(lireSnapshotJob(job!.snapshot)!.parametres).toMatchObject({ modele: VEO_FAST, dureeS: 4, resolution: '1080p', ratio: '9:16' });
+  });
+
+  it('devis d’avant le catalogue (ligne sans choix figé) ⇒ refus propre, aucun job, rien débité', async () => {
+    modeleStudio(KLING);
+    const d = await devisClip();
+    if (!d.ok) throw new Error(`${d.code} ${d.message}`);
+    const Q = schema.studioQuotes;
+    const [q] = await db.select().from(Q).where(eq(Q.id, d.devis.id));
+    // La table des devis est en ajout seul · on écrit un devis jumeau tel que main l'écrivait (ligne sans choix figé).
+    const anciennes = (q!.lines as Array<Record<string, unknown>>).map(({ clip: _c, ...l }) => l);
+    const { id: _id, createdAt: _cr, ...reste } = q!;
+    const [ancien] = await db.insert(Q).values({ ...reste, lines: anciennes }).returning();
+    const avant = await solde(db, ids.wsA);
+    const jobs = (await db.select().from(schema.studioJobs)).length;
+    const r = await approuver({ id: ancien!.id, inputHash: ancien!.inputHash, maximumCredits: ancien!.maximumCredits });
+    expect(r).toMatchObject({ ok: false, code: 'VERSION_CONFLICT', message: 'Ce devis date d’avant le catalogue vidéo · redemande un devis. Rien n’a été débité.' });
     expect(await solde(db, ids.wsA)).toBe(avant);
     expect((await db.select().from(schema.studioJobs)).length).toBe(jobs);
+  });
+
+  it('choix figé au devis ≠ ce qui partirait (même modèle, même prix, autre résolution) ⇒ refus nommé, rien débité', async () => {
+    modeleStudio(VEO_FAST);
+    const d = await devisClip();
+    if (!d.ok) throw new Error(`${d.code} ${d.message}`);
+    const Q = schema.studioQuotes;
+    const [q] = await db.select().from(Q).where(eq(Q.id, d.devis.id));
+    // Veo Fast coûte autant en 720p qu'en 1080p · un devis jumeau figé en 720p, mêmes montants.
+    const lignes = (q!.lines as Array<Record<string, unknown>>).map((l) => (l.profil === 'animation' ? { ...l, clip: { ...(l.clip as Record<string, unknown>), resolution: '720p' } } : l));
+    const { id: _id, createdAt: _cr, ...reste } = q!;
+    const [jumeau] = await db.insert(Q).values({ ...reste, lines: lignes }).returning();
+    const avant = await solde(db, ids.wsA);
+    const r = await approuver({ id: jumeau!.id, inputHash: jumeau!.inputHash, maximumCredits: jumeau!.maximumCredits });
+    expect(r).toMatchObject({ ok: false, code: 'VERSION_CONFLICT', message: 'Le modèle, la durée, la voix ou le format du clip ont changé depuis ce devis · redemande un devis. Rien n’a été débité.' });
+    expect(await solde(db, ids.wsA)).toBe(avant);
+  });
+
+  it('modèle Studios hors catalogue ⇒ devis refusé, raison écrite, aucune ligne', async () => {
+    modeleStudio('fal-ai/kling-video/v2/master/image-to-video');
+    const n = (await db.select().from(schema.studioQuotes)).length;
+    const d = await devisClip();
+    expect(d).toMatchObject({ ok: false, code: 'UNSUPPORTED_CAPABILITY', message: 'Modèle vidéo non chiffré au catalogue · ajoute-le au catalogue avec son prix avant de l’utiliser (fal-ai/kling-video/v2/master/image-to-video).' });
+    expect((await db.select().from(schema.studioQuotes)).length).toBe(n);
+  });
+
+  it('instantané studio_clip/1 en file au déploiement ⇒ Kling 5 s au prix de son devis de main (0,60 $) ; worker sur Veo ⇒ refusé avant envoi', async () => {
+    modeleStudio(KLING);
+    const d = await devisClip();
+    if (!d.ok) throw new Error(`${d.code} ${d.message}`);
+    const r = await approuver(d.devis);
+    if (!r.ok) throw new Error(r.code);
+    const J = schema.studioJobs;
+    const [job] = await db.select().from(J).where(eq(J.id, r.job.id));
+    const snap = lireSnapshotJob(job!.snapshot)!;
+    const { modele: _m, audio: _a, resolution: _r, ratio: _q, ...v1 } = snap.parametres as Record<string, unknown>;
+    // L'instantané tel que main l'écrivait · ligne au forfait (200 crédits, 0,60 $).
+    const lignesMain = snap.lignes.map((l) => (l.profil === 'animation' ? { operation: l.operation, nature: l.nature, profil: l.profil, unites: 1, credits: 200, usdMicros: 600_000, inclus: false } : l));
+    await db.update(J).set({ snapshot: { ...snap, lignes: lignesMain, reserve: { credits: 200, usdMicros: 600_000 }, parametres: { ...v1, schema: 'studio_clip/1' } } }).where(eq(J.id, r.job.id));
+    const ancien = lireSnapshotJob((await db.select().from(J).where(eq(J.id, r.job.id)))[0]!.snapshot)!;
+    const cle = cleFournisseurDuJob(r.job.id);
+    const prep = await preparateurFal(base, { modeles: MODELES_WORKER, stockage: CFG })({ cleIdempotence: cle, operations: [], parametres: {} }, r.job.id);
+    if (!prep.ok) throw new Error(prep.motif);
+    expect(prep.modele).toBe(KLING);
+    expect(prep.corps).toEqual({ prompt: ancien.parametres.consigne, image_url: expect.stringMatching(/^https:\/\//), duration: '5', negative_prompt: expect.any(String) });
+    expect(coutSoumissionStudio(operationsDuSnapshot(ancien), { parametres: ancien.parametres, modele: prep.modele })).toMatchObject({ ok: true, usdMicros: ancien.reserve.usdMicros });
+    const veo = await preparateurFal(base, { modeles: { ...MODELES_WORKER, animation: VEO_FAST }, stockage: CFG })({ cleIdempotence: cle, operations: [], parametres: {} }, r.job.id);
+    expect(veo).toMatchObject({ ok: false, motif: expect.stringMatching(/^INVALID_SCHEMA · instantané studio_clip\/1/) });
   });
 
   it('Kling + prise parlée en français ⇒ l’écran dit avant le clic que la voix native est refusée, le devis part MUET au prix muet', async () => {

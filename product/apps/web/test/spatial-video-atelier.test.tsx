@@ -276,6 +276,9 @@ describe('indisponibilités dites, aucun geste actif qui ne mène nulle part', (
     await cliquer(q('[data-vsel="s1"]'));
     expect(levier('devis-clip').disabled).toBe(true);
     expect(raison('devis-clip')).toContain('Veo 3.1 Fast ne produit qu’en 9:16 ou 16:9');
+    // Fermé ⇒ aucun prix annoncé (ni sur le devis, ni sur « Animer le plan »).
+    expect(levier('devis-clip').textContent).not.toMatch(/\d+ cr\./);
+    expect(levier('lancer-clip').textContent).not.toMatch(/\d+ cr\./);
   });
 
   it('sans release · storyboard et consigne inactifs avec leur raison, chemin manuel ouvert', async () => {

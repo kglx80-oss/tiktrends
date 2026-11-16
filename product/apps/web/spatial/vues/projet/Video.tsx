@@ -524,10 +524,11 @@ function libelleConfirmation(cle: CleGestePlan, devisImage: number | null, devis
   }
 }
 
-/** Le prix du clip d'un plan pour ses gestes · modèle et durée du plan, ou la raison du refus · repli au forfait. */
+/** Le prix du clip d'un plan pour ses gestes · modèle et durée du plan, ou la raison du refus (sans prix) · repli au forfait si le plan n'a pas de prix calculé. */
 function prixClipGeste(x: DonneesVideo['clips'][string]['prix'], repli: DonneesVideo['prixClip']): { credits: number; dureeS: number; libelle?: string | null; refus?: string | null } {
   if (x?.ok) return { credits: x.credits, dureeS: x.dureeS, libelle: x.libelleModele };
-  if (x && !x.ok) return { credits: repli.credits, dureeS: repli.dureeS, refus: x.raison };
+  // Levier fermé · aucun prix annoncé pour un clip qui ne peut pas être devisé.
+  if (x && !x.ok) return { credits: 0, dureeS: 0, refus: x.raison };
   return { credits: repli.credits, dureeS: repli.dureeS };
 }
 

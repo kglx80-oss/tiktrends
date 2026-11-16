@@ -3,6 +3,7 @@ import { and, eq } from 'drizzle-orm';
 import { schema } from '@tiktrends/db';
 import {
   parametresDuClip, empreinteParametresClip, lireParametresClip, planDeClip, erreurStudio, modeleAnimationStudio, lignesAvecTarifClip, refusTarifClipChange,
+  choixClipDuDevis, MESSAGE_DEVIS_AVANT_CATALOGUE,
   type ContenuVersion, type ErreurStudio, type LigneDevis, type ParametresClipSnapshot,
 } from '@tiktrends/core';
 import type { ContexteStudio } from '../garde';
@@ -51,7 +52,7 @@ export async function keyframeValideDuPlan(ex: ExecStudio, p: Portee, contenu: C
   return { assetUuid: id, sha256: a.sha256 };
 }
 
-async function parametres(ex: ExecStudio, ctx: ContexteStudio, p: Portee, contenu: ContenuVersion, lignes: ReadonlyArray<LigneDevis>, suffixe: string):
+async function parametres(ex: ExecStudio, ctx: ContexteStudio, p: Portee, contenu: ContenuVersion, lignes: ReadonlyArray<LigneDevis>, suffixe: string, modele: string):
   Promise<{ ok: true; parametres: ParametresClipSnapshot | null } | ErreurStudio> {
   const x = exigenceClipsDuDevis(lignes);
   if (!x.concerne) return { ok: true, parametres: null };
@@ -60,7 +61,7 @@ async function parametres(ex: ExecStudio, ctx: ContexteStudio, p: Portee, conten
   }
   const sid = x.plans[0]!;
   const keyframe = await keyframeValideDuPlan(ex, p, contenu, sid);
-  const r = parametresDuClip({ contenu, shotId: sid, keyframe, modele: modeleAnimationStudio(process.env) });
+  const r = parametresDuClip({ contenu, shotId: sid, keyframe, modele });
   if (!r.ok) return erreurStudio(r.code, { traceId: ctx.traceId, targetIds: [`clip:${sid}`], message: `${r.motif}${suffixe}` });
   return { ok: true, parametres: r.parametres };
 }
@@ -74,7 +75,8 @@ export async function raccordClipsDevis(
   ex: ExecStudio, ctx: ContexteStudio,
   e: { projet: { id: string; workspaceId: string; brandId: string }; contenu: ContenuVersion; lignes: ReadonlyArray<LigneDevis> },
 ): Promise<{ ok: true; empreinte: string | null; lignes: LigneDevis[] } | ErreurStudio> {
-  const r = await parametres(ex, ctx, { workspaceId: e.projet.workspaceId, brandId: e.projet.brandId, projectId: e.projet.id }, e.contenu, e.lignes, '');
+  // Au devis, le modèle des Studios en vigueur · il est ensuite FIGÉ dans la ligne du clip.
+  const r = await parametres(ex, ctx, { workspaceId: e.projet.workspaceId, brandId: e.projet.brandId, projectId: e.projet.id }, e.contenu, e.lignes, '', modeleAnimationStudio(process.env));
   if (!r.ok) return r;
   if (!r.parametres) return { ok: true, empreinte: null, lignes: [...e.lignes] };
   const t = lignesAvecTarifClip(e.lignes, r.parametres);
@@ -93,11 +95,15 @@ export async function parametresClipsApprobation(
   const [v] = await ex.select({ content: V.content }).from(V)
     .where(and(eq(V.id, q.projectVersionId), eq(V.projectId, q.projectId), eq(V.workspaceId, q.workspaceId), eq(V.brandId, q.brandId))).limit(1);
   if (!v) return erreurStudio('NOT_FOUND', { traceId: ctx.traceId });
-  const r = await parametres(ex, ctx, { workspaceId: q.workspaceId, brandId: q.brandId, projectId: q.projectId }, v.content as ContenuVersion, lignes, ' Rien n’a été débité.');
+  // À l'approbation, le modèle FIGÉ au devis · jamais celui de l'environnement du moment.
+  const sid = exigenceClipsDuDevis(lignes).plans[0] ?? '';
+  const fige = choixClipDuDevis(lignes, `clip:${sid}`);
+  if (!fige) return erreurStudio('VERSION_CONFLICT', { traceId: ctx.traceId, targetIds: [`clip:${sid}`], message: MESSAGE_DEVIS_AVANT_CATALOGUE });
+  const r = await parametres(ex, ctx, { workspaceId: q.workspaceId, brandId: q.brandId, projectId: q.projectId }, v.content as ContenuVersion, lignes, ' Rien n’a été débité.', fige.modele);
   if (!r.ok) return r;
   const lu = lireParametresClip(r.parametres);
   if (!lu.ok) return erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, violations: lu.violations.map((raison) => ({ chemin: 'parametres', raison })) });
-  // La réserve du worker vaudra le tarif de CES paramètres : il doit être celui que le devis a annoncé.
+  // Ce qui partira (modèle, durée, voix, format) doit être ce que le devis a figé, et son tarif celui annoncé · même à tarif égal.
   const change = refusTarifClipChange(q.lines, lu.parametres);
   if (change) return erreurStudio('VERSION_CONFLICT', { traceId: ctx.traceId, targetIds: [lu.parametres.operation], message: change });
   return { ok: true, parametres: r.parametres as unknown as Record<string, unknown> };
