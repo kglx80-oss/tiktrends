@@ -25,6 +25,7 @@ import type { FichierCatalogue } from './catalogue';
 import { controlerAssociations, LIBELLES_ROLE, ROLES_PERMIS_CONCURRENT } from './references';
 import { documentBrief, documentResolu } from '../textes/textes';
 import type { ReferenceProduitEpinglee } from './epinglage';
+import type { IdeeBrief } from '../image/idee-angle';
 
 export type ModeImage = 'faithful_composite' | 'generative_scene';
 export const LIBELLES_MODE_IMAGE: Readonly<Record<ModeImage, string>> = {
@@ -152,8 +153,8 @@ export function consigneFinale(r: ConsigneImage, prep: PreparationCompilation): 
  * et textes du brief, séparés des pixels), les références TYPÉES, les
  * invariants du serveur (dont les interdits de transfert).
  */
-export function entreeCompilation(e: { prep: PreparationCompilation; brief: BriefCanonique; versionId: string; mode: ModeImage; largeur: number; hauteur: number }) {
-  const docBrief = documentBrief(e.brief, e.versionId);
+export function entreeCompilation(e: { prep: PreparationCompilation; brief: BriefCanonique; versionId: string; mode: ModeImage; largeur: number; hauteur: number; idee?: IdeeBrief }) {
+  const docBrief = documentBrief(e.brief, e.versionId, e.idee);
   const concept = [
     e.brief.composition ? `Composition : ${e.brief.composition}` : '',
     e.brief.styleIntent ? `Intention de style : ${e.brief.styleIntent}` : '',
