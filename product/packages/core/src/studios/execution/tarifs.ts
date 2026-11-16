@@ -222,7 +222,15 @@ export function estLigneDeProduction(l: { profil: string }): boolean {
  */
 export function avecControleVision(
   lignes: readonly LigneDevis[],
-  o: { actif?: boolean | null; modele: string },
+  o: {
+    actif?: boolean | null; modele: string;
+    /**
+     * Pub entière · borne de la RELECTURE (mots, packaging, lisibilité ·
+     * `controlePubEntiere`) ajoutée à celle du contrôle visuel, par image. La
+     * même ligne couvre les deux appels. Absent en calques : ligne inchangée.
+     */
+    supplementParImageMicros?: number;
+  },
 ): { lignes: LigneDevis[]; totalCredits: number; totalUsdMicros: number } {
   const production = lignes.filter(estLigneDeProduction);
   const images = production.filter((l) => l.profil === 'image_generation').reduce((s, l) => s + l.unites, 0);
@@ -230,7 +238,7 @@ export function avecControleVision(
   if (o.actif !== false && images > 0) {
     out.push({
       operation: OPERATION_CONTROLE_VISION, nature: 'generation', profil: PROFIL_CONTROLE_VISION, unites: images, credits: 0,
-      usdMicros: borneControleVisionParImageMicros(o.modele), inclus: true, natureCout: 'borne', motifEstimation: null,
+      usdMicros: borneControleVisionParImageMicros(o.modele) + Math.max(0, Math.trunc(o.supplementParImageMicros ?? 0)), inclus: true, natureCout: 'borne', motifEstimation: null,
     });
   }
   return {

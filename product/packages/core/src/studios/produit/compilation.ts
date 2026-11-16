@@ -25,6 +25,7 @@ import type { FichierCatalogue } from './catalogue';
 import { controlerAssociations, LIBELLES_ROLE, ROLES_PERMIS_CONCURRENT } from './references';
 import { documentBrief, documentResolu } from '../textes/textes';
 import type { ReferenceProduitEpinglee } from './epinglage';
+import type { TypographieImage } from '../image/pub-entiere';
 
 export type ModeImage = 'faithful_composite' | 'generative_scene';
 export const LIBELLES_MODE_IMAGE: Readonly<Record<ModeImage, string>> = {
@@ -152,13 +153,16 @@ export function consigneFinale(r: ConsigneImage, prep: PreparationCompilation): 
  * et textes du brief, séparés des pixels), les références TYPÉES, les
  * invariants du serveur (dont les interdits de transfert).
  */
-export function entreeCompilation(e: { prep: PreparationCompilation; brief: BriefCanonique; versionId: string; mode: ModeImage; largeur: number; hauteur: number }) {
+export function entreeCompilation(e: { prep: PreparationCompilation; brief: BriefCanonique; versionId: string; mode: ModeImage; largeur: number; hauteur: number; typographie?: TypographieImage }) {
   const docBrief = documentBrief(e.brief, e.versionId);
   const concept = [
     e.brief.composition ? `Composition : ${e.brief.composition}` : '',
     e.brief.styleIntent ? `Intention de style : ${e.brief.styleIntent}` : '',
     e.brief.formats.length ? `Formats : ${e.brief.formats.join(', ')}` : '',
-    e.brief.texts.length ? 'Textes : posés par des calques texte, jamais dans les pixels.' : 'Aucun texte prévu.',
+    // Pub entière · le générateur dessine les textes ; le serveur ajoute la copie exacte à la consigne.
+    !e.brief.texts.length ? 'Aucun texte prévu.'
+      : e.typographie === 'entiere' ? 'Textes : dessinés dans l’image par le générateur, mot pour mot · le serveur ajoute la copie exacte à la consigne : décris la scène et la place libre pour la typographie, sans recopier les textes ni interdire le texte.'
+        : 'Textes : posés par des calques texte, jamais dans les pixels.',
   ].filter(Boolean).join('\n');
   const docConcept = documentResolu(`concept_${e.versionId}`, e.versionId, concept);
   return {

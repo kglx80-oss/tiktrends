@@ -22,6 +22,12 @@ import {
 // R5 · une issue incertaine dont toutes les lignes sont réconciliées avec la facture n'est plus incertaine.
 import { controleIncertainReconcilie } from '@tiktrends/core';
 import type { EnvironnementPrompts } from '../prompts/environnement';
+// Pub entière · relecture (mots, packaging, lisibilité, cohérence) payée par la MÊME ligne approuvée.
+import { lireParametresImage, faitsDuProduit, LIBELLES_RELECTURE, type VerdictRelecturePubEntiere, type BriefCanonique } from '@tiktrends/core';
+import { borneControlePubMicros, CONTROLE_MODEL } from '@tiktrends/ai';
+import { resolveurMediasStudio } from '../prompts/resolveur';
+import { guardedAnthropic } from '../../spend-guard';
+import { adressePhotoProduit, ecrireRelecture, relirePubEntiere, type DependancesRelecture } from '../image/relecture-pub-entiere';
 
 /**
  * Statut QUALITÉ d'une sortie au regard des composants obligatoires du produit
@@ -118,6 +124,8 @@ export interface DependancesVision {
   plafondAtteint: () => Promise<boolean>;
   /** Lecture des médias liés · défaut : `studio_assets` de l'espace ET de la marque (F-D). */
   medias?: ResolveurMediasTache;
+  /** Pub entière · client de la relecture (défaut : `guardedAnthropic`) et lecture de la photo du produit. */
+  relecture?: Partial<DependancesRelecture>;
 }
 
 export interface ResultatVision {
@@ -129,6 +137,8 @@ export interface ResultatVision {
   runId: string | null;
   /** E2 · vrai si l'appel a une issue INCERTAINE (facturé peut-être) : à réconcilier avant toute relance. */
   incertain?: boolean;
+  /** Pub entière · le verdict de la relecture, écrit sur le job · `null` en calques. */
+  relecture?: VerdictRelecturePubEntiere | null;
 }
 
 /**
@@ -359,6 +369,11 @@ export async function controlerSortieParVision(ctx: ContexteStudio, e: { jobId: 
   const { refus, reprise } = await decisionDuJob(ctx, job);
   if (refus) return refus;
   const ligne = controleVisionApprouve(lireSnapshotJob(job.snapshot)?.lignes)!;
+  // Pub entière · la ligne approuvée couvre le contrôle visuel ET la relecture ; chacun reste dans sa part.
+  const lp = lireParametresImage(lireSnapshotJob(job.snapshot)?.parametres);
+  const pub = lp.ok ? lp.parametres.pubEntiere ?? null : null;
+  const partRelecture = pub ? Math.min(ligne.totalUsdMicros, borneControlePubMicros(CONTROLE_MODEL) * ligne.unites) : 0;
+  let relecture: VerdictRelecturePubEntiere | null = null;
   const v = await lireVersion(ctx, job.projectVersionId);
   if (!v.ok) return v;
   const ref = lireReferenceEpinglee((v.version.content as { productRef?: unknown }).productRef);
@@ -403,13 +418,29 @@ export async function controlerSortieParVision(ctx: ContexteStudio, e: { jobId: 
         taskInputs: { outputAssetIds: ids.map((id) => `sta_${id}`), referenceIds: ref ? [ref.photo.assetId] : [], criteria: criteresComposants(requis) },
         contexte: { connaissances: false, references: ref ? [associationProduit(ref)] : [], mediaBindings: liaisons as never },
         liens: { projectId: job.projectId, jobId: job.id, documentVersionId: job.projectVersionId },
-        adaptateur: adaptateurBorne(d.adaptateur!, ligne.totalUsdMicros, temoin), environnement: d.environnement, ...(d.medias ? { medias: d.medias } : {}),
+        adaptateur: adaptateurBorne(d.adaptateur!, ligne.totalUsdMicros - partRelecture, temoin), environnement: d.environnement, ...(d.medias ? { medias: d.medias } : {}),
         });
       } catch (err) {
         // Rien n'est parti ⇒ le marqueur est rendu (un nouvel essai reste possible). Une panne APRÈS
         // l'envoi n'est pas un échec certain : le marqueur reste « engagé », toute relance est refusée.
         if (!temoin.envoye) await libererMarqueur(job, trace).catch(() => {});
         throw err;
+      }
+      // Pub entière · relecture sous le MÊME marqueur (aucun second lancement ne la refait), dans sa part.
+      if (pub) {
+        const premier = ids[0]!;
+        const [lue, a] = await Promise.all([(d.medias ?? resolveurMediasStudio())({ workspaceId: job.workspaceId, brandId: job.brandId }, [`sta_${premier}`]), lireAsset(ctx, premier)]);
+        const m = lue.get(`sta_${premier}`);
+        relecture = await relirePubEntiere({
+          pub, approuveMicros: partRelecture,
+          sortie: m?.ok && a.ok ? { octets: m.octets, mime: a.asset.mime } : null,
+          referenceUrl: ref ? await adressePhotoProduit({ workspaceId: job.workspaceId, brandId: job.brandId }, ref.photo.assetId) : null,
+          faits: faitsDuProduit({ produit: ref, brief: ((v.version.content as { brief?: unknown }).brief ?? null) as BriefCanonique | null }),
+        }, {
+          client: d.relecture?.client !== undefined ? d.relecture.client : guardedAnthropic({ workspaceId: job.workspaceId, action: 'studio:relecture-pub-entiere' }),
+          ...(d.relecture?.lireReference ? { lireReference: d.relecture.lireReference } : {}),
+        });
+        await ecrireRelecture(job.id, job.workspaceId, relecture);
       }
       const fin = new Date().toISOString();
       await conclureMarqueur(job, temoin.echec === 'incertaine'
@@ -428,8 +459,12 @@ export async function controlerSortieParVision(ctx: ContexteStudio, e: { jobId: 
   }
   if (motifIncertain) motif = `${motif ?? 'contrôle visuel non conclu'} · issue incertaine, dépense à réconcilier avant toute relance`;
   const verdict = verdictComposants({ requis, controle });
-  const raison = controle ? verdict.raison : `${verdict.raison} Aucun contrôle visuel : ${motif}.`;
-  const p = await poser(ctx, job, verdict.statut, 'controle', { ...verdict, raison }, 'media.quality.control');
+  let raison = controle ? verdict.raison : `${verdict.raison} Aucun contrôle visuel : ${motif}.`;
+  // Pub entière · « à reprendre » écarte la pub (raison dite) ; une relecture non conclue ne laisse jamais « accepté ».
+  let statut = verdict.statut;
+  if (relecture?.statut === 'a_reprendre') { statut = 'rejected'; raison = `${LIBELLES_RELECTURE.a_reprendre} · ${relecture.raisons.join(' · ')}. ${raison}`; }
+  else if (relecture?.statut === 'non_conclue' && statut === 'passed') { statut = 'requires_review'; raison = `${LIBELLES_RELECTURE.non_conclue} · ${relecture.nonVerifie.join(' · ')}. ${raison}`; }
+  const p = await poser(ctx, job, statut, 'controle', { ...verdict, statut, raison }, 'media.quality.control');
   if (!p.ok) return p;
-  return { ok: true, qualite: p.qualite, verdict: p.verdict, controle: controle ? 'vision' : 'aucun', motif, runId, ...(motifIncertain ? { incertain: true } : {}) };
+  return { ok: true, qualite: p.qualite, verdict: p.verdict, controle: controle ? 'vision' : 'aucun', motif, runId, ...(motifIncertain ? { incertain: true } : {}), ...(pub ? { relecture } : {}) };
 }

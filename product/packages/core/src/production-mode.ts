@@ -203,6 +203,20 @@ export function promptPubEntiere(o: {
    * modèle garde la main. Vides tant que la catégorie n'a pas été décrite.
    */
   tendancesMarche?: string[];
+  /**
+   * Format de la publicité · `4:5` par défaut (l'ancienne chaîne). Studios
+   * passe le ratio réellement servi au fournisseur (`ratioFal`) : demander une
+   * 4:5 dans un corps 9:16 fait composer la typographie hors cadre.
+   */
+  format?: string;
+  /**
+   * Longueur maximale du brief de scène · 600 par défaut (le brief court de
+   * Jarvis). Studios y met la consigne COMPILÉE, bornée par son contrat : la
+   * couper à 600 caractères perdrait la scène validée.
+   */
+  sceneMax?: number;
+  /** Un logo de la marque est fourni parmi les images de référence. */
+  logo?: boolean;
 }): string {
   const c = o.copie;
   const textes = [
@@ -248,9 +262,10 @@ export function promptPubEntiere(o: {
   const marche = (o.tendancesMarche ?? []).join('\n');
 
   return [
-    'Produce a COMPLETE, ready-to-publish 4:5 social media advertisement · not a bare photograph.',
+    `Produce a COMPLETE, ready-to-publish ${o.format ?? '4:5'} social media advertisement · not a bare photograph.`,
     produit,
-    `Scene: ${o.sceneBrief.slice(0, 600)}`,
+    o.logo ? 'The brand logo is provided among the reference images · place it small and reproduce it exactly as provided, without redrawing, restyling or recolouring it.' : '',
+    `Scene: ${o.sceneBrief.slice(0, o.sceneMax ?? 600)}`,
     uni,
     ancrage,
     daSite,

@@ -27,6 +27,7 @@
 import { empreinteContenu } from '../version';
 import type { ConsigneImage } from '../produit/compilation';
 import type { ProfilOperation } from '../execution/tarifs';
+import { violationsPubEntiere, promptFalPubEntiere, moteurEnvoye, type PubEntiere } from '../image/pub-entiere';
 
 export const SCHEMA_PARAMETRES_IMAGE = 'studio_image/1' as const;
 
@@ -53,6 +54,12 @@ export interface ParametresImageSnapshot {
   /** Les références transmises à la tâche, avec la version et l'empreinte vues au devis. */
   references: ReferenceParametres[];
   format: { largeur: number; hauteur: number };
+  /**
+   * Mode « Pub entière » (`image/pub-entiere.ts`) · la copie dessinée et le
+   * moteur du catalogue. ABSENT en mode calques : le corps et la consigne
+   * envoyés restent exactement ceux d'avant.
+   */
+  pubEntiere?: PubEntiere;
 }
 
 /**
@@ -65,8 +72,9 @@ export function parametresImageDuDevis(e: {
   largeur: number;
   hauteur: number;
   promptRunId?: string | null;
+  pubEntiere?: PubEntiere | null;
 }): ParametresImageSnapshot {
-  return {
+  const p: ParametresImageSnapshot = {
     schema: SCHEMA_PARAMETRES_IMAGE,
     consigne: {
       generationInstruction: e.consigne.generationInstruction,
@@ -79,6 +87,11 @@ export function parametresImageDuDevis(e: {
     references: e.references.map((r) => ({ assetId: r.assetId, assetVersion: r.assetVersion, sha256: r.sha256, role: r.role })),
     format: { largeur: Math.round(e.largeur), hauteur: Math.round(e.hauteur) },
   };
+  if (e.pubEntiere) {
+    const c = e.pubEntiere.copie;
+    p.pubEntiere = { schema: e.pubEntiere.schema, copie: { headline: c.headline, subhead: c.subhead, benefits: [...c.benefits], cta: c.cta }, langue: e.pubEntiere.langue, moteur: e.pubEntiere.moteur };
+  }
+  return p;
 }
 
 /** Un emplacement de gabarit non résolu · `{{ … }}`, accolade double orpheline, `${ … }`. */
@@ -126,13 +139,15 @@ export function lireParametresImage(x: unknown): LectureParametres {
   if (!estObjet(f) || !entierEntre(f.largeur, DIMENSION_MIN, DIMENSION_MAX) || !entierEntre(f.hauteur, DIMENSION_MIN, DIMENSION_MAX)) {
     v.push(`/parametres/format : largeur et hauteur entières de ${DIMENSION_MIN} à ${DIMENSION_MAX}`);
   }
+  if ('pubEntiere' in x) v.push(...violationsPubEntiere(x.pubEntiere, '/parametres/pubEntiere'));
   if (v.length === 0) {
     const p = x as unknown as ParametresImageSnapshot;
     const connues = new Set(p.references.map((r) => r.assetId));
     p.consigne.referenceBindings.forEach((b, i) => {
       if (!connues.has(b.referenceId)) v.push(`/parametres/consigne/referenceBindings/${i}/referenceId : référence non transmise à la tâche`);
     });
-    const textes = [p.consigne.generationInstruction, ...p.consigne.negativeConstraints, ...p.consigne.protectedComponents];
+    const c = p.pubEntiere?.copie;
+    const textes = [p.consigne.generationInstruction, ...p.consigne.negativeConstraints, ...p.consigne.protectedComponents, ...(c ? [c.headline, c.subhead ?? '', ...c.benefits, c.cta ?? ''] : [])];
     if (textes.some(contientEmplacement)) v.push('/parametres/consigne : emplacement de gabarit non résolu');
   }
   return v.length ? { ok: false, violations: v } : { ok: true, parametres: x as unknown as ParametresImageSnapshot };
@@ -190,7 +205,7 @@ export function familleModele(modele: string): FamilleModele {
  * (ratio natif pour Nano Banana, taille en pixels pour GPT Image 1, vocabulaire
  * fal pour GPT Image 2 et les autres, une seule image de départ pour Flux).
  */
-export function corpsFalImage(e: { modele: string; prompt: string; ratio: RatioFal; references: readonly string[]; images: number }): Record<string, unknown> {
+export function corpsFalImage(e: { modele: string; prompt: string; ratio: RatioFal; references: readonly string[]; images: number; params?: Readonly<Record<string, string | number>> }): Record<string, unknown> {
   const corps: Record<string, unknown> = { prompt: e.prompt, num_images: Math.min(IMAGES_PAR_APPEL_MAX, Math.max(1, e.images)) };
   const avecRef = e.references.length > 0;
   switch (familleModele(e.modele)) {
@@ -211,6 +226,9 @@ export function corpsFalImage(e: { modele: string; prompt: string; ratio: RatioF
       corps.output_format = 'jpeg';
       if (avecRef) corps.image_url = e.references[0];
   }
+  // Paramètres de qualité du CATALOGUE (`IMAGE_MODELS.params` · `quality`,
+  // `resolution`), envoyés seulement quand le moteur les porte (pub entière).
+  for (const [k, v] of Object.entries(e.params ?? {})) corps[k] = v;
   return corps;
 }
 
@@ -295,15 +313,25 @@ export function requeteFalImage(e: {
   if (bloquees.length) return { ok: false, code: 'MISSING_REFERENCE', motif: `référence indisponible, aucune substitution · ${motifs.join(' · ')}`, cibles: bloquees };
   if (urls.length > REFERENCES_PAR_APPEL_MAX) return { ok: false, code: 'UNSUPPORTED_CAPABILITY', motif: `plus de ${REFERENCES_PAR_APPEL_MAX} références pour un appel`, cibles: urls.map((u) => u.assetId) };
 
-  const modele = urls.length ? e.modeles.edition : e.modeles.generation;
+  // Pub entière · le moteur du CATALOGUE recommandé pour le mode (`moteurRecommande`),
+  // son adresse et ses paramètres de qualité · en calques, les modèles routés d'avant.
+  const pe = p.pubEntiere ?? null;
+  const envoye = pe ? moteurEnvoye(pe.moteur, urls.length > 0) : null;
+  if (pe && !envoye) return { ok: false, code: 'UNSUPPORTED_CAPABILITY', motif: `moteur « ${pe.moteur} » absent du catalogue`, cibles: [] };
+  const modele = envoye ? envoye.modele : urls.length ? e.modeles.edition : e.modeles.generation;
   if (urls.length > 1 && familleModele(modele) === 'reference_unique') {
     return { ok: false, code: 'UNSUPPORTED_CAPABILITY', motif: `le modèle routé ${modele} ne reçoit qu’une image de départ`, cibles: urls.map((u) => u.assetId) };
   }
   const { ratio, exact } = ratioFal(p.format.largeur, p.format.hauteur);
-  const prompt = promptFal(p.consigne);
+  const entiere = pe ? promptFalPubEntiere({
+    consigne: p.consigne, pub: pe, ratio,
+    avecProduit: p.references.some((r) => r.role === 'product' && urls.some((u) => u.assetId === r.assetId)),
+    logo: p.references.some((r) => r.role === 'logo' && urls.some((u) => u.assetId === r.assetId)),
+  }) : null;
+  const prompt = entiere ? entiere.prompt : promptFal(p.consigne);
   if (contientEmplacement(prompt)) return { ok: false, code: 'INVALID_SCHEMA', motif: 'emplacement de gabarit non résolu dans la consigne', cibles: [] };
 
-  const corps = corpsFalImage({ modele, prompt, ratio, references: urls.map((u) => u.url), images: images.length });
+  const corps = corpsFalImage({ modele, prompt, ratio, references: urls.map((u) => u.url), images: images.length, ...(envoye ? { params: envoye.params } : {}) });
   const expurge: Record<string, unknown> = { ...corps, modele };
   const pieces = urls.map((u) => ({ assetId: u.assetId, sha256: u.sha256 }));
   if ('image_urls' in expurge) expurge.image_urls = pieces;
@@ -311,5 +339,6 @@ export function requeteFalImage(e: {
   const limites: string[] = [];
   if (p.consigne.negativeConstraints.length) limites.push('instruction négative non supportée par le modèle · intégrée à la consigne');
   if (!exact) limites.push(`format ${p.format.largeur}×${p.format.hauteur} servi au ratio ${ratio}`);
+  if (entiere?.retires.length) limites.push(`pub entière · consigne « pas de texte » retirée : ${entiere.retires.join(' ; ')}`);
   return { ok: true, modele, corps, operations: images, expurge, empreinte: empreinteContenu(expurge), limites };
 }
