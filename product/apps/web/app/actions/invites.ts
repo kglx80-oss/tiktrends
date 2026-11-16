@@ -8,6 +8,8 @@ import { getSession, hashPassword, createSession } from '../../lib/auth';
 import { roleAtLeast, ROLE_LABEL, type Role } from '../../lib/rbac';
 import { sendMail } from '../../lib/mailer';
 import { inviteEmail } from '../../lib/emails';
+import { hit } from '../../lib/rate-limit';
+import { LIMITE_INVITATIONS } from '@tiktrends/core';
 
 const norm = (v: FormDataEntryValue | null) => (typeof v === 'string' ? v.trim() : '');
 const ASSIGNABLE: Role[] = ['admin', 'member', 'client_viewer']; // on n'invite pas un 2e owner ici
@@ -26,6 +28,9 @@ export async function createInviteAction(formData: FormData): Promise<void> {
   // Déjà membre ?
   const [u] = await db.select({ id: schema.users.id }).from(schema.users).where(eq(schema.users.email, email)).limit(1);
   if (u) redirect('/team?e=already');
+
+  // Débit · au plus LIMITE_INVITATIONS.max invitations créées par espace et par heure (règle et seuil au noyau).
+  if (!hit(`invite:${s.workspaceId}`, LIMITE_INVITATIONS.max, LIMITE_INVITATIONS.fenetreMs).ok) redirect('/team?e=throttled');
 
   const token = randomBytes(24).toString('base64url');
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 jours
