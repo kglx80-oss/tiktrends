@@ -2,7 +2,7 @@ import 'server-only';
 import { and, eq } from 'drizzle-orm';
 import { schema } from '@tiktrends/db';
 import {
-  parametresDuClip, empreinteParametresClip, lireParametresClip, planDeClip, erreurStudio,
+  parametresDeLaPrise, empreinteParametresClip, lireParametresClip, planDeClip, erreurStudio,
   type ContenuVersion, type ErreurStudio, type LigneDevis, type ParametresClipSnapshot,
 } from '@tiktrends/core';
 import type { ContexteStudio } from '../garde';
@@ -57,7 +57,8 @@ async function parametres(ex: ExecStudio, ctx: ContexteStudio, p: Portee, conten
   }
   const sid = x.plans[0]!;
   const keyframe = await keyframeValideDuPlan(ex, p, contenu, sid);
-  const r = parametresDuClip({ contenu, shotId: sid, keyframe });
+  // La consigne de la PRISE · réplique validée mot pour mot si le plan parle, consigne de mouvement à l'identique sinon.
+  const r = parametresDeLaPrise({ contenu, shotId: sid, keyframe });
   if (!r.ok) return erreurStudio(r.code, { traceId: ctx.traceId, targetIds: [`clip:${sid}`], message: `${r.motif}${suffixe}` });
   return { ok: true, parametres: r.parametres };
 }

@@ -73,7 +73,7 @@ export function modesParole(c: CapacitesVoix): ModeParoleOffert[] {
   return [
     {
       mode: 'voiceover', libelle: 'Voix off', disponible: true,
-      description: 'La voix est posée sur les images, sans mouvement des lèvres. Les images et les clips restent réutilisables si la narration change.',
+      description: 'La voix est dite hors champ, sans mouvement des lèvres. Les images clés restent réutilisables si la narration change ; la prise parlée est refaite.',
       raison: c.synthese.disponible ? '' : 'La prise vient d’un fichier audio existant · la synthèse vocale n’est pas branchée.',
     },
     {

@@ -174,7 +174,10 @@ describe.skipIf(!FFMPEG)('vidéo finale · assemblage réel des clips des plans'
     expect(a).toMatchObject({ origin: 'render', mime: 'video/mp4', durationMs: r.video.dureeMs, width: 1080, height: 1920, storageState: 'stored', projectId: projet.projectId });
     expect(conserve.get(a!.storageKey)?.length).toBe(a!.bytes);
     expect(a!.rights).toMatchObject({ videoFinale: { versionId: projet.versionId, musique: musiqueId } });
-    renduReel = { ok: true, octets: conserve.get(a!.storageKey)!, mesure: { largeur: a!.width!, hauteur: a!.height!, dureeMs: a!.durationMs! } };
+    // Les clips du banc sont muets (testsrc, aucune piste) · la mesure le dit, et « non inclus » ne promet aucune voix.
+    expect((a!.rights as { videoFinale: { nonInclus: string[] } }).videoFinale.nonInclus).toEqual(r.video.nonInclus);
+    expect(r.video.nonInclus.join(' ')).not.toMatch(/non garantie|vérifié à l’assemblage/);
+    renduReel = { ok: true, octets: conserve.get(a!.storageKey)!, mesure: { largeur: a!.width!, hauteur: a!.height!, dureeMs: a!.durationMs!, dureeAudioMs: a!.durationMs!, sonDesSegments: c.shots.order.map(() => false) }, chemin: null };
     expect((a!.rights as { videoFinale: { clips: string[] } }).videoFinale.clips).toHaveLength(c.shots.order.length);
     // Le fichier conservé est relu ici aussi : H.264 + AAC, et la piste n'est PAS silencieuse (la musique y est).
     const f = join(dossier, 'final.mp4');

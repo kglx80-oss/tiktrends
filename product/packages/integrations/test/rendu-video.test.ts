@@ -87,7 +87,7 @@ describe.skipIf(!FFMPEG)('assemblage réel · ffmpeg du conteneur', { timeout: D
     const r = await assemblerVideoFfmpeg({ segments: [{ octets: CLIP_5S, dureeMs: 3000 }, { octets: CLIP_2S, dureeMs: 4000 }], musique: { octets: MUSIQUE, gainDb: -12 }, largeur: 360, hauteur: 640, fps: { num: 30, den: 1 } });
     expect(r.ok, !r.ok ? r.motif : '').toBe(true);
     if (!r.ok) return;
-    expect(r.mesure).toEqual({ largeur: 360, hauteur: 640, dureeMs: 7000 });
+    expect(r.mesure).toMatchObject({ largeur: 360, hauteur: 640, dureeMs: 7000, sonDesSegments: [false, false] });
     const p = await sonder(r.octets);
     expect(p.streams.map((s) => [s.codec_type, s.codec_name]).sort()).toEqual([['audio', 'aac'], ['video', 'h264']]);
     expect(Math.abs(Number(p.format.duration) - 7)).toBeLessThan(0.1);

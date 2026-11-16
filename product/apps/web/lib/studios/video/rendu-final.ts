@@ -4,7 +4,7 @@ import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { assemblerVideoFfmpeg, type EntreeAssemblage, type ResultatAssemblage } from '@tiktrends/integrations';
 import {
-  aPermissionEspace, erreurStudio, planRenduFinal, ORIGINE_ARCHIVE_EXPORT,
+  aPermissionEspace, erreurStudio, planRenduFinal, nonInclusDuRendu, ORIGINE_ARCHIVE_EXPORT,
   type ContenuVersion, type ErreurStudio, type PlanRenduFinal, type StockageStudio,
 } from '@tiktrends/core';
 import type { ContexteStudio } from '../garde';
@@ -24,10 +24,13 @@ import { mediasProduits } from './lecture';
  * 0 crédit) :
  *  1. version courante lue dans la portée ; plan pur `planRenduFinal` (chaque
  *     plan a son clip VALIDE pour cette version, musique relue) · ce qui n'est
- *     pas inclus (voix, texte écran, sous-titres) est dit, jamais simulé ;
+ *     pas inclus (voix d'une prise muette, texte écran, sous-titres) est dit,
+ *     jamais simulé ;
  *  2. chaque clip relu dans la portée (`lireMediaDansPortee` : stocké, octets,
  *     empreinte, type réel MP4) et dans la MARQUE du projet ;
- *  3. assemblage ffmpeg, fichier produit RELU par ffprobe (`assemblerVideoFfmpeg`) ;
+ *  3. assemblage ffmpeg, son des prises gardé, fichier produit RELU par
+ *     ffprobe (`assemblerVideoFfmpeg`) · le son de chaque prise y est MESURÉ, et
+ *     « non inclus » est recalculé sur cette mesure (`nonInclusDuRendu`) ;
  *  4. dépôt dans le stockage des médias studio, RELU, empreinte comparée ;
  *     ligne `studio_assets` (origine `render`, durée, dimensions, provenance
  *     dans `rights`) et audit `project.export.video` dans UNE transaction.
@@ -140,6 +143,8 @@ export async function assemblerVideoFinalePour(ctx: ContexteStudio, e: { project
     return erreurStudio(r.cause === 'binaire' ? 'UNSUPPORTED_CAPABILITY' : 'INVALID_SCHEMA', { traceId: ctx.traceId, message: `Assemblage impossible · ${r.motif}. Rien n’a été conservé.` });
   }
 
+  // Ce que la vidéo n'inclut pas, d'après le fichier · une prise parlée livrée avec du son a dit sa réplique.
+  const nonInclus = nonInclusDuRendu(plan, r.mesure.sonDesSegments);
   const empreinte = sha256(r.octets);
   const cle = `studios/${projet.workspaceId}/${projet.id}/video-finale-${versionId}-${empreinte.slice(0, 16)}.mp4`;
   try {
@@ -156,7 +161,7 @@ export async function assemblerVideoFinalePour(ctx: ContexteStudio, e: { project
     const [n] = await tx.insert(S).values({
       workspaceId: projet.workspaceId, brandId: projet.brandId, projectId: projet.id, storageKey: cle, mime: 'video/mp4',
       bytes: r.octets.length, width: r.mesure.largeur, height: r.mesure.hauteur, durationMs: r.mesure.dureeMs, sha256: empreinte,
-      origin: ORIGINE_ARCHIVE_EXPORT, rights: { videoFinale: { versionId, clips: plan.segments.map((x) => x.assetId), musique: plan.musique?.assetId ?? null, nonInclus: plan.nonInclus } },
+      origin: ORIGINE_ARCHIVE_EXPORT, rights: { videoFinale: { versionId, clips: plan.segments.map((x) => x.assetId), musique: plan.musique?.assetId ?? null, nonInclus } },
       parentAssetId: null, storageState: 'stored', createdBy: ctx.userId,
     }).onConflictDoNothing({ target: [S.workspaceId, S.storageKey] }).returning({ id: S.id });
     const assetId = n?.id ?? (await tx.select({ id: S.id }).from(S).where(and(eq(S.workspaceId, projet.workspaceId), eq(S.storageKey, cle))).limit(1))[0]?.id;
@@ -164,9 +169,9 @@ export async function assemblerVideoFinalePour(ctx: ContexteStudio, e: { project
     await ajouterAudit(tx, ctx, {
       action: ACTION_AUDIT_VIDEO_FINALE, brandId: projet.brandId, targetType: 'studio_project', targetId: projet.id,
       versionBefore: versionId, versionAfter: versionId, reason: 'vidéo finale assemblée',
-      details: { assetId, sha256: empreinte, dureeMs: r.mesure.dureeMs, largeur: r.mesure.largeur, hauteur: r.mesure.hauteur, plans: plan.segments.length, nonInclus: plan.nonInclus },
+      details: { assetId, sha256: empreinte, dureeMs: r.mesure.dureeMs, largeur: r.mesure.largeur, hauteur: r.mesure.hauteur, plans: plan.segments.length, nonInclus },
     });
     return assetId;
   });
-  return { ok: true, video: { assetId: id, url: ROUTE_APERCU_MEDIA(id), dureeMs: r.mesure.dureeMs, largeur: r.mesure.largeur, hauteur: r.mesure.hauteur, nonInclus: plan.nonInclus } };
+  return { ok: true, video: { assetId: id, url: ROUTE_APERCU_MEDIA(id), dureeMs: r.mesure.dureeMs, largeur: r.mesure.largeur, hauteur: r.mesure.hauteur, nonInclus } };
 }
