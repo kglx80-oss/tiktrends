@@ -85,7 +85,7 @@ export async function requeteCompilationPas1(
   const c = await chargerCatalogueProjet(ctx, e.projectId, { veilleOuverte: true, maintenant: e.maintenant });
   if (!c.ok) return { ok: false, raison: `catalogue du projet illisible (${c.code})` };
   const cat = c.catalogue;
-  const prep = controlerAvantCompilation({ mode: e.mode, brief: cat.brief, produit: cat.epingle, fichiers: cat.fichiers });
+  const prep = controlerAvantCompilation({ mode: e.mode, brief: cat.brief, produit: cat.epingle, fichiers: cat.fichiers, referenceUnique: cat.referenceUnique });
   if (!prep.ok || !cat.brief) return { ok: false, raison: `contrôle avant compilation refusé · ${prep.violations.map((x) => x.raison).join(' ; ')}` };
   const entree = entreeCompilation({ prep, brief: cat.brief, versionId: cat.version.id, mode: e.mode, largeur: format.largeur, hauteur: format.hauteur, idee: await ideeDuBriefPour(ctx, cat.projet.brandId, cat.brief) });
 

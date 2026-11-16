@@ -32,9 +32,41 @@
  *   bruit plein (pire)   991 691       676 211       433 243
  *
  * Borne retenue : 900 000 caractères (≈ 150 ko de marge sous 1 Mio pour les
- * autres champs, sous 4 ko mesurés). La première étape (celle de l'ancien
- * geste) suffit pour une vraie photo ; la deuxième rattrape le pire cas.
- * Six photos par produit : la borne de l'ancien geste, reprise.
+ * autres champs, sous 4 ko mesurés). Six photos par produit : la borne de
+ * l'ancien geste, reprise.
+ *
+ * ── Le côté, relevé depuis la mesure de l'étiquette ──────────────────────────
+ *
+ * 1280 px fermait l'échelle quelle que soit la photo · or le transport (la
+ * data URI sous 900 000 caractères) laisse souvent passer plus grand. Mesure
+ * reproductible `apps/web/test/produit-prepare-resolution.test.ts` : trois
+ * photos synthétiques (scène texturée calée sur la « photo texturée »
+ * Chromium · 1280 px → 338 859 caractères contre 377 239), une étiquette à
+ * trois lignes de fûts (épais 0,14 h, espacés 0,2 h), réduite puis JPEG 0,85
+ * et relue. Hauteur de capitale RÉELLE en px · fûts encore séparés sur 12 ·
+ * longueur de la data URI (`MESURE_ETIQUETTE`, ci-dessous) :
+ *
+ *   source · ligne (capitale)       1024      1280      1600      1920      2048
+ *   packshot 2048² · mentions 22    11 12/12  13 12/12  17 12/12  21 12/12  22 12/12
+ *     data URI                      217 803   333 963   541 091   831 331   1 281 719
+ *   téléphone 4032×3024 · bénéfice 30  8 12/12   9 12/12  12 12/12  14 12/12  15 12/12
+ *   téléphone 4032×3024 · mentions 16  0  0/12   4  5/12   5  8/12   7 12/12   7 12/12
+ *     data URI                      229 907   338 859   490 095   662 823     740 579
+ *   scène 3024×4032 · bénéfice 20    4  9/12   6 12/12   8 12/12  10 12/12  10 12/12
+ *   scène 3024×4032 · mentions 11    1  1/12   3  3/12   4  7/12   5 11/12   5 12/12
+ *     data URI                      237 407   349 615   505 087   682 787     762 347
+ *
+ * Lecture : à 1280 px, les mentions d'une photo de téléphone (capitale de
+ * 16 px à la source) tombent à 4 px et perdent 7 fûts sur 12 · illisibles.
+ * Elles redeviennent séparées à 1920 px (7 px, 12/12) ; 2048 n'y ajoute rien
+ * (7 px) pour 12 % de poids en plus et sort le packshot de la borne. Côté
+ * retenu : 1920 px, essayé d'abord · la photo de téléphone y pèse 662 823
+ * caractères (74 % de la borne ; rapportée à la mesure Chromium, ≈ 737 000,
+ * 82 %). Une photo plus chargée retombe d'elle-même à 1600 puis 1280 : on
+ * s'arrête à la première sortie sous la borne, la borne ne bouge pas.
+ * La mise en scène lointaine (capitale de 11 px) reste trop petite même à
+ * 1920 · un gros plan de l'étiquette, envoyé comme deuxième vue (`vues.ts`),
+ * est le seul remède ici.
  */
 
 export const FORMATS_PHOTO_IMPORT = ['image/jpeg', 'image/png', 'image/webp'] as const;
@@ -51,20 +83,77 @@ export const PHOTOS_PRODUIT_MAX = 6;
 
 export interface EtapeCompression { cote: number; format: 'image/png' | 'image/jpeg'; qualite: number | null }
 
+/** Une ligne de la mesure de l'étiquette · rejouée par le test de résolution. */
+export interface MesureEtiquette {
+  source: string;
+  ligne: string;
+  capitaleSource: number;
+  /** Par côté : hauteur de capitale relue en px et fûts encore séparés (sur 12). */
+  parCote: Readonly<Record<number, readonly [px: number, futs: number]>>;
+}
+
+/** Les côtés mesurés · `MESURE_ETIQUETTE` et `MESURE_DATA_URI` les couvrent tous. */
+export const COTES_MESURES = [1024, 1280, 1600, 1920, 2048] as const;
+
+/** Mesure de l'en-tête, telle que le test la rejoue (valeurs exactes, sharp 0.34.5). */
+export const MESURE_ETIQUETTE: readonly MesureEtiquette[] = [
+  { source: 'packshot', ligne: 'mentions (contenance)', capitaleSource: 22, parCote: { 1024: [11, 12], 1280: [13, 12], 1600: [17, 12], 1920: [21, 12], 2048: [22, 12] } },
+  { source: 'telephone', ligne: 'bénéfice', capitaleSource: 30, parCote: { 1024: [8, 12], 1280: [9, 12], 1600: [12, 12], 1920: [14, 12], 2048: [15, 12] } },
+  { source: 'telephone', ligne: 'mentions (contenance)', capitaleSource: 16, parCote: { 1024: [0, 0], 1280: [4, 5], 1600: [5, 8], 1920: [7, 12], 2048: [7, 12] } },
+  { source: 'scene', ligne: 'bénéfice', capitaleSource: 20, parCote: { 1024: [4, 9], 1280: [6, 12], 1600: [8, 12], 1920: [10, 12], 2048: [10, 12] } },
+  { source: 'scene', ligne: 'mentions (contenance)', capitaleSource: 11, parCote: { 1024: [1, 1], 1280: [3, 3], 1600: [4, 7], 1920: [5, 11], 2048: [5, 12] } },
+];
+
+/** Longueur mesurée de la data URI JPEG 0,85, par source et par côté (± 5 % entre builds). */
+export const MESURE_DATA_URI: Readonly<Record<'packshot' | 'telephone' | 'scene', Readonly<Record<number, number>>>> = {
+  packshot: { 1024: 217_803, 1280: 333_963, 1600: 541_091, 1920: 831_331, 2048: 1_281_719 },
+  telephone: { 1024: 229_907, 1280: 338_859, 1600: 490_095, 1920: 662_823, 2048: 740_579 },
+  scene: { 1024: 237_407, 1280: 349_615, 1600: 505_087, 1920: 682_787, 2048: 762_347 },
+};
+
+/**
+ * Tolérance de la REMESURE (test de résolution) · l'écart le plus grand
+ * relevé en changeant le noyau de réduction (linear, cubic, mitchell,
+ * lanczos3), perturbation plus forte qu'une montée de version de sharp :
+ *
+ *   capitale  2 px  (téléphone, mentions, 2048 · lanczos3 7 → 9)
+ *   fûts      4/12  (téléphone, mentions, 1280 · lanczos3 5 → 1)
+ *   data URI  21,9 %
+ *
+ * Le SEUIL, lui, se lit sur le tableau écrit (valeurs exactes de sharp 0.34.5).
+ */
+export const TOLERANCE_MESURE = { px: 2, futs: 4, dataUri: 0.22 } as const;
+
+/** La « photo texturée » 4000 × 3000 à 1280 · 0,85, mesurée dans Chromium 1194 (tableau de l'en-tête) · ancre de la marge. */
+export const DATA_URI_CHROMIUM_TEXTUREE_1280 = 377_239;
+
+/** Le côté essayé d'abord · le plus petit où les mentions d'une photo de téléphone restent séparées (mesure). */
+export const COTE_PHOTO_MAX = 1920;
+
 const JPEG: readonly EtapeCompression[] = [
+  { cote: COTE_PHOTO_MAX, format: 'image/jpeg', qualite: 0.85 },
+  { cote: 1600, format: 'image/jpeg', qualite: 0.85 },
   { cote: 1280, format: 'image/jpeg', qualite: 0.85 },
   { cote: 1280, format: 'image/jpeg', qualite: 0.7 },
   { cote: 1024, format: 'image/jpeg', qualite: 0.7 },
 ];
 
 /**
- * L'échelle de compression · on s'arrête à la première sortie sous la borne.
- * Une source PNG ou WebP tente d'abord le PNG (la transparence d'un produit
- * détouré compte), puis le JPEG sur fond blanc.
+ * L'échelle de compression · on s'arrête à la première sortie sous la borne
+ * (le plus grand côté que le transport laisse passer). Une source PNG ou WebP
+ * tente d'abord le PNG (la transparence d'un produit détouré compte), aux
+ * mêmes côtés, puis le JPEG sur fond blanc.
  */
 export function etapesCompression(formatSource: string): readonly EtapeCompression[] {
   const f = formatSource.toLowerCase();
-  if (f === 'image/png' || f === 'image/webp') return [{ cote: 1280, format: 'image/png', qualite: null }, ...JPEG];
+  if (f === 'image/png' || f === 'image/webp') {
+    return [
+      { cote: COTE_PHOTO_MAX, format: 'image/png', qualite: null },
+      { cote: 1600, format: 'image/png', qualite: null },
+      { cote: 1280, format: 'image/png', qualite: null },
+      ...JPEG,
+    ];
+  }
   return JPEG;
 }
 

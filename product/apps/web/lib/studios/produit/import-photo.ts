@@ -64,6 +64,7 @@ export async function importerPhotoProduitPour(ctx: ContexteStudio, e: EntreeImp
     { productId: p.produit.id, photoId, composants: e.composants, transformations: e.transformations },
     { produit: produitApres, photos: photosApres, variante: VARIANTE_UNIQUE },
     o.maintenant,
+    cat.epingle,
   );
   if (!r.ok) return erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, violations: r.violations });
 
