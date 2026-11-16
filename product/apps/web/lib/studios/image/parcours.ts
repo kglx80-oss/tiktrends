@@ -151,7 +151,7 @@ export async function lireParcoursImagePour(ctx: ContexteStudio, projectId: unkn
   const contenu = cat.contenu;
   const portee = { workspaceId: projet.workspaceId, brandId: projet.brandId, projectId: projet.id };
 
-  const preparations = MODES_IMAGE.map((mode) => controlerAvantCompilation({ mode, brief: cat.brief, produit: cat.epingle, fichiers: cat.fichiers }));
+  const preparations = MODES_IMAGE.map((mode) => controlerAvantCompilation({ mode, brief: cat.brief, produit: cat.epingle, fichiers: cat.fichiers, referenceUnique: cat.referenceUnique }));
   const modes = MODES_IMAGE.map((mode, i) => ({ mode, libelle: LIBELLES_MODE_IMAGE[mode], pret: mode === 'generative_scene' && preparations[i]!.ok }));
   const disponibilite = disponibiliteImage({
     peutGenerer: aPermissionEspace(ctx.permissions, 'studio.generate'), peutProposer: aPermissionEspace(ctx.permissions, 'studio.propose'),

@@ -76,7 +76,7 @@ export function construireVueProduit(c: CatalogueProjet, peutModifier: boolean):
   const e = c.epingle;
   const produitEpingle = e ? c.produits.find((p) => p.produit.id === e.productId) ?? null : null;
   const etat = e ? etatPhotoEpinglee(e, { produitPresent: !!produitEpingle, photos: produitEpingle?.photos ?? [] }) : null;
-  const preparationFidele = controlerAvantCompilation({ mode: 'faithful_composite', brief: c.brief, produit: e, fichiers: c.fichiers });
+  const preparationFidele = controlerAvantCompilation({ mode: 'faithful_composite', brief: c.brief, produit: e, fichiers: c.fichiers, referenceUnique: c.referenceUnique });
   const fichierEpingle = e ? c.fichiers.get(e.photo.assetId) : undefined;
   return {
     projet: { id: pid, title: c.projet.title, marque: c.marque },
@@ -102,7 +102,7 @@ export function construireVueProduit(c: CatalogueProjet, peutModifier: boolean):
     }),
     preparation: {
       faithful_composite: { ...preparationFidele, ok: false, violations: [...preparationFidele.violations, { chemin: '/mode', raison: MESSAGE_MODE_FIDELE_INDISPONIBLE }] },
-      generative_scene: controlerAvantCompilation({ mode: 'generative_scene', brief: c.brief, produit: e, fichiers: c.fichiers }),
+      generative_scene: controlerAvantCompilation({ mode: 'generative_scene', brief: c.brief, produit: e, fichiers: c.fichiers, referenceUnique: c.referenceUnique }),
     },
     peutModifier,
   };

@@ -8,7 +8,7 @@ import {
   lireReferencesSources, lireReferenceEpinglee, lireReferenceProduit, validerFormeBrief, objetDansPortee, erreurStudio,
   type BriefCanonique, type ContenuVersion, type EmpreinteFichier, type FichierCatalogue, type ProduitMarque,
   type ReferenceProduitEpinglee, type ReferenceProduitStudio, type SourceReferenceStudio, type ErreurStudio,
-  libelleMediaStudio, titreSource, uuidsBibliothequeCites,
+  libelleMediaStudio, titreSource, uuidsBibliothequeCites, editionAReferenceUnique,
 } from '@tiktrends/core';
 import type { ContexteStudio } from '../garde';
 import { adresseAssetProxy } from '../../asset-url';
@@ -99,6 +99,11 @@ export interface CatalogueProjet {
   empreintesLogos: unknown;
   /** Sources ENCORE lisibles · les seules associables. */
   sources: SourceReferenceStudio[];
+  /**
+   * Le modèle d'édition routé ne reçoit qu'une image (Flux, Kontext) · les
+   * vues du produit retombent sur l'épinglée seule (`vuesProduit`), c'est dit.
+   */
+  referenceUnique: boolean;
   /** Toutes les sources du projet, tombstones compris · citées par les faits du brief. */
   sourcesProjet: SourceReferenceStudio[];
 }
@@ -213,6 +218,7 @@ export async function chargerCatalogueProjet(
       projet, version: v.version, contenu, marque: marque.nom, brief, briefIllisible: illisible,
       epingle, instantane: epingle ? null : lireReferenceProduit(contenu.productRef),
       produits, fichiers, sources, sourcesProjet: refs, empreintesLogos: marque.logoEmpreintes,
+      referenceUnique: editionAReferenceUnique(process.env),
     },
   };
 }

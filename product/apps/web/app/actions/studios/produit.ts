@@ -6,7 +6,7 @@ import { gardeSources } from '../../../lib/studios/sources/acces';
 import { refusCapacite } from '../../../lib/studios/interrupteurs';
 import type { VersionStudio } from '../../../lib/studios/depot';
 import { lireVueProduitPour, type VueProduit } from '../../../lib/studios/produit/vue';
-import { epinglerProduitPour, associerReferencePour, retirerReferencePour } from '../../../lib/studios/produit/commandes';
+import { epinglerProduitPour, associerReferencePour, retirerReferencePour, definirFicheProduitPour } from '../../../lib/studios/produit/commandes';
 import { importerPhotoProduitPour, type ResultatImportPhoto } from '../../../lib/studios/produit/import-photo';
 import { preparerCompilationPour } from '../../../lib/studios/produit/compilation';
 import { definirDroitsAssetPour, type VueDroitsAsset } from '../../../lib/studios/produit/droits';
@@ -53,6 +53,20 @@ export async function epinglerProduit(entree: { projectId: unknown; baseVersionI
     projectId: entree?.projectId, baseVersionId: entree?.baseVersionId, productId: entree?.productId, photoId: entree?.photoId,
     composants: entree?.composants, attributs: entree?.attributs, transformations: entree?.transformations,
   }, { veilleOuverte: g.veilleOuverte, maintenant: new Date() });
+}
+
+/**
+ * La fiche du produit épinglé et ses vues (taille réelle, non montré, contenu
+ * d'un achat, emballage ; jusqu'à deux autres photos du même produit) · même
+ * garde et même capacité que l'épinglage, nouvelle version (409). Saisie à la
+ * main : aucun appel IA, aucune dépense.
+ */
+export async function definirFicheProduit(entree: { projectId: unknown; baseVersionId: unknown; fiche: unknown; vues?: unknown }): Promise<Ecriture> {
+  const g = await gardeSources('studio.propose');
+  if (!g.ok) return g;
+  const coupe = await refusCapacite(g.ctx, ['projets']);
+  if (coupe) return coupe;
+  return definirFicheProduitPour(g.ctx, { projectId: entree?.projectId, baseVersionId: entree?.baseVersionId, fiche: entree?.fiche, vues: entree?.vues }, { veilleOuverte: g.veilleOuverte, maintenant: new Date() });
 }
 
 /**
