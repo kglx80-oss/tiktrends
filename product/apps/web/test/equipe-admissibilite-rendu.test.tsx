@@ -38,6 +38,7 @@ import { MESSAGE_NON_ADMISSIBLE } from '@tiktrends/core';
 import { session, semer } from './studios-semis';
 import { avecSpatial } from './spatial/fournisseur';
 import DroitsSpatial from '../app/(spatial)/sp/admin/equipe/page';
+import { equipeDeSession } from '../lib/equipe-plateforme';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 let hote: HTMLDivElement;
@@ -89,8 +90,8 @@ describe('I2 · /admin/equipe · admissibilité et date du compte, par membre', 
     expect(texte(MEMBRE.capte)).toContain('Non admissible');
     expect(texte(MEMBRE.capte)).toContain('compte créé le 10 oct. 2026');
     const consigne = ligne(MEMBRE.capte)?.querySelector('[data-consigne]')?.textContent ?? '(aucune consigne)';
-    expect(consigne).toContain('vérifie hors du produit');
-    expect(consigne).toContain('détient bien cette adresse');
+    expect(consigne).toContain('de faire « Mot de passe oublié » sur cette adresse puis de se reconnecter');
+    expect(consigne).toContain('hors du produit');
     expect(consigne).toContain('retire-la puis réinscris-la');
   });
 
@@ -98,13 +99,28 @@ describe('I2 · /admin/equipe · admissibilité et date du compte, par membre', 
     await monter('ua');
     expect(texte(MEMBRE.invite)).toContain('aucun compte');
     expect(texte(MEMBRE.invite)).toContain('Non admissible');
-    expect(ligne(MEMBRE.invite)?.querySelector('[data-consigne]')?.textContent ?? '').toContain('vérifie hors du produit');
+    const consigne = ligne(MEMBRE.invite)?.querySelector('[data-consigne]')?.textContent ?? '';
+    expect(consigne).toContain('Attends que son compte existe');
+    expect(consigne).toContain('« Mot de passe oublié »');
   });
 
   it('rôle gradé non admissible · dit, sans consigne (rien ne s’ouvre pour ce rôle)', async () => {
     await monter('ua');
     expect(texte(MEMBRE.dev)).toContain('Non admissible · sans effet pour ce rôle');
     expect(ligne(MEMBRE.dev)?.querySelector('[data-consigne]')).toBeNull();
+  });
+
+  it('M3 · le statut affiché de CHAQUE membre est celui que la session lui donne (equipeDeSession, mêmes faits en base)', async () => {
+    await monter('ua');
+    const lignes = [...hote.querySelectorAll('[data-membre]')];
+    expect(lignes.length).toBeGreaterThanOrEqual(4);
+    for (const l of lignes) {
+      const email = l.getAttribute('data-membre')!;
+      const statut = l.getAttribute('data-admissibilite');
+      const affiche = statut === 'admissible' || statut === 'fondateur';
+      expect(statut, `${email} · aucun statut affiché`).toMatch(/^(admissible|fondateur|compte-posterieur|sans-compte)$/);
+      expect(affiche, `${email} · l’écran dit ${statut}, la session dit autre chose`).toBe((await equipeDeSession(email))?.plateformeAdmissible === true);
+    }
   });
 
   it('aucun tiret cadratin, aucune marque tierce à l’écran', async () => {
@@ -119,7 +135,16 @@ describe('I3 · le membre concerné sait pourquoi', () => {
     await monter('uv');
     const alerte = hote.querySelector('[data-non-admissible]');
     expect(alerte?.textContent ?? '(aucun message dédié)').toBe(MESSAGE_NON_ADMISSIBLE);
-    expect(MESSAGE_NON_ADMISSIBLE).toContain('Demande à un fondateur de te réinscrire');
+    expect(MESSAGE_NON_ADMISSIBLE).toContain('Fais « Mot de passe oublié » sur ton adresse et reconnecte-toi, puis demande à un fondateur de te réinscrire');
+  });
+
+  it('M1 · compte non admissible en lecture seule · ni statut ni date de compte des autres membres', async () => {
+    await monter('uv');
+    expect(hote.querySelectorAll('[data-membre]').length, 'la liste des membres reste visible').toBeGreaterThanOrEqual(4);
+    expect(hote.querySelectorAll('[data-admissibilite]').length, 'statut d’admissibilité montré à un compte non admissible').toBe(0);
+    expect(hote.textContent).not.toContain('compte créé le');
+    expect(hote.textContent).not.toContain('aucun compte');
+    expect(hote.querySelector('[data-consigne]')).toBeNull();
   });
 
   it('Admin+ admissible · aucun message dédié', async () => {

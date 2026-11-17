@@ -44,7 +44,9 @@ export default async function DroitsSpatial({ searchParams }: { searchParams: Pr
   ]);
   // SEC-10 · la date de création du compte de chaque membre, pour dire s'il est
   // admissible · même lecture que `equipeDeSession` (e-mail stocké en minuscules).
-  const emails = staffRows.map((r) => r.email);
+  // Seulement pour qui peut écrire l'équipe · un compte non admissible, en
+  // lecture seule, ne voit ni les dates de compte ni le statut des autres.
+  const emails = peutEcrire ? staffRows.map((r) => r.email) : [];
   const comptes = db && emails.length
     ? await db.select({ email: schema.users.email, createdAt: schema.users.createdAt }).from(schema.users).where(inArray(schema.users.email, emails))
     : [];
@@ -76,7 +78,7 @@ export default async function DroitsSpatial({ searchParams }: { searchParams: Pr
         .map((m) => ({
           email: m.email, initiales: initialesAvatar('', m.email), role: LIBELLE_ROLE_PLATEFORME[m.role], total: accesTotal(m.role), depuis: `depuis le ${adminDateCourte(m.depuis)}`,
           cleRole: m.role, moi: m.email.trim().toLowerCase() === s.user.email.trim().toLowerCase(),
-          admissibilite: admissibiliteMembre({ role: m.role, fondateurCode: estFondateurCode(m.email), compteCreeLe: compteDe.get(m.email) ?? null, staffInscritLe: m.depuis }),
+          admissibilite: peutEcrire ? admissibiliteMembre({ role: m.role, fondateurCode: estFondateurCode(m.email), compteCreeLe: compteDe.get(m.email) ?? null, staffInscritLe: m.depuis }) : undefined,
         }))}
       nonAdmissible={messageNonAdmissible(s.equipe)}
       gestion={peutEcrire}

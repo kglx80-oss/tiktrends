@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   admissibiliteMembre, messageNonAdmissible, refusConnaissances,
-  MESSAGE_NON_ADMISSIBLE, REFUS_CONNAISSANCES, CONSIGNE_REINSCRIPTION,
+  MESSAGE_NON_ADMISSIBLE, MESSAGE_FONDATEUR_HORS_CODE, REFUS_CONNAISSANCES, CONSIGNE_REINSCRIPTION,
 } from '../src/equipe-admissibilite';
 import { plateformeAdmissible } from '../src/studios/securite';
 
@@ -36,7 +36,7 @@ describe('admissibiliteMembre · ce que /admin/equipe montre par membre', () => 
     expect(a.admissible).toBe(false);
     expect(a.libelle).toBe('Non admissible');
     expect(a.compte).toBe('aucun compte');
-    expect(a.consigne).toBe(`Pas encore de compte · le compte qu’il créera sera postérieur, donc non admissible. ${CONSIGNE_REINSCRIPTION}`);
+    expect(a.consigne).toBe(`Pas encore de compte · le compte qu’il créera sera postérieur, donc non admissible. Attends que son compte existe. ${CONSIGNE_REINSCRIPTION}`);
   });
 
   it('fondateur de la liste codée · admissible même sans compte', () => {
@@ -51,10 +51,15 @@ describe('admissibiliteMembre · ce que /admin/equipe montre par membre', () => 
     expect(a.consigne).toBeNull();
   });
 
-  it('la consigne exige de vérifier HORS du produit que la personne détient l’adresse', () => {
-    expect(CONSIGNE_REINSCRIPTION).toContain('vérifie hors du produit');
-    expect(CONSIGNE_REINSCRIPTION).toContain('détient bien cette adresse');
-    expect(CONSIGNE_REINSCRIPTION).toContain('blanchit');
+  it('la consigne exige une preuve portant sur le COMPTE · « Mot de passe oublié » puis reconnexion, demandés hors du produit', () => {
+    // Relecture de #1108 · « vérifie que la personne détient l’adresse » ne protège pas : le produit ne
+    // vérifie jamais l’e-mail à la création d’un compte. La vraie personne confirme détenir l’adresse,
+    // on réinscrit, et c’est le compte du CAPTEUR qui devient admissible. « Mot de passe oublié » envoie
+    // le lien sur l’adresse et `resetPasswordAction` incrémente `sessionEpoch` (sessions du capteur coupées).
+    expect(CONSIGNE_REINSCRIPTION, 'la consigne n’exige pas « Mot de passe oublié »').toContain('de faire « Mot de passe oublié » sur cette adresse puis de se reconnecter');
+    expect(CONSIGNE_REINSCRIPTION).toContain('hors du produit');
+    expect(CONSIGNE_REINSCRIPTION).toContain('ferme toute autre session ouverte dessus');
+    expect(CONSIGNE_REINSCRIPTION).not.toContain('détient bien cette adresse');
   });
 
   it('même verdict que plateformeAdmissible (la règle de la session) sur toute la grille', () => {
@@ -66,7 +71,7 @@ describe('admissibiliteMembre · ce que /admin/equipe montre par membre', () => 
   });
 
   it('jamais de tiret cadratin ni de marque tierce dans les libellés', () => {
-    const textes = [MESSAGE_NON_ADMISSIBLE, REFUS_CONNAISSANCES, CONSIGNE_REINSCRIPTION,
+    const textes = [MESSAGE_NON_ADMISSIBLE, MESSAGE_FONDATEUR_HORS_CODE, REFUS_CONNAISSANCES, CONSIGNE_REINSCRIPTION,
       ...(['admin', 'dev'] as const).flatMap((role) => [null, jour(1), jour(10)].map((c) => admissibiliteMembre({ role, fondateurCode: false, compteCreeLe: c, staffInscritLe: jour(5) })))
         .flatMap((a) => [a.libelle, a.compte, a.consigne ?? ''])];
     for (const t of textes) { expect(t).not.toContain('—'); expect(t.toLowerCase()).not.toContain('trendtrack'); }
@@ -77,7 +82,14 @@ describe('messageNonAdmissible · le membre concerné sait pourquoi', () => {
   it('accès total non admissible · le message dédié', () => {
     expect(messageNonAdmissible({ role: 'admin', plateformeAdmissible: false })).toBe(MESSAGE_NON_ADMISSIBLE);
     expect(messageNonAdmissible({ role: 'adminplus' })).toBe(MESSAGE_NON_ADMISSIBLE);
-    expect(MESSAGE_NON_ADMISSIBLE).toBe('Ton compte a été créé après ton inscription à l’équipe · tes crédits illimités et les Connaissances sont fermés. Demande à un fondateur de te réinscrire.');
+    expect(MESSAGE_NON_ADMISSIBLE).toBe('Ton compte a été créé après ton inscription à l’équipe · tes crédits illimités et les Connaissances sont fermés. Fais « Mot de passe oublié » sur ton adresse et reconnecte-toi, puis demande à un fondateur de te réinscrire.');
+  });
+  it('fondateur venu de l’environnement, sans inscription dans l’équipe · message dédié, jamais « créé après ton inscription »', () => {
+    expect(messageNonAdmissible({ role: 'adminplus', plateformeAdmissible: false, inscritEquipe: false })).toBe(MESSAGE_FONDATEUR_HORS_CODE);
+    expect(MESSAGE_FONDATEUR_HORS_CODE).not.toContain('créé après');
+    expect(MESSAGE_FONDATEUR_HORS_CODE).toContain('Mot de passe oublié');
+    expect(refusConnaissances({ role: 'adminplus', plateformeAdmissible: false, inscritEquipe: false })).toBe(MESSAGE_FONDATEUR_HORS_CODE);
+    expect(messageNonAdmissible({ role: 'adminplus', plateformeAdmissible: false, inscritEquipe: true })).toBe(MESSAGE_NON_ADMISSIBLE);
   });
   it('admissible, rôle gradé, client · rien à dire', () => {
     expect(messageNonAdmissible({ role: 'admin', plateformeAdmissible: true })).toBeNull();

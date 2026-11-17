@@ -17,9 +17,15 @@
  *    à quelqu'un qui EST Admin, ou d'une perte de crédits silencieuse ;
  *  · `refusConnaissances` · la vraie raison du refus des Connaissances.
  *
- * La consigne insiste sur la vérification HORS du produit : réinscrire sans
- * s'assurer que la personne détient l'adresse rend admissible un compte qui a
- * pu la capter (c'est exactement la faille fermée par #1106).
+ * La consigne exige une preuve qui porte sur le COMPTE, pas sur l'adresse.
+ * Le produit ne vérifie jamais l'e-mail à la création d'un compte
+ * (inscription libre, ou invitation acceptée par celui qui voit le lien) :
+ * appeler la vraie personne, qui confirme détenir l'adresse, puis réinscrire,
+ * rendrait admissible le compte du CAPTEUR (relecture de #1108). Demander
+ * hors du produit « Mot de passe oublié » sur l'adresse puis une reconnexion
+ * prouve que le compte est à elle : le lien part sur l'adresse, et
+ * `resetPasswordAction` incrémente `sessionEpoch`, ce qui coupe toute autre
+ * session ouverte sur le compte.
  */
 
 import { plateformeAdmissible } from './studios/securite';
@@ -27,17 +33,26 @@ import { ROLES_ACCES_TOTAL } from './equipe-plateforme';
 import { peutGererConnaissances } from './connaissances';
 import { adminDateCourte } from './spatial/admin/format';
 
-type EquipeLue = { role: string; plateformeAdmissible?: boolean } | null | undefined;
+/**
+ * `inscritEquipe` · `false` quand le rôle vient de la liste des fondateurs de
+ * l'ENVIRONNEMENT (`FOUNDER_EMAILS`) sans ligne `platform_staff` · aucune
+ * inscription, donc jamais « créé après ton inscription ».
+ */
+type EquipeLue = { role: string; plateformeAdmissible?: boolean; inscritEquipe?: boolean } | null | undefined;
 
 const estAccesTotal = (role: string) => (ROLES_ACCES_TOTAL as readonly string[]).includes(role);
 
-/** Ce que doit faire celui qui réinscrit · la vérification hors produit d'abord. */
+/** Ce que doit faire celui qui réinscrit · une preuve qui porte sur le COMPTE, demandée hors du produit. */
 export const CONSIGNE_REINSCRIPTION =
-  'Avant de la réinscrire, vérifie hors du produit (appel, message direct) que la personne détient bien cette adresse · sinon la réinscription blanchit un compte qui a pu la capter. Ensuite, retire-la puis réinscris-la.';
+  'Avant de la réinscrire, demande-lui hors du produit (appel, message direct) de faire « Mot de passe oublié » sur cette adresse puis de se reconnecter · c’est ce qui prouve que le compte est à elle et ferme toute autre session ouverte dessus. Ensuite, retire-la puis réinscris-la.';
 
 /** Ce que lit le membre concerné · accès total, non admissible. */
 export const MESSAGE_NON_ADMISSIBLE =
-  'Ton compte a été créé après ton inscription à l’équipe · tes crédits illimités et les Connaissances sont fermés. Demande à un fondateur de te réinscrire.';
+  'Ton compte a été créé après ton inscription à l’équipe · tes crédits illimités et les Connaissances sont fermés. Fais « Mot de passe oublié » sur ton adresse et reconnecte-toi, puis demande à un fondateur de te réinscrire.';
+
+/** Fondateur déclaré par l'environnement (`FOUNDER_EMAILS`), sans inscription dans l'équipe. */
+export const MESSAGE_FONDATEUR_HORS_CODE =
+  'Ton accès d’équipe vient de la liste des fondateurs de l’environnement, sans inscription dans l’équipe · tes crédits illimités et les Connaissances sont fermés. Fais « Mot de passe oublié » sur ton adresse et reconnecte-toi, puis demande à un fondateur de t’inscrire dans l’équipe.';
 
 /** Refus général des Connaissances · client, rôle gradé. */
 export const REFUS_CONNAISSANCES =
@@ -85,13 +100,14 @@ export function admissibiliteMembre(f: {
   if (!estAccesTotal(f.role)) return { statut, admissible, libelle: 'Non admissible · sans effet pour ce rôle', compte, consigne: null };
   const pourquoi = cree
     ? 'Compte créé après son inscription · crédits illimités et Connaissances fermés.'
-    : 'Pas encore de compte · le compte qu’il créera sera postérieur, donc non admissible.';
+    : 'Pas encore de compte · le compte qu’il créera sera postérieur, donc non admissible. Attends que son compte existe.';
   return { statut, admissible, libelle: 'Non admissible', compte, consigne: `${pourquoi} ${CONSIGNE_REINSCRIPTION}` };
 }
 
 /** Le message dédié au membre concerné · accès total ET non admissible. Sinon `null`. */
 export function messageNonAdmissible(equipe: EquipeLue): string | null {
-  return !!equipe && estAccesTotal(equipe.role) && equipe.plateformeAdmissible !== true ? MESSAGE_NON_ADMISSIBLE : null;
+  if (!equipe || !estAccesTotal(equipe.role) || equipe.plateformeAdmissible === true) return null;
+  return equipe.inscritEquipe === false ? MESSAGE_FONDATEUR_HORS_CODE : MESSAGE_NON_ADMISSIBLE;
 }
 
 /** Le refus des Connaissances, dit par sa vraie raison · `null` quand l'accès est ouvert. */
