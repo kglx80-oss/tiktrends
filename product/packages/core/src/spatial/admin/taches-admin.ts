@@ -24,6 +24,7 @@ import { TELECHARGEMENTS_MEDIA_MAX } from '../../studios/execution/media';
 import { bilanRegistre } from '../../studios/execution/registre';
 import { LIBELLES_ETAT_JOB, etatReprise, libelleOperationJob } from '../../studios/execution/reprise';
 import { ETATS_JOB, type EtatJob } from '../../studios/machines';
+import { lireClotureDemandee } from '../../studios/execution/echeances';
 import { adminDollars, adminDuree, adminNombre } from './format';
 import { LONGUEUR_MAX_TEXTE_INCIDENT, LONGUEUR_MAX_TITRE_INCIDENT } from './incidents-declares';
 import { celluleSansFuite, correspondRecherche, lireSegment, paginer, LONGUEUR_MAX_RECHERCHE, type FiltresListeTour, type PageTour } from './tour-controle';
@@ -207,6 +208,12 @@ export interface LigneTacheAdmin {
   /** Les gestes que la ligne propose · des LIENS, jamais une écriture d'ici. */
   declarer: boolean;
   rapprocher: boolean;
+  /**
+   * « Clore le rapprochement » · le SEUL geste qui écrit d'ici, sur une tâche
+   * en rapprochement · permis tant qu'aucune clôture n'est demandée, sinon
+   * fermé avec sa raison · `null` hors rapprochement.
+   */
+  clore: { permis: boolean; raison: string | null } | null;
   /** Le seuil « bloquée » appliqué à CETTE tâche (mesuré ou dérivé). */
   seuil: SeuilApplique;
 }
@@ -216,6 +223,9 @@ const CLASSE_TON: Readonly<Record<string, '' | 'g' | 'w' | 'r' | 'c'>> = { atten
 /** Le seuil de chaque tâche · le résolveur de la mesure (`resolveurSeuils`), à défaut le seuil dérivé. */
 export type SeuilDe = (t: TacheASeuil) => SeuilApplique;
 const seuilDerive: SeuilDe = () => SEUIL_DERIVE_SEUL;
+
+/** Pourquoi « Clore le rapprochement » est fermé · la demande est posée, le worker la règle. */
+export const RAISON_CLOTURE_DEJA_DEMANDEE = 'Clôture demandée · le worker la règle à son prochain tour (échec, crédits rendus).';
 
 export function ligneTacheAdmin(t: TacheLue, maintenant: Date, seuilDe: SeuilDe = seuilDerive): LigneTacheAdmin {
   const seuil = seuilDe(t);
@@ -234,6 +244,8 @@ export function ligneTacheAdmin(t: TacheLue, maintenant: Date, seuilDe: SeuilDe 
     erreur: erreurTache(t.erreur),
     declarer: segment === 'echec',
     rapprocher: segment === 'rapprochement',
+    clore: segment !== 'rapprochement' ? null
+      : lireClotureDemandee(t.erreur) ? { permis: false, raison: RAISON_CLOTURE_DEJA_DEMANDEE } : { permis: true, raison: null },
     seuil,
   };
 }

@@ -48,6 +48,10 @@ services:
     # construit la même image et garde son accord explicite. Prime sur env_file.
     environment:
       NODE_ENV: production
+    # Arrêt propre (SIGTERM à chaque recréation par deploy.sh) · le worker finit
+    # son tour, au pire 115 s (`DELAI_ARRET_MAX_MS`, tableau mesuré dans
+    # apps/workers/src/studios/boucle.ts) · Docker n'envoie SIGKILL qu'après.
+    stop_grace_period: 125s
     depends_on:
       db: { condition: service_healthy }
       redis: { condition: service_healthy }

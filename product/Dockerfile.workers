@@ -17,4 +17,9 @@ RUN pnpm install --no-frozen-lockfile
 ARG BUILD_SHA=""
 ENV BUILD_SHA=$BUILD_SHA
 WORKDIR /app/apps/workers
-CMD ["pnpm", "start"]
+# Arrêt propre · le processus 1 doit ATTENDRE son enfant sur SIGTERM (le worker
+# finit son tour, une soumission partie écrit sa requête). Mesuré le 16/11 :
+# `pnpm start` relaie le signal mais sort aussitôt (ELIFECYCLE), l'enfant est
+# tué ; `pnpm exec tsx` attend. Même point d'entrée que le script `start`.
+# Garde : apps/workers/test/studios-arret-worker.test.ts.
+CMD ["pnpm", "exec", "tsx", "src/index.ts"]
