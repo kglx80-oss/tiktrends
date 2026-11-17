@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   suitePagination, erreurLectureIncomplete, lireLectureIncomplete, phraseLectureIncomplete,
-  BORNE_PAGES_META, TAILLE_PAGE_META, FENETRE_SYNCHRO_JOURS, ANNONCES_MAX_COMPTE_META,
+  BORNE_PAGES_META, TAILLE_PAGE_META, FENETRE_SYNCHRO_JOURS, ANNONCES_MAX_COMPTE_META, PAGES_VOLUME_LEGITIME_META, PAGES_BUDGET_MEMOIRE_META,
+  BUDGET_MEMOIRE_LECTURE_OCTETS, OCTETS_PAR_LIGNE_CONVERTIE, paramsDeSuite, reprisePageMeta, ATTENTES_REPRISE_META_MS,
   motifEchecRemontee, etatRemontee, texteRemontee, type RemonteeJournal,
 } from '../src';
 
@@ -11,19 +12,32 @@ import {
  */
 
 describe('pagination Meta · la règle', () => {
-  it('la borne est dérivée · annonces max × jours de la fenêtre (inclusive) / taille de page', () => {
-    expect(BORNE_PAGES_META).toBe(Math.ceil((ANNONCES_MAX_COMPTE_META * (FENETRE_SYNCHRO_JOURS + 1)) / TAILLE_PAGE_META));
-    expect([TAILLE_PAGE_META, FENETRE_SYNCHRO_JOURS, BORNE_PAGES_META]).toEqual([500, 120, 1210]);
+  it('les deux plafonds sont dérivés · volume légitime (5 000 × 121 / 500) et mémoire mesurée (128 Mio / 550 o / 500)', () => {
+    expect(PAGES_VOLUME_LEGITIME_META).toBe(Math.ceil((ANNONCES_MAX_COMPTE_META * (FENETRE_SYNCHRO_JOURS + 1)) / TAILLE_PAGE_META));
+    expect(PAGES_BUDGET_MEMOIRE_META).toBe(Math.floor(BUDGET_MEMOIRE_LECTURE_OCTETS / OCTETS_PAR_LIGNE_CONVERTIE / TAILLE_PAGE_META));
+    expect([TAILLE_PAGE_META, FENETRE_SYNCHRO_JOURS, PAGES_VOLUME_LEGITIME_META, PAGES_BUDGET_MEMOIRE_META]).toEqual([500, 120, 1210, 488]);
+  });
+  it('la borne est SOUS les deux plafonds, avec marge · 400 pages, ~118 Mo au plus fort', () => {
+    expect(BORNE_PAGES_META).toBe(400);
+    expect(BORNE_PAGES_META, 'la borne dépasse le budget mémoire mesuré · la lecture peut faire tomber le serveur web').toBeLessThanOrEqual(Math.min(PAGES_VOLUME_LEGITIME_META, PAGES_BUDGET_MEMOIRE_META));
   });
   it.each([
     [{ pagesLues: 1, next: null, after: 'c1' }, { suite: 'fin' }],
-    [{ pagesLues: 1210, next: undefined, after: undefined }, { suite: 'fin' }],
-    [{ pagesLues: 3, next: 'u', after: 'c3' }, { suite: 'page', after: 'c3' }],
-    [{ pagesLues: 1209, next: 'u', after: 'c' }, { suite: 'page', after: 'c' }],
-    [{ pagesLues: 1210, next: 'u', after: 'c' }, { suite: 'incomplete', raison: 'borne' }],
+    [{ pagesLues: 400, next: undefined, after: undefined }, { suite: 'fin' }],
+    [{ pagesLues: 3, next: 'u', after: 'c3' }, { suite: 'page', params: { after: 'c3' } }],
+    [{ pagesLues: 399, next: 'u', after: 'c' }, { suite: 'page', params: { after: 'c' } }],
+    [{ pagesLues: 400, next: 'u', after: 'c' }, { suite: 'incomplete', raison: 'borne' }],
     [{ pagesLues: 2, next: 'u', after: null }, { suite: 'incomplete', raison: 'curseur_absent' }],
+    [{ pagesLues: 2, next: 'https://graph.facebook.com/x?access_token=t&limit=500', after: null }, { suite: 'incomplete', raison: 'curseur_absent' }],
+    [{ pagesLues: 2, next: 'https://graph.facebook.com/x?access_token=t&after=Q2', after: null }, { suite: 'page', params: { after: 'Q2' } }],
+    [{ pagesLues: 2, next: 'https://graph.facebook.com/x?access_token=t&offset=1000', after: undefined }, { suite: 'page', params: { offset: '1000' } }],
+    [{ pagesLues: 2, next: 'https://graph.facebook.com/x?access_token=t&__paging_token=P', after: undefined }, { suite: 'page', params: { __paging_token: 'P' } }],
     [{ pagesLues: 2, next: 'u', after: 'c', borne: 2 }, { suite: 'incomplete', raison: 'borne' }],
   ] as const)('%o → %o', (p, attendu) => expect(suitePagination(p)).toEqual(attendu));
+  it('la suite lue dans `next` ne reprend JAMAIS son jeton', () => {
+    expect(paramsDeSuite('https://graph.facebook.com/v21.0/act_1/insights?access_token=SECRET&after=A&limit=25&fields=x')).toEqual({ after: 'A' });
+    expect(paramsDeSuite('pas une url')).toBeNull();
+  });
 
   it('le message d’erreur se relit · et toute autre erreur n’est pas une lecture incomplète', () => {
     expect(lireLectureIncomplete(erreurLectureIncomplete('borne', 1210))).toEqual({ raison: 'borne', pages: 1210 });
@@ -35,16 +49,39 @@ describe('pagination Meta · la règle', () => {
   });
 });
 
+describe('reprise d’une page · passager redemandé, autorisation jamais', () => {
+  it('trois reprises, attentes croissantes, puis plus rien', () => {
+    const e = { status: 503, message: 'Meta : HTTP 503' };
+    expect([0, 1, 2, 3].map((n) => reprisePageMeta(e, n))).toEqual([2_000, 6_000, 18_000, null]);
+    expect(ATTENTES_REPRISE_META_MS.every((a, i, t) => i === 0 || a > t[i - 1]!)).toBe(true);
+  });
+  it.each([
+    [{ status: 503, message: 'Meta : HTTP 503' }, 2_000],
+    [{ status: 500, code: 1, message: 'Meta : An unknown error has occurred.' }, 2_000],
+    [{ status: 400, code: 17, message: 'Meta : (#17) User request limit reached' }, 2_000],
+    [{ status: 400, code: 80004, message: 'Meta : There have been too many calls to this ad-account' }, 2_000],
+    [{ status: 400, code: 2, transitoire: true, message: 'Meta : Service temporarily unavailable' }, 2_000],
+    [{ status: 429, message: 'Meta : HTTP 429' }, 2_000],
+    [{ status: null, message: 'fetch failed' }, 2_000],
+    [{ status: null, message: 'The operation was aborted due to timeout' }, 2_000],
+    [{ status: 400, code: 190, message: 'Meta : Error validating access token: Session has expired' }, null],
+    [{ status: 400, code: 190, transitoire: true, message: 'Meta : Error validating access token' }, null],
+    [{ status: 403, code: 200, message: 'Meta : (#200) Requires ads_read permission' }, null],
+    [{ status: 400, code: 10, message: 'Meta : (#10) Application does not have permission for this action' }, null],
+    [{ status: 400, code: 100, message: 'Meta : (#100) Invalid parameter' }, null],
+  ] as const)('%o → %s', (e, attendu) => expect(reprisePageMeta(e, 0)).toBe(attendu));
+});
+
 describe('pagination Meta · ce que l’écran dit', () => {
   const echec: RemonteeJournal = {
     source: 'meta', declencheur: 'nuit', le: '2026-11-17T07:01:00Z', ok: false, motif: 'autre',
     resume: { lectureIncomplete: { raison: 'borne', pages: 1210 } },
   };
-  const PHRASE = 'Meta renvoie plus de 1210 pages de mesures pour ce compte, la lecture a été arrêtée · rien n’a été écrit, les mesures précédentes restent en place';
+  const PHRASE = 'ce compte publicitaire renvoie plus de 1\u202f210 pages de mesures Meta, au-delà de ce que la mesure lit en une fois · rien n’a été écrit, les mesures précédentes restent en place · écris au support, la lecture de ce compte se règle de notre côté';
 
   it('la phrase · la cause et que rien n’a été écrit', () => {
     expect(phraseLectureIncomplete({ raison: 'borne', pages: 1210 })).toBe(PHRASE);
-    expect(phraseLectureIncomplete({ raison: 'curseur_absent', pages: 4 })).toBe('Meta a annoncé une suite de mesures sans moyen de la lire (page 4) · rien n’a été écrit, les mesures précédentes restent en place');
+    expect(phraseLectureIncomplete({ raison: 'curseur_absent', pages: 4 })).toBe('Meta a annoncé une suite de mesures sans moyen de la lire (page 4) · rien n’a été écrit, les mesures précédentes restent en place · la remontée suivante réessaiera, si ça persiste écris au support');
   });
   it('Connexions · la remontée est en échec, avec la phrase de la lecture incomplète (pas le « autre » générique)', () => {
     const e = etatRemontee({ connecte: true, cleDeclenchement: true, suspendueLe: null, derniereReussie: '2026-11-16T07:01:00Z', journal: [echec] }, new Date('2026-11-17T08:00:00Z'), 'Europe/Paris');

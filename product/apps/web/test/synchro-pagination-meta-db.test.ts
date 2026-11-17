@@ -19,7 +19,11 @@ import { describe, it, expect, vi, beforeAll } from 'vitest';
  *    journées déjà en base restent EXACTEMENT celles d'avant, la mesure n'est
  *    pas datée, le journal et Connexions disent « lecture incomplète » ;
  *  - 30 pages (plus que les 25 d'avant, sous la borne) · TOUTES les journées
- *    de l'ad, jusqu'à la dernière page, sont écrites.
+ *    de l'ad, jusqu'à la dernière page, sont écrites ;
+ *  - une erreur passagère d'une page (503, « (#17) ») · la page est
+ *    redemandée, la synchro est complète ; une erreur qui ne passe jamais ·
+ *    trois reprises aux attentes croissantes (relevées, jamais dormies), puis
+ *    échec propre, rien d'écrit.
  */
 
 const ids = vi.hoisted(() => {
@@ -29,7 +33,12 @@ const ids = vi.hoisted(() => {
 const JOUR = 86_400_000;
 const J = (k: number) => new Date(Date.now() - k * JOUR).toISOString().slice(0, 10);
 /** La pagination simulée · nombre de pages, et la page → les lignes de l'ad suivie qu'elle porte. */
-const meta = vi.hoisted(() => ({ pages: 0, adSuivie: new Map<number, Array<{ jour: string; spend: number }>>(), appels: 0 }));
+const meta = vi.hoisted(() => ({
+  pages: 0, adSuivie: new Map<number, Array<{ jour: string; spend: number }>>(), appels: 0,
+  /** Page → réponses en échec à rendre avant de réussir (`Infinity` · jamais). */
+  pannes: new Map<number, { fois: number; reponse: () => Response }>(),
+  attentes: [] as number[],
+}));
 
 vi.mock('@tiktrends/db', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@tiktrends/db')>();
@@ -50,6 +59,7 @@ vi.mock('../lib/adsmap-guard', () => ({
 
 import { db, schema, eq, sql } from '@tiktrends/db';
 import { etatRemontee } from '@tiktrends/core';
+import { horlogeMeta } from '@tiktrends/integrations';
 import { runAdsMapSyncForBrand } from '../lib/adsmap-sync';
 import { lireRemontees, lireReglageRemontee } from '../lib/adsmap-mesures';
 import { syncAdsMapAction } from '../app/actions/adsmap';
@@ -63,6 +73,8 @@ function fauxFetch() {
     if (u.pathname.endsWith('/adsets')) return new Response(JSON.stringify({ data: [] }), { status: 200 });
     meta.appels++;
     const n = Number(u.searchParams.get('after')?.replace('c', '') ?? '0');
+    const panne = meta.pannes.get(n);
+    if (panne && panne.fois > 0) { panne.fois--; return panne.reponse(); }
     const base = { adset_id: 's-1', adset_name: 'Ensemble', campaign_id: 'c-1', campaign_name: 'Campagne', impressions: '100', clicks: '2' };
     const data = [
       { ...base, ad_id: `autre-${n}`, ad_name: `Autre ${n}`, date_start: J(2), spend: '1' },
@@ -96,7 +108,12 @@ beforeAll(async () => {
     externalIds: { ad_id: 'meta-x' }, launchedAt: new Date(Date.now() - 10 * JOUR),
   });
   fauxFetch();
+  // Les attentes entre deux essais d'une page sont relevées, jamais dormies.
+  horlogeMeta.attendre = async (ms) => { meta.attentes.push(ms); };
 });
+const http503 = () => new Response('<html>Service Unavailable</html>', { status: 503 });
+const limite17 = () => new Response(JSON.stringify({ error: { message: '(#17) User request limit reached', code: 17 } }), { status: 400 });
+const PHRASE_BORNE = 'ce compte publicitaire renvoie plus de 400 pages de mesures Meta, au-delà de ce que la mesure lit en une fois · rien n’a été écrit, les mesures précédentes restent en place · écris au support, la lecture de ce compte se règle de notre côté';
 
 describe('synchro Adsmap · la pagination Meta lue jusqu’au bout, ou un échec dit', () => {
   it('le semis tient · trois journées d’une synchro précédente', async () => {
@@ -117,16 +134,16 @@ describe('synchro Adsmap · la pagination Meta lue jusqu’au bout, ou un échec
     expect((await lireReglageRemontee(ids.brand)).derniereReussie, 'une synchro incomplète a daté la mesure comme réussie').toBeNull();
 
     const [j] = await lireRemontees(ids.brand, 1);
-    expect(j, 'la remontée incomplète n’est pas journalisée en échec').toMatchObject({ source: 'meta', ok: false, motif: 'autre', resume: { lectureIncomplete: { raison: 'borne', pages: 1210 } } });
+    expect(j, 'la remontée incomplète n’est pas journalisée en échec').toMatchObject({ source: 'meta', ok: false, motif: 'autre', resume: { lectureIncomplete: { raison: 'borne', pages: 400 } } });
     const e = etatRemontee({ connecte: true, cleDeclenchement: true, suspendueLe: null, derniereReussie: null, journal: [j!] }, new Date(), 'Europe/Paris');
-    expect(e.erreur, 'Connexions ne dit pas que la lecture Meta était incomplète').toBe('Meta renvoie plus de 1210 pages de mesures pour ce compte, la lecture a été arrêtée · rien n’a été écrit, les mesures précédentes restent en place');
-    expect(meta.appels, 'la lecture a dépassé sa borne de pages').toBe(1210);
+    expect(e.erreur, 'Connexions ne dit pas que la lecture Meta était incomplète').toBe(PHRASE_BORNE);
+    expect(meta.appels, 'la lecture a dépassé sa borne de pages').toBe(400);
   });
 
   it('le bouton « Mesurer maintenant » dit la même raison, et n’écrit rien non plus', async () => {
     const err = vi.spyOn(console, 'error').mockImplementation(() => {});
     const r = await syncAdsMapAction().finally(() => err.mockRestore());
-    expect(r.error, 'le bouton ne dit pas pourquoi la mesure s’est arrêtée').toBe('Mesure interrompue · Meta renvoie plus de 1210 pages de mesures pour ce compte, la lecture a été arrêtée · rien n’a été écrit, les mesures précédentes restent en place.');
+    expect(r.error, 'le bouton ne dit pas pourquoi la mesure s’est arrêtée').toBe(`Mesure interrompue · ${PHRASE_BORNE}.`);
     expect(await journees()).toEqual(AVANT());
   });
 
@@ -141,5 +158,34 @@ describe('synchro Adsmap · la pagination Meta lue jusqu’au bout, ou un échec
     expect((await lireReglageRemontee(ids.brand)).derniereReussie).not.toBeNull();
     const [n] = await db!.select({ n: sql<number>`count(*)::int` }).from(schema.metricsDaily).where(eq(schema.metricsDaily.adInstanceId, instance));
     expect(n!.n).toBe(5);
+  });
+
+  it('un 503 à la page 12 et un « (#17) » à la page 20, une fois chacun · les pages sont redemandées, la synchro est COMPLÈTE', async () => {
+    meta.pages = 30;
+    meta.adSuivie = new Map([[29, [{ jour: J(6), spend: 14 }]]]);
+    meta.pannes = new Map([[12, { fois: 1, reponse: http503 }], [20, { fois: 1, reponse: limite17 }]]);
+    meta.attentes = [];
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const r = await runAdsMapSyncForBrand(ids.brand).finally(() => warn.mockRestore());
+    expect(await journees(), 'une erreur passagère d’une page a fait échouer ou tronqué la synchro').toEqual({ [J(6)]: 14, [J(5)]: 11, [J(4)]: 12, [J(3)]: 13, [J(2)]: 50, [J(1)]: 50 });
+    expect(r.daysIngested).toBe(1);
+    expect(meta.attentes).toEqual([2_000, 2_000]);
+    expect((await lireRemontees(ids.brand, 1))[0]).toMatchObject({ ok: true });
+  });
+
+  it('un 503 qui ne passe JAMAIS à la page 12 · trois reprises, puis échec propre · rien d’écrit, journal en échec réseau', async () => {
+    const avant = await journees();
+    meta.pages = 30;
+    meta.adSuivie = new Map([[0, [{ jour: J(2), spend: 777 }]]]);
+    meta.pannes = new Map([[12, { fois: Infinity, reponse: http503 }]]);
+    meta.attentes = [];
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const echec = await runAdsMapSyncForBrand(ids.brand).then(() => null, (e: Error) => e).finally(() => { warn.mockRestore(); err.mockRestore(); });
+    expect(echec?.message, 'une page toujours en échec a été sautée · la synchro a écrit un jeu partiel').toBe('Meta : HTTP 503');
+    expect(await journees(), 'les mesures précédentes ont changé alors que la lecture a échoué').toEqual(avant);
+    expect(meta.attentes, 'les attentes ne sont pas croissantes, ou pas bornées').toEqual([2_000, 6_000, 18_000]);
+    expect((await lireRemontees(ids.brand, 1))[0]).toMatchObject({ ok: false, motif: 'reseau' });
+    meta.pannes = new Map();
   });
 });
