@@ -3,7 +3,7 @@ import { and, eq } from 'drizzle-orm';
 import { schema } from '@tiktrends/db';
 import {
   exigenceImageDuDevis, parametresDepuisConsigne, lireParametresImage, erreurStudio,
-  type ContenuVersion, type ErreurStudio, type LigneDevis,
+  type ContenuVersion, type ErreurStudio, type LigneDevis, type PubEntiere,
 } from '@tiktrends/core';
 import type { ContexteStudio } from '../garde';
 import type { ExecStudio } from '../execution/types';
@@ -17,7 +17,7 @@ import { verifierConsigne } from './verification';
  * comportement L3).
  */
 
-const pasDImage = { ok: true as const, empreinte: null, parametres: {} as Record<string, unknown> };
+const pasDImage = { ok: true as const, empreinte: null, parametres: {} as Record<string, unknown>, pubEntiere: null };
 
 function refusMelange(ctx: ContexteStudio, horsImage: string[]): ErreurStudio {
   return erreurStudio('INVALID_SCHEMA', {
@@ -30,7 +30,7 @@ function refusMelange(ctx: ContexteStudio, horsImage: string[]): ErreurStudio {
 export async function raccordImageDevis(
   ex: ExecStudio, ctx: ContexteStudio,
   e: { projet: { id: string; workspaceId: string; brandId: string }; contenu: ContenuVersion; lignes: ReadonlyArray<LigneDevis>; versionId?: string; formatImage?: unknown },
-): Promise<{ ok: true; empreinte: string | null; derivation?: DerivationFormat } | ErreurStudio> {
+): Promise<{ ok: true; empreinte: string | null; derivation?: DerivationFormat; pubEntiere: PubEntiere | null } | ErreurStudio> {
   const x = exigenceImageDuDevis(e.lignes);
   if (!x.concerne) return pasDImage;
   if (x.horsImage.length) return refusMelange(ctx, x.horsImage);
@@ -40,9 +40,10 @@ export async function raccordImageDevis(
     if (!e.versionId) return erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId });
     const d = deriverFormat(c.consigne!, e.versionId, e.formatImage);
     if (!d.ok) return erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, message: d.motif });
-    return { ok: true, empreinte: d.derivation.effectiveHash, derivation: d.derivation };
+    return { ok: true, empreinte: d.derivation.effectiveHash, derivation: d.derivation, pubEntiere: d.consigne.pubEntiere ?? null };
   }
-  return { ok: true, empreinte: c.empreinte };
+  // Pub entière · le devis prend le prix du moteur que la consigne enverra.
+  return { ok: true, empreinte: c.empreinte, pubEntiere: c.consigne!.pubEntiere ?? null };
 }
 
 /**

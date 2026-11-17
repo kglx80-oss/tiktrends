@@ -3,4 +3,5 @@
  * Point d'export unique du noyau pour ce lot.
  */
 export * from './parcours';
+export * from './pub-entiere';
 export * from './idee-angle';
