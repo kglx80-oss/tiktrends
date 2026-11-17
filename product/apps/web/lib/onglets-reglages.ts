@@ -36,7 +36,7 @@ export function droitsSousNavAdmin(s: SessionDroits): DroitsSousNavAdmin {
     tour: roleAtLeast(s.role, 'admin') && isFounder(s.user.email),
     promptRead: aPermissionPlateforme(plateforme, 'prompt.read'),
     providerConfigure: aPermissionPlateforme(plateforme, 'provider.configure'),
-    connaissances: peutGererConnaissances(s.equipe?.role),
+    connaissances: peutGererConnaissances(s.equipe),
     equipe: !!s.equipe && accesTotal(s.equipe.role),
   };
 }

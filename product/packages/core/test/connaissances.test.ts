@@ -243,10 +243,18 @@ describe('citations · seules les références incluses comptent', () => {
 });
 
 describe('accès · admin plateforme oui, admin d’espace non', () => {
-  it('seul l’accès total plateforme gère', () => {
-    expect(peutGererConnaissances('adminplus')).toBe(true);
-    expect(peutGererConnaissances('admin')).toBe(true);
-    for (const r of ['manager', 'membre', 'lecture', 'owner', '', null, undefined]) expect(peutGererConnaissances(r)).toBe(false);
+  it('seul l’accès total plateforme ADMISSIBLE gère', () => {
+    expect(peutGererConnaissances({ role: 'adminplus', plateformeAdmissible: true })).toBe(true);
+    expect(peutGererConnaissances({ role: 'admin', plateformeAdmissible: true })).toBe(true);
+    for (const r of ['manager', 'membre', 'lecture', 'owner', '']) expect(peutGererConnaissances({ role: r, plateformeAdmissible: true })).toBe(false);
+    expect(peutGererConnaissances(null)).toBe(false);
+    expect(peutGererConnaissances(undefined)).toBe(false);
+  });
+  it('un e-mail staff capté (non admissible) ne gère pas · même règle que restreindrePlateforme', () => {
+    for (const role of ['adminplus', 'admin']) {
+      expect(peutGererConnaissances({ role, plateformeAdmissible: false })).toBe(false);
+      expect(peutGererConnaissances({ role })).toBe(false);
+    }
   });
 });
 

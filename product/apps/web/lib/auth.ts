@@ -9,7 +9,7 @@ import { db, schema } from '@tiktrends/db';
 import { eq } from 'drizzle-orm';
 import type { Role, Plan } from './rbac';
 import { epochDuJeton, sessionEpochValide } from './session-epoch';
-import { accesTotal, espaceCourant } from '@tiktrends/core';
+import { accesTotalAdmissible, espaceCourant } from '@tiktrends/core';
 import { equipeDeSession, type EquipeSession } from './equipe-plateforme';
 import { noterCreditsStaff } from './credits';
 
@@ -139,11 +139,12 @@ export async function getSession(): Promise<Session | null> {
   const { m, w } = retenue;
 
   // Rôle d'équipe interne (plateforme) · lu frais à chaque requête. On note au
-  // passage le droit aux crédits illimités (accès total) dans un registre
+  // passage le droit aux crédits illimités (accès total ET admissible ·
+  // `accesTotalAdmissible`, la règle de `restreindrePlateforme`) dans un registre
   // AUTO-CICATRISANT : comme toute dépense passe d'abord par getSession, une
   // rétrogradation retire l'email AVANT la prochaine dépense de ce compte.
   const equipe = await equipeDeSession(u.email);
-  noterCreditsStaff(u.email, !!equipe && accesTotal(equipe.role));
+  noterCreditsStaff(u.email, accesTotalAdmissible(equipe));
 
   return {
     user: { id: u.id, email: u.email, name: u.name },

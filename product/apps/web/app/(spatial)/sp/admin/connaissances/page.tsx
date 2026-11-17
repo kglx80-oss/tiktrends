@@ -18,7 +18,7 @@ export const dynamic = 'force-dynamic';
 export default async function ConnaissancesSpatial() {
   const s = await getSession();
   if (!s) redirect('/login');
-  if (!peutGererConnaissances(s.equipe?.role)) redirect('/dashboard');
+  if (!peutGererConnaissances(s.equipe)) redirect('/dashboard');
   const [r, b, marques] = await Promise.all([
     chargerConnaissancesAction(),
     bandeauSeul(),
