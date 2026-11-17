@@ -11,7 +11,8 @@
  * |-----------------------|-------------------------------------------------|
  * | texte écran, logo     | composition / montage, export · AUCUNE image    |
  * | narration             | voix du plan, sous-titres, montage, export      |
- * |                       | (clip seulement si lipsync)                     |
+ * |                       | (clip seulement si lipsync · la voix off se     |
+ * |                       | pose au montage, son clip reste muet)           |
  * | voix                  | toutes les voix, clips lipsync, montage, export |
  * | tenue / identité      | fiche, images et clips des plans qui la citent  |
  * | produit               | images et clips des plans qui le citent         |

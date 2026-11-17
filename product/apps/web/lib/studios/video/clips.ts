@@ -2,7 +2,7 @@ import 'server-only';
 import { and, eq } from 'drizzle-orm';
 import { schema } from '@tiktrends/db';
 import {
-  parametresDuClip, empreinteParametresClip, lireParametresClip, planDeClip, erreurStudio, modeleAnimationStudio, lignesAvecTarifClip, refusTarifClipChange,
+  parametresDeLaPrise, empreinteParametresClip, lireParametresClip, planDeClip, erreurStudio, modeleAnimationStudio, lignesAvecTarifClip, refusTarifClipChange,
   choixClipDuDevis, MESSAGE_DEVIS_AVANT_CATALOGUE,
   type ContenuVersion, type ErreurStudio, type LigneDevis, type ParametresClipSnapshot,
 } from '@tiktrends/core';
@@ -61,7 +61,9 @@ async function parametres(ex: ExecStudio, ctx: ContexteStudio, p: Portee, conten
   }
   const sid = x.plans[0]!;
   const keyframe = await keyframeValideDuPlan(ex, p, contenu, sid);
-  const r = parametresDuClip({ contenu, shotId: sid, keyframe, modele });
+  // Les paramètres du catalogue (modèle figé, durée, voix native) avec la consigne de la PRISE · réplique validée
+  // mot pour mot seulement si le plan parle ET que le modèle rend la voix, consigne de mouvement à l'identique sinon.
+  const r = parametresDeLaPrise({ contenu, shotId: sid, keyframe, modele });
   if (!r.ok) return erreurStudio(r.code, { traceId: ctx.traceId, targetIds: [`clip:${sid}`], message: `${r.motif}${suffixe}` });
   return { ok: true, parametres: r.parametres };
 }

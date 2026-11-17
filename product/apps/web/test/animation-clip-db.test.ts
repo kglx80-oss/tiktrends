@@ -112,7 +112,10 @@ describe('animation d’un plan · devis, approbation, corps fal', () => {
     const [job] = await db.select().from(schema.studioJobs).where(eq(schema.studioJobs.id, r.job.id));
     const p = lireSnapshotJob(job!.snapshot)?.parametres as Record<string, unknown>;
     expect(p).toMatchObject({ schema: SCHEMA_PARAMETRES_CLIP, operation: `clip:${PLAN}`, source: { assetId: `sta_${keyframe.id}`, sha256: keyframe.sha256 }, dureeS: 5, modele: MODELES.animation, audio: false, resolution: null, ratio: null });
+    // Le plan du banc est en voix off, avec sa narration, sur le modèle par défaut (sans voix native) · la prise reste
+    // MUETTE : aucune réplique demandée à un modèle qui ne la dira pas (la voix off se pose au montage).
     expect(String(p.consigne)).toMatch(/^Mouvement : /);
+    expect(String(p.consigne)).not.toContain('Tu en as marre des boutons');
 
     // Le VRAI préparateur du worker · corps image → vidéo, adresse signée temporaire de l'image clé.
     const preparer = preparateurFal(base, { modeles: MODELES, stockage: CFG });
@@ -131,6 +134,8 @@ describe('animation d’un plan · devis, approbation, corps fal', () => {
     expect(signee.searchParams.get('X-Amz-Algorithm')).toBe('AWS4-HMAC-SHA256');
     expect(signee.searchParams.get('X-Amz-Signature')).toMatch(/^[a-f0-9]{64}$/);
     expect(prep).toEqual({ ok: true, workspaceId: ids.wsA, modele: MODELES.animation, corps: { prompt: p.consigne, image_url: imageUrl, duration: '5', negative_prompt: expect.any(String) } });
+    // Ce que le fournisseur RECEVRAIT · aucune réplique dans le corps envoyé à un modèle muet.
+    expect(String(prep.corps.prompt)).not.toContain('Tu en as marre des boutons');
     expect(JSON.stringify(job!.snapshot)).not.toContain('X-Amz-');
 
     // Image clé modifiée depuis le devis ⇒ bloqué avant tout envoi, tracé.

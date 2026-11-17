@@ -78,7 +78,7 @@ export function modesParole(c: CapacitesVoix): ModeParoleOffert[] {
     },
     {
       mode: 'lipsync', libelle: 'Parole synchronisée (lipsync)', disponible: c.lipsync.disponible,
-      description: 'Le personnage prononce le texte à l’image. Chaque changement de narration refait le clip.',
+      description: 'Le personnage prononce le texte à l’image. Chaque changement de narration refait le clip, et ce nouveau clip est payant.',
       raison: c.lipsync.raison,
     },
     { mode: 'none', libelle: 'Sans voix', disponible: true, description: 'Aucune voix · la narration n’est pas prononcée.', raison: '' },

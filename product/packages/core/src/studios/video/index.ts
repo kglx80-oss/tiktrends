@@ -10,4 +10,5 @@ export * from './consigne-plan';
 export * from './ecran';
 export * from './export-video';
 export * from './rendu-final';
+export * from './prise-parlee';
 export * from './confirmation';

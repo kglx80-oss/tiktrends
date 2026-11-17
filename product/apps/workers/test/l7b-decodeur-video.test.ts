@@ -22,6 +22,8 @@ import { mp4Recette88, mp4StructurePlausible } from '../../../packages/core/test
  */
 
 const FFMPEG = spawnSync('ffmpeg', ['-version']).status === 0 && spawnSync('ffprobe', ['-version']).status === 0;
+// En CI, ffmpeg est installé (ci.yml) · son absence fait ÉCHOUER le fichier, jamais sauter ses gardes en silence.
+if (process.env.CI && !FFMPEG) throw new Error('ffmpeg et ffprobe absents en CI · les gardes sur le vrai MP4 ne se sautent pas en CI · installer ffmpeg (.github/workflows/ci.yml)');
 const H264 = FFMPEG && /\blibx264\b/.test(spawnSync('ffmpeg', ['-hide_banner', '-encoders'], { encoding: 'utf8' }).stdout ?? '');
 
 const executer = promisify(execFile);

@@ -26,7 +26,7 @@ describe('vidéo finale · plan d’assemblage', () => {
     if (!r.ok) return;
     expect(r.plan.segments).toEqual([{ shotId: 's1', rang: 1, assetId: U(1), dureeMs: 3000 }, { shotId: 's2', rang: 2, assetId: U(2), dureeMs: 4000 }]);
     expect([r.plan.largeur, r.plan.hauteur, r.plan.dureeMs]).toEqual([1080, 1920, 7000]);
-    expect(r.plan.nonInclus).toEqual(['Musique · aucune choisie, bande son silencieuse.']);
+    expect(r.plan.nonInclus).toEqual(['Musique · aucune choisie, la bande son sera le son des prises, un silence si elles sont muettes.']);
   });
 
   it('un plan sans clip valide ⇒ refus nommé, plan par plan', () => {
@@ -37,14 +37,14 @@ describe('vidéo finale · plan d’assemblage', () => {
     expect(r.violations[0]!.raison).toBe('Le plan 2 n’a pas de clip animé valide pour cette version · anime-le avant d’assembler.');
   });
 
-  it('voix, texte écran, sous-titres ⇒ dits « non inclus », jamais simulés ; musique à son gain borné', () => {
+  it('voix (son des prises inconnu avant le clic), texte écran, sous-titres ⇒ dits « non inclus », jamais simulés ; musique à son gain borné', () => {
     const c = contenu([plan('s1', { speechMode: 'voiceover', narration: 'Marre des boutons ?', onScreenText: ['-30 %'] }), plan('s2')], { musique: { assetId: U(9), gainDb: 40 }, sousTitres: true });
     const r = planRenduFinal({ contenu: c, clips: { s1: U(1), s2: U(2) }, musique: { assetId: U(9), gainDb: 40 } });
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.plan.musique).toEqual({ assetId: U(9), gainDb: 12 });
     expect(r.plan.nonInclus).toEqual([
-      'Voix · aucun fournisseur de voix n’est branché, la narration n’est pas dite (plan 1).',
+      'Voix · non vérifiée · à l’assemblage, seule la présence de son dans la prise est contrôlée, pas les mots dits (plan 1).',
       'Texte écran · non incrusté (plan 1).',
       'Sous-titres · non incrustés.',
     ]);
