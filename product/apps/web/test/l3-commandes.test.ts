@@ -281,7 +281,9 @@ describe('reprise après fermeture du navigateur (VIDEO-13 préparé)', () => {
     if (!r.ok) throw new Error(r.code);
     const w = banc(db, { etapes: 3 });
     // D'autres jobs attendent en file : on tourne jusqu'à ce que le nôtre soit EN COURS chez le fournisseur.
-    for (let i = 0; i < 10 && (await etatEnBase(db, r.job.id)).job.result === null; i++) await w.moteur.tour({ maxNouveaux: 20 });
+    // Le premier sondage pose la progression (`result` porte aussi, dès `running`, l'entrée dans l'état pour son échéance).
+    for (let i = 0; i < 10 && (await etatEnBase(db, r.job.id)).job.state !== 'running'; i++) await w.moteur.tour({ maxNouveaux: 20 });
+    for (let i = 0; i < 10 && typeof ((await etatEnBase(db, r.job.id)).job.result as { progression?: unknown } | null)?.progression !== 'number'; i++) await w.moteur.tour({ maxNouveaux: 20 });
     const s = await solde(db, ids.wsA);
     // « Fermeture » : le navigateur n'a plus que la clé.
     const e = await etatJob(ctxDe(ids, 'ua'), { idempotencyKey: cle });

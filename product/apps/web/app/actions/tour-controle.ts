@@ -1,12 +1,14 @@
 'use server';
 
+import { randomUUID } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
-import { and, eq, lt, sql } from 'drizzle-orm';
+import { and, eq, isNull, lt, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
   COLONNES_COMPTES_TOUR, COLONNES_INCIDENTS, COLONNES_REGISTRE_AUDIT, COLONNES_RENTABILITE_TOUR, COLONNES_TACHES_ADMIN, NOTES_MAX_INCIDENT, VALEUR_ABSENTE,
   adminDateCourte, cellulesCompteTour, cellulesRegistreAudit, cellulesTacheAdmin, mesurerDureesTaches, resolveurSeuils, tableRegistreAudit, tableTachesAdmin, cellulesRentabiliteTour, dansSegmentIncident, incidentAffiche, lireSegmentIncident,
   nomFichierExportTour, tableComptesTour, tableauCsv, validerClotureIncident, validerNoteIncident, validerOuvertureIncident,
+  ACTION_CLORE_RAPPROCHEMENT, demandeCloture, validerRaisonCloture,
   type ErreurIncident,
 } from '@tiktrends/core';
 import { FAMILY_LABEL, type ErrorFamily } from '../../lib/user-error';
@@ -27,6 +29,12 @@ import { chargerDureesTaches, chargerEspaces, chargerIncidentsDeclares, chargerR
  *     la page (`tableComptesTour`, `lignesRentabilite`, `incidentAffiche`),
  *     chaque cellule par `tableauCsv` → `csvCell` (formules neutralisées,
  *     secrets et adresses masqués).
+ *
+ * « Clore le rapprochement » (C1) · une tâche en `reconciliation_required`
+ * dont on SAIT qu'aucun livrable ne viendra · la demande est posée sur la
+ * tâche (auteur, raison, date) avec son audit ; le worker la règle au tour
+ * suivant par le MÊME chemin que l'échéance (`failed`, crédits rendus, coût
+ * fournisseur retenu, un seul règlement) · le site ne touche pas au registre.
  *
  * Aucune suppression · ni ici, ni en base (0075 la refuse). 0 $ · aucun modèle.
  */
@@ -131,4 +139,40 @@ export async function cloreIncidentAction(entree: { id?: unknown; resolution?: u
   }
   revalidatePath('/admin/incidents');
   return { ok: true, id, message: 'Incident clos · il passe dans « Clos ».' };
+}
+
+export type ResultatRapprochement = { ok: true; id: string; message: string } | { ok: false; message: string };
+
+export async function cloreRapprochementAction(entree: { jobId?: unknown; raison?: unknown }): Promise<ResultatRapprochement> {
+  const porte = await porteAdminGeste();
+  if (!porte.ok) return { ok: false, message: REFUS };
+  const id = String(entree?.jobId ?? '');
+  if (!UUID.test(id)) return { ok: false, message: 'Tâche introuvable · rien n’a été clos.' };
+  const v = validerRaisonCloture(entree?.raison);
+  if (!v.ok) return { ok: false, message: v.message };
+  if (!db) return { ok: false, message: 'Base indisponible · rien n’a été clos.' };
+  const J = schema.studioJobs;
+  const maintenant = new Date();
+  const demande = JSON.stringify(demandeCloture(porte.session.user.id, v.raison, maintenant));
+  const fait = await db.transaction(async (tx) => {
+    // Seule une tâche ENCORE en rapprochement, sans demande déjà posée · un double clic ne pose rien de plus.
+    const [j] = await tx.update(J)
+      .set({ error: sql`jsonb_set(case when jsonb_typeof(${J.error}) = 'object' then ${J.error} else '{}'::jsonb end, '{clotureDemandee}', ${demande}::jsonb)`, heartbeatAt: null })
+      .where(and(eq(J.id, id), eq(J.state, 'reconciliation_required'), isNull(sql`${J.error} -> 'clotureDemandee'`)))
+      .returning({ id: J.id, workspaceId: J.workspaceId, brandId: J.brandId });
+    if (!j) return false;
+    await tx.insert(schema.studioAuditEvents).values({
+      actorId: porte.session.user.id, effectiveRole: `fondateur:${porte.session.role}`, workspaceId: j.workspaceId, brandId: j.brandId,
+      action: ACTION_CLORE_RAPPROCHEMENT, targetType: 'studio_job', targetId: j.id, versionBefore: 'reconciliation_required', versionAfter: 'cloture_demandee',
+      reason: v.raison, traceId: `admin:${randomUUID()}`, details: null,
+    });
+    return true;
+  });
+  if (!fait) {
+    const [j] = await db.select({ state: J.state, demande: sql<unknown>`${J.error} -> 'clotureDemandee'` }).from(J).where(eq(J.id, id));
+    if (!j) return { ok: false, message: 'Tâche introuvable · rien n’a été clos.' };
+    return { ok: false, message: j.state === 'reconciliation_required' ? 'Clôture déjà demandée · le worker la règle à son prochain tour.' : 'Cette tâche n’est plus en rapprochement · rien n’a été clos.' };
+  }
+  revalidatePath('/admin/taches');
+  return { ok: true, id, message: 'Clôture demandée · le worker clôt la tâche à son prochain tour (échec, crédits rendus au client, coût fournisseur retenu).' };
 }
