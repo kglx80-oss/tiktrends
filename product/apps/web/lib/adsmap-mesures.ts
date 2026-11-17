@@ -2,7 +2,7 @@ import 'server-only';
 import { gte, lte, notInArray, type AnyColumn } from 'drizzle-orm';
 import { db, schema, eq, and, inArray, sql } from '@tiktrends/db';
 import {
-  DEFAULT_VERDICT_CONFIG, motifEchecRemontee, verdictsDesMesures, cleEntreeMesure, retenirJournees, protocoleRetenu, adAMesurer, sourceDesEntrees,
+  DEFAULT_VERDICT_CONFIG, motifEchecRemontee, lireLectureIncomplete, verdictsDesMesures, cleEntreeMesure, retenirJournees, protocoleRetenu, adAMesurer, sourceDesEntrees,
   marquesRetenues, cboRetenu,
   type AdAMesurer, type CandidatMesure, type DeclencheurRemontee, type EntreeCsvRetenable, type EntreeMesure, type EntreeRetenue, type JourneeMetaLue,
   type JourneesRetenues, type MesuresLigne, type ProtocolRules, type ProtocoleAd, type RemonteeJournal, type SourceRemontee, type VerdictConfig,
@@ -556,11 +556,14 @@ export async function journaliserRemontee(e: {
   ok: boolean; erreur?: unknown; resume?: RemonteeJournal['resume'];
 }): Promise<void> {
   if (!db) return;
+  const message = e.erreur instanceof Error ? e.erreur.message : String(e.erreur ?? '');
+  const lecture = e.ok ? null : lireLectureIncomplete(message);
   try {
     await db.insert(schema.remontees).values({
       workspaceId: e.workspaceId, brandId: e.brandId, source: e.source, declencheur: e.declencheur, ok: e.ok,
-      motif: e.ok ? null : motifEchecRemontee(e.erreur instanceof Error ? e.erreur.message : String(e.erreur ?? '')),
-      resume: e.resume ?? null,
+      motif: e.ok ? null : motifEchecRemontee(message),
+      // Une lecture Meta incomplète n'a pas de motif à elle (contrainte de la colonne) · sa raison est gardée dans le compte rendu.
+      resume: e.resume ?? (lecture ? { lectureIncomplete: lecture } : null),
     });
   } catch (x) {
     console.error('[adsmap] journal des remontées', e.brandId, (x as Error).message);

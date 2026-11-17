@@ -11,6 +11,8 @@
  * Pur · ni base, ni réseau, ni horloge (`maintenant` arrive en paramètre).
  */
 
+import { phraseLectureIncomplete, type RaisonLectureIncomplete } from './pagination-meta';
+
 /**
  * Le motif de la tâche planifiée · lu par le worker (`apps/workers/src/index.ts`)
  * ET par l'écran · une seule écriture, la prochaine remontée affichée ne peut
@@ -64,7 +66,20 @@ export interface RemonteeJournal {
   ok: boolean;
   motif: MotifEchecRemontee | null;
   /** Le compte rendu · nombres seulement (variantes, journées, verdicts). */
-  resume: { variantes?: number; journees?: number; verdicts?: number; lots?: number; lotsNumeros?: number[]; fichier?: string | null } | null;
+  resume: {
+    variantes?: number; journees?: number; verdicts?: number; lots?: number; lotsNumeros?: number[]; fichier?: string | null;
+    /**
+     * Échec par lecture Meta INCOMPLÈTE (`pagination-meta.ts`) · la contrainte de `motif` n'a pas ce code
+     * (le motif reste `autre`), la raison et le nombre de pages lues sont gardés ici.
+     */
+    lectureIncomplete?: { raison: RaisonLectureIncomplete; pages: number };
+  } | null;
+}
+
+/** La phrase d'un échec journalisé · la lecture incomplète a la sienne, plus précise que son motif. */
+export function phraseEchecRemontee(j: Pick<RemonteeJournal, 'motif' | 'resume'>): string {
+  const l = j.resume?.lectureIncomplete;
+  return l ? phraseLectureIncomplete(l) : PHRASE_ECHEC_REMONTEE[j.motif ?? 'autre'];
 }
 
 /** La prochaine remontée planifiée après `maintenant` · ISO, à `HEURE_REMONTEE_UTC` pile. */
@@ -114,7 +129,7 @@ export function etatRemontee(e: EntreeEtatRemontee, maintenant: Date, fuseau: st
   const derniereTentative = metas[0] ?? null;
   const reussies = metas.filter((j) => j.ok).map((j) => j.le);
   const derniere = [e.derniereReussie, ...reussies].filter((x): x is string => !!x).sort().pop() ?? null;
-  const erreur = derniereTentative && !derniereTentative.ok ? PHRASE_ECHEC_REMONTEE[derniereTentative.motif ?? 'autre'] : null;
+  const erreur = derniereTentative && !derniereTentative.ok ? phraseEchecRemontee(derniereTentative) : null;
   const dit = (x: string | null) => (x ? `dernière le ${jourHeure(x, fuseau)}` : 'aucune remontée réussie pour l’instant');
 
   if (!e.connecte) {
@@ -148,7 +163,7 @@ export function texteRemontee(j: RemonteeJournal): string {
     return `CSV${lotTxt} · ${pl(r.variantes ?? 0, 'variante', 'variantes')} · ${pl(r.journees ?? 0, 'journée', 'journées')}`;
   }
   const quand = j.declencheur === 'nuit' ? 'Remontée de la nuit' : 'Mesure Meta';
-  if (!j.ok) return `${quand} · échec · ${PHRASE_ECHEC_REMONTEE[j.motif ?? 'autre']}`;
+  if (!j.ok) return `${quand} · échec · ${phraseEchecRemontee(j)}`;
   return `${quand} · ${pl(j.resume?.variantes ?? 0, 'variante rattachée', 'variantes rattachées')} · ${pl(j.resume?.verdicts ?? 0, 'verdict', 'verdicts')}`;
 }
 

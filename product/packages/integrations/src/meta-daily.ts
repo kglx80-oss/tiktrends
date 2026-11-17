@@ -16,6 +16,8 @@
  * `time_increment: 1` donne une ligne par jour. Le reste est de la pagination.
  */
 
+import { BORNE_PAGES_META, TAILLE_PAGE_META, erreurLectureIncomplete, suitePagination } from '@tiktrends/core';
+
 const GRAPH = 'https://graph.facebook.com/v21.0';
 
 /** Une journée d'une annonce · correspond à une ligne de `metrics_daily`. */
@@ -99,23 +101,30 @@ const fromMinor = (v: unknown): number | null => {
 interface Paged<T> { data: T[]; paging?: { next?: string; cursors?: { after?: string } } }
 
 /**
- * Appel Graph avec pagination suivie.
+ * Appel Graph avec pagination suivie, JUSQU'AU BOUT ou en échec · jamais un
+ * jeu tronqué rendu comme complet. La règle (fin, page suivante, lecture
+ * incomplète) et sa borne vivent dans `@tiktrends/core` (`pagination-meta.ts`).
  * Le curseur `after` est préféré à l'URL `next` : celle-ci porte le jeton en
  * clair et finirait dans les journaux au moindre message d'erreur.
  */
-async function graphAll<T>(path: string, token: string, params: Record<string, string>, maxPages = 25): Promise<T[]> {
+async function graphAll<T>(path: string, token: string, params: Record<string, string>, borne = BORNE_PAGES_META): Promise<T[]> {
   const out: T[] = [];
   let after: string | undefined;
-  for (let page = 0; page < maxPages; page++) {
-    const qs = new URLSearchParams({ access_token: token, limit: '500', ...params, ...(after ? { after } : {}) });
+  for (let pagesLues = 1; ; pagesLues++) {
+    const qs = new URLSearchParams({ access_token: token, limit: String(TAILLE_PAGE_META), ...params, ...(after ? { after } : {}) });
     const res = await fetch(`${GRAPH}/${path}?${qs.toString()}`, { signal: AbortSignal.timeout(60_000) });
     const json = (await res.json()) as Paged<T> & { error?: { message: string; code?: number } };
     if (!res.ok || json.error) throw new Error('Meta : ' + (json.error?.message || `HTTP ${res.status}`));
     out.push(...(json.data ?? []));
-    after = json.paging?.cursors?.after;
-    if (!after || !json.paging?.next) break;
+    const s = suitePagination({ pagesLues, borne, next: json.paging?.next, after: json.paging?.cursors?.after });
+    if (s.suite === 'fin') return out;
+    if (s.suite === 'incomplete') {
+      // L'arête seulement (`insights`, `adsets`) · le chemin porte l'identifiant du compte.
+      console.error('[meta] lecture incomplète', JSON.stringify({ arete: path.split('/').pop(), raison: s.raison, pages: pagesLues, lignes: out.length }));
+      throw new Error(erreurLectureIncomplete(s.raison, pagesLues));
+    }
+    after = s.after;
   }
-  return out;
 }
 
 interface DailyRaw {

@@ -4,7 +4,7 @@ import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
   toCsv, COL_HYPOTHESIS, SHEET_STATUS, SHEET_VERDICT, SHEET_STAGE, SHEET_VARIABLE, SHEET_FORMAT, SHEET_AD_TYPE,
-  sheetDate, sheetNumber, lienAdAffiche, routeApercuAdAdsmap, phraseCreasEtrangeres, type SheetRow,
+  sheetDate, sheetNumber, lienAdAffiche, routeApercuAdAdsmap, phraseCreasEtrangeres, lireLectureIncomplete, phraseLectureIncomplete, type SheetRow,
 } from '@tiktrends/core';
 import { adsmapGuard } from '../../lib/adsmap-guard';
 import { logAndTranslate } from '../../lib/error-log';
@@ -311,6 +311,9 @@ export async function syncAdsMapAction(): Promise<SyncResult> {
     if ((e as Error).message === 'meta_not_connected') {
       return { error: 'Le compte publicitaire Meta n’est pas connecté pour cette marque · va dans Connexions.' };
     }
-    return { error: logAndTranslate('adsmap:sync', e, { subject: 'la mesure de la carte', workspaceId: g.s.workspaceId }) };
+    const generique = logAndTranslate('adsmap:sync', e, { subject: 'la mesure de la carte', workspaceId: g.s.workspaceId });
+    // Lecture Meta incomplète · la raison exacte, et que rien n'a été écrit (même phrase que Connexions).
+    const lecture = lireLectureIncomplete((e as Error).message);
+    return { error: lecture ? `Mesure interrompue · ${phraseLectureIncomplete(lecture)}.` : generique };
   }
 }
