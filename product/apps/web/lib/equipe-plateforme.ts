@@ -29,6 +29,13 @@ export interface EquipeSession {
    * (`peutGererConnaissances`) et les crédits illimités (`accesTotalAdmissible`).
    */
   plateformeAdmissible?: boolean;
+  /**
+   * Le rôle vient-il d'une ligne `platform_staff` ? `false` · fondateur de
+   * l'environnement (`FOUNDER_EMAILS`) sans inscription dans l'équipe · le
+   * message dédié ne lui dit pas « créé après ton inscription »
+   * (`messageNonAdmissible`).
+   */
+  inscritEquipe?: boolean;
 }
 
 /**
@@ -81,11 +88,11 @@ export async function equipeDeSession(email?: string | null): Promise<EquipeSess
   }
 
   // Accès total → matrice inutile · on tranche sans seconde requête.
-  if (staffRole && accesTotal(staffRole)) return { role: staffRole, matrice: {}, plateformeAdmissible: admissible };
+  if (staffRole && accesTotal(staffRole)) return { role: staffRole, matrice: {}, plateformeAdmissible: admissible, inscritEquipe: true };
 
   const rights = staffRole
     ? await db.select().from(schema.platformRoleRights)
     : [];
   const equipe = equipeDepuisLignes(email, staffRole, rights as { role: string; rubriques: readonly string[] | null }[]);
-  return equipe ? { ...equipe, plateformeAdmissible: admissible } : null;
+  return equipe ? { ...equipe, plateformeAdmissible: admissible, inscritEquipe: !!row } : null;
 }

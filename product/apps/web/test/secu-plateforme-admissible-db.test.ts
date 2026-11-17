@@ -52,6 +52,7 @@ import { getSession } from '../lib/auth';
 import { reserverAppel } from '../lib/credits-appels';
 import { chargerConnaissancesAction, creerConnaissanceAction } from '../app/actions/connaissances';
 import { droitsSousNavAdmin } from '../lib/onglets-reglages';
+import { MESSAGE_NON_ADMISSIBLE, REFUS_CONNAISSANCES } from '@tiktrends/core';
 
 vi.setConfig({ testTimeout: 120_000, hookTimeout: 300_000 });
 
@@ -116,10 +117,11 @@ describe('Compte qui a capté un e-mail staff préinscrit (non admissible)', () 
     await connecter(ids.capte);
     const avant = await connaissancesEnBase();
     const l = await chargerConnaissancesAction();
-    expect(l.error ?? '(aucun refus)', 'la lecture des connaissances doit être refusée').toMatch(/Réservé à l’équipe plateforme/);
+    // I3 · refusé par sa VRAIE raison · « réservé aux Admin » à quelqu'un qui EST Admin ne lui dit rien.
+    expect(l.error ?? '(aucun refus)', 'la lecture des connaissances doit être refusée, avec le message dédié').toBe(MESSAGE_NON_ADMISSIBLE);
     expect(l.vue).toBeUndefined();
     const c = await creerConnaissanceAction(SAISIE);
-    expect(c.error ?? '(aucun refus)', 'la création d’une connaissance plateforme doit être refusée').toMatch(/Réservé à l’équipe plateforme/);
+    expect(c.error ?? '(aucun refus)', 'la création d’une connaissance plateforme doit être refusée, avec le message dédié').toBe(MESSAGE_NON_ADMISSIBLE);
     expect(await connaissancesEnBase(), 'une connaissance plateforme a été écrite').toBe(avant);
     expect(droitsSousNavAdmin((await getSession())!).connaissances).toBe(false);
   });
@@ -153,6 +155,7 @@ describe('Compte client (sans équipe) · inchangé', () => {
     await connecter(ids.client);
     const r = await reserverApresSession();
     expect(r.reserve).toBe(10);
-    expect((await chargerConnaissancesAction()).error).toMatch(/Réservé à l’équipe plateforme/);
+    expect((await chargerConnaissancesAction()).error).toBe(REFUS_CONNAISSANCES);
+    expect(REFUS_CONNAISSANCES).toMatch(/Réservé à l’équipe plateforme/);
   });
 });
