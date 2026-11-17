@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { objectKeyFromUrl, privateObjectUrl, presignHeadUrl, presignGetUrl, presignPutUrl, storagePrivateSelfTest } from '../src/storage';
+import { objectKeyFromUrl, privateObjectUrl, presignHeadUrl, presignGetUrl, presignPutUrl, storagePrivateSelfTest, presignGetUrlFournisseur, privateObjectUrlFournisseur, DUREE_LIEN_MAX_S, DUREE_LIEN_FOURNISSEUR_MAX_S } from '../src/storage';
 const cfg = { endpoint: 's3.example.test', bucket: 'media', region: 'gra', accessKeyId: 'test-id', secretAccessKey: 'test-secret' };
 afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); });
 describe('accès privé S3', () => {
@@ -18,6 +18,15 @@ describe('accès privé S3', () => {
   it('refuse les durées et clés dangereuses', () => {
     for (const expiry of [0, -1, 901, 1.5]) expect(() => presignGetUrl(cfg, 'assets/a/x', expiry)).toThrow();
     for (const key of ['/x', 'assets/../x', 'assets//x', 'assets/./x']) expect(() => presignGetUrl(cfg, key)).toThrow();
+  });
+  it('I5 · le plafond d’une heure ne vaut QUE pour les liens de fournisseur · tout autre lien reste sous 900 s', () => {
+    expect([DUREE_LIEN_MAX_S, DUREE_LIEN_FOURNISSEUR_MAX_S]).toEqual([900, 3_600]);
+    expect(new URL(presignGetUrlFournisseur(cfg, 'assets/a/x.png', 3_600)).searchParams.get('X-Amz-Expires')).toBe('3600');
+    for (const expiry of [0, 3_601, 1.5]) expect(() => presignGetUrlFournisseur(cfg, 'assets/a/x.png', expiry), `durée ${expiry} acceptée`).toThrow('Durée du lien invalide');
+    expect(() => presignGetUrl(cfg, 'assets/a/x.png', 3_600), 'un lien ordinaire d’une heure est accepté').toThrow('Durée du lien invalide');
+    expect(() => presignHeadUrl(cfg, 'assets/a/x.png', 901)).toThrow('Durée du lien invalide');
+    expect(new URL(privateObjectUrlFournisseur(cfg, 'https://s3.example.test/media/assets/a/x.png', 'a', 3_600)!).searchParams.get('X-Amz-Expires')).toBe('3600');
+    for (const url of ['https://s3.example.test/media/assets/b/x.png', 'https://evil.test/media/assets/a/x.png']) expect(privateObjectUrlFournisseur(cfg, url, 'a', 3_600), url).toBeNull();
   });
   it('ne signe que le bucket et espace attendus', () => {
     expect(privateObjectUrl(cfg, 'https://s3.example.test/media/assets/a/x.png', 'a')).toContain('X-Amz-Signature=');
