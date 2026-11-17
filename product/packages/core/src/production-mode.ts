@@ -203,6 +203,26 @@ export function promptPubEntiere(o: {
    * modèle garde la main. Vides tant que la catégorie n'a pas été décrite.
    */
   tendancesMarche?: string[];
+  /**
+   * Format de la publicité · `4:5` par défaut (l'ancienne chaîne). Studios
+   * passe le ratio réellement servi au fournisseur (`ratioFal`) : demander une
+   * 4:5 dans un corps 9:16 fait composer la typographie hors cadre.
+   */
+  format?: string;
+  /**
+   * Longueur maximale du brief de scène · 600 par défaut (le brief court de
+   * Jarvis). Studios y met la consigne COMPILÉE, bornée par son contrat : la
+   * couper à 600 caractères perdrait la scène validée.
+   */
+  sceneMax?: number;
+  /** Un logo de la marque est fourni parmi les images de référence. */
+  logo?: boolean;
+  /**
+   * Nombre de VUES du même produit fournies (Studios peut en envoyer jusqu'à
+   * trois) · au-delà d'une, la consigne dit que ce sont des vues d'un seul
+   * exemplaire, pour qu'aucun modèle ne dessine trois produits.
+   */
+  vuesProduit?: number;
 }): string {
   const c = o.copie;
   const textes = [
@@ -215,7 +235,9 @@ export function promptPubEntiere(o: {
     ligne('brand wordmark, small', c.brandName),
   ].filter(Boolean).join('\n');
 
-  const produit = o.avecProduit
+  const produit = o.avecProduit && (o.vuesProduit ?? 1) > 1
+    ? `The first ${o.vuesProduit} provided images are views of the SAME single product · one physical item seen from different angles, never several items. Reproduce it strictly identically: same packaging shape, same cap, same label artwork, same label text and its typography, same badges and logos, same colours, same real-world proportions. Do not redraw, restyle, translate or paraphrase anything printed on the packaging. The label must stay as sharp and legible as in the references.`
+    : o.avecProduit
     ? 'The provided image is the EXACT product. Reproduce it strictly identically: same packaging shape, same cap, same label artwork, same label text and its typography, same badges and logos, same colours, same real-world proportions. Do not redraw, restyle, translate or paraphrase anything printed on the packaging. The label must stay as sharp and legible as in the reference.'
     : 'No product photo is provided · invent nothing branded, and keep the composition centred on the scene.';
 
@@ -248,9 +270,10 @@ export function promptPubEntiere(o: {
   const marche = (o.tendancesMarche ?? []).join('\n');
 
   return [
-    'Produce a COMPLETE, ready-to-publish 4:5 social media advertisement · not a bare photograph.',
+    `Produce a COMPLETE, ready-to-publish ${o.format ?? '4:5'} social media advertisement · not a bare photograph.`,
     produit,
-    `Scene: ${o.sceneBrief.slice(0, 600)}`,
+    o.logo ? 'The brand logo is provided among the reference images · place it small and reproduce it exactly as provided, without redrawing, restyling or recolouring it.' : '',
+    `Scene: ${o.sceneBrief.slice(0, o.sceneMax ?? 600)}`,
     uni,
     ancrage,
     daSite,

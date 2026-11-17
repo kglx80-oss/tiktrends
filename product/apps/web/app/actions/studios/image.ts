@@ -61,14 +61,15 @@ export async function lireParcoursImage(entree: { projectId: unknown; jobIds?: u
   return r;
 }
 
-export async function compilerConsigneImage(entree: { projectId: unknown; mode: unknown }): Promise<ResultatCompilationImage> {
+export async function compilerConsigneImage(entree: { projectId: unknown; mode: unknown; typographie?: unknown }): Promise<ResultatCompilationImage> {
   const g = await gardeSources('studio.generate');
   if (!g.ok) return g;
   const coupe = await refusCapacite(g.ctx, ['generation_image']);
   if (coupe) return coupe;
   const d = dependancesTextesProduction();
   if (await d.plafondAtteint()) return erreurStudio('BUDGET_EXCEEDED', { traceId: g.ctx.traceId });
-  return compilerEtAttesterPour(g.ctx, { projectId: entree?.projectId, mode: entree?.mode }, {
+  // Pub entière · le choix voyage tel quel, le serveur le valide (`calques` par défaut).
+  return compilerEtAttesterPour(g.ctx, { projectId: entree?.projectId, mode: entree?.mode, ...(entree?.typographie !== undefined ? { typographie: entree.typographie } : {}) }, {
     adaptateur: d.adaptateur, environnement: d.environnement, veilleOuverte: g.veilleOuverte, maintenant: new Date(),
   });
 }

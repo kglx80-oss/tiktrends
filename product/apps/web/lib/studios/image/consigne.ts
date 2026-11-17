@@ -44,7 +44,7 @@ export type ResultatCompilationImage =
  * Compile la consigne (L5-C : contrôle avant, `executerTache`, contrôle après,
  * consigne finale), puis l'ATTESTE · rien n'est écrit dans le projet ici.
  */
-export async function compilerEtAttesterPour(ctx: ContexteStudio, e: { projectId: unknown; mode: unknown }, o: DependancesCompilation): Promise<ResultatCompilationImage> {
+export async function compilerEtAttesterPour(ctx: ContexteStudio, e: { projectId: unknown; mode: unknown; typographie?: unknown }, o: DependancesCompilation): Promise<ResultatCompilationImage> {
   if (!estUuid(e.projectId)) return erreurStudio('NOT_FOUND', { traceId: ctx.traceId });
   const p = await lireProjet(ctx, e.projectId);
   if (!p.ok) return p;
@@ -53,7 +53,7 @@ export async function compilerEtAttesterPour(ctx: ContexteStudio, e: { projectId
   if (!avant.ok) return avant;
   const format = formatImageDuContenu(avant.version.content as ContenuVersion);
 
-  const r = await compilerConsigneImagePour(ctx, { projectId: e.projectId, mode: e.mode, largeur: format.largeur, hauteur: format.hauteur }, o);
+  const r = await compilerConsigneImagePour(ctx, { projectId: e.projectId, mode: e.mode, largeur: format.largeur, hauteur: format.hauteur, ...(e.typographie !== undefined ? { typographie: e.typographie } : {}) }, o);
   if (!r.ok || r.statut === 'questions') return r;
 
   // La version compilée (la courante au moment de la compilation) · relue, jamais reçue.
@@ -62,7 +62,7 @@ export async function compilerEtAttesterPour(ctx: ContexteStudio, e: { projectId
   const c = construireConsignePersistee({
     runId: r.runId, mode: e.mode as ConsigneImagePersistee['mode'], sourceVersionId: v.version.id,
     contenu: v.version.content as ContenuVersion, consigne: r.consigne, referencesTransmises: r.preparation.references,
-    largeur: format.largeur, hauteur: format.hauteur, compileeLe: o.maintenant,
+    largeur: format.largeur, hauteur: format.hauteur, compileeLe: o.maintenant, pubEntiere: r.pubEntiere,
   });
   if (!c.ok) {
     return erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, violations: c.violations.map((raison) => ({ chemin: 'consigne', raison })), message: 'La consigne compilée n’est pas exécutable telle quelle · rien n’a été retenu.' });
