@@ -6,6 +6,7 @@ import {
   refsDuJob, empreinteContenu, contenuVide, SCHEMA_VERSION_CONTENU, OPERATION_JOB_STUDIO, OPERATION_IMAGE,
   parametresImageDuDevis, parametresRetoucheDuDevis, photosDuProduit, idDepenseDuJob, lireEntetePng, versionDepuisEmpreinte,
   type SnapshotJob, type StockageStudio, type DecisionFournisseur, type MediaRetouche,
+  DUREE_URL_FOURNISSEUR_S,
 } from '@tiktrends/core';
 import type { StorageConfig } from '@tiktrends/integrations';
 import { MoteurStudio } from '../src/studios/moteur';
@@ -196,7 +197,8 @@ describe('IMG-06 · retouche masquée réelle · une sortie qui repeint tout ne 
     const cleSource = (await base.select().from(schema.studioAssets).where(eq(schema.studioAssets.id, source.assetId.slice(4))))[0]!.storageKey;
     expect(imageSource.origin).toBe('https://s3.test');
     expect(imageSource.pathname).toBe(`/b/${cleSource}`);
-    expect(imageSource.searchParams.get('X-Amz-Expires')).toBe('900');
+    // I5 · la source de la retouche part signée pour la durée choisie au noyau (une heure) · fal la lit au début du traitement.
+    expect(imageSource.searchParams.get('X-Amz-Expires'), 'la source expire avant que fal ne la lise').toBe(String(DUREE_URL_FOURNISSEUR_S));
     expect(imageSource.searchParams.get('X-Amz-Signature')).toMatch(/^[a-f0-9]{64}$/);
     expect(corps.num_images).toBe(1);
     expect(corps.prompt).toContain('Dessiner une étoile jaune dans la zone.');

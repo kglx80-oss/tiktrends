@@ -83,9 +83,21 @@ export interface DepotSigne { contentType: string; contentLength: number }
  * `Content-Length`) en PUT sur `uploadUrl` avec exactement ce type, puis on
  * enregistre `publicUrl` comme URL de l'asset.
  */
-function presignObjectUrl(cfg: StorageConfig, key: string, method: 'PUT' | 'GET' | 'HEAD', expiresSeconds: number, depot?: DepotSigne): string {
+/** Plafond de tout lien signé · 15 min. */
+export const DUREE_LIEN_MAX_S = 900;
+/**
+ * Plafond PROPRE aux liens remis à un fournisseur de génération (fal) · une
+ * heure. fal lit ses sources au début du traitement, pas à la soumission ·
+ * un lien de 15 min expirait pendant l'attente en file (I5). Seules
+ * `presignGetUrlFournisseur` et `privateObjectUrlFournisseur` l'emploient ;
+ * tout autre lien reste sous `DUREE_LIEN_MAX_S`. La durée choisie vit au
+ * noyau (`DUREE_URL_FOURNISSEUR_S`, studios/execution/echecs-etape.ts).
+ */
+export const DUREE_LIEN_FOURNISSEUR_MAX_S = 3_600;
+
+function presignObjectUrl(cfg: StorageConfig, key: string, method: 'PUT' | 'GET' | 'HEAD', expiresSeconds: number, depot?: DepotSigne, plafondS: number = DUREE_LIEN_MAX_S): string {
   if (!key || key.startsWith('/') || key.split('/').some(p => !p || p === '.' || p === '..') || /[\\\x00-\x1f\x7f]/.test(key)) throw new Error('Clé objet invalide');
-  if (!Number.isInteger(expiresSeconds) || expiresSeconds < 1 || expiresSeconds > 900) throw new Error('Durée du lien invalide');
+  if (!Number.isInteger(expiresSeconds) || expiresSeconds < 1 || expiresSeconds > plafondS) throw new Error('Durée du lien invalide');
   if (method === 'PUT' && (typeof depot?.contentType !== 'string' || !TYPE_CONTENU_SIGNABLE.test(depot.contentType))) throw new Error('Type de contenu invalide');
   // Une taille signée est un entier strictement positif · ni 0, ni fraction, ni négatif, ni chaîne.
   if (method === 'PUT' && (typeof depot?.contentLength !== 'number' || !Number.isSafeInteger(depot.contentLength) || depot.contentLength < 1)) throw new Error('Taille du dépôt invalide');
@@ -141,6 +153,11 @@ export function presignHeadUrl(cfg: StorageConfig, key: string, expiresSeconds =
   return presignObjectUrl(cfg, key, 'HEAD', expiresSeconds);
 }
 
+/** Lecture remise à un FOURNISSEUR (fal) · jusqu'à `DUREE_LIEN_FOURNISSEUR_MAX_S`. Jamais persistée. */
+export function presignGetUrlFournisseur(cfg: StorageConfig, key: string, expiresSeconds: number): string {
+  return presignObjectUrl(cfg, key, 'GET', expiresSeconds, undefined, DUREE_LIEN_FOURNISSEUR_MAX_S);
+}
+
 /** Reconnaît uniquement une adresse canonique du bucket configuré, jamais une URL arbitraire. */
 export function objectKeyFromUrl(cfg: StorageConfig, url: string): string | null {
   try {
@@ -163,6 +180,13 @@ export function privateObjectUrl(cfg: StorageConfig, url: string, workspaceId: s
   if (!workspaceId || /[\/\\]/.test(workspaceId)) return null;
   const key = objectKeyFromUrl(cfg, url);
   return key?.startsWith(`assets/${workspaceId}/`) ? presignGetUrl(cfg, key, expiresSeconds) : null;
+}
+
+/** `privateObjectUrl` pour un FOURNISSEUR · même portée (fichier de l'espace seulement), plafond d'une heure. */
+export function privateObjectUrlFournisseur(cfg: StorageConfig, url: string, workspaceId: string, expiresSeconds: number): string | null {
+  if (!workspaceId || /[\/\\]/.test(workspaceId)) return null;
+  const key = objectKeyFromUrl(cfg, url);
+  return key?.startsWith(`assets/${workspaceId}/`) ? presignGetUrlFournisseur(cfg, key, expiresSeconds) : null;
 }
 
 /* ============ Requêtes S3 signées (SigV4, header Authorization) ============ */
