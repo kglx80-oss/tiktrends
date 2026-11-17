@@ -298,5 +298,9 @@ export function demarrerWorkerStudio(o: {
   const fournisseur = construireFournisseurFal({ base: o.base, decision: d, fetch: o.fetch, env: o.env, stockage: cfg });
   const parole = construireControleParole({ base: o.base, decision: d, fetch: o.fetch, env: o.env, stockage: cfg });
   log(`[studios] worker studio démarré · fournisseur fal (${d.modeles.generation}, ${d.modeles.edition}, animation ${d.modeles.animation}), contrôle de la parole des prises livrées, sondage avec recul, plafond de dépense appliqué.`);
-  return demarrerBoucleStudio({ base: o.base, fournisseur, stockage: stockageS3(cfg, o.fetch), apresTour: () => controlerParolesEnAttente(parole) });
+  // L'arrêt (SIGTERM) est relu avant chaque prise · aucune n'est plus entamée.
+  const boucle: { moteur?: { arretDemande: boolean } } = {};
+  const b = demarrerBoucleStudio({ base: o.base, fournisseur, stockage: stockageS3(cfg, o.fetch), apresTour: () => controlerParolesEnAttente({ ...parole, arretDemande: () => boucle.moteur?.arretDemande ?? false }) });
+  boucle.moteur = b.moteur;
+  return b;
 }

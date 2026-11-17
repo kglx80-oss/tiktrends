@@ -51,6 +51,9 @@ export const CORPUS_PAROLE: readonly PaireParole[] = [
   { famille: 'variante · nombres', replique: 'Déjà 25 000 clientes conquises.', transcription: 'Déjà vingt-cinq mille clientes conquises.' },
   { famille: 'variante · nombres', replique: 'Une note de 4,8 sur 5.', transcription: 'Une note de quatre virgule huit sur cinq.' },
   { famille: 'variante · nombres', replique: 'Livré en 24h.', transcription: 'Livré en vingt-quatre heures.' },
+  { famille: 'variante · nombres', replique: 'Rendez-vous à 14h30.', transcription: 'Rendez-vous à quatorze heures trente.' },
+  { famille: 'variante · nombres', replique: 'Le 2e flacon est offert.', transcription: 'Le deuxième flacon est offert.' },
+  { famille: 'variante · nombres', replique: 'Le n°1 des ventes en France.', transcription: 'Le numéro un des ventes en France.' },
   { famille: 'variante · nombres', replique: 'Soixante et onze ingrédients, quatre-vingt-dix-sept pour cent naturels.', transcription: '71 ingrédients, 97 % naturels.' },
 
   { famille: 'variante · homophones et finales muettes', replique: 'C’est la crème qu’il te faut.', transcription: 'Ses la crème qu’il te faut.' },
@@ -59,6 +62,7 @@ export const CORPUS_PAROLE: readonly PaireParole[] = [
   { famille: 'variante · homophones et finales muettes', replique: 'Où que tu sois, elle a ta routine.', transcription: 'Ou que tu sois, elle à ta routine.' },
   { famille: 'variante · homophones et finales muettes', replique: 'Quelle texture incroyable !', transcription: 'Quel texture incroyable !' },
   { famille: 'variante · homophones et finales muettes', replique: 'Ils ont adoré nos produits.', transcription: 'Ils on adorés nos produit.' },
+  { famille: 'variante · homophones et finales muettes', replique: 'OK, on y va.', transcription: 'Okay, on y va.' },
   { famille: 'variante · homophones et finales muettes', replique: 'Cette routine peut tout changer.', transcription: 'Cet routine peu tout changé.' },
 
   { famille: 'variante · mots soudés ou coupés', replique: 'Le soin Glowup pour l’été.', transcription: 'Le soin Glow Up pour l’été.' },
@@ -84,6 +88,7 @@ export const CORPUS_PAROLE: readonly PaireParole[] = [
   { famille: 'écart · mot remplacé', replique: 'Moins vingt pour cent ce soir.', transcription: 'Moins trente pour cent ce soir.' },
   { famille: 'écart · mot remplacé', replique: 'Ta peau va adorer.', transcription: 'Ta pomme va adorer.' },
   { famille: 'écart · mot remplacé', replique: 'Livraison offerte dès trente euros.', transcription: 'Livraison offerte dès quarante euros.' },
+  { famille: 'écart · mot remplacé', replique: 'Le 2e flacon est offert.', transcription: 'Le troisième flacon est offert.' },
   { famille: 'écart · mot remplacé', replique: 'Ce n’est pas gras.', transcription: 'Ce n’est pas grave.' },
   { famille: 'écart · mot remplacé', replique: 'Testé sous contrôle dermatologique.', transcription: 'Testé sans contrôle dermatologue.' },
 

@@ -151,6 +151,19 @@ describe.skipIf(!FFMPEG)('passe réelle · ffmpeg et libass du conteneur, aucune
     expect(!r.ok && r.motif).toMatch(/texte dans les 20 % bas de l’image à \d+ ms/);
   });
 
+  it('stderr brut d’ffmpeg jamais montré · filtre ass absent ⇒ phrase claire, le détail reste au journal', async () => {
+    const faux = join(dossier, 'ffmpeg-sans-libass');
+    await writeFile(faux, "#!/bin/sh\necho \"[AVFilterGraph @ 0x55] No such filter: 'ass'\" >&2\nexit 8\n", { mode: 0o755 });
+    const r = await brulerSousTitresFfmpeg(preparer(MIRE).entree, { ffmpeg: faux, env });
+    expect(r).toMatchObject({ ok: false, cause: 'rendu', motif: 'filtre ass absent du serveur (ffmpeg sans libass)' });
+    expect(!r.ok && r.detail).toMatch(/No such filter/);
+    const autre = join(dossier, 'ffmpeg-qui-casse');
+    await writeFile(autre, '#!/bin/sh\necho "Error /tmp/tt-sous-titres-x/entree.mp4: Invalid data" >&2\nexit 1\n', { mode: 0o755 });
+    const r2 = await brulerSousTitresFfmpeg(preparer(MIRE).entree, { ffmpeg: autre, env });
+    expect(r2).toMatchObject({ ok: false, cause: 'rendu', motif: 'ffmpeg a refusé la passe des sous-titres' });
+    expect(!r2.ok && r2.constat.raison).not.toMatch(/tmp|Invalid/);
+  });
+
   it('ffmpeg absent ⇒ refus « binaire », jamais un faux fichier', async () => {
     const r = await brulerSousTitresFfmpeg(preparer(MIRE).entree, { ffmpeg: '/chemin/inexistant/ffmpeg', env });
     expect(r).toMatchObject({ ok: false, cause: 'binaire', constat: { brules: false } });

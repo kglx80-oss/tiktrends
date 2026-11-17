@@ -96,7 +96,7 @@ export class BarriereDepenseStudio {
     if (!r.ok) {
       // Une soumission déjà engagée pour ce job : son issue est inconnue d'ici,
       // jamais une seconde soumission, jamais un « certain » qui rendrait sa dépense.
-      if (r.dejaEngagee) throw new ErreurFournisseurIncertaine(`${r.raison} · réconciliation, aucune seconde soumission`);
+      if (r.dejaEngagee) throw Object.assign(new ErreurFournisseurIncertaine(`${r.raison} · réconciliation, aucune seconde soumission`), { dejaEngagee: true as const });
       throw new DepenseRefusee(r.raison);
     }
     try {

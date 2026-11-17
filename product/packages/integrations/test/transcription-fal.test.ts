@@ -130,6 +130,7 @@ describe('transcription · sous la barrière, une seule requête', () => {
     await transcripteur().transcrire(demande());
     const e = await erreurDe(transcripteur().transcrire(demande()));
     expect(e).toBeInstanceOf(ErreurFournisseurIncertaine);
+    expect((e as { dejaEngagee?: boolean }).dejaEngagee).toBe(true);
     expect(recus).toHaveLength(1);
     // La reprise (essai 2) a sa propre ligne.
     await transcripteur().transcrire(demande({ essai: 2 }));
@@ -151,6 +152,24 @@ describe('transcription · sous la barrière, une seule requête', () => {
     comportement = { type: 'ok', corps: REPONSE_SCRIBE };
     const e = await erreurDe(transcripteur().transcrire(demande()));
     expect(e).toBeInstanceOf(DepenseRefusee);
+    expect(recus).toHaveLength(0);
+  });
+
+  it('erreur passagère (429, 503) ⇒ certaine ET marquée passagère (retentée par le worker) ; 422 ne l’est pas', async () => {
+    for (const statut of [429, 503]) {
+      port = new PortMemoire();
+      comportement = { type: 'statut', statut };
+      const e = await erreurDe(transcripteur().transcrire(demande()));
+      expect(e).toBeInstanceOf(ErreurFournisseurCertaine);
+      expect((e as { passagere?: boolean }).passagere, `HTTP ${statut}`).toBe(true);
+    }
+    comportement = { type: 'statut', statut: 422 };
+    port = new PortMemoire();
+    expect((await erreurDe(transcripteur().transcrire(demande())) as { passagere?: boolean }).passagere).toBeUndefined();
+  });
+
+  it('essai hors borne (0, 4) ⇒ refus avant tout appel', async () => {
+    for (const essai of [0, 4]) expect(await erreurDe(transcripteur().transcrire(demande({ essai })))).toBeInstanceOf(ErreurFournisseurCertaine);
     expect(recus).toHaveLength(0);
   });
 

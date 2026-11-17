@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   controlerParole, suiteControleParole, nombreEnLettres, cleParole, motsParole,
-  ECARTS_TOLERES, MESURE_CORPUS_PAROLE, REPRISES_PAROLE_MAX,
+  ECARTS_TOLERES, MESURE_CORPUS_PAROLE, REPRISES_PAROLE_MAX, PRISES_REELLES_MESUREES, EFFECTIF_PRISES_REELLES_MIN, modeControleParole,
 } from '../src';
 import { CORPUS_PAROLE, estVarianteParole } from '../src/studios/video/corpus-parole';
 
@@ -43,10 +43,10 @@ describe('corpus · le seuil mesuré', () => {
     }
   });
 
-  it('une tolérance d’UN écart laisserait passer 13 des 24 vrais écarts (l’en-tête le dit)', () => {
+  it('une tolérance d’UN écart laisserait passer 14 des 25 vrais écarts (l’en-tête le dit)', () => {
     const ecarts = CORPUS_PAROLE.filter((p) => !estVarianteParole(p.famille)).map((p) => controlerParole(p.replique, p.transcription).ecarts);
-    expect(ecarts).toHaveLength(24);
-    expect(ecarts.filter((e) => e <= 1)).toHaveLength(13);
+    expect(ecarts).toHaveLength(25);
+    expect(ecarts.filter((e) => e <= 1)).toHaveLength(14);
   });
 });
 
@@ -94,18 +94,56 @@ describe('suite d’un contrôle · au plus une reprise, seulement si approuvée
   const prix = { credits: 25, usdMicros: 610_000 };
   const ecart = controlerParole('Un shampooing sans sulfate.', 'Un shampooing sulfate.');
   it('conforme ⇒ rien à faire', () => {
-    expect(suiteControleParole({ verdict: controlerParole('Bonjour.', 'bonjour'), reprisesFaites: 0, repriseApprouvee: false, prixReprise: prix })).toEqual({ suite: 'conforme', raison: '' });
+    expect(suiteControleParole({ verdict: controlerParole('Bonjour.', 'bonjour'), reprisesFaites: 0, repriseApprouvee: false, prixReprise: prix, mode: 'decision' })).toEqual({ suite: 'conforme', raison: '' });
   });
   it('écart, reprise approuvée au devis, aucune faite ⇒ reprendre', () => {
-    expect(suiteControleParole({ verdict: ecart, reprisesFaites: 0, repriseApprouvee: true, prixReprise: prix })).toMatchObject({ suite: 'reprendre' });
+    expect(suiteControleParole({ verdict: ecart, reprisesFaites: 0, repriseApprouvee: true, prixReprise: prix, mode: 'decision' })).toMatchObject({ suite: 'reprendre' });
   });
   it('écart, aucune reprise approuvée ⇒ proposition de reprise AVEC son prix, jamais lancée', () => {
-    expect(suiteControleParole({ verdict: ecart, reprisesFaites: 0, repriseApprouvee: false, prixReprise: prix })).toEqual({ suite: 'proposer_reprise', raison: ecart.raison, prix });
+    expect(suiteControleParole({ verdict: ecart, reprisesFaites: 0, repriseApprouvee: false, prixReprise: prix, mode: 'decision' })).toEqual({ suite: 'proposer_reprise', raison: ecart.raison, prix });
   });
   it('écart après la reprise autorisée ⇒ revue humaine, plus aucune relance (même approuvée)', () => {
     expect(REPRISES_PAROLE_MAX).toBe(1);
-    const s = suiteControleParole({ verdict: ecart, reprisesFaites: 1, repriseApprouvee: true, prixReprise: prix });
+    const s = suiteControleParole({ verdict: ecart, reprisesFaites: 1, repriseApprouvee: true, prixReprise: prix, mode: 'decision' });
     expect(s.suite).toBe('revue');
     expect(s.raison).toMatch(/aucune relance/);
+  });
+});
+
+describe('normalisation · heures, ordinaux, numéros, « OK »', () => {
+  it.each([
+    ['Rendez-vous à 14h30.', 'Rendez-vous à quatorze heures trente.'],
+    ['Rendez-vous à 14 h 30.', 'Rendez-vous à 14h30.'],
+    ['Le 2e flacon est offert.', 'Le deuxième flacon est offert.'],
+    ['Le 5ème jour.', 'Le cinquième jour.'],
+    ['Le 9e essai.', 'Le neuvième essai.'],
+    ['Le n°1 des ventes.', 'Le numéro un des ventes.'],
+    ['OK, on y va.', 'Okay, on y va.'],
+  ])('« %s » ≡ « %s »', (a, b) => {
+    expect(controlerParole(a, b)).toMatchObject({ conforme: true, ecarts: 0 });
+  });
+  it('un ordinal différent reste un écart', () => {
+    expect(controlerParole('Le 2e flacon.', 'Le troisième flacon.').remplaces).toEqual([{ attendu: 'deuxieme', dit: 'troisième' }]);
+  });
+  it('« euh » est un écart (hésitation audible dans une publicité) · décision documentée', () => {
+    expect(controlerParole('Une peau douce.', 'Une peau euh douce.').ajoutes).toEqual(['euh']);
+  });
+});
+
+describe('observation d’abord · tant que le seuil n’est pas mesuré sur de vraies prises', () => {
+  it('aucune vraie prise mesurée ⇒ mode observation', () => {
+    expect(PRISES_REELLES_MESUREES).toEqual([]);
+    expect(modeControleParole()).toBe('observation');
+    expect(EFFECTIF_PRISES_REELLES_MIN).toBeGreaterThan(0);
+  });
+  it('en observation · un écart est noté, ni reprise proposée ni revue', () => {
+    const ecart = controlerParole('Un shampooing sans sulfate.', 'Un shampooing sulfate.');
+    const s = suiteControleParole({ verdict: ecart, reprisesFaites: 0, repriseApprouvee: true, prixReprise: { credits: 25, usdMicros: 610_000 }, mode: 'observation' });
+    expect(s).toEqual({ suite: 'observation', raison: ecart.raison });
+  });
+  it('le mode décision ne s’ouvre qu’avec l’effectif', () => {
+    const p = { famille: 'variante · nombres' as const, replique: 'a', transcription: 'a' };
+    expect(modeControleParole(Array.from({ length: EFFECTIF_PRISES_REELLES_MIN - 1 }, () => p))).toBe('observation');
+    expect(modeControleParole(Array.from({ length: EFFECTIF_PRISES_REELLES_MIN }, () => p))).toBe('decision');
   });
 });

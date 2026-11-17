@@ -26,15 +26,28 @@ import {
 } from '@tiktrends/core';
 import type { BarriereDepenseStudio } from './plafond-depense';
 
-/** Délai d'une transcription synchrone · une prise de quelques secondes, marge pour la file du modèle. */
-export const DELAI_TRANSCRIPTION_FAL_MS = 120_000;
+/**
+ * Délai d'une transcription synchrone · une prise dure au plus 90 s. Borné pour
+ * que le contrôle d'UNE prise (relecture, ffprobe, transcription, écriture)
+ * tienne dans l'étape insécable du worker (`PHASES_CONTROLE_PAROLE`,
+ * `boucle.ts`) : un arrêt (SIGTERM) n'attend jamais plus. Le temps réel de
+ * Scribe n'est pas mesuré (fal bloqué depuis la session) ; un délai dépassé
+ * est INCERTAIN (réserve gardée, aucune seconde transcription du même essai).
+ */
+export const DELAI_TRANSCRIPTION_FAL_MS = 40_000;
+/** Essais d'une même prise · une erreur PASSAGÈRE est retentée par le worker, chaque essai a sa ligne de dépense. */
+export const ESSAIS_TRANSCRIPTION_MAX = 3;
+
+/** Statuts d'un refus passager · fal surchargé ou indisponible, rien n'est facturé, un nouvel essai a un sens. */
+const PASSAGERS = new Set([408, 425, 429, 500, 503]);
+const passagere = (e: ErreurFournisseurCertaine) => Object.assign(e, { passagere: true as const });
 
 export interface DemandeTranscription {
   workspaceId: string;
   jobId: string;
   /** `clip:<plan>` · la prise contrôlée. */
   operation: string;
-  /** 1 pour la prise livrée, 2 pour sa reprise. */
+  /** Essai de cette prise · 1, puis 2 et 3 après une erreur passagère (`ESSAIS_TRANSCRIPTION_MAX`). */
   essai: number;
   /** Adresse temporaire signée de la prise (bucket privé). */
   audioUrl: string;
@@ -80,7 +93,7 @@ export class TranscripteurFal {
     if (!(Number.isInteger(d.approuveUsdMicros) && reserve <= d.approuveUsdMicros)) {
       throw new ErreurFournisseurCertaine(`réserve de la transcription (${reserve} µ$) au-delà de la ligne approuvée (${d.approuveUsdMicros} µ$) · rien n’est envoyé`);
     }
-    if (!Number.isInteger(d.essai) || d.essai < 1 || d.essai > 2) throw new ErreurFournisseurCertaine('essai de transcription hors borne · rien n’est envoyé');
+    if (!Number.isInteger(d.essai) || d.essai < 1 || d.essai > ESSAIS_TRANSCRIPTION_MAX) throw new ErreurFournisseurCertaine('essai de transcription hors borne · rien n’est envoyé');
 
     return this.barriere.sousPlafondStudio({
       workspaceId: d.workspaceId, jobId: d.jobId, usd: reserve / 1_000_000, modele: 'fal_transcription',
@@ -95,11 +108,14 @@ export class TranscripteurFal {
           redirect: 'manual', signal: AbortSignal.timeout(DELAI_TRANSCRIPTION_FAL_MS),
         });
       } catch (e) {
-        if (issueErreurReseau(e) === 'certaine') throw new ErreurFournisseurCertaine('connexion à fal impossible · rien n’est parti');
+        if (issueErreurReseau(e) === 'certaine') throw passagere(new ErreurFournisseurCertaine('connexion à fal impossible · rien n’est parti'));
         throw new ErreurFournisseurIncertaine('réponse de fal perdue après envoi · la transcription a pu être facturée');
       }
       const issue = issueStatutSoumission(res.status);
-      if (issue === 'certaine') throw new ErreurFournisseurCertaine(`fal a refusé la transcription (HTTP ${res.status})`);
+      if (issue === 'certaine') {
+        const e = new ErreurFournisseurCertaine(`fal a refusé la transcription (HTTP ${res.status})`);
+        throw PASSAGERS.has(res.status) ? passagere(e) : e;
+      }
       if (issue === 'incertaine') throw new ErreurFournisseurIncertaine(`réponse ambiguë de fal (HTTP ${res.status}) · la transcription a pu être facturée`);
       let corps: unknown;
       try { corps = await res.json(); } catch { throw new ErreurFournisseurIncertaine('transcription acceptée par fal, réponse coupée ou illisible'); }

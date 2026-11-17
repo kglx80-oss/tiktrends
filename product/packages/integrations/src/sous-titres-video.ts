@@ -51,7 +51,11 @@ export interface EntreeSousTitres {
 
 export type ResultatSousTitresVideo =
   | { ok: true; octets: Uint8Array; constat: ConstatSousTitres & { brules: true }; mesures: MesureImage[] }
-  | { ok: false; motif: string; cause: 'binaire' | 'entree' | 'rendu' | 'verification'; constat: ConstatSousTitres & { brules: false }; mesures: MesureImage[] };
+  | {
+    ok: false; motif: string; cause: 'binaire' | 'entree' | 'rendu' | 'verification'; constat: ConstatSousTitres & { brules: false }; mesures: MesureImage[];
+    /** Fin de la sortie d'erreur d'ffmpeg · pour le JOURNAL du serveur seulement, jamais montrée à l'écran. */
+    detail?: string;
+  };
 
 export interface MesureImage { instantMs: number; carton: boolean; pixelsTexte: number; pixelsZoneLibre: number }
 
@@ -136,7 +140,7 @@ export async function brulerSousTitresFfmpeg(e: EntreeSousTitres, o: OptionsSous
   const ffmpeg = o.ffmpeg ?? 'ffmpeg';
   const ffprobe = o.ffprobe ?? 'ffprobe';
   const delaiMs = o.delaiMs ?? DELAI_SOUS_TITRES_MS;
-  const refus = (cause: 'binaire' | 'entree' | 'rendu' | 'verification', motif: string, mesures: MesureImage[] = []): ResultatSousTitresVideo =>
+  const refus = (cause: 'binaire' | 'entree' | 'rendu' | 'verification', motif: string, mesures: MesureImage[] = []): Extract<ResultatSousTitresVideo, { ok: false }> =>
     ({ ok: false, motif, cause, constat: { brules: false, raison: motif }, mesures });
   if (!e.ass.includes('[Events]') || !/\nDialogue: /.test(e.ass)) return refus('entree', 'aucun carton à brûler');
   if (e.controles.avecTexteMs.length === 0) return refus('entree', 'aucun carton à contrôler');
@@ -161,7 +165,12 @@ export async function brulerSousTitresFfmpeg(e: EntreeSousTitres, o: OptionsSous
       '-c:a', 'copy', '-movflags', '+faststart', '-f', 'mp4', sortie,
     ], { delaiMs, env: o.env });
     if (r.absent) return refus('binaire', 'ffmpeg absent du serveur');
-    if (r.code !== 0) return refus('rendu', `ffmpeg a refusé les sous-titres · ${r.stderr.trim().split('\n').slice(-3).join(' ').slice(0, 300) || `code ${r.code}`}`);
+    if (r.code !== 0) {
+      // Le stderr brut (chemins temporaires, messages techniques) ne sort jamais vers l'écran.
+      const detail = r.stderr.trim().split('\n').slice(-3).join(' ').slice(0, 300) || `code ${r.code}`;
+      const motif = /No such filter: '?(ass|subtitles)'?|Filter not found/i.test(r.stderr) ? 'filtre ass absent du serveur (ffmpeg sans libass)' : 'ffmpeg a refusé la passe des sous-titres';
+      return { ...refus('rendu', motif), detail };
+    }
     const taille = (await stat(sortie).catch(() => null))?.size ?? 0;
     if (taille === 0 || taille > OCTETS_MAX) return refus('verification', `fichier produit vide ou trop volumineux (${taille} octets)`);
 

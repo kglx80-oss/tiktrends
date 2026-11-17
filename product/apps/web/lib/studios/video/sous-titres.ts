@@ -68,7 +68,7 @@ export async function passeSousTitres(
     zone: st.page.zone, controles: instantsDeControle(st.cartons, e.dureeMs), dossierPolices: polices,
   });
   if (!r.ok) {
-    console.error(`[studios] sous-titres non brûlés · ${r.cause} · ${r.motif}`);
+    console.error(`[studios] sous-titres non brûlés · ${r.cause} · ${r.motif}${r.detail ? ` · ${r.detail}` : ''}`);
     return sans(r.constat);
   }
   return { octets: r.octets, dureeMs: e.dureeMs, nonInclus: nonInclusApresSousTitres(e.plan.nonInclus, r.constat), constat: r.constat };

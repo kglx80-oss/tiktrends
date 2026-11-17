@@ -16,7 +16,8 @@
  *  · accents (« à » et « a », « où » et « ou » sonnent pareil) ;
  *  · nombres en chiffres ou en lettres (« 20 % » et « vingt pour cent »,
  *    « 1 000 » et « mille », « 3,5 » et « trois virgule cinq », « 9,99 € » et
- *    « neuf euros quatre-vingt-dix-neuf ») ;
+ *    « neuf euros quatre-vingt-dix-neuf », « 14h30 » et « quatorze heures
+ *    trente », « 2e » et « deuxième », « n°1 » et « numéro un ») ;
  *  · s et x finals muets (« produit » et « produits »), terminaisons -er et -ez
  *    (« hydrater », « hydratez », « hydraté ») ;
  *  · une courte liste FERMÉE d'homophones grammaticaux (`HOMOPHONES`) : la
@@ -36,12 +37,12 @@
  *   |------------------------------------------|--------|------------|------------|----------|----------|
  *   | variante · casse et ponctuation          |      6 |          0 |          0 |    0,000 |    0,000 |
  *   | variante · apostrophes et tirets         |      5 |          0 |          0 |    0,000 |    0,000 |
- *   | variante · nombres                       |      8 |          0 |          0 |    0,000 |    0,000 |
- *   | variante · homophones et finales muettes |      7 |          0 |          0 |    0,000 |    0,000 |
+ *   | variante · nombres                       |     11 |          0 |          0 |    0,000 |    0,000 |
+ *   | variante · homophones et finales muettes |      8 |          0 |          0 |    0,000 |    0,000 |
  *   | variante · mots soudés ou coupés         |      4 |          0 |          0 |    0,000 |    0,000 |
  *   | écart · mot manquant                     |      6 |          1 |          2 |    0,048 |    0,250 |
  *   | écart · mot ajouté                       |      5 |          1 |          2 |    0,250 |    0,500 |
- *   | écart · mot remplacé                     |      6 |          1 |          2 |    0,167 |    0,500 |
+ *   | écart · mot remplacé                     |      7 |          1 |          2 |    0,167 |    0,500 |
  *   | écart · réplique tronquée                |      3 |          3 |          4 |    0,429 |    0,571 |
  *   | écart · autre réplique ou silence        |      4 |          4 |          9 |    0,800 |    1,333 |
  *
@@ -50,12 +51,46 @@
  * réplique de 21 mots fait 0,048, et c'est souvent le mot qui porte le sens
  * (« sans », « ne », le nom du produit). La frontière se pose donc sur le
  * NOMBRE d'écarts : `ECARTS_TOLERES = 0`. C'est la seule valeur qui sépare
- * les familles (1 accepterait déjà 13 des 24 vrais écarts du corpus) ; la
+ * les familles (1 accepterait déjà 14 des 25 vrais écarts du corpus) ; la
  * marge vient de la normalisation, qui absorbe les variantes AVANT le compte,
  * jamais d'une tolérance sur le compte.
  */
 
 import type { MotHorodate } from './sous-titres';
+
+/*
+ * « euh » (et toute hésitation) est un ÉCART, pas une variante : une hésitation
+ * audible dans une publicité est un défaut de la prise, et la réplique validée
+ * n'en contient jamais. Décision documentée, gardée par le corpus (« Une peau
+ * euh douce »).
+ *
+ * ── Observation d'abord ──────────────────────────────────────────────────────
+ *
+ * Le corpus ci-dessous est ÉCRIT À LA MAIN : il prouve que la normalisation
+ * absorbe les variantes connues, il ne mesure pas le bruit d'un vrai
+ * transcripteur sur de vraies prises. Tant que `PRISES_REELLES_MESUREES` n'a
+ * pas `EFFECTIF_PRISES_REELLES_MIN` paires, le contrôle est en OBSERVATION
+ * (`modeControleParole`) : il écrit son verdict, ses écarts et les mots
+ * horodatés au journal, mais ne met aucun plan « à reprendre » et ne propose
+ * aucune reprise. Le seuil ne décide qu'une fois mesuré sur le terrain.
+ */
+
+/**
+ * Paires (réplique, transcription Scribe RÉELLE) relevées sur de vraies prises
+ * parlées, étiquetées à l'écoute. VIDE : aucune prise parlée réelle n'a encore
+ * été transcrite (fal est bloqué depuis la session de développement, et la
+ * voix native n'est pas encore livrée). À remplir depuis le journal
+ * `media.speech.control` du mode observation.
+ */
+export const PRISES_REELLES_MESUREES: ReadonlyArray<{ famille: string; replique: string; transcription: string }> = [];
+/** Effectif avant que le seuil ait le droit de décider · politique (une trentaine de prises), pas une mesure. */
+export const EFFECTIF_PRISES_REELLES_MIN = 30;
+
+export type ModeControleParole = 'observation' | 'decision';
+/** Observation tant que l'effectif de vraies prises mesurées n'est pas atteint. */
+export function modeControleParole(prises: ReadonlyArray<unknown> = PRISES_REELLES_MESUREES): ModeControleParole {
+  return prises.length >= EFFECTIF_PRISES_REELLES_MIN ? 'decision' : 'observation';
+}
 
 /** Écarts tolérés après normalisation · mesuré sur le corpus (voir l'en-tête). */
 export const ECARTS_TOLERES = 0;
@@ -64,12 +99,12 @@ export const ECARTS_TOLERES = 0;
 export const MESURE_CORPUS_PAROLE: Readonly<Record<string, { paires: number; min: number; max: number; tauxMin: number; tauxMax: number }>> = {
   'variante · casse et ponctuation': { paires: 6, min: 0, max: 0, tauxMin: 0, tauxMax: 0 },
   'variante · apostrophes et tirets': { paires: 5, min: 0, max: 0, tauxMin: 0, tauxMax: 0 },
-  'variante · nombres': { paires: 8, min: 0, max: 0, tauxMin: 0, tauxMax: 0 },
-  'variante · homophones et finales muettes': { paires: 7, min: 0, max: 0, tauxMin: 0, tauxMax: 0 },
+  'variante · nombres': { paires: 11, min: 0, max: 0, tauxMin: 0, tauxMax: 0 },
+  'variante · homophones et finales muettes': { paires: 8, min: 0, max: 0, tauxMin: 0, tauxMax: 0 },
   'variante · mots soudés ou coupés': { paires: 4, min: 0, max: 0, tauxMin: 0, tauxMax: 0 },
   'écart · mot manquant': { paires: 6, min: 1, max: 2, tauxMin: 0.048, tauxMax: 0.25 },
   'écart · mot ajouté': { paires: 5, min: 1, max: 2, tauxMin: 0.25, tauxMax: 0.5 },
-  'écart · mot remplacé': { paires: 6, min: 1, max: 2, tauxMin: 0.167, tauxMax: 0.5 },
+  'écart · mot remplacé': { paires: 7, min: 1, max: 2, tauxMin: 0.167, tauxMax: 0.5 },
   'écart · réplique tronquée': { paires: 3, min: 3, max: 4, tauxMin: 0.429, tauxMax: 0.571 },
   'écart · autre réplique ou silence': { paires: 4, min: 4, max: 9, tauxMin: 0.8, tauxMax: 1.333 },
 };
@@ -141,12 +176,25 @@ export const HOMOPHONES: Readonly<Record<string, string>> = {
   vert: 'ver', verre: 'ver', // /vɛʁ/ (« vers » perd son s)
   quant: 'quand', quen: 'quand', // /kɑ̃/
   tou: 'tout', // /tu/ (« tous » perd son s)
+  okay: 'ok', oke: 'ok', // « OK », « Okay », « Oké »
 };
 
 const APOSTROPHES = /['’ʼ‘`´]/g;
 const ESPACES_MILLIERS = /(\d{1,3})((?:[   ]\d{3})+)(?!\d)/g;
 
-/** Les nombres, pourcentages et prix d'un texte, écrits en lettres. */
+/** Un ordinal en lettres (« 2 » → « deuxieme »), forme sans accent. */
+function ordinalEnLettres(n: number): string | null {
+  const l = nombreEnLettres(n);
+  if (l === null || n < 2) return null;
+  const mots = l.split(' ');
+  let d = mots.pop()!;
+  if (d === 'cinq') d = 'cinqu';
+  else if (d === 'neuf') d = 'neuv';
+  else if (d.endsWith('e')) d = d.slice(0, -1);
+  return [...mots, `${d}ieme`].join(' ');
+}
+
+/** Les nombres, heures, ordinaux, numéros, pourcentages et prix d'un texte, écrits en lettres. */
 function nombresEnLettres(texte: string): string {
   const lettres = (s: string) => nombreEnLettres(Number(s)) ?? s;
   return texte
@@ -157,7 +205,10 @@ function nombresEnLettres(texte: string): string {
     .replace(/(\d+),(\d{2})\s*€/g, (_, a: string, b: string) => ` ${lettres(a)} euros ${lettres(b)} `)
     .replace(/(\d+)\s*€\s*(\d{2})(?!\d)/g, (_, a: string, b: string) => ` ${lettres(a)} euros ${lettres(b)} `)
     .replace(/(\d+),(\d+)/g, (_, a: string, b: string) => ` ${lettres(a)} virgule ${lettres(b)} `)
+    .replace(/\b(\d{1,2})\s*h\s*(\d{2})\b/gi, (_, a: string, b: string) => ` ${lettres(a)} heures ${lettres(b)} `)
     .replace(/(\d+)\s*h\b/gi, (_, a: string) => ` ${lettres(a)} heures `)
+    .replace(/\b(\d+)\s*(?:ème|eme|è|e|ᵉ)(?![\p{L}\d])/giu, (m: string, a: string) => { const o = ordinalEnLettres(Number(a)); return o ? ` ${o} ` : m; })
+    .replace(/\bn[°º]\s*(?=\d)/gi, ' numero ')
     .replace(/%/g, ' pour cent ')
     .replace(/€/g, ' euros ')
     .replace(/&/g, ' et ')
@@ -308,6 +359,8 @@ export interface PrixReprise { credits: number; usdMicros: number }
 
 export type SuiteParole =
   | { suite: 'conforme'; raison: '' }
+  /** Mode observation · l'écart est noté au journal, rien d'autre (ni « à reprendre », ni proposition). */
+  | { suite: 'observation'; raison: string }
   /** Reprise déjà approuvée dans le devis, pas encore faite · elle peut partir sans nouveau clic. */
   | { suite: 'reprendre'; raison: string }
   /** Aucune reprise approuvée · le plan est « à reprendre », la reprise est PROPOSÉE avec son prix, jamais lancée. */
@@ -320,9 +373,10 @@ export type SuiteParole =
  * seulement si elle est DÉJÀ dans le devis approuvé ; sinon proposition de
  * reprise avec son prix (annoncé avant le clic, jamais débité ici).
  */
-export function suiteControleParole(e: { verdict: Pick<VerdictParole, 'conforme' | 'raison'>; reprisesFaites: number; repriseApprouvee: boolean; prixReprise: PrixReprise }): SuiteParole {
+export function suiteControleParole(e: { verdict: Pick<VerdictParole, 'conforme' | 'raison'>; reprisesFaites: number; repriseApprouvee: boolean; prixReprise: PrixReprise; mode?: ModeControleParole }): SuiteParole {
   if (e.verdict.conforme) return { suite: 'conforme', raison: '' };
   const raison = e.verdict.raison;
+  if ((e.mode ?? modeControleParole()) === 'observation') return { suite: 'observation', raison };
   if (!(e.reprisesFaites < REPRISES_PAROLE_MAX)) return { suite: 'revue', raison: `${raison} La reprise autorisée a déjà eu lieu · à revoir à la main, aucune relance.` };
   if (e.repriseApprouvee) return { suite: 'reprendre', raison: `${raison} Reprise prévue au devis approuvé.` };
   return { suite: 'proposer_reprise', raison, prix: { credits: e.prixReprise.credits, usdMicros: e.prixReprise.usdMicros } };
@@ -367,6 +421,8 @@ export function repriseParoleApprouvee(lignes: unknown, operation: string): bool
 
 /** Action d'audit écrite par le worker pour chaque prise contrôlée (une ligne par prise). */
 export const ACTION_AUDIT_CONTROLE_PAROLE = 'media.speech.control';
+/** Un essai NON conclusif (erreur passagère) · compté pour borner les nouvelles tentatives, n'arrête pas le contrôle. */
+export const ACTION_AUDIT_CONTROLE_PAROLE_ESSAI = 'media.speech.control.retry';
 
 /** Les mots horodatés gardés au journal · `[texte, début ms, fin ms]`, compacts. */
 export function motsPourJournal(mots: ReadonlyArray<MotHorodate>, max = 600): Array<[string, number, number]> {

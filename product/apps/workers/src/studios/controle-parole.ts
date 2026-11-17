@@ -5,7 +5,8 @@ import { join } from 'node:path';
 import { schema, eq, and, sql, asc } from '@tiktrends/db';
 import {
   lireSnapshotJob, estParametresClip, planDeClip, controleParoleApprouve, repriseParoleApprouvee, controlerParole, suiteControleParole,
-  transitionQualite, estErreurCertaine, motsPourJournal, GRILLE_STUDIO, ACTION_AUDIT_CONTROLE_PAROLE,
+  transitionQualite, estErreurCertaine, motsPourJournal, modeControleParole, GRILLE_STUDIO, ACTION_AUDIT_CONTROLE_PAROLE, ACTION_AUDIT_CONTROLE_PAROLE_ESSAI,
+  type ModeControleParole,
   type ContenuVersion, type StockageStudio, type TranscriptionLue,
 } from '@tiktrends/core';
 import type { DemandeTranscription } from '@tiktrends/integrations';
@@ -39,6 +40,15 @@ import type { BaseStudio, JobStudio } from './types';
 export const ACTION_CONTROLE_PAROLE = ACTION_AUDIT_CONTROLE_PAROLE;
 /** Prises examinées par tour · politique, pas une mesure (une transcription dure quelques secondes). */
 export const PRISES_PAR_TOUR = 5;
+/**
+ * Essais d'une prise · une erreur PASSAGÈRE (fal 429/503, réseau, stockage,
+ * ffprobe, transcription déjà engagée par un autre worker) est retentée au
+ * tour suivant, chaque essai avec sa ligne de dépense ; à la borne, « non
+ * contrôlé ». Même borne que le transcripteur (`ESSAIS_TRANSCRIPTION_MAX`).
+ */
+export const ESSAIS_CONTROLE_PAROLE_MAX = 3;
+/** Mesure ffprobe d'une prise · mesurée sous 0,1 s (`decodeur-video.ts`) ; 10 s tiennent dans le budget d'arrêt. */
+export const DELAI_MESURE_PRISE_MS = 10_000;
 /** Mots conservés au journal · une prise de 90 s parlée en compte quelques centaines. */
 const MOTS_CONSERVES_MAX = 600;
 
@@ -54,6 +64,10 @@ export interface DependancesControleParole {
   mesurer?: (octets: Uint8Array) => Promise<MesurePrise | null>;
   horloge?: () => Date;
   journal?: (m: string) => void;
+  /** Observation (défaut tant que le seuil n'est pas mesuré sur de vraies prises) ou décision. */
+  mode?: ModeControleParole;
+  /** Arrêt demandé (SIGTERM) · relu avant chaque prise : aucune prise n'est plus entamée. */
+  arretDemande?: () => boolean;
 }
 
 /* ─────────────────────────── Mesure (ffprobe) ───────────────────────────── */
@@ -66,7 +80,7 @@ export async function mesurerPriseFfprobe(octets: Uint8Array, o: { ffprobe?: str
     await writeFile(f, octets, { mode: 0o600 });
     const sortie = await new Promise<string | null>((resolve) => {
       execFile(o.ffprobe ?? 'ffprobe', ['-v', 'error', '-protocol_whitelist', 'file', '-f', 'mp4', '-show_entries', 'stream=codec_type:format=duration', '-of', 'json', f],
-        { timeout: o.delaiMs ?? 30_000, killSignal: 'SIGKILL', maxBuffer: 1024 * 1024, env: o.env ?? process.env, encoding: 'utf8' },
+        { timeout: o.delaiMs ?? DELAI_MESURE_PRISE_MS, killSignal: 'SIGKILL', maxBuffer: 1024 * 1024, env: o.env ?? process.env, encoding: 'utf8' },
         (err, stdout) => resolve(err ? null : String(stdout)));
     });
     if (!sortie) return null;
@@ -87,10 +101,12 @@ const J = schema.studioJobs;
 const AU = schema.studioAuditEvents;
 
 interface Issue {
-  suite: 'conforme' | 'reprendre' | 'proposer_reprise' | 'revue' | 'sans_objet' | 'non_controle';
+  suite: 'conforme' | 'observation' | 'reprendre' | 'proposer_reprise' | 'revue' | 'sans_objet' | 'non_controle';
   raison: string;
   details: Record<string, unknown>;
   aReprendre: boolean;
+  /** Erreur passagère · un nouvel essai a un sens (borné par `ESSAIS_CONTROLE_PAROLE_MAX`). */
+  passagere?: boolean;
 }
 
 /** Les prises à contrôler · clips livrés, qualité en attente, ligne approuvée, jamais contrôlés. */
@@ -112,10 +128,18 @@ async function reprisesFaites(base: BaseStudio, job: JobStudio, operation: strin
   return r?.n ?? 0;
 }
 
-async function examiner(d: DependancesControleParole, job: JobStudio): Promise<Issue> {
+/** Essais non conclusifs déjà faits pour ce job. */
+async function essaisFaits(base: BaseStudio, jobId: string): Promise<number> {
+  const [r] = await base.select({ n: sql<number>`count(*)::int` }).from(AU)
+    .where(and(eq(AU.action, ACTION_AUDIT_CONTROLE_PAROLE_ESSAI), eq(AU.targetType, 'studio_job'), eq(AU.targetId, jobId)));
+  return r?.n ?? 0;
+}
+
+async function examiner(d: DependancesControleParole, job: JobStudio, essai: number): Promise<Issue> {
   const snap = lireSnapshotJob(job.snapshot);
   const sansObjet = (raison: string, details: Record<string, unknown> = {}): Issue => ({ suite: 'sans_objet', raison, details, aReprendre: false });
   const nonControle = (raison: string, details: Record<string, unknown> = {}): Issue => ({ suite: 'non_controle', raison, details, aReprendre: false });
+  const passagere = (raison: string, details: Record<string, unknown> = {}): Issue => ({ suite: 'non_controle', raison, details, aReprendre: false, passagere: true });
   if (!snap || !estParametresClip(snap.parametres)) return sansObjet('job sans prise vidéo');
   const ligne = controleParoleApprouve(snap.lignes);
   if (!ligne) return sansObjet('aucune ligne « contrôle de la parole » approuvée · rien n’est transcrit');
@@ -136,19 +160,23 @@ async function examiner(d: DependancesControleParole, job: JobStudio): Promise<I
   if (!a || a.mime !== 'video/mp4' || a.storageKey.startsWith('simule/')) return nonControle('prise livrée introuvable ou non stockée', base);
   let octets: Uint8Array | null;
   try { octets = await d.stockage.relire(a.storageKey); } catch { octets = null; }
-  if (!octets) return nonControle('prise livrée illisible dans le stockage', base);
+  if (!octets) return passagere('prise livrée illisible dans le stockage', base);
   const mesure = await (d.mesurer ?? ((o) => mesurerPriseFfprobe(o)))(octets);
-  if (!mesure) return nonControle('prise livrée illisible (durée inconnue)', base);
+  if (!mesure) return passagere('prise livrée illisible (durée inconnue)', base);
   if (!mesure.audio) return sansObjet('prise muette · aucune piste audio, rien n’est transcrit', { ...base, dureeMs: mesure.dureeMs });
 
   let t: { transcription: TranscriptionLue; reserveUsdMicros: number };
   try {
     t = await d.transcrire({
-      workspaceId: job.workspaceId, jobId: job.id, operation, essai: 1, audioUrl: d.adresse(a.storageKey),
+      workspaceId: job.workspaceId, jobId: job.id, operation, essai, audioUrl: d.adresse(a.storageKey),
       dureeMs: mesure.dureeMs, approuveUsdMicros: ligne.usdMicros,
     });
   } catch (e) {
     const certain = estErreurCertaine(e);
+    // Passagère (fal surchargé, réseau) ou déjà engagée par un autre worker (qui conclura) · nouvel essai au tour suivant.
+    if ((e as { passagere?: boolean }).passagere || (e as { dejaEngagee?: boolean }).dejaEngagee) {
+      return passagere(`transcription non conclue · ${(e as Error).message.slice(0, 200)}`, { ...base, dureeMs: mesure.dureeMs });
+    }
     return nonControle(`transcription impossible · ${(e as Error).message.slice(0, 200)}`, { ...base, dureeMs: mesure.dureeMs, issueFinanciere: certain ? 'aucun_frais' : 'incertaine' });
   }
 
@@ -158,9 +186,11 @@ async function examiner(d: DependancesControleParole, job: JobStudio): Promise<I
   const s = suiteControleParole({
     verdict, reprisesFaites: faites, repriseApprouvee: repriseParoleApprouvee(snap.lignes, operation),
     prixReprise: { credits: anim.credits ?? 0, usdMicros: (anim.usdMicros ?? 0) + ligne.usdMicros },
+    mode: d.mode ?? modeControleParole(),
   });
   return {
-    suite: s.suite, raison: s.raison, aReprendre: !verdict.conforme,
+    // En observation, un écart est NOTÉ, jamais « à reprendre ».
+    suite: s.suite, raison: s.raison, aReprendre: s.suite === 'proposer_reprise' || s.suite === 'reprendre' || s.suite === 'revue',
     details: {
       ...base, conforme: verdict.conforme, ecarts: verdict.ecarts, manquants: verdict.manquants, ajoutes: verdict.ajoutes, remplaces: verdict.remplaces,
       reprisesFaites: faites, ...(s.suite === 'proposer_reprise' ? { prixReprise: s.prix } : {}),
@@ -178,7 +208,23 @@ async function examiner(d: DependancesControleParole, job: JobStudio): Promise<I
 export async function controlerParolesEnAttente(d: DependancesControleParole, limite = PRISES_PAR_TOUR): Promise<Array<{ jobId: string; suite: Issue['suite']; raison: string }>> {
   const out: Array<{ jobId: string; suite: Issue['suite']; raison: string }> = [];
   for (const job of await candidats(d.base, limite)) {
-    const issue = await examiner(d, job);
+    // SIGTERM · aucune prise n'est plus entamée ; celle en cours finit (étape bornée, `PHASES_CONTROLE_PAROLE`).
+    if (d.arretDemande?.()) break;
+    const faits = await essaisFaits(d.base, job.id);
+    let issue = await examiner(d, job, Math.min(faits + 1, ESSAIS_CONTROLE_PAROLE_MAX));
+    if (issue.passagere) {
+      if (faits + 1 < ESSAIS_CONTROLE_PAROLE_MAX) {
+        // Essai non conclusif · compté, la prise reste candidate.
+        await d.base.insert(AU).values({
+          actorId: null, effectiveRole: 'systeme:controle', workspaceId: job.workspaceId, brandId: job.brandId,
+          action: ACTION_AUDIT_CONTROLE_PAROLE_ESSAI, targetType: 'studio_job', targetId: job.id, versionBefore: job.qualityStatus, versionAfter: job.qualityStatus,
+          reason: issue.raison.slice(0, 500), traceId: `parole:${job.id}`, details: { essai: faits + 1, ...issue.details },
+        });
+        d.journal?.(`[studios] contrôle de la parole · job ${job.id} · essai ${faits + 1} non conclusif · ${issue.raison}`);
+        continue;
+      }
+      issue = { ...issue, raison: `${issue.raison} · après ${ESSAIS_CONTROLE_PAROLE_MAX} essais` };
+    }
     const ecrit = await d.base.transaction(async (tx) => {
       // Relu sous verrou · un autre worker a pu le contrôler entre-temps.
       const [j] = await tx.select().from(J).where(eq(J.id, job.id)).for('update').limit(1);

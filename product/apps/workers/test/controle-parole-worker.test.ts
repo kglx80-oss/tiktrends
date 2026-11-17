@@ -11,7 +11,8 @@ import {
   type SnapshotJob, type LigneDevis, type TranscriptionLue,
 } from '@tiktrends/core';
 import type { DemandeTranscription } from '@tiktrends/integrations';
-import { controlerParolesEnAttente, mesurerPriseFfprobe, ACTION_CONTROLE_PAROLE, type DependancesControleParole } from '../src/studios/controle-parole';
+import { ErreurFournisseurIncertaine } from '@tiktrends/core';
+import { controlerParolesEnAttente, mesurerPriseFfprobe, ACTION_CONTROLE_PAROLE, ESSAIS_CONTROLE_PAROLE_MAX, type DependancesControleParole } from '../src/studios/controle-parole';
 import type { BaseStudio } from '../src/studios/types';
 import { pgMemoire } from './pg-memoire';
 
@@ -117,7 +118,7 @@ describe('contrôle de la parole des prises livrées', () => {
     await viderFile();
     dite = 'Un shampooing sulfate.';
     const job = await semerPrise();
-    const [r] = await controlerParolesEnAttente(deps());
+    const [r] = await controlerParolesEnAttente(deps({ mode: 'decision' }));
     expect(r).toMatchObject({ jobId: job, suite: 'proposer_reprise', raison: 'La prise ne dit pas la réplique validée · manque « sans ».' });
     expect(await qualite(job)).toBe('requires_review');
     const [a] = await audit(job);
@@ -129,7 +130,7 @@ describe('contrôle de la parole des prises livrées', () => {
     await viderFile();
     dite = 'Un shampooing sulfate.';
     const reprise = await semerPrise();
-    const [r] = await controlerParolesEnAttente(deps());
+    const [r] = await controlerParolesEnAttente(deps({ mode: 'decision' }));
     expect(r).toMatchObject({ jobId: reprise, suite: 'revue' });
     expect(r!.raison).toMatch(/aucune relance/);
   });
@@ -149,6 +150,65 @@ describe('contrôle de la parole des prises livrées', () => {
     expect(r).toMatchObject({ jobId: job, suite: 'sans_objet' });
     expect(appels).toHaveLength(0);
     expect(await qualite(job)).toBe('pending');
+  });
+
+  it('OBSERVATION (défaut, aucune vraie prise mesurée) · écart noté au journal avec les mots, ni « à reprendre » ni reprise proposée', async () => {
+    await viderFile();
+    dite = 'Un shampooing sulfate.';
+    const job = await semerPrise();
+    const [r] = await controlerParolesEnAttente(deps());
+    expect(r).toMatchObject({ jobId: job, suite: 'observation', raison: 'La prise ne dit pas la réplique validée · manque « sans ».' });
+    expect(await qualite(job)).toBe('pending');
+    const [a] = await audit(job);
+    expect(a!.versionAfter).toBe('pending');
+    expect(a!.details).toMatchObject({ suite: 'observation', conforme: false, manquants: ['sans'], mots: [['Un', 100, 350], ['shampooing', 400, 650], ['sulfate.', 700, 950]] });
+    expect(a!.details).not.toHaveProperty('prixReprise');
+  });
+
+  it('arrêt demandé · aucune prise entamée ; demandé pendant une prise · la suivante n’est pas entamée', async () => {
+    await viderFile();
+    await semerPrise();
+    await semerPrise();
+    expect(await controlerParolesEnAttente(deps({ arretDemande: () => true }))).toEqual([]);
+    expect(appels).toHaveLength(0);
+    let arret = false;
+    const r = await controlerParolesEnAttente(deps({ arretDemande: () => arret, transcrire: async (d) => { appels.push(d); arret = true; return { transcription: transcription(dite), reserveUsdMicros: 10_000 }; } }));
+    expect(r).toHaveLength(1);
+    expect(appels).toHaveLength(1);
+    // La prise non entamée l'est au tour suivant, sans arrêt.
+    expect(await controlerParolesEnAttente(deps())).toHaveLength(1);
+  });
+
+  it('erreur PASSAGÈRE (fal 503, prise illisible, ffprobe) · retentée au tour suivant, essai suivant, puis « non contrôlé » à la borne', async () => {
+    await viderFile();
+    const job = await semerPrise();
+    const passagere = deps({ transcrire: async (d) => { appels.push(d); throw Object.assign(new ErreurFournisseurCertaine('fal a refusé la transcription (HTTP 503)'), { passagere: true }); } });
+    for (let i = 1; i < ESSAIS_CONTROLE_PAROLE_MAX; i++) {
+      expect(await controlerParolesEnAttente(passagere)).toEqual([]);
+      expect(await audit(job)).toHaveLength(0);
+    }
+    const [r] = await controlerParolesEnAttente(passagere);
+    expect(r).toMatchObject({ jobId: job, suite: 'non_controle' });
+    expect(r!.raison).toMatch(new RegExp(`après ${ESSAIS_CONTROLE_PAROLE_MAX} essais`));
+    expect(appels.map((a) => a.essai)).toEqual(Array.from({ length: ESSAIS_CONTROLE_PAROLE_MAX }, (_, i) => i + 1));
+    // Mesure illisible (ffprobe) · passagère aussi.
+    await viderFile();
+    const j2 = await semerPrise();
+    expect(await controlerParolesEnAttente(deps({ mesurer: async () => null }))).toEqual([]);
+    expect(await audit(j2)).toHaveLength(0);
+    // Le tour suivant, la mesure revient · la prise est contrôlée, à l'essai 2.
+    expect(await controlerParolesEnAttente(deps())).toMatchObject([{ jobId: j2, suite: 'conforme' }]);
+    expect(appels.at(-1)!.essai).toBe(2);
+  });
+
+  it('course à deux workers · une transcription déjà engagée par l’autre n’écrit pas « non contrôlé »', async () => {
+    await viderFile();
+    const job = await semerPrise();
+    const course = deps({ transcrire: async () => { throw Object.assign(new ErreurFournisseurIncertaine('déjà engagée · réconciliation, aucune seconde soumission'), { dejaEngagee: true }); } });
+    expect(await controlerParolesEnAttente(course)).toEqual([]);
+    expect(await audit(job)).toHaveLength(0);
+    // L'autre conclut · plus rien à faire ici.
+    expect(await controlerParolesEnAttente(deps())).toMatchObject([{ jobId: job, suite: 'conforme' }]);
   });
 
   it('transcription refusée (plafond, fournisseur) · « non contrôlé », écrit une fois, jamais retenté', async () => {

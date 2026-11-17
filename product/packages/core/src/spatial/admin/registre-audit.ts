@@ -103,6 +103,7 @@ export const ACTIONS_AUDIT: Readonly<Record<string, ClasseActionAudit>> = {
   'media.quality.control': courante('a contrôlé la qualité d’un média'),
   'media.quality.reprise': courante('a repris le contrôle qualité d’un média'),
   'media.speech.control': courante('a contrôlé la parole d’une prise (transcription comparée à la réplique)'),
+  'media.speech.control.retry': courante('a retenté le contrôle de la parole d’une prise (erreur passagère)'),
   'proposal.request': courante('a demandé une proposition'),
   'proposal.create': courante('a reçu une proposition'),
   'proposal.apply': courante('a appliqué une proposition'),
