@@ -95,9 +95,10 @@ export function optionsRoleMembre(): ReadonlyArray<{ cle: CleRole; choisissable:
 }
 
 /**
- * Débit des invitations · au plus `max` invitations CRÉÉES par espace sur une
- * fenêtre glissante d'une heure (`createInviteAction`, compteur `hit` en
- * mémoire du process web). Chaque invitation fait partir un e-mail de NOTRE
+ * Débit des invitations · au plus `max` demandes par espace ET par personne sur
+ * une fenêtre FIXE d'une heure (ouverte à la première demande, remise à zéro à
+ * son terme · `hit`, compteur en mémoire du process web, remis à zéro à chaque
+ * redémarrage ou déploiement) · `createInviteAction`. Chaque invitation fait partir un e-mail de NOTRE
  * domaine vers une adresse choisie par l'espace · sans borne, un compte libre
  * en fait un relais d'envoi.
  *
@@ -106,7 +107,8 @@ export function optionsRoleMembre(): ReadonlyArray<{ cle: CleRole; choisissable:
  * source · inscription 5 / h / IP, mot de passe oublié 5 / h / IP, connexion
  * 6 / 15 min. 20 / h par espace laisse de la marge à l'équipe qui s'installe
  * (une agence invite rarement plus d'une dizaine de personnes d'un coup) et
- * borne un abus à 480 e-mails par jour et par espace. Seules les demandes qui
- * iraient jusqu'à la création comptent · une saisie invalide ne consomme rien.
+ * borne un abus à 480 e-mails par jour et par espace. Comptent toutes les
+ * demandes valides, AVANT la recherche du compte (sinon « a déjà un compte »
+ * serait un oracle illimité) · une saisie invalide ne consomme rien.
  */
 export const LIMITE_INVITATIONS = { max: 20, fenetreMs: 60 * 60_000 } as const;

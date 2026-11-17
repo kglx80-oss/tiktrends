@@ -1,5 +1,5 @@
 import 'server-only';
-import { desechapperHtml, echapperHtml as e } from '@tiktrends/core';
+import { desechapperHtml, echapperHtml as e, neutraliserAdresses } from '@tiktrends/core';
 import { appUrl } from './mailer';
 
 /**
@@ -25,7 +25,7 @@ function layout(opts: { title: string; body: string; cta?: { label: string; href
         </tr></table>
       </td></tr>
       <tr><td style="padding:18px 28px 26px">
-        <h1 style="margin:0 0 12px;font-size:20px;font-weight:800;color:#0d070c">${e(opts.title)}</h1>
+        <h1 style="margin:0 0 12px;font-size:20px;font-weight:800;color:#0d070c">${neutraliserAdresses(e(opts.title))}</h1>
         <table cellpadding="0" cellspacing="0" style="font-size:14px;color:#3a3a42;line-height:1.6">
           <tr><td>${opts.body}</td></tr>
           ${btn}
@@ -42,13 +42,16 @@ function layout(opts: { title: string; body: string; cta?: { label: string; href
 }
 
 /** Le texte brut · balises retirées, PUIS entités rendues (le texte montre « L'Atelier & Co »). */
+/** Un nom saisi · échappé, puis neutralisé s'il ressemble à une adresse (aucun lien automatique). */
+const nom = (v: string) => neutraliserAdresses(e(v));
+
 const strip = (html: string) => desechapperHtml(html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim());
 
 export function welcomeEmail(name: string | null, workspaceName: string) {
   const hi = name ? name.split(/\s+/)[0] : 'toi';
   const html = layout({
     title: `Bienvenue, ${hi} 👋`,
-    body: `Ton espace <b>${e(workspaceName)}</b> est prêt. Connecte une marque, importe tes produits et génère tes premières créas IA en quelques minutes. Ton essai est déjà actif · aucune carte requise.`,
+    body: `Ton espace <b>${nom(workspaceName)}</b> est prêt. Connecte une marque, importe tes produits et génère tes premières créas IA en quelques minutes. Ton essai est déjà actif · aucune carte requise.`,
     cta: { label: 'Ouvrir mon espace', href: `${appUrl()}/dashboard` },
     footer: "Tu reçois cet e-mail car un espace vient d'être créé avec cette adresse.",
   });
@@ -60,7 +63,7 @@ export function inviteEmail(opts: { inviterName: string | null; workspaceName: s
   const href = `${appUrl()}/invite/${opts.token}`;
   const html = layout({
     title: `Rejoins ${opts.workspaceName}`,
-    body: `${e(inviter)} t'invite à rejoindre l'espace <b>${e(opts.workspaceName)}</b> sur TikTrends en tant que <b>${e(opts.roleLabel)}</b>. Clique pour définir ton mot de passe et accéder à l'espace.`,
+    body: `${nom(inviter)} t'invite à rejoindre l'espace <b>${nom(opts.workspaceName)}</b> sur TikTrends en tant que <b>${e(opts.roleLabel)}</b>. Clique pour définir ton mot de passe et accéder à l'espace.`,
     cta: { label: "Accepter l'invitation", href },
     footer: 'Cette invitation expire dans 7 jours.',
   });
@@ -97,7 +100,7 @@ export function digestEmail(opts: {
     title: opts.headline,
     body: `${lignes ? `<ul style="margin:0;padding-left:18px">${lignes}</ul>` : ''}${pourquoi}`,
     cta: opts.action ? { label: opts.action.label, href: `${appUrl()}${opts.action.href}` } : undefined,
-    footer: `Récapitulatif hebdomadaire de ${e(opts.brandName)} · envoyé uniquement les semaines où il s'est passé quelque chose.`,
+    footer: `Récapitulatif hebdomadaire de ${nom(opts.brandName)} · envoyé uniquement les semaines où il s'est passé quelque chose.`,
   });
   return { subject: `${opts.brandName} · ${opts.headline}`, html, text: strip(html) };
 }

@@ -25,12 +25,16 @@ export async function createInviteAction(formData: FormData): Promise<void> {
   if (!email) redirect('/team?e=email');
   if (!ASSIGNABLE.includes(role)) redirect('/team?e=role');
 
+  // Débit (règle et seuil au noyau) · AVANT la recherche du compte, sinon « a déjà un compte »
+  // resterait un oracle illimité. Deux clés, toutes deux comptées · l'espace, et la personne (une
+  // même personne ne retrouve pas 20 invitations en changeant d'espace).
+  const parEspace = hit(`invite:${s.workspaceId}`, LIMITE_INVITATIONS.max, LIMITE_INVITATIONS.fenetreMs).ok;
+  const parPersonne = hit(`invite:u:${s.user.id}`, LIMITE_INVITATIONS.max, LIMITE_INVITATIONS.fenetreMs).ok;
+  if (!parEspace || !parPersonne) redirect('/team?e=throttled');
+
   // Déjà membre ?
   const [u] = await db.select({ id: schema.users.id }).from(schema.users).where(eq(schema.users.email, email)).limit(1);
   if (u) redirect('/team?e=already');
-
-  // Débit · au plus LIMITE_INVITATIONS.max invitations créées par espace et par heure (règle et seuil au noyau).
-  if (!hit(`invite:${s.workspaceId}`, LIMITE_INVITATIONS.max, LIMITE_INVITATIONS.fenetreMs).ok) redirect('/team?e=throttled');
 
   const token = randomBytes(24).toString('base64url');
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 jours
