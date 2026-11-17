@@ -3,6 +3,7 @@ import { buildMetaAuthUrl } from '@tiktrends/integrations';
 import { getSession } from '../../../../lib/auth';
 import { getActiveBrand } from '../../../../lib/brands';
 import { signState } from '../../../../lib/oauth-state';
+import { peutBrancherConnecteur, RETOUR_CONNEXION_REFUSEE } from '../../../../lib/connexions-acces';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -15,6 +16,7 @@ export async function GET() {
 
   const s = await getSession();
   if (!s) return NextResponse.redirect(appUrl + '/login');
+  if (!peutBrancherConnecteur(s.role)) return NextResponse.redirect(appUrl + RETOUR_CONNEXION_REFUSEE);
   const brand = await getActiveBrand(s.workspaceId);
   if (!brand) return NextResponse.redirect(appUrl + '/connections?e=nobrand');
 

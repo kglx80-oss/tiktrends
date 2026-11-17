@@ -1,0 +1,312 @@
+{
+  "requete": {
+    "ok": true,
+    "modele": "fal-ai/nano-banana-2/edit",
+    "corps": {
+      "prompt": "Lunettes posées sur une table en chêne, lumière du matin.\n\nComposants à préserver à l’identique : bandeau.\n\nÀ éviter absolument : ni le logo de l’annonceur source ; Pas de texte dans l’image.\n\nAucun texte écrit dans l’image : les textes sont posés ensuite par des calques.",
+      "num_images": 1,
+      "aspect_ratio": "4:5",
+      "image_urls": [
+        "https://cdn.marque.test/p.png",
+        "https://s3.test/b/style.png"
+      ]
+    },
+    "operations": [
+      "keyframe:s_image"
+    ],
+    "expurge": {
+      "prompt": "Lunettes posées sur une table en chêne, lumière du matin.\n\nComposants à préserver à l’identique : bandeau.\n\nÀ éviter absolument : ni le logo de l’annonceur source ; Pas de texte dans l’image.\n\nAucun texte écrit dans l’image : les textes sont posés ensuite par des calques.",
+      "num_images": 1,
+      "aspect_ratio": "4:5",
+      "image_urls": [
+        {
+          "assetId": "pph_a",
+          "sha256": "55c64d0fcd6f9d5f7c828093857e3fdfda68478bb4e9bd24d481ef391c7804e8"
+        },
+        {
+          "assetId": "sta_style",
+          "sha256": "cb86eb2d914d37df6857c3cfe4827b5f770b01a86578120618b0b21572160be8"
+        }
+      ],
+      "modele": "fal-ai/nano-banana-2/edit"
+    },
+    "empreinte": "71c7819e68618a2ce4898a1e08ae70a61bda271136c812f0c5fcd9f3c03ce3cf",
+    "limites": [
+      "instruction négative non supportée par le modèle · intégrée à la consigne"
+    ]
+  },
+  "sansRef": {
+    "ok": true,
+    "modele": "fal-ai/nano-banana-2",
+    "corps": {
+      "prompt": "Lunettes posées sur une table en chêne, lumière du matin.\n\nComposants à préserver à l’identique : bandeau.\n\nÀ éviter absolument : ni le logo de l’annonceur source ; Pas de texte dans l’image.\n\nAucun texte écrit dans l’image : les textes sont posés ensuite par des calques.",
+      "num_images": 1,
+      "aspect_ratio": "9:16"
+    },
+    "operations": [
+      "keyframe:s_image"
+    ],
+    "expurge": {
+      "prompt": "Lunettes posées sur une table en chêne, lumière du matin.\n\nComposants à préserver à l’identique : bandeau.\n\nÀ éviter absolument : ni le logo de l’annonceur source ; Pas de texte dans l’image.\n\nAucun texte écrit dans l’image : les textes sont posés ensuite par des calques.",
+      "num_images": 1,
+      "aspect_ratio": "9:16",
+      "modele": "fal-ai/nano-banana-2"
+    },
+    "empreinte": "6eb30f5b5a55c93d596ea3adfe75527898d58fef9559cfa6bffd43518f948a08",
+    "limites": [
+      "instruction négative non supportée par le modèle · intégrée à la consigne"
+    ]
+  },
+  "prompt": "Lunettes posées sur une table en chêne, lumière du matin.\n\nComposants à préserver à l’identique : bandeau.\n\nÀ éviter absolument : ni le logo de l’annonceur source ; Pas de texte dans l’image.\n\nAucun texte écrit dans l’image : les textes sont posés ensuite par des calques.",
+  "familles": [
+    {
+      "prompt": "x",
+      "num_images": 1,
+      "aspect_ratio": "4:5",
+      "image_urls": [
+        "https://a.test/p.png"
+      ]
+    },
+    {
+      "prompt": "x",
+      "num_images": 1,
+      "image_size": "1024x1536",
+      "image_urls": [
+        "https://a.test/p.png"
+      ]
+    },
+    {
+      "prompt": "x",
+      "num_images": 1,
+      "image_size": "portrait_4_3",
+      "image_urls": [
+        "https://a.test/p.png"
+      ]
+    },
+    {
+      "prompt": "x",
+      "num_images": 1,
+      "image_size": "portrait_4_3",
+      "output_format": "jpeg",
+      "image_url": "https://a.test/p.png"
+    }
+  ],
+  "consigne": {
+    "schema": "consigne_image/1",
+    "runId": "11111111-1111-4111-8111-111111111111",
+    "mode": "generative_scene",
+    "sourceVersionId": "22222222-2222-4222-8222-222222222222",
+    "entrees": "bee181ea8a69452cc02cdd3c05191cdabb3e64894d59041c5ade4599f0c5683d",
+    "consigne": {
+      "generationInstruction": "Lunettes posées sur une table en chêne, lumière du matin.",
+      "negativeConstraints": [
+        "ni le logo de l’annonceur source",
+        "Pas de texte dans l’image"
+      ],
+      "referenceBindings": [
+        {
+          "referenceId": "sta_style",
+          "role": "style",
+          "scope": "background"
+        },
+        {
+          "referenceId": "pph_a",
+          "role": "product",
+          "scope": "product"
+        }
+      ],
+      "protectedComponents": [
+        "bandeau"
+      ],
+      "needsDeterministicOverlay": true
+    },
+    "references": [
+      {
+        "assetId": "sta_style",
+        "assetVersion": "sha256-y",
+        "sha256": "cb86eb2d914d37df6857c3cfe4827b5f770b01a86578120618b0b21572160be8",
+        "role": "style"
+      },
+      {
+        "assetId": "pph_a",
+        "assetVersion": "sha256-x",
+        "sha256": "55c64d0fcd6f9d5f7c828093857e3fdfda68478bb4e9bd24d481ef391c7804e8",
+        "role": "product"
+      }
+    ],
+    "format": {
+      "largeur": 1080,
+      "hauteur": 1350
+    },
+    "compileeLe": "2026-11-15T10:00:00.000Z"
+  },
+  "empreinte": "e51a8458beca835b9941dd6793311740656160fb525b6e215ea3b121cbb8ff50",
+  "parametres": {
+    "schema": "studio_image/1",
+    "consigne": {
+      "generationInstruction": "Lunettes posées sur une table en chêne, lumière du matin.",
+      "negativeConstraints": [
+        "ni le logo de l’annonceur source",
+        "Pas de texte dans l’image"
+      ],
+      "referenceBindings": [
+        {
+          "referenceId": "sta_style",
+          "role": "style",
+          "scope": "background"
+        },
+        {
+          "referenceId": "pph_a",
+          "role": "product",
+          "scope": "product"
+        }
+      ],
+      "protectedComponents": [
+        "bandeau"
+      ],
+      "needsDeterministicOverlay": true
+    },
+    "promptRunId": "11111111-1111-4111-8111-111111111111",
+    "references": [
+      {
+        "assetId": "sta_style",
+        "assetVersion": "sha256-y",
+        "sha256": "cb86eb2d914d37df6857c3cfe4827b5f770b01a86578120618b0b21572160be8",
+        "role": "style"
+      },
+      {
+        "assetId": "pph_a",
+        "assetVersion": "sha256-x",
+        "sha256": "55c64d0fcd6f9d5f7c828093857e3fdfda68478bb4e9bd24d481ef391c7804e8",
+        "role": "product"
+      }
+    ],
+    "format": {
+      "largeur": 1080,
+      "hauteur": 1350
+    }
+  },
+  "lu": true,
+  "lignes": {
+    "ok": true,
+    "lignes": [
+      {
+        "operation": "keyframe:s_image",
+        "nature": "generation",
+        "profil": "image_generation",
+        "unites": 1,
+        "credits": 40,
+        "usdMicros": 80000,
+        "inclus": false,
+        "natureCout": "borne",
+        "motifEstimation": null
+      }
+    ],
+    "totalCredits": 40,
+    "totalUsdMicros": 80000
+  },
+  "vision": {
+    "lignes": [
+      {
+        "operation": "keyframe:s_image",
+        "nature": "generation",
+        "profil": "image_generation",
+        "unites": 1,
+        "credits": 40,
+        "usdMicros": 80000,
+        "inclus": false,
+        "natureCout": "borne",
+        "motifEstimation": null
+      },
+      {
+        "operation": "controle:vision",
+        "nature": "generation",
+        "profil": "controle_visuel",
+        "unites": 1,
+        "credits": 0,
+        "usdMicros": 147024,
+        "inclus": true,
+        "natureCout": "borne",
+        "motifEstimation": null
+      }
+    ],
+    "totalCredits": 40,
+    "totalUsdMicros": 227024
+  },
+  "PRICING_VERSION": "studio-v1-c63ce75f691b",
+  "libelle": "Contrôle visuel de l’image livrée · 0,15 $ au plus par image, ajouté au devis · décocher pour s’en passer",
+  "entreeCompilation": {
+    "taskInputs": {
+      "briefId": "brief_v1",
+      "conceptId": "concept_v1",
+      "mode": "generative_scene",
+      "referenceIds": [
+        "pph_a"
+      ],
+      "width": 1080,
+      "height": 1350
+    },
+    "resolvedDocuments": [
+      {
+        "id": "brief_v1",
+        "version": "v1",
+        "schemaKey": "Fact",
+        "content": {
+          "id": "brief_v1",
+          "claim": "Objectif : Vendre\nAudience : Coureurs\nComposition : Centré\nIntention de style : Doux\nFormats : 4:5",
+          "sourceIds": [],
+          "kind": "declared",
+          "confidence": "high"
+        },
+        "sha256": "b4b5a8b89bc72856092a3e11b011495863a7fab47800a8bbfee05e34a2d8256b"
+      },
+      {
+        "id": "concept_v1",
+        "version": "v1",
+        "schemaKey": "Fact",
+        "content": {
+          "id": "concept_v1",
+          "claim": "Composition : Centré\nIntention de style : Doux\nFormats : 4:5\nTextes : posés par des calques texte, jamais dans les pixels.",
+          "sourceIds": [],
+          "kind": "declared",
+          "confidence": "high"
+        },
+        "sha256": "89fa3c3a1b2a7b885052765b5d3e666e93c610ddda9dadb6776103e4fbc94168"
+      }
+    ],
+    "references": [
+      {
+        "assetId": "pph_a",
+        "assetVersion": "sha256-x",
+        "sha256": "55c64d0fcd6f9d5f7c828093857e3fdfda68478bb4e9bd24d481ef391c7804e8",
+        "role": "product",
+        "scope": "product",
+        "allowedChanges": [],
+        "requiredComponents": []
+      },
+      {
+        "assetId": "sta_style",
+        "assetVersion": "sha256-y",
+        "sha256": "cb86eb2d914d37df6857c3cfe4827b5f770b01a86578120618b0b21572160be8",
+        "role": "style",
+        "scope": "background",
+        "allowedChanges": [],
+        "requiredComponents": []
+      }
+    ],
+    "invariants": [
+      "x"
+    ],
+    "facts": [
+      {
+        "id": "f1",
+        "claim": "Goût mangue",
+        "sourceIds": [
+          "produit"
+        ],
+        "kind": "declared",
+        "confidence": "high"
+      }
+    ]
+  }
+}

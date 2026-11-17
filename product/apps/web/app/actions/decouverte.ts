@@ -2,7 +2,7 @@
 
 import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { getSession } from '../../lib/auth';
+import { gardeRadar } from '../../lib/radar-garde';
 import { getActiveBrand } from '../../lib/brands';
 import { ttSearchAds, type InspoAd } from '@tiktrends/integrations';
 import { termeDecouverte, decouvertes, PROVEN_DAYS, type RadarCandidate } from '@tiktrends/core';
@@ -34,8 +34,11 @@ const LIMITE_RECOLTE = 40;
 const LIMITE_AFFICHEE = 12;
 
 export async function decouverteMarcheAction(): Promise<DecouverteResult> {
-  const s = await getSession();
-  if (!s || !db) return { error: 'Session expirée.' };
+  // La garde de la page Radar (rôle ET offre) · avant toute requête de veille.
+  const g = await gardeRadar('Session expirée.');
+  if ('error' in g) return { error: g.error };
+  if (!db) return { error: 'Session expirée.' };
+  const { s } = g;
   const apiKey = process.env.TRENDTRACK_API_KEY;
   if (!apiKey) return { note: 'La veille n’est pas configurée.' };
 
