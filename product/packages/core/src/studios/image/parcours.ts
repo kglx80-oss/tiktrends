@@ -40,6 +40,10 @@ import { empreinteEntreesDevis, type EntreesDevis } from '../execution/devis';
 import { GRILLE_STUDIO, estLigneDeProduction, type LigneDevis, type ProfilLigne, type ProfilOperation } from '../execution/tarifs';
 import type { CodeErreurStudio } from '../erreurs';
 import type { EtatJob, StatutQualite } from '../machines';
+import { violationsPubEntiere, selectionReferencesPubEntiere, moteurEnvoye, REFERENCES_PUB_ENTIERE_MAX, type PubEntiere } from './pub-entiere';
+import { ratioFal, ratioServi } from '../fournisseurs/fal-image';
+import { LIBELLES_ROLE } from '../produit/references';
+import type { RoleReference } from '../brief';
 
 export const SCHEMA_CONSIGNE_IMAGE = 'consigne_image/1' as const;
 /** Le plan unique du studio Image · son image clé est la génération payante. */
@@ -66,6 +70,12 @@ export interface ConsigneImagePersistee {
   references: ReferenceParametres[];
   format: { largeur: number; hauteur: number };
   compileeLe: string;
+  /**
+   * Mode « Pub entière » choisi à la compilation · la copie figée et le moteur.
+   * ABSENT en mode calques (défaut) : la consigne, son empreinte et les
+   * paramètres du job restent exactement ceux d'avant.
+   */
+  pubEntiere?: PubEntiere;
 }
 
 const estObjet = (x: unknown): x is Record<string, unknown> => typeof x === 'object' && x !== null && !Array.isArray(x);
@@ -81,7 +91,7 @@ export function empreinteConsigne(c: ConsigneImagePersistee): string {
 
 /** Les paramètres de l'instantané du job (`studio_image/1`) · ceux que le worker relit. */
 export function parametresDepuisConsigne(c: ConsigneImagePersistee): ParametresImageSnapshot {
-  return parametresImageDuDevis({ consigne: c.consigne, references: c.references, largeur: c.format.largeur, hauteur: c.format.hauteur, promptRunId: c.runId });
+  return parametresImageDuDevis({ consigne: c.consigne, references: c.references, largeur: c.format.largeur, hauteur: c.format.hauteur, promptRunId: c.runId, pubEntiere: c.pubEntiere ?? null });
 }
 
 export type ConstructionConsigne = { ok: true; consigne: ConsigneImagePersistee; empreinte: string } | { ok: false; violations: string[] };
@@ -101,6 +111,8 @@ export function construireConsignePersistee(e: {
   largeur: number;
   hauteur: number;
   compileeLe: Date;
+  /** Pub entière · absente (ou `null`) en mode calques. */
+  pubEntiere?: PubEntiere | null;
 }): ConstructionConsigne {
   const violations: string[] = [];
   const ids: string[] = [];
@@ -120,9 +132,40 @@ export function construireConsignePersistee(e: {
     consigne: parametresImageDuDevis({ consigne: e.consigne, references, largeur: e.largeur, hauteur: e.hauteur }).consigne,
     references, format: { largeur: Math.round(e.largeur), hauteur: Math.round(e.hauteur) }, compileeLe: e.compileeLe.toISOString(),
   };
+  if (e.pubEntiere) {
+    const pe = parametresImageDuDevis({ consigne: e.consigne, references, largeur: e.largeur, hauteur: e.hauteur, pubEntiere: e.pubEntiere }).pubEntiere!;
+    const vp = violationsPubEntiere(pe);
+    if (vp.length) return { ok: false, violations: vp };
+    consigne.pubEntiere = pe;
+  }
   const lu = lireParametresImage(parametresDepuisConsigne(consigne));
   if (!lu.ok) return { ok: false, violations: lu.violations };
   return { ok: true, consigne, empreinte: empreinteConsigne(consigne) };
+}
+
+/**
+ * Pub entière · le format que le générateur SERT réellement pour ce format de
+ * projet, dit avant le clic · `null` quand c'est le même (aucun recadrage
+ * n'est fait : la pub sort au ratio servi).
+ */
+export function phraseFormatServi(moteur: string, largeur: number, hauteur: number, avecReference = true): string | null {
+  const envoye = moteurEnvoye(moteur, avecReference);
+  if (!envoye) return null;
+  const { ratio } = ratioFal(largeur, hauteur);
+  const s = ratioServi(envoye.modele, ratio);
+  return s.exact ? null : `Format servi par le générateur · ${s.ratio} (format du projet ${ratio}) · la pub n’est pas recadrée.`;
+}
+
+/** Pub entière · ce que la consigne NE fera PAS partir, dit sur l'écran (références écartées, format servi). */
+export function limitesVisiblesPubEntiere(c: ConsigneImagePersistee): string[] {
+  if (!c.pubEntiere) return [];
+  const liees = [...c.references].sort((a, b) => Number(b.role === 'product') - Number(a.role === 'product'));
+  const sel = selectionReferencesPubEntiere(liees);
+  const out: string[] = [];
+  if (sel.ecartees.length) out.push(`Non envoyé au générateur (au plus ${REFERENCES_PUB_ENTIERE_MAX} : vues du produit puis logo) · ${sel.ecartees.map((r) => `${r.assetId} (rôle ${LIBELLES_ROLE[r.role as RoleReference] ?? r.role})`).join(', ')}.`);
+  const f = phraseFormatServi(c.pubEntiere.moteur, c.format.largeur, c.format.hauteur, sel.gardees.length > 0);
+  if (f) out.push(f);
+  return out;
 }
 
 /** Relecture défensive · `null` si la forme n'est pas celle que le serveur écrit. */
@@ -135,9 +178,9 @@ export function lireConsignePersistee(x: unknown): ConsigneImagePersistee | null
   if (typeof x.compileeLe !== 'string' || Number.isNaN(Date.parse(x.compileeLe))) return null;
   const f = x.format;
   if (!estObjet(f)) return null;
-  const lu = lireParametresImage({ schema: 'studio_image/1', consigne: x.consigne, references: x.references, format: f, promptRunId: x.runId });
+  const lu = lireParametresImage({ schema: 'studio_image/1', consigne: x.consigne, references: x.references, format: f, promptRunId: x.runId, ...('pubEntiere' in x ? { pubEntiere: x.pubEntiere } : {}) });
   if (!lu.ok) return null;
-  const cles = Object.keys(x).sort().join(',');
+  const cles = Object.keys(x).filter((k) => k !== 'pubEntiere').sort().join(',');
   if (cles !== 'compileeLe,consigne,entrees,format,mode,references,runId,schema,sourceVersionId') return null;
   return x as unknown as ConsigneImagePersistee;
 }

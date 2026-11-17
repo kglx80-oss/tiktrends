@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { eq, inArray, like } from 'drizzle-orm';
 import { schema } from '@tiktrends/db';
-import { violationsRegistreJob } from '@tiktrends/core';
+import { violationsRegistreJob, lireEchecsPersistance } from '@tiktrends/core';
 import { contexteDepuisSession, type ContexteStudio } from '../lib/studios/garde';
 import { session, type IdsStudios } from './studios-semis';
 import type { BaseStudio } from '../lib/studios/execution/types';
@@ -74,7 +74,21 @@ export function banc(base: BaseStudio, o: Partial<Omit<OptionsFournisseurSimule,
   // Décodeur de PRODUCTION (sharp, pixels complets) : les médias simulés
   // passent par le même décodage réel que les vrais.
   const moteur = new MoteurStudio({ base, fournisseur, stockage, decodeur: o.decodeur ?? new DecodeurSharp(), workerId: o.workerId, bailMs: 30_000, horloge, secretWebhook: o.secret ?? null, journal: (e) => journal.push(e) });
+  // Une persistance en échec attend son recul (20 s, 40 s… · `reculPersistanceMs`) · le banc
+  // AVANCE l'horloge jusqu'au prochain essai prévu avant chaque tour, comme le temps réel le
+  // ferait · les gardes « reprise sans régénération » restent vraies, sans dormir.
+  const tourReel = moteur.tour.bind(moteur);
+  moteur.tour = async (opts) => { await sauterRecul(base, decalage, horloge); return tourReel(opts); };
   return { moteur, fournisseur, stockage, journal, decalage, avancer: (ms) => { decalage.ms += ms; }, horloge };
+}
+
+/** L'horloge du banc portée au plus proche prochain essai de persistance encore dans le futur. */
+async function sauterRecul(base: BaseStudio, decalage: { ms: number }, horloge: () => Date): Promise<void> {
+  const J = schema.studioJobs;
+  const lignes = await base.select({ e: J.error }).from(J).where(eq(J.state, 'persisting'));
+  const now = horloge().getTime();
+  const futurs = lignes.map((l) => lireEchecsPersistance(l.e).prochainEssai?.getTime() ?? 0).filter((t) => t > now);
+  if (futurs.length) decalage.ms += Math.min(...futurs) - now + 1;
 }
 
 /** Un second worker sur le MÊME fournisseur, le même stockage, la même horloge. */

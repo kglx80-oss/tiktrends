@@ -7,11 +7,13 @@ import {
   LIBELLES_PORTEE, LIBELLES_ROLE, VALIDITE_DEVIS_MS,
   type ErreurStudio, type ModeImage, type PorteeReference, type RoleReference,
 } from '@tiktrends/core';
+// Pub entière · le choix des textes, ce qu'il garantit, la copie dessinée, la relecture sur le rendu.
+import { LIBELLES_TYPOGRAPHIE, PORTEE_TYPOGRAPHIE, TYPOGRAPHIE_PAR_DEFAUT, controleCocheParDefaut, libelleCaseRelecturePubEntiere, type CopieDessinee, type TypographieImage } from '@tiktrends/core';
 import type { ConsigneVue, JobImageVue, VueParcoursImage } from '../../../lib/studios/image/parcours';
 import {
   approuverEtLancerImage, compilerConsigneImage, controlerMediaImage, demanderDevisImage, lireParcoursImage, retenirConsigneImage,
 } from '../../../app/actions/studios/image';
-import { annulerJob } from '../../../app/actions/studios/execution';
+import { accepterMedia, annulerJob, rejeterMedia } from '../../../app/actions/studios/execution';
 import { trancherComposants } from '../../../app/actions/studios/produit';
 import { MESSAGE_APPEL_PAYANT, resultatPayantIncertain, useAppelPayant } from '../../../lib/studios/appel-payant';
 import { useRegime, useSpatial } from '../../coquille/contexte';
@@ -85,19 +87,29 @@ export function ParcoursImage({ projectId, versionId, initial = null }: { projec
   const id = useId();
   const [nonActive, setNonActive] = useState<string | null>(null);
   const [mode, setMode] = useState<ModeImage | ''>('');
+  // Pub entière · « calques » par défaut, jusqu'à ce que le propriétaire tranche sur un lot de contrôle.
+  const [typographie, setTypographie] = useState<TypographieImage>(TYPOGRAPHIE_PAR_DEFAUT);
   const [enCours, setEnCours] = useState<string | null>(null);
   const [retour, setRetour] = useState<{ ton: 'ok' | 'err'; texte: string; horsLigne?: boolean } | null>(null);
   const [questions, setQuestions] = useState<string[]>([]);
   // Un geste payant armé (premier clic) · le second clic le lance.
   const [arme, setArme] = useState<'compiler' | 'lancer' | null>(null);
   // Régime V2 · le contrôle visuel se paie en crédits, non mesuré : décoché d'office (29/10).
-  const [controleVision, setControleVision] = useState(regime !== 'v2');
+  // Pub entière · même règle que le devis (`controleCocheParDefaut`) : cochée d'office, même en V2.
+  // Avant toute consigne retenue : la règle d'avant ; l'effet ci-dessous la rejoue sur la consigne retenue.
+  const [controleVision, setControleVision] = useState(() => controleCocheParDefaut({ regime, pubEntiere: false }));
   const operation = useRef(false);
   // Le focus à replacer quand la vue relue sera RENDUE · le `setTimeout(0)` seul peut passer avant ce
   // rendu (ordonnanceur de React) · il voit alors le bouton pressé encore là, puis le rendu le retire et
   // le focus tombe sur `<body>`. L'effet ci-dessous rejoue le replacement après chaque rendu de la vue.
   const focusApresVue = useRef<string[] | null>(null);
   const controles = useRef(new Set<string>());
+  // Pub entière · le contrôle (visuel + relecture) est coché par défaut, même en V2 · une fois par consigne retenue.
+  const relectureCochee = useRef<string | null>(null);
+  useEffect(() => {
+    const r = vue?.retenue;
+    if (r && relectureCochee.current !== r.runId) { relectureCochee.current = r.runId; setControleVision(controleCocheParDefaut({ regime, pubEntiere: r.typographie === 'entiere' })); }
+  }, [vue, regime]);
 
   const charger = useCallback(async () => {
     try {
@@ -191,7 +203,11 @@ export function ParcoursImage({ projectId, versionId, initial = null }: { projec
   const d = appel.bloque ? { ...vue.disponibilite, compilation: { disponible: false, raison: MESSAGE_APPEL_PAYANT } } : vue.disponibilite;
   const modeChoisi = vue.modes.find((m) => m.mode === mode);
   // Les raisons écrites à côté des boutons fermés · l'action en cours n'en est pas une (le bouton pressé le dit lui-même).
-  const raisonCompiler = raisonFermeture(horsLigne, !d.compilation.disponible && `Indisponible · ${d.compilation.raison}`, !modeChoisi?.pret && 'Indisponible · choisis une méthode de création disponible.');
+  const pe = vue.pubEntiere;
+  const raisonEntiere = !pe ? 'Indisponible · relis l’état du visuel.' : !pe.prix ? `Indisponible · ${pe.motif}.` : pe.raisonSansCopie ? `Indisponible · ${pe.raisonSansCopie}` : '';
+  const raisonCompiler = raisonFermeture(horsLigne, !d.compilation.disponible && `Indisponible · ${d.compilation.raison}`, !modeChoisi?.pret && 'Indisponible · choisis une méthode de création disponible.', typographie === 'entiere' && !!raisonEntiere && raisonEntiere);
+  const retenueEntiere = vue.retenue?.typographie === 'entiere';
+  const prixAffiche = retenueEntiere && pe?.prix ? pe.prix : vue.prix;
   const raisonRetenir = raisonFermeture(horsLigne, !d.retenir.disponible && d.retenir.raison);
   const raisonLancer = raisonFermeture(horsLigne, !d.lancement.disponible && d.lancement.raison);
   const ancienneFidele = vue.enAttente?.mode === 'faithful_composite';
@@ -203,7 +219,7 @@ export function ParcoursImage({ projectId, versionId, initial = null }: { projec
 
   const compiler = () => agir('compiler', async () => {
     setQuestions([]);
-    const r = await compilerConsigneImage({ projectId, mode });
+    const r = await compilerConsigneImage({ projectId, mode, ...(typographie === 'entiere' ? { typographie } : {}) });
     // Des questions · rien n'est compilé, le geste n'a pas réussi (même lecture que la V5).
     if (r.ok && r.statut === 'questions') {
       setQuestions(r.questions);
@@ -239,6 +255,27 @@ export function ParcoursImage({ projectId, versionId, initial = null }: { projec
                 {m.mode === 'faithful_composite' ? 'Conserver la photo du produit, créer le décor' : 'Créer une mise en scène à partir de la photo'}{m.pret ? '' : ' · indisponible'}
               </button>
             ))}
+          </div>
+          <div style={{ display: 'grid', gap: 6 }} data-etape="typographie">
+            <div className="kc" role="group" aria-label="Textes de la pub">
+              {(['calques', 'entiere'] as const).map((t) => (
+                <button key={t} type="button" className="chip" style={CIBLE} aria-pressed={t === typographie} data-typographie={t}
+                  aria-describedby={t === 'entiere' && raisonEntiere ? `${id}-entiere` : undefined}
+                  {...boutonAction({ occupe: !!enCours, ferme: t === 'entiere' && !!raisonEntiere, surClic: () => setTypographie(t) })}>
+                  {LIBELLES_TYPOGRAPHIE[t]}{t === TYPOGRAPHIE_PAR_DEFAUT ? ' · par défaut' : ''}
+                </button>
+              ))}
+            </div>
+            {raisonEntiere && <RaisonFermee id={`${id}-entiere`} cle="typographie-entiere">{raisonEntiere}</RaisonFermee>}
+            <small className="faint" style={{ fontSize: '11.5px' }} data-champ="portee-typographie">{PORTEE_TYPOGRAPHIE[typographie].garantit} {PORTEE_TYPOGRAPHIE[typographie].reserve}</small>
+            {typographie === 'entiere' && pe?.copie && (
+              <div className="sugg" data-champ="copie-dessinee">
+                <p style={{ fontSize: '12.5px' }}>Textes dessinés mot pour mot par le générateur{pe.libelleMoteur ? ` (${pe.libelleMoteur})` : ''}{pe.prix ? ` · une image · ${libelleCredits(pe.prix.credits)}` : ''}.</p>
+                <CopieListe c={pe.copie} />
+                {pe.formatServi && <small className="faint" style={{ display: 'block', fontSize: '11.5px', marginTop: 4 }} data-champ="format-servi">{pe.formatServi}</small>}
+                {pe.ecartes.length > 0 && <small className="faint" style={{ display: 'block', fontSize: '11.5px', marginTop: 4 }} data-champ="textes-ecartes">Hors de l’image · {pe.ecartes.map((x) => `« ${x.texte} » (${x.raison})`).join(' · ')}</small>}
+              </div>
+            )}
           </div>
           {arme === 'compiler' ? (
             <div className="sugg" data-confirmation="compiler">
@@ -290,12 +327,15 @@ export function ParcoursImage({ projectId, versionId, initial = null }: { projec
       {verdictOk && (
         <div style={{ display: 'grid', gap: 8 }} data-etape="devis">
           <div className="lbl" style={{ margin: 0 }}>Prix de ton image</div>
-          <p style={{ fontSize: '12.5px' }} data-prix="annonce">Une image · {libellePrix(vue.prix)} · barème du produit.</p>
+          <p style={{ fontSize: '12.5px' }} data-prix="annonce">Une image · {libellePrix(prixAffiche)} · {retenueEntiere ? `pub entière${pe?.libelleMoteur ? `, ${pe.libelleMoteur}` : ''}, prix du catalogue` : 'barème du produit'}.</p>
           {vue.controleVision?.disponible && (
-            <button type="button" className="chip" aria-pressed={controleVision} data-case="controle-vision" onClick={() => setControleVision((c) => !c)}>
-              <Ic n={controleVision ? 'check' : 'x'} />{libelleCaseControleVisuel(creditsAppelAnnonceMicros(regime, vue.controleVision.borneParImageUsdMicros))}
+            <button type="button" className="chip" style={CIBLE} aria-pressed={controleVision} data-case="controle-vision" onClick={() => setControleVision((c) => !c)}>
+              <Ic n={controleVision ? 'check' : 'x'} />{retenueEntiere && pe
+                ? libelleCaseRelecturePubEntiere(creditsAppelAnnonceMicros(regime, pe.borneControleParImageUsdMicros))
+                : libelleCaseControleVisuel(creditsAppelAnnonceMicros(regime, vue.controleVision.borneParImageUsdMicros))}
             </button>
           )}
+          {retenueEntiere && !vue.controleVision?.disponible && <small className="faint" style={{ fontSize: '11.5px' }} data-champ="sans-relecture">Relecture indisponible ici · la pub entière sera livrée sans relecture automatique, relis-la toi-même.</small>}
           <div className="kc" style={{ alignItems: 'center' }}>
             <button className="btn sm" type="button" data-bouton="devis" style={CIBLE} aria-describedby={raisonDevis ? `${id}-devis` : undefined}
               {...boutonAction({ presse: enCours === 'devis', occupe: !!enCours, ferme: !d.devis.disponible || horsLigne, surClic: () => void agir('devis', () => demanderDevisImage({ projectId, controleVision: !!vue.controleVision?.disponible && controleVision }), 'Devis prêt · relis le prix avant d’approuver.') })}>
@@ -334,7 +374,10 @@ export function ParcoursImage({ projectId, versionId, initial = null }: { projec
           <div className="lbl" style={{ margin: 0 }}>Tes visuels</div>
           {vue.jobs.map((j) => <CarteJob key={j.id} j={j} vue={vue} enCours={enCours} horsLigne={horsLigne} devisPossible={d.devis.disponible}
             surAnnuler={() => void agir(`annuler:${j.id}`, () => annulerJob({ jobId: j.id }), 'Annulation demandée.')}
-            surRelire={(constats) => void agir(`relire:${j.id}`, () => trancherComposants({ jobId: j.id, constats }), 'Relecture enregistrée.')} />)}
+            surRelire={(constats) => void agir(`relire:${j.id}`, () => trancherComposants({ jobId: j.id, constats }), 'Relecture enregistrée.')}
+            surDecider={(vers) => void agir(vers === 'passed' ? `accepter:${j.id}` : `ecarter:${j.id}`, () => (vers === 'passed'
+              ? accepterMedia({ jobId: j.id, raison: 'Pub entière relue « à reprendre », acceptée par une personne' })
+              : rejeterMedia({ jobId: j.id, raison: 'Pub entière écartée après relecture' })), vers === 'passed' ? 'Pub acceptée.' : 'Pub écartée.')} />)}
         </div>
       )}
     </section>
@@ -346,6 +389,9 @@ function DetailsConsigne({ c }: { c: ConsigneVue }) {
     <div style={{ display: 'grid', gap: 4, marginTop: 6, fontSize: '12.5px' }}>
       <p data-champ="instruction">{c.generationInstruction}</p>
       <small className="faint" style={{ fontSize: '11.5px' }}>Mode · {c.libelleMode} · format {c.format.largeur} × {c.format.hauteur} · compilée le {date(c.compileeLe)}</small>
+      {c.libelleTypographie && <small className="faint" style={{ fontSize: '11.5px' }} data-champ="typographie">Textes · {c.libelleTypographie}</small>}
+      {c.copie && <CopieListe c={c.copie} />}
+      {c.limitesPubEntiere && c.limitesPubEntiere.length > 0 && <small className="faint" style={{ fontSize: '11.5px' }} data-champ="limites-pub-entiere">{c.limitesPubEntiere.join(' ')}</small>}
       {c.protectedComponents.length > 0 && <small className="faint" style={{ fontSize: '11.5px' }} data-champ="proteges">Composants protégés · {c.protectedComponents.join(', ')}.</small>}
       {c.negativeConstraints.length > 0 && <small className="faint" style={{ fontSize: '11.5px' }} data-champ="interdits">À éviter · {c.negativeConstraints.join(' · ')}</small>}
       <small className="faint" style={{ fontSize: '11.5px' }} data-champ="liaisons">
@@ -357,9 +403,52 @@ function DetailsConsigne({ c }: { c: ConsigneVue }) {
   );
 }
 
-function CarteJob({ j, vue, enCours, horsLigne, devisPossible, surAnnuler, surRelire }: {
+/** La copie dessinée, rôle par rôle · ce que la relecture comparera mot pour mot. */
+function CopieListe({ c }: { c: CopieDessinee }) {
+  const lignes: Array<[string, string]> = [['Accroche', c.headline], ...(c.subhead ? [['Sous-titre', c.subhead] as [string, string]] : []), ...c.benefits.map((b, i) => [`Puce ${i + 1}`, b] as [string, string]), ...(c.cta ? [['Bouton', c.cta] as [string, string]] : [])];
+  return <ul style={{ margin: '4px 0 0', paddingLeft: 18, fontSize: '12.5px' }} data-champ="copie">{lignes.map(([r, t]) => <li key={r}>{r} · « {t} »</li>)}</ul>;
+}
+
+/**
+ * Pub entière · le verdict de la relecture sur le rendu · « à reprendre » dit
+ * pourquoi et n'est pas définitif : la personne accepte quand même ou écarte
+ * (`deciderQualite`). Aucune reprise automatique. Une relecture absente dit sa
+ * VRAIE raison (pas au devis, non enregistrée, ou le motif écrit par le serveur).
+ */
+function RelectureJob({ j, enCours, horsLigne, surDecider }: { j: JobImageVue; enCours: string | null; horsLigne: boolean; surDecider: (vers: 'passed' | 'rejected') => void }) {
+  const id = useId();
+  if (!j.pubEntiere || j.etat !== 'completed') return null;
+  const r = j.relecture;
+  if (!r) {
+    const texte = j.qualite === 'pending' && j.relectureAuDevis ? 'Pub entière · relecture en attente.'
+      : !j.relectureAuDevis ? 'Pub entière · non relue (la relecture n’était pas au devis) · relis les textes toi-même.'
+      : 'Pub entière · relecture au devis mais non enregistrée · relis les textes toi-même.';
+    return <small className="faint" style={{ display: 'block', fontSize: '11.5px' }} data-relecture-pub="aucune">{texte}</small>;
+  }
+  const raisonDecider = raisonFermeture(horsLigne);
+  return (
+    <div style={{ marginTop: 4 }} data-relecture-pub={r.statut}>
+      <small style={{ display: 'block', fontSize: '11.5px' }}><span className={`pill ${r.statut === 'conforme' ? 'g' : 'w'}`}>{r.libelle}</span>{r.statut === 'a_reprendre' ? ' Raison' : ''}</small>
+      {r.raisons.length > 0 && <ul style={{ margin: '4px 0 0', paddingLeft: 18, fontSize: '11.5px' }} data-champ="raisons-relecture">{r.raisons.map((x) => <li key={x}>{x}</li>)}</ul>}
+      {r.nonVerifie.length > 0 && <small className="faint" style={{ display: 'block', fontSize: '11.5px' }}>Non vérifié · {r.nonVerifie.join(' · ')}</small>}
+      {r.statut === 'a_reprendre' && <small className="faint" style={{ display: 'block', fontSize: '11.5px' }}>Aucune reprise automatique · pour régénérer, redemande un prix, rien n’est débité sans ton accord.</small>}
+      {r.statut !== 'conforme' && j.qualite === 'requires_review' && (
+        <div className="kc" style={{ marginTop: 6, alignItems: 'center' }} data-decision-pub={j.id}>
+          <button className="btn sm" type="button" data-bouton="accepter-pub" style={CIBLE} aria-describedby={raisonDecider ? `${id}-decider` : undefined}
+            {...boutonAction({ presse: enCours === `accepter:${j.id}`, occupe: !!enCours, ferme: !!raisonDecider, surClic: () => surDecider('passed') })}>Accepter quand même</button>
+          <button className="btn sm" type="button" data-bouton="ecarter-pub" style={CIBLE} aria-describedby={raisonDecider ? `${id}-decider` : undefined}
+            {...boutonAction({ presse: enCours === `ecarter:${j.id}`, occupe: !!enCours, ferme: !!raisonDecider, surClic: () => surDecider('rejected') })}>Écarter cette pub</button>
+          {raisonDecider && <RaisonFermee id={`${id}-decider`} cle="decider-pub">{raisonDecider}</RaisonFermee>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CarteJob({ j, vue, enCours, horsLigne, devisPossible, surAnnuler, surRelire, surDecider }: {
   j: JobImageVue; vue: VueParcoursImage; enCours: string | null; horsLigne: boolean; devisPossible: boolean;
   surAnnuler: () => void; surRelire: (constats: Array<{ composant: string; present: boolean | null }>) => void;
+  surDecider: (vers: 'passed' | 'rejected') => void;
 }) {
   const [choix, setChoix] = useState<Record<string, boolean>>({});
   const id = useId();
@@ -375,6 +464,7 @@ function CarteJob({ j, vue, enCours, horsLigne, devisPossible, surAnnuler, surRe
         {j.raisonEchec && <small style={{ display: 'block', fontSize: '11.5px' }} data-champ="raison">Raison · {j.raisonEchec}</small>}
         {j.media && <small className="faint" style={{ display: 'block', fontSize: '11.5px' }}>Ton image est enregistrée dans le projet.</small>}
         {j.media && <small style={{ display: 'block', fontSize: '11.5px' }}><span className={`pill ${CLASSE_QUALITE[j.qualite] ?? ''}`} data-qualite={j.qualite}>Qualité</span> {j.libelleQualite}</small>}
+        <RelectureJob j={j} enCours={enCours} horsLigne={horsLigne} surDecider={surDecider} />
         {!j.media && j.etat === 'completed' && <small style={{ display: 'block', fontSize: '11.5px' }}>Le fichier n’est pas lisible dans les médias du projet · écris au support avec l’identifiant {j.id}.</small>}
         {j.qualite === 'requires_review' && vue.peutRelire && vue.composantsObligatoires.length > 0 && (
           <div className="sugg" data-relecture={j.id} style={{ marginTop: 8, display: 'grid', gap: 6 }}>
