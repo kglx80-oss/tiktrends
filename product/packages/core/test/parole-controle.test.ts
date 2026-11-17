@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   controlerParole, suiteControleParole, nombreEnLettres, cleParole, motsParole,
-  ECARTS_TOLERES, MESURE_CORPUS_PAROLE, REPRISES_PAROLE_MAX, PRISES_REELLES_MESUREES, EFFECTIF_PRISES_REELLES_MIN, modeControleParole,
+  ECARTS_TOLERES, MESURE_CORPUS_PAROLE, REPRISES_PAROLE_MAX, PRISES_REELLES_MESUREES, prixRepriseDuClip, EFFECTIF_PRISES_REELLES_MIN, modeControleParole,
 } from '../src';
 import { CORPUS_PAROLE, estVarianteParole } from '../src/studios/video/corpus-parole';
 
@@ -145,5 +145,25 @@ describe('observation d’abord · tant que le seuil n’est pas mesuré sur de 
     const p = { famille: 'variante · nombres' as const, replique: 'a', transcription: 'a' };
     expect(modeControleParole(Array.from({ length: EFFECTIF_PRISES_REELLES_MIN - 1 }, () => p))).toBe('observation');
     expect(modeControleParole(Array.from({ length: EFFECTIF_PRISES_REELLES_MIN }, () => p))).toBe('decision');
+  });
+});
+
+describe('prix d’une reprise · celui de la ligne approuvée, jamais deviné', () => {
+  it('ligne clip:<plan> approuvée ⇒ unités × tarif + contrôle', () => {
+    expect(prixRepriseDuClip([{ operation: 'clip:s1', unites: 6, credits: 40, usdMicros: 70_000 }], 'clip:s1', 10_000)).toEqual({ credits: 240, usdMicros: 430_000 });
+  });
+  it.each([
+    ['absente', [{ operation: 'clip:s2', unites: 6, credits: 40, usdMicros: 70_000 }]],
+    ['tarif illisible', [{ operation: 'clip:s1', unites: 6, credits: 'x', usdMicros: 70_000 }]],
+    ['unités illisibles', [{ operation: 'clip:s1', unites: 0, credits: 40, usdMicros: 70_000 }]],
+    ['pas une liste', null],
+  ])('ligne %s ⇒ prix inconnu (null), jamais 0 crédit', (_, lignes) => {
+    expect(prixRepriseDuClip(lignes, 'clip:s1', 10_000)).toBeNull();
+  });
+  it('prix inconnu ⇒ la proposition le dit et demande un devis', () => {
+    const ecart = controlerParole('Un shampooing sans sulfate.', 'Un shampooing sulfate.');
+    const s = suiteControleParole({ verdict: ecart, reprisesFaites: 0, repriseApprouvee: false, prixReprise: null, mode: 'decision' });
+    expect(s).toMatchObject({ suite: 'proposer_reprise', prix: null });
+    expect(s.raison).toMatch(/prix inconnu · redemande un devis/);
   });
 });

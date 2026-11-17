@@ -97,6 +97,8 @@ export const PIXELS_HORS_CARTON_MAX = 50;
  */
 export const DELAI_SOUS_TITRES_MS = 180_000;
 const OCTETS_MAX = 256 * 1024 * 1024;
+/** Une trame AAC à 48 kHz, arrondie au-dessus · la granularité d'une piste audio copiée. */
+const TRAME_AAC_MS = Math.ceil((1024 / 48_000) * 1000);
 
 function lancer(bin: string, args: string[], o: { delaiMs: number; env?: NodeJS.ProcessEnv; binaire?: boolean }): Promise<{ code: number | null; stdout: Buffer; stderr: string; absent: boolean }> {
   return new Promise((resolve) => {
@@ -168,22 +170,34 @@ export async function brulerSousTitresFfmpeg(e: EntreeSousTitres, o: OptionsSous
     if (r.code !== 0) {
       // Le stderr brut (chemins temporaires, messages techniques) ne sort jamais vers l'écran.
       const detail = r.stderr.trim().split('\n').slice(-3).join(' ').slice(0, 300) || `code ${r.code}`;
-      const motif = /No such filter: '?(ass|subtitles)'?|Filter not found/i.test(r.stderr) ? 'filtre ass absent du serveur (ffmpeg sans libass)' : 'ffmpeg a refusé la passe des sous-titres';
+      const motif = /No such filter: '?(ass|subtitles)'?|Filter not found/i.test(r.stderr) ? 'sous-titres indisponibles sur ce serveur' : 'la passe des sous-titres a échoué sur ce serveur';
       return { ...refus('rendu', motif), detail };
     }
     const taille = (await stat(sortie).catch(() => null))?.size ?? 0;
     if (taille === 0 || taille > OCTETS_MAX) return refus('verification', `fichier produit vide ou trop volumineux (${taille} octets)`);
 
     // Relecture · flux, dimensions, durée.
-    const p = await lancer(ffprobe, ['-v', 'error', '-protocol_whitelist', 'file', '-f', 'mp4', '-show_entries', 'stream=codec_type,codec_name,width,height:format=duration', '-of', 'json', sortie], { delaiMs, env: o.env });
+    const sonder = (f: string) => lancer(ffprobe, ['-v', 'error', '-protocol_whitelist', 'file', '-f', 'mp4', '-show_entries', 'stream=codec_type,codec_name,width,height,duration:format=duration', '-of', 'json', f], { delaiMs, env: o.env });
+    const p = await sonder(sortie);
     if (p.absent) return refus('binaire', 'ffprobe absent du serveur');
-    let info: { streams?: Array<{ codec_type?: string; codec_name?: string; width?: number; height?: number }>; format?: { duration?: string } } = {};
+    let info: { streams?: Array<{ codec_type?: string; codec_name?: string; width?: number; height?: number; duration?: string }>; format?: { duration?: string } } = {};
     try { info = JSON.parse(p.stdout.toString('utf8')); } catch { return refus('verification', 'relecture du fichier produit illisible'); }
     const video = info.streams?.find((x) => x.codec_type === 'video');
     const dureeMs = Math.round(Number(info.format?.duration ?? 'NaN') * 1000);
     if (!video || video.codec_name !== 'h264' || video.width !== e.largeur || video.height !== e.hauteur) return refus('verification', 'flux vidéo produit non conforme (codec ou dimensions)');
-    const uneImageMs = (1000 * e.fps.den) / e.fps.num;
-    if (!Number.isFinite(dureeMs) || Math.abs(dureeMs - e.dureeMs) > uneImageMs + 100) return refus('verification', `durée produite ${dureeMs} ms, attendue ${e.dureeMs} ms`);
+    // Même durée que le MP4 assemblé, à UNE image près (la passe réencode à la cadence du montage).
+    const uneImageMs = Math.ceil((1000 * e.fps.den) / e.fps.num);
+    if (!Number.isFinite(dureeMs) || Math.abs(dureeMs - e.dureeMs) > uneImageMs) return refus('verification', `durée produite ${dureeMs} ms, attendue ${e.dureeMs} ms`);
+    // La piste audio est COPIÉE · sa durée relue doit être celle de l'entrée, à une trame AAC près (1 024 / 48 000 s).
+    const audioSortie = info.streams?.find((x) => x.codec_type === 'audio');
+    if (audioSortie) {
+      let avant: typeof info = {};
+      try { avant = JSON.parse((await sonder(entree)).stdout.toString('utf8')); } catch { return refus('verification', 'relecture de la piste audio d’entrée illisible'); }
+      const ms = (x: { duration?: string } | undefined) => Math.round(Number(x?.duration ?? 'NaN') * 1000);
+      const attendu = ms(avant.streams?.find((x) => x.codec_type === 'audio'));
+      const produit = ms(audioSortie);
+      if (Number.isFinite(attendu) && (!Number.isFinite(produit) || Math.abs(produit - attendu) > TRAME_AAC_MS)) return refus('verification', `durée audio produite ${produit} ms, attendue ${attendu} ms`);
+    }
 
     // Le texte est-il sur l'image ? Entrée et sortie comparées au même instant.
     const mesures: MesureImage[] = [];

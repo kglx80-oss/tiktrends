@@ -6,10 +6,10 @@ import { schema, eq, and, sql, asc } from '@tiktrends/db';
 import {
   lireSnapshotJob, estParametresClip, planDeClip, controleParoleApprouve, repriseParoleApprouvee, controlerParole, suiteControleParole,
   transitionQualite, estErreurCertaine, motsPourJournal, modeControleParole, priseAControler, langueDuProjet, prixRepriseDuClip, ACTION_AUDIT_CONTROLE_PAROLE, ACTION_AUDIT_CONTROLE_PAROLE_ESSAI,
-  type ModeControleParole,
+  idDepenseControleParole, type ModeControleParole,
   type ContenuVersion, type StockageStudio, type TranscriptionLue,
 } from '@tiktrends/core';
-import type { DemandeTranscription } from '@tiktrends/integrations';
+import { DELAI_TRANSCRIPTION_FAL_MS, type DemandeTranscription } from '@tiktrends/integrations';
 import type { BaseStudio, JobStudio } from './types';
 
 /**
@@ -47,6 +47,12 @@ export const PRISES_PAR_TOUR = 5;
  * contrôlé ». Même borne que le transcripteur (`ESSAIS_TRANSCRIPTION_MAX`).
  */
 export const ESSAIS_CONTROLE_PAROLE_MAX = 3;
+/**
+ * Délai après lequel une transcription engagée sans verdict (ligne réservée, aucun audit final) est
+ * conclue « issue incertaine » · la transcription elle-même est bornée à `DELAI_TRANSCRIPTION_FAL_MS`
+ * (40 s) ; trois fois cette borne laissent l'autre worker finir et écrire. Politique, pas une mesure.
+ */
+export const DELAI_ISSUE_INCERTAINE_MS = 3 * DELAI_TRANSCRIPTION_FAL_MS;
 /** Mesure ffprobe d'une prise · mesurée sous 0,1 s (`decodeur-video.ts`) ; 10 s tiennent dans le budget d'arrêt. */
 export const DELAI_MESURE_PRISE_MS = 10_000;
 /** Mots conservés au journal · une prise de 90 s parlée en compte quelques centaines. */
@@ -107,6 +113,11 @@ interface Issue {
   aReprendre: boolean;
   /** Erreur passagère · un nouvel essai a un sens (borné par `ESSAIS_CONTROLE_PAROLE_MAX`). */
   passagere?: boolean;
+  /**
+   * La ligne de dépense de CET essai est déjà réservée (un autre worker transcrit, ou un worker a payé puis
+   * s'est arrêté avant d'écrire) · on attend, sans compter d'essai ni passer à l'essai suivant.
+   */
+  engagee?: { essai: number };
 }
 
 /** Les prises à contrôler · clips livrés, qualité en attente, ligne approuvée, jamais contrôlés. */
@@ -136,6 +147,7 @@ async function essaisFaits(base: BaseStudio, jobId: string): Promise<number> {
 }
 
 async function examiner(d: DependancesControleParole, job: JobStudio, essai: number): Promise<Issue> {
+  // \`essai\` sert aussi à nommer la ligne de dépense (\`idDepenseControleParole\`).
   const snap = lireSnapshotJob(job.snapshot);
   const sansObjet = (raison: string, details: Record<string, unknown> = {}): Issue => ({ suite: 'sans_objet', raison, details, aReprendre: false });
   const nonControle = (raison: string, details: Record<string, unknown> = {}): Issue => ({ suite: 'non_controle', raison, details, aReprendre: false });
@@ -178,7 +190,11 @@ async function examiner(d: DependancesControleParole, job: JobStudio, essai: num
   } catch (e) {
     const certain = estErreurCertaine(e);
     // Passagère (fal surchargé, réseau) ou déjà engagée par un autre worker (qui conclura) · nouvel essai au tour suivant.
-    if ((e as { passagere?: boolean }).passagere || (e as { dejaEngagee?: boolean }).dejaEngagee) {
+    // Déjà engagée · JAMAIS un essai de plus (il aurait sa propre ligne, donc un second paiement).
+    if ((e as { dejaEngagee?: boolean }).dejaEngagee) {
+      return { suite: 'non_controle', raison: 'transcription engagée sans verdict · issue incertaine, réserve gardée, aucune seconde transcription', details: { ...base, dureeMs: mesure.dureeMs, issueFinanciere: 'incertaine' }, aReprendre: false, engagee: { essai } };
+    }
+    if ((e as { passagere?: boolean }).passagere) {
       return passagere(`transcription non conclue · ${(e as Error).message.slice(0, 200)}`, { ...base, dureeMs: mesure.dureeMs });
     }
     return nonControle(`transcription impossible · ${(e as Error).message.slice(0, 200)}`, { ...base, dureeMs: mesure.dureeMs, issueFinanciere: certain ? 'aucun_frais' : 'incertaine' });
@@ -214,7 +230,16 @@ export async function controlerParolesEnAttente(d: DependancesControleParole, li
     // SIGTERM · aucune prise n'est plus entamée ; celle en cours finit (étape bornée, `PHASES_CONTROLE_PAROLE`).
     if (d.arretDemande?.()) break;
     const faits = await essaisFaits(d.base, job.id);
-    let issue = await examiner(d, job, Math.min(faits + 1, ESSAIS_CONTROLE_PAROLE_MAX));
+    const essai = Math.min(faits + 1, ESSAIS_CONTROLE_PAROLE_MAX);
+    let issue = await examiner(d, job, essai);
+    if (issue.engagee) {
+      // Rien n'est écrit tant qu'une transcription de cet essai peut encore aboutir chez l'autre worker ;
+      // passé le délai (lu sur la date de la ligne réservée), verdict final « issue incertaine ».
+      const [l] = await d.base.select({ creee: schema.aiSpend.createdAt }).from(schema.aiSpend)
+        .where(eq(schema.aiSpend.id, idDepenseControleParole(job.id, String(issue.details.operation), issue.engagee.essai))).limit(1);
+      const maintenant = (d.horloge?.() ?? new Date()).getTime();
+      if (!l || maintenant - l.creee.getTime() < DELAI_ISSUE_INCERTAINE_MS) continue;
+    }
     if (issue.passagere) {
       if (faits + 1 < ESSAIS_CONTROLE_PAROLE_MAX) {
         // Essai non conclusif · compté, la prise reste candidate.

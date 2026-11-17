@@ -12,7 +12,10 @@ import {
 } from '@tiktrends/core';
 import type { DemandeTranscription } from '@tiktrends/integrations';
 import { ErreurFournisseurIncertaine } from '@tiktrends/core';
-import { controlerParolesEnAttente, mesurerPriseFfprobe, ACTION_CONTROLE_PAROLE, ESSAIS_CONTROLE_PAROLE_MAX, type DependancesControleParole } from '../src/studios/controle-parole';
+import { controlerParolesEnAttente, mesurerPriseFfprobe, ACTION_CONTROLE_PAROLE, ESSAIS_CONTROLE_PAROLE_MAX, DELAI_ISSUE_INCERTAINE_MS, type DependancesControleParole } from '../src/studios/controle-parole';
+import { BarriereDepenseStudio, TranscripteurFal } from '@tiktrends/integrations';
+import { idDepenseControleParole } from '@tiktrends/core';
+import { portDepenseBase } from '../src/studios/fournisseurs';
 import type { BaseStudio } from '../src/studios/types';
 import { pgMemoire } from './pg-memoire';
 
@@ -84,6 +87,29 @@ async function semerPrise(o: { parole?: boolean; octets?: Uint8Array; clip?: Rec
   const [j] = await base.insert(schema.studioJobs).values({ workspaceId: ws, brandId: brand, projectId: projet, projectVersionId: o.versionId ?? version, operation: OPERATION_JOB_STUDIO, idempotencyKey: `k-${randomUUID()}`, inputHash: h, snapshot, createdBy: user, state: 'completed', result: { assets: { 'clip:s1': a!.id } } }).returning();
   return j!.id;
 }
+
+/**
+ * La VRAIE barrière (registre \`ai_spend\` en base) et le VRAI transcripteur, contre un fetch
+ * qui compte les requêtes PAYANTES reçues · la seule mesure de ce qui aurait été facturé.
+ */
+let postsPayants = 0;
+const transcripteurReel = (retenue?: Promise<void>) => {
+  postsPayants = 0;
+  const f = (async (_u: string, init?: RequestInit) => {
+    if (init?.method === 'POST') postsPayants += 1;
+    if (retenue && postsPayants === 1) await retenue;
+    return Response.json({ text: REPLIQUE, language_code: 'fra', words: REPLIQUE.split(' ').map((t, i) => ({ text: t, start: 0.1 + i * 0.3, end: 0.35 + i * 0.3, type: 'word' })) });
+  }) as typeof fetch;
+  return new TranscripteurFal({ apiKey: 'cle-fal-de-test:secret', fetch: f, barriere: new BarriereDepenseStudio({ port: portDepenseBase(base), env: { AI_SPEND_CAP_USD: '10' } }) });
+};
+const depenseTranscription = async (jobId: string) => {
+  let t = 0;
+  for (const essai of [1, 2, 3]) {
+    const [l] = await base.select({ a: schema.aiSpend.actualUsd }).from(schema.aiSpend).where(eq(schema.aiSpend.id, idDepenseControleParole(jobId, 'clip:s1', essai)));
+    t += l?.a ?? 0;
+  }
+  return t;
+};
 
 const transcription = (texte: string): TranscriptionLue => ({ texte, langue: 'fra', mots: texte.split(' ').map((t, i) => ({ texte: t, debutMs: 100 + i * 300, finMs: 350 + i * 300 })) });
 const deps = (o: Partial<DependancesControleParole> = {}): DependancesControleParole => ({
@@ -221,14 +247,43 @@ describe('contrôle de la parole des prises livrées', () => {
     expect(appels.at(-1)!.essai).toBe(2);
   });
 
-  it('course à deux workers · une transcription déjà engagée par l’autre n’écrit pas « non contrôlé »', async () => {
+  it('UNE transcription payée par ligne approuvée · plantage après paiement : rien n’est repayé, verdict « issue incertaine » après le délai', async () => {
     await viderFile();
     const job = await semerPrise();
-    const course = deps({ transcrire: async () => { throw Object.assign(new ErreurFournisseurIncertaine('déjà engagée · réconciliation, aucune seconde soumission'), { dejaEngagee: true }); } });
-    expect(await controlerParolesEnAttente(course)).toEqual([]);
+    const reel = transcripteurReel();
+    // Un worker a payé la transcription de l'essai 1 puis s'est arrêté net (SIGKILL) AVANT la transaction finale.
+    await reel.transcrire({ workspaceId: ws, jobId: job, operation: 'clip:s1', essai: 1, audioUrl: 'https://stockage.test/p.mp4', dureeMs: 2_000, approuveUsdMicros: 10_000 });
+    expect(postsPayants).toBe(1);
+    // Tour suivant · la ligne de cet essai est déjà réservée : on attend, rien n'est écrit, rien n'est repayé.
+    expect(await controlerParolesEnAttente(deps({ transcrire: (d) => reel.transcrire(d) }))).toEqual([]);
+    expect(await controlerParolesEnAttente(deps({ transcrire: (d) => reel.transcrire(d) }))).toEqual([]);
+    expect(postsPayants).toBe(1);
     expect(await audit(job)).toHaveLength(0);
-    // L'autre conclut · plus rien à faire ici.
-    expect(await controlerParolesEnAttente(deps())).toMatchObject([{ jobId: job, suite: 'conforme' }]);
+    // Passé le délai d'une transcription · verdict final, réserve gardée.
+    const plusTard = new Date(Date.now() + DELAI_ISSUE_INCERTAINE_MS + 60_000);
+    const [r] = await controlerParolesEnAttente(deps({ transcrire: (d) => reel.transcrire(d), horloge: () => plusTard }));
+    expect(r).toMatchObject({ jobId: job, suite: 'non_controle' });
+    expect(r!.raison).toMatch(/issue incertaine/);
+    expect(postsPayants).toBe(1);
+    expect(await depenseTranscription(job)).toBeCloseTo(0.01, 6);
+  });
+
+  it('UNE transcription payée par ligne approuvée · deux workers sur la même prise', async () => {
+    await viderFile();
+    const job = await semerPrise();
+    // Le worker A est DANS sa requête payante (réponse retenue) pendant que le worker B fait deux tours.
+    let liberer: () => void = () => {};
+    const retenue = new Promise<void>((r) => { liberer = r; });
+    const reel = transcripteurReel(retenue);
+    const a = controlerParolesEnAttente(deps({ transcrire: (d) => reel.transcrire(d) }));
+    while (postsPayants === 0) await new Promise((r) => setTimeout(r, 5));
+    expect(await controlerParolesEnAttente(deps({ transcrire: (d) => reel.transcrire(d) }))).toEqual([]);
+    expect(await controlerParolesEnAttente(deps({ transcrire: (d) => reel.transcrire(d) }))).toEqual([]);
+    liberer();
+    expect(await a).toMatchObject([{ jobId: job, suite: 'conforme' }]);
+    expect(await controlerParolesEnAttente(deps({ transcrire: (d) => reel.transcrire(d) }))).toEqual([]);
+    expect(postsPayants).toBe(1);
+    expect(await depenseTranscription(job)).toBeCloseTo(0.01, 6);
   });
 
   it('transcription refusée (plafond, fournisseur) · « non contrôlé », écrit une fois, jamais retenté', async () => {

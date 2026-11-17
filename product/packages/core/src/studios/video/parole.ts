@@ -367,7 +367,7 @@ export type SuiteParole =
   /** Reprise déjà approuvée dans le devis, pas encore faite · elle peut partir sans nouveau clic. */
   | { suite: 'reprendre'; raison: string }
   /** Aucune reprise approuvée · le plan est « à reprendre », la reprise est PROPOSÉE avec son prix, jamais lancée. */
-  | { suite: 'proposer_reprise'; raison: string; prix: PrixReprise }
+  | { suite: 'proposer_reprise'; raison: string; prix: PrixReprise | null }
   /** La reprise autorisée a déjà eu lieu · plus aucune relance, revue humaine. */
   | { suite: 'revue'; raison: string };
 
@@ -376,12 +376,13 @@ export type SuiteParole =
  * seulement si elle est DÉJÀ dans le devis approuvé ; sinon proposition de
  * reprise avec son prix (annoncé avant le clic, jamais débité ici).
  */
-export function suiteControleParole(e: { verdict: Pick<VerdictParole, 'conforme' | 'raison'>; reprisesFaites: number; repriseApprouvee: boolean; prixReprise: PrixReprise; mode?: ModeControleParole }): SuiteParole {
+export function suiteControleParole(e: { verdict: Pick<VerdictParole, 'conforme' | 'raison'>; reprisesFaites: number; repriseApprouvee: boolean; prixReprise: PrixReprise | null; mode?: ModeControleParole }): SuiteParole {
   if (e.verdict.conforme) return { suite: 'conforme', raison: '' };
   const raison = e.verdict.raison;
   if ((e.mode ?? modeControleParole()) === 'observation') return { suite: 'observation', raison };
   if (!(e.reprisesFaites < REPRISES_PAROLE_MAX)) return { suite: 'revue', raison: `${raison} La reprise autorisée a déjà eu lieu · à revoir à la main, aucune relance.` };
   if (e.repriseApprouvee) return { suite: 'reprendre', raison: `${raison} Reprise prévue au devis approuvé.` };
+  if (!e.prixReprise) return { suite: 'proposer_reprise', raison: `${raison} Reprise possible, prix inconnu · redemande un devis.`, prix: null };
   return { suite: 'proposer_reprise', raison, prix: { credits: e.prixReprise.credits, usdMicros: e.prixReprise.usdMicros } };
 }
 
@@ -457,9 +458,11 @@ export function motsDuJournal(details: unknown): MotHorodate[] | null {
  * clip (ligne `clip:<plan>` de l'instantané : modèle, durée et tarif figés au
  * devis), plus le contrôle de la parole de la nouvelle prise. Jamais la grille.
  */
-export function prixRepriseDuClip(lignes: unknown, operation: string, controleUsdMicros: number): PrixReprise {
-  const l = Array.isArray(lignes) ? (lignes as Array<{ operation?: unknown; unites?: unknown; credits?: unknown; usdMicros?: unknown } | null>).find((x) => x?.operation === operation) : undefined;
-  const n = (x: unknown) => (Number.isInteger(x) && (x as number) >= 0 ? (x as number) : 0);
-  const unites = Math.max(1, n(l?.unites));
-  return { credits: n(l?.credits) * unites, usdMicros: n(l?.usdMicros) * unites + n(controleUsdMicros) };
+export function prixRepriseDuClip(lignes: unknown, operation: string, controleUsdMicros: number): PrixReprise | null {
+  if (!Array.isArray(lignes)) return null;
+  const l = (lignes as Array<{ operation?: unknown; unites?: unknown; credits?: unknown; usdMicros?: unknown } | null>).find((x) => x?.operation === operation);
+  const entier = (x: unknown): x is number => Number.isInteger(x) && (x as number) >= 0;
+  // Ligne absente ou illisible · prix INCONNU (jamais 0 crédit) : la reprise se redemande par un devis.
+  if (!l || !entier(l.unites) || l.unites < 1 || !entier(l.credits) || !entier(l.usdMicros) || !entier(controleUsdMicros)) return null;
+  return { credits: l.credits * l.unites, usdMicros: l.usdMicros * l.unites + controleUsdMicros };
 }

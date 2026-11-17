@@ -155,13 +155,27 @@ describe.skipIf(!FFMPEG)('passe réelle · ffmpeg et libass du conteneur, aucune
     const faux = join(dossier, 'ffmpeg-sans-libass');
     await writeFile(faux, "#!/bin/sh\necho \"[AVFilterGraph @ 0x55] No such filter: 'ass'\" >&2\nexit 8\n", { mode: 0o755 });
     const r = await brulerSousTitresFfmpeg(preparer(MIRE).entree, { ffmpeg: faux, env });
-    expect(r).toMatchObject({ ok: false, cause: 'rendu', motif: 'filtre ass absent du serveur (ffmpeg sans libass)' });
+    expect(r).toMatchObject({ ok: false, cause: 'rendu', motif: 'sous-titres indisponibles sur ce serveur' });
     expect(!r.ok && r.detail).toMatch(/No such filter/);
     const autre = join(dossier, 'ffmpeg-qui-casse');
     await writeFile(autre, '#!/bin/sh\necho "Error /tmp/tt-sous-titres-x/entree.mp4: Invalid data" >&2\nexit 1\n', { mode: 0o755 });
     const r2 = await brulerSousTitresFfmpeg(preparer(MIRE).entree, { ffmpeg: autre, env });
-    expect(r2).toMatchObject({ ok: false, cause: 'rendu', motif: 'ffmpeg a refusé la passe des sous-titres' });
+    expect(r2).toMatchObject({ ok: false, cause: 'rendu', motif: 'la passe des sous-titres a échoué sur ce serveur' });
     expect(!r2.ok && r2.constat.raison).not.toMatch(/tmp|Invalid/);
+  });
+
+  it.each([
+    ['vidéo plus longue de deux images', { video: 3.067, audio: 3.0 }, /durée produite 3067 ms, attendue 3000 ms/],
+    ['piste audio raccourcie', { video: 3.0, audio: 2.5 }, /durée audio produite 2500 ms, attendue 3000 ms/],
+  ])('relecture · %s ⇒ refus (tolérance d’UNE image, audio relu aussi)', async (_, d, motif) => {
+    const sonde = join(dossier, `ffprobe-${d.video}-${d.audio}`);
+    // L'entrée (le MP4 assemblé) a 3 s de vidéo et d'audio ; la sortie, ce que dit le cas.
+    const sortie = { streams: [{ codec_type: 'video', codec_name: 'h264', width: L, height: H, duration: String(d.video) }, { codec_type: 'audio', codec_name: 'aac', duration: String(d.audio) }], format: { duration: String(d.video) } };
+    const entree = { streams: [{ codec_type: 'video', codec_name: 'h264', width: L, height: H, duration: '3.0' }, { codec_type: 'audio', codec_name: 'aac', duration: '3.0' }], format: { duration: '3.0' } };
+    await writeFile(sonde, `#!/bin/sh\ncase "$*" in *sortie.mp4*) cat <<'FIN'\n${JSON.stringify(sortie)}\nFIN\n;; *) cat <<'FIN'\n${JSON.stringify(entree)}\nFIN\n;; esac\n`, { mode: 0o755 });
+    const r = await brulerSousTitresFfmpeg(preparer(MIRE).entree, { ffprobe: sonde, env });
+    expect(r).toMatchObject({ ok: false, cause: 'verification' });
+    expect(!r.ok && r.motif).toMatch(motif);
   });
 
   it('ffmpeg absent ⇒ refus « binaire », jamais un faux fichier', async () => {

@@ -157,4 +157,31 @@ describe('animation d’un plan · devis, approbation, corps fal', () => {
       brancher(true);
     }
   });
+
+  it('ligne « Contrôle de la parole » au devis · Veo en lipsync avec réplique ⇒ présente (0,01 $, borne) ; Kling ou voix off ⇒ absente', async () => {
+    // Un projet dont le plan d'ouverture parle à l'image (lipsync), son image clé produite comme plus haut.
+    const parle = await projetTest(db, ids, ids.brandA1, ids.ua, (c) => { c.shots.byId[PLAN]!.speechMode = 'lipsync'; });
+    const dk = await creerDevis(ctxDe(ids, 'ua'), { projectId: parle.projectId, operations: [`keyframe:${PLAN}`], variante: true }, base, new Date());
+    if (!dk.ok) throw new Error(dk.code);
+    const ak = await approuverEtMettreEnFile(ctxDe(ids, 'ua'), { quoteId: dk.devis.id, inputHash: dk.devis.inputHash, creditsAnnonces: dk.devis.maximumCredits, idempotencyKey: `k-${dk.devis.id}` }, { illimite: false });
+    if (!ak.ok) throw new Error(ak.code);
+    expect(await jusquAuBout(db, banc(db).moteur, ak.job.id)).toBe('completed');
+    const [a] = await db.select().from(schema.studioAssets).where(eq(schema.studioAssets.projectId, parle.projectId));
+    await db.update(schema.studioAssets).set({ storageKey: `studios/${a!.id}.png` }).where(eq(schema.studioAssets.id, a!.id));
+    const lignesParole = async (projectId: string) => {
+      const d = await creerDevis(ctxDe(ids, 'ua'), { projectId, operations: [`clip:${PLAN}`], variante: true }, base, new Date());
+      expect(d.ok, !d.ok ? `${d.code} ${d.message}` : '').toBe(true);
+      return d.ok ? d.devis.lignes.filter((l) => l.profil === 'controle_parole').map((l) => [l.operation, l.unites, l.usdMicros, l.credits, l.natureCout]) : null;
+    };
+    try {
+      vi.stubEnv('FAL_VIDEO_MODEL_STUDIO', 'fal-ai/veo3.1/fast/image-to-video');
+      expect(await lignesParole(parle.projectId)).toEqual([['controle:parole', 1, 10_000, 0, 'borne']]);
+      // Voix off (le projet du début) · même avec Veo, aucune ligne.
+      expect(await lignesParole(projet.projectId)).toEqual([]);
+      vi.stubEnv('FAL_VIDEO_MODEL_STUDIO', 'fal-ai/kling-video/v2.5-turbo/pro/image-to-video');
+      expect(await lignesParole(parle.projectId)).toEqual([]);
+    } finally {
+      vi.stubEnv('FAL_VIDEO_MODEL_STUDIO', '');
+    }
+  });
 });

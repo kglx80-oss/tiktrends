@@ -7,7 +7,7 @@ import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { assemblerVideoFfmpeg, type EntreeAssemblage, type ResultatAssemblage } from '@tiktrends/integrations';
 import {
-  aPermissionEspace, erreurStudio, planRenduFinal, nonInclusDuRendu, ORIGINE_ARCHIVE_EXPORT,
+  aPermissionEspace, erreurStudio, planRenduFinal, nonInclusDuRendu, nonInclusApresSousTitres, ORIGINE_ARCHIVE_EXPORT,
   type ContenuVersion, type ErreurStudio, type PlanRenduFinal, type StockageStudio,
 } from '@tiktrends/core';
 import type { ContexteStudio } from '../garde';
@@ -141,10 +141,18 @@ export async function assemblerVideoFinalePour(ctx: ContexteStudio, e: { project
   assemblagesEnCours += 1;
   let r: ResultatAssemblage;
   let nonInclus: string[] = [];
-  // Le MP4 assemblé reste sur disque le temps de la passe des sous-titres (lu par son chemin), puis le dossier part.
-  const sortie = await mkdtemp(join(tmpdir(), 'tt-video-finale-'));
+  let sortie: string | null = null;
   try {
-    r = await (deps.assembler ?? ((x) => assemblerVideoFfmpeg(x, { dossierSortie: sortie })))({
+    // Le MP4 assemblé reste sur disque le temps de la passe des sous-titres (lu par son chemin), puis le
+    // dossier part · créé DANS le try : un échec ici rend le verrou comme tout le reste.
+    try {
+      sortie = await mkdtemp(join(tmpdir(), 'tt-video-finale-'));
+    } catch (err) {
+      console.error(`[studios] ${ctx.traceId} vidéo finale · dossier de travail impossible · ${err instanceof Error ? err.message : 'mkdtemp'}`);
+      return erreurStudio('UNSUPPORTED_CAPABILITY', { traceId: ctx.traceId, message: 'Le serveur n’a pas d’espace de travail pour assembler la vidéo · réessaie dans un instant. Rien n’a été produit.' });
+    }
+    const dossierSortie = sortie;
+    r = await (deps.assembler ?? ((x) => assemblerVideoFfmpeg(x, { dossierSortie })))({
       segments, musique: pv.musique && plan.musique ? { octets: pv.musique, gainDb: plan.musique.gainDb } : null,
       largeur: plan.largeur, hauteur: plan.hauteur, fps: plan.fps,
     });
@@ -152,14 +160,19 @@ export async function assemblerVideoFinalePour(ctx: ContexteStudio, e: { project
       // Ce que la vidéo n'inclut pas, d'après le fichier · une prise parlée livrée avec du son a dit sa réplique.
       const base = nonInclusDuRendu(plan, r.mesure.sonDesSegments);
       // Passe séparée · le MP4 assemblé reçoit les sous-titres des mots dits, relus sur l'image, même durée.
-      const st = await passeSousTitres(db, { portee: { workspaceId: projet.workspaceId, brandId: projet.brandId }, plan, base, octets: r.octets, chemin: r.chemin, dureeMs: r.mesure.dureeMs }, deps.bruler);
+      // Une passe qui LÈVE ne perd jamais le MP4 assemblé · il est conservé tel quel, la raison dite.
+      const st = await passeSousTitres(db, { portee: { workspaceId: projet.workspaceId, brandId: projet.brandId }, plan, base, octets: r.octets, chemin: r.chemin, dureeMs: r.mesure.dureeMs }, deps.bruler)
+        .catch((err: unknown) => {
+          console.error(`[studios] ${ctx.traceId} sous-titres · passe en échec · ${err instanceof Error ? err.message : String(err)}`);
+          return { octets: r.ok ? r.octets : new Uint8Array(), dureeMs: r.ok ? r.mesure.dureeMs : 0, nonInclus: nonInclusApresSousTitres(base, { brules: false, raison: 'passe des sous-titres en échec' }), constat: null };
+        });
       // La durée conservée est celle RELUE du fichier gardé (brûlé ou non).
       r = { ...r, octets: st.octets, mesure: { ...r.mesure, dureeMs: st.dureeMs } };
       nonInclus = st.nonInclus;
     }
   } finally {
     assemblagesEnCours -= 1;
-    await rm(sortie, { recursive: true, force: true }).catch(() => {});
+    if (sortie) await rm(sortie, { recursive: true, force: true }).catch(() => {});
   }
   if (!r.ok) {
     console.error(`[studios] ${ctx.traceId} vidéo finale · ${r.cause} · ${r.motif}`);

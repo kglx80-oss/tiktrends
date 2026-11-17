@@ -329,4 +329,22 @@ describe.skipIf(!FFMPEG)('vidéo finale · assemblage réel des clips des plans'
     expect(Math.abs(dureeBrulee - (renduReel!.ok ? renduReel!.mesure.dureeMs : 0))).toBeLessThanOrEqual(1000 / 30 + 1);
     expect(a!.durationMs).toBe(dureeBrulee);
   }, DELAI_RENDU_REEL_MS);
+
+  it('dossier de travail impossible (mkdtemp) ⇒ refus dit, le verrou est rendu · l’assemblage suivant passe', async () => {
+    vi.stubEnv('TMPDIR', join(dossier, 'nexiste-pas', 'du-tout'));
+    try {
+      const r = await assemblerVideoFinalePour(ctxDe(ids, 'ua'), { projectId: projet.projectId }, { lecteur, stockage: memoire, assembler: rejoue });
+      expect(r).toMatchObject({ ok: false });
+      expect(!r.ok && r.code).not.toBe('RATE_LIMITED');
+    } finally {
+      vi.stubEnv('TMPDIR', '');
+    }
+    const ensuite = await assemblerVideoFinalePour(ctxDe(ids, 'ua'), { projectId: projet.projectId }, { lecteur, stockage: memoire, assembler: rejoue, bruler: async () => { throw new Error('libass a planté'); } });
+    // Une passe des sous-titres qui LÈVE ne perd pas le MP4 assemblé · il est conservé tel quel, la raison dite.
+    expect(ensuite.ok, !ensuite.ok ? `${ensuite.code} ${ensuite.message}` : '').toBe(true);
+    if (!ensuite.ok) return;
+    expect(ensuite.video.nonInclus).toContain('Sous-titres · non incrustés (passe des sous-titres en échec).');
+    const [a] = await db.select().from(schema.studioAssets).where(eq(schema.studioAssets.id, ensuite.video.assetId));
+    expect(Buffer.compare(Buffer.from(conserve.get(a!.storageKey)!), Buffer.from(renduReel!.ok ? renduReel!.octets : new Uint8Array()))).toBe(0);
+  }, DELAI_RENDU_REEL_MS);
 });
