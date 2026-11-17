@@ -20,7 +20,7 @@ import {
   borneControleVisionParImageMicros, controleVisionApprouve, qualifierDevis, vueLignesDevis,
   type LigneDevisVue, type QualificationTotal,
 } from '@tiktrends/core';
-import { controlerSortieParVision, refusControleVision } from '../produit/qualite';
+import { controlerSortieParVision, refusControleVision, type DependancesVision } from '../produit/qualite';
 import { lireMarqueurControleVision } from '@tiktrends/core';
 import type { ResolveurMediasTache } from '../prompts/resolveur';
 import { adaptateurAnthropicGarde, modeleTexte } from '../prompts/adaptateur';
@@ -29,6 +29,13 @@ import { spendStatus } from '../../spend-guard';
 import { annonceLogosAReimporter, type AnnonceLogosAReimporter, type LogoDuProjet } from '@tiktrends/core';
 import { etatLogosCharte, verificateurUnique, type VerifierLogo } from '../../logos-charte-etat';
 import { roleAtLeast } from '../../rbac';
+// Pub entière · choix, copie dessinée, prix catalogue annoncé avant le clic, relecture sur le rendu.
+import {
+  LIBELLES_TYPOGRAPHIE, LIBELLES_RELECTURE, CLE_RELECTURE_JOB, lireParametresImage, lireVerdictRelecture, moteurRecommande, pubEntiereDuBrief, tarifPubEntiere,
+  limitesVisiblesPubEntiere, phraseFormatServi,
+  type CopieDessinee, type StatutRelecture, type TypographieImage,
+} from '@tiktrends/core';
+import { borneControlePubMicros, CONTROLE_MODEL } from '@tiktrends/ai';
 
 /**
  * Studios · F-B · le parcours image vu de l'écran, et ses gestes.
@@ -76,6 +83,12 @@ export interface ConsigneVue {
   liaisons: Array<{ referenceId: string; libelle: string; role: string; scope: string }>;
   format: { largeur: number; hauteur: number };
   compileeLe: string;
+  /** Pub entière · le générateur dessine `copie` ; `calques` sinon (copie `null`). */
+  typographie?: TypographieImage;
+  libelleTypographie?: string;
+  copie?: CopieDessinee | null;
+  /** Pub entière · ce qui ne partira pas tel quel (références écartées, format servi), dit avant le clic. */
+  limitesPubEntiere?: string[];
 }
 
 export interface MediaVue { assetId: string; url: string; largeur: number | null; hauteur: number | null }
@@ -94,6 +107,12 @@ export interface JobImageVue {
   creditsRendus: number | null;
   media: MediaVue | null;
   creeLe: string;
+  /** Pub entière · le job a été produit en pub entière. */
+  pubEntiere?: boolean;
+  /** La ligne « contrôle visuel » (et la relecture) était au devis approuvé de ce job. */
+  relectureAuDevis?: boolean;
+  /** Pub entière · le verdict de la relecture, `null` tant qu'elle n'a pas eu lieu. */
+  relecture?: { statut: StatutRelecture; libelle: string; raisons: string[]; nonVerifie: string[] } | null;
 }
 
 export interface DevisImageVue {
@@ -118,6 +137,22 @@ export interface VueParcoursImage {
   jobs: JobImageVue[];
   /** R3 · ligne optionnelle du devis, cochée par défaut. */
   controleVision: { disponible: boolean; borneParImageUsdMicros: number };
+  /**
+   * Pub entière · ce que le choix coûte et dessinerait, dit AVANT le clic : prix
+   * catalogue du moteur du mode, borne du contrôle (visuel + relecture), copie
+   * tirée des textes du projet (ou pourquoi elle manque).
+   */
+  pubEntiere?: {
+    prix: { credits: number; usdMicros: number } | null;
+    motif: string;
+    libelleMoteur: string | null;
+    borneControleParImageUsdMicros: number;
+    copie: CopieDessinee | null;
+    raisonSansCopie: string | null;
+    ecartes: Array<{ texte: string; raison: string }>;
+    /** Le format que le générateur sert pour le format du projet, quand il diffère · `null` sinon. */
+    formatServi: string | null;
+  };
   composantsObligatoires: string[];
   peutRelire: boolean;
   /**
@@ -134,6 +169,9 @@ function vueConsigne(c: ConsigneImagePersistee, noms: ReadonlyMap<string, { libe
     generationInstruction: c.consigne.generationInstruction, negativeConstraints: [...c.consigne.negativeConstraints],
     protectedComponents: [...c.consigne.protectedComponents], liaisons: c.consigne.referenceBindings.map((b) => ({ ...b, libelle: noms.get(b.referenceId)?.libelle ?? b.referenceId })),
     format: { ...c.format }, compileeLe: c.compileeLe,
+    typographie: c.pubEntiere ? 'entiere' : 'calques', libelleTypographie: LIBELLES_TYPOGRAPHIE[c.pubEntiere ? 'entiere' : 'calques'],
+    copie: c.pubEntiere ? { ...c.pubEntiere.copie, benefits: [...c.pubEntiere.copie.benefits] } : null,
+    limitesPubEntiere: limitesVisiblesPubEntiere(c),
   };
 }
 
@@ -202,13 +240,17 @@ export async function lireParcoursImagePour(ctx: ContexteStudio, projectId: unkn
     if (!e.ok) continue;
     const idMedia = (j.result as { assets?: Record<string, string> } | null)?.assets?.[OPERATION_IMAGE];
     const m = medias.find((x) => x.id === idMedia);
+    const rl = relectureDuJob(j);
     jobs.push({
       id: j.id, etat: e.vue.etat, libelleEtat: LIBELLES_ETAT_IMAGE[e.vue.etat], message: e.vue.message,
       raisonEchec: e.vue.etat === 'failed' ? raisonEchec(j.error) : null, annulable: e.vue.annulable, terminal: e.vue.terminal,
-      qualite: e.vue.qualite, libelleQualite: libelleQualiteImage(e.vue.etat, e.vue.qualite),
+      qualite: e.vue.qualite,
+      // Pub entière · un écart venu de la RELECTURE ne se dit pas « un composant manque ».
+      libelleQualite: rl.relecture?.statut === 'a_reprendre' && e.vue.qualite === 'requires_review' ? 'À relire · la relecture demande de reprendre la pub' : libelleQualiteImage(e.vue.etat, e.vue.qualite),
       creditsReserves: e.vue.creditsReserves, creditsRendus: e.vue.creditsRendus,
       media: m ? { assetId: m.id, url: ROUTE_APERCU_MEDIA(m.id), largeur: m.width, hauteur: m.height } : null,
       creeLe: j.createdAt.toISOString(),
+      ...rl,
     });
   }
 
@@ -222,6 +264,7 @@ export async function lireParcoursImagePour(ctx: ContexteStudio, projectId: unkn
       devis, jobs, composantsObligatoires: ref ? [...ref.composantsObligatoires] : [],
       // R3 · la case « contrôle visuel » n'existe que si la vision peut s'exécuter ici.
       controleVision: { disponible: o.fournisseurTexte, borneParImageUsdMicros: borneControleVisionParImageMicros(modeleTexte()) },
+      pubEntiere: vuePubEntiere(cat.brief, formatImageDuContenu(contenu)),
       peutRelire: aPermissionEspace(ctx.permissions, 'studio.propose'),
       logosAReimporter,
     },
@@ -249,6 +292,28 @@ async function logosAReimporterDuProjet(
     .where(and(eq(schema.brands.id, projet.brandId), eq(schema.brands.workspaceId, projet.workspaceId))).limit(1);
   const bilan = await etatLogosCharte({ workspaceId: projet.workspaceId, logoUrl: null, logos: logos.map((l) => l.url), logoEmpreintes: m?.logoEmpreintes ?? null }, undefined, verifier);
   return annonceLogosAReimporter({ utilises: logos.map((l) => l.assetId), logos, bilan, brandId: projet.brandId, peutGerer: roleAtLeast(ctx.roleEspace, 'admin') });
+}
+
+/** Pub entière · le job a-t-il été produit en pub entière, et qu'a dit sa relecture ? */
+function relectureDuJob(j: { snapshot: unknown; result: unknown }): Required<Pick<JobImageVue, 'pubEntiere' | 'relecture' | 'relectureAuDevis'>> {
+  const snap = lireSnapshotJob(j.snapshot);
+  const relectureAuDevis = controleVisionApprouve(snap?.lignes) !== null;
+  const p = lireParametresImage(snap?.parametres);
+  const pubEntiere = p.ok && !!p.parametres.pubEntiere;
+  const v = pubEntiere ? lireVerdictRelecture((j.result as Record<string, unknown> | null)?.[CLE_RELECTURE_JOB]) : null;
+  return { pubEntiere, relectureAuDevis, relecture: v ? { statut: v.statut, libelle: LIBELLES_RELECTURE[v.statut], raisons: [...v.raisons], nonVerifie: [...v.nonVerifie] } : null };
+}
+
+/** Pub entière · prix du moteur du mode, borne du contrôle et copie, avant tout clic. */
+function vuePubEntiere(brief: Parameters<typeof pubEntiereDuBrief>[0], format: { largeur: number; hauteur: number }): NonNullable<VueParcoursImage['pubEntiere']> {
+  const t = tarifPubEntiere(moteurRecommande('entiere'));
+  const c = pubEntiereDuBrief(brief);
+  return {
+    prix: t.ok ? { credits: t.credits, usdMicros: t.usdMicros } : null, motif: t.motif, libelleMoteur: t.ok ? t.libelleMoteur : null,
+    borneControleParImageUsdMicros: borneControleVisionParImageMicros(modeleTexte()) + borneControlePubMicros(CONTROLE_MODEL),
+    copie: c.ok ? c.pub.copie : null, raisonSansCopie: c.ok ? null : c.raison, ecartes: c.ok ? c.ecartes : [],
+    formatServi: phraseFormatServi(moteurRecommande('entiere'), format.largeur, format.hauteur),
+  };
 }
 
 /** Devis de l'image du studio · lecture de la consigne d'abord (message clair), puis le devis L3. */
@@ -290,7 +355,7 @@ export async function approuverImagePour(
  * (`decisionControleVision`, relue par `refusControleVision`) : aucun refus
  * pour un média déjà tranché ne veut dire « reprise permise ».
  */
-export async function controlerMediaPour(ctx: ContexteStudio, e: { jobId: unknown }, o: { medias?: ResolveurMediasTache } = {}): Promise<Resultat<{ qualite: StatutQualite }>> {
+export async function controlerMediaPour(ctx: ContexteStudio, e: { jobId: unknown }, o: { medias?: ResolveurMediasTache; relecture?: DependancesVision['relecture'] } = {}): Promise<Resultat<{ qualite: StatutQualite }>> {
   const j = await lireJob(ctx, e.jobId);
   if (!j.ok) return j;
   if (!estDevisImage(lireSnapshotJob(j.job.snapshot)?.lignes)) return erreurStudio('NOT_FOUND', { traceId: ctx.traceId });
@@ -310,7 +375,7 @@ export async function controlerMediaPour(ctx: ContexteStudio, e: { jobId: unknow
   if (controleVisionApprouve(lireSnapshotJob(j.job.snapshot)?.lignes) && aPermissionEspace(ctx.permissions, 'studio.generate')) {
     const v = await controlerSortieParVision(ctx, { jobId: j.job.id }, {
       adaptateur: adaptateurAnthropicGarde(), environnement: environnementPrompts(process.env),
-      plafondAtteint: async () => (await spendStatus()).blocked, ...(o.medias ? { medias: o.medias } : {}),
+      plafondAtteint: async () => (await spendStatus()).blocked, ...(o.medias ? { medias: o.medias } : {}), ...(o.relecture ? { relecture: o.relecture } : {}),
     });
     if (!v.ok) return v;
     return { ok: true, qualite: v.qualite };
