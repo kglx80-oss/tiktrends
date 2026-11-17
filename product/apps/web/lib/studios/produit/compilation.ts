@@ -51,7 +51,7 @@ export async function preparerCompilationPour(ctx: ContexteStudio, e: { projectI
   const mode = MODES.includes(e.mode as ModeImage) ? (e.mode as ModeImage) : 'generative_scene';
   const c = await chargerCatalogueProjet(ctx, e.projectId, o);
   if (!c.ok) return c;
-  const preparation = controlerAvantCompilation({ mode, brief: c.catalogue.brief, produit: c.catalogue.epingle, fichiers: c.catalogue.fichiers });
+  const preparation = controlerAvantCompilation({ mode, brief: c.catalogue.brief, produit: c.catalogue.epingle, fichiers: c.catalogue.fichiers, referenceUnique: c.catalogue.referenceUnique });
   if (mode === 'faithful_composite') return { ok: true, preparation: { ...preparation, ok: false, violations: [...preparation.violations, { chemin: '/mode', raison: MESSAGE_MODE_FIDELE_INDISPONIBLE }] } };
   return { ok: true, preparation };
 }
@@ -73,7 +73,7 @@ export async function compilerConsigneImagePour(
   if (!c.ok) return c;
   if (mode === 'faithful_composite') return erreurStudio('UNSUPPORTED_CAPABILITY', { traceId: ctx.traceId, message: MESSAGE_MODE_FIDELE_INDISPONIBLE });
   const cat = c.catalogue;
-  const prep = controlerAvantCompilation({ mode, brief: cat.brief, produit: cat.epingle, fichiers: cat.fichiers });
+  const prep = controlerAvantCompilation({ mode, brief: cat.brief, produit: cat.epingle, fichiers: cat.fichiers, referenceUnique: cat.referenceUnique });
   if (!prep.ok || !cat.brief) {
     return erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, targetIds: [cat.projet.id], violations: prep.violations, message: `${messagePreparationCompilation(prep)} Aucun appel IA n’a été lancé.` });
   }

@@ -19,7 +19,7 @@ export function startStudioWorker(): ReturnType<typeof demarrerWorkerStudio> {
 
 /** Règle CDC : aucun job IA dans une requête HTTP — tout passe ici. */
 export function startWorkers() {
-  startStudioWorker();
+  const studio = startStudioWorker();
   const radar = new Worker(
     'radar',
     async (job) => {
@@ -30,5 +30,5 @@ export function startWorkers() {
   );
   radar.on('completed', (j) => console.log('[radar] completed', j.id));
   radar.on('failed', (j, err) => console.error('[radar] failed', j?.id, err));
-  return { radar };
+  return { radar, studio };
 }

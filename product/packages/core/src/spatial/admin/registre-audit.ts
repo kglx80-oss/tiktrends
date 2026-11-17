@@ -65,6 +65,7 @@ export const ACTIONS_AUDIT: Readonly<Record<string, ClasseActionAudit>> = {
   'prompt.benchmark.approuver_budget': sensible('a approuvé le budget d’un benchmark', 'dépense · un budget payant est ouvert'),
   'studios.budget_essai': sensible(P['studios.budget_essai']!, 'dépense · le budget d’essai d’un espace change'),
   [ACTION_RAPPROCHEMENT_DEPENSE]: sensible('a rapproché une dépense IA de sa facture', 'dépense · le montant retenu par le plafond change'),
+  'studios.rapprochement.clore': sensible('a clos le rapprochement d’une génération', 'dépense · les crédits du client sont rendus, le coût fournisseur est retenu'),
   // Interrupteurs · ce qui est ouvert ou fermé chez un client.
   'studios.interrupteurs': sensible(P['studios.interrupteurs']!, 'interrupteurs · une fonction s’ouvre ou se ferme pour un espace'),
 
