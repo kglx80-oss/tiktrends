@@ -111,8 +111,12 @@ export class FournisseurFal implements FournisseurStudio {
   async soumettre(d: DemandeFournisseur): Promise<{ requestId: string }> {
     const jobId = jobDeCleFournisseur(d.cleIdempotence);
     if (!jobId) throw new ErreurFournisseurCertaine('clé fournisseur illisible · rien n’est envoyé');
-    const cout = coutSoumissionStudio(d.operations);
-    if (!cout.ok) throw new ErreurFournisseurCertaine(`${cout.motif} · rien n’est envoyé`);
+    // Un clip se réserve au tarif du MODÈLE préparé (catalogue vidéo, prix à la
+    // seconde × durée) : son coût se calcule après la préparation, toujours
+    // avant la barrière. Une image garde son contrôle d'avant la préparation.
+    const estClip = d.operations.some((o) => o.profil === 'animation');
+    const avant = estClip ? null : coutSoumissionStudio(d.operations);
+    if (avant && !avant.ok) throw new ErreurFournisseurCertaine(`${avant.motif} · rien n’est envoyé`);
     let prep: PreparationFal;
     try {
       prep = await this.preparer(d, jobId);
@@ -120,6 +124,10 @@ export class FournisseurFal implements FournisseurStudio {
       throw new ErreurFournisseurCertaine(`préparation impossible · rien n’est envoyé (${(e as Error).message.slice(0, 160)})`);
     }
     if (!prep.ok) throw new ErreurFournisseurCertaine(`tâche bloquée avant envoi · ${prep.motif}`);
+    const cout = avant ?? coutSoumissionStudio(d.operations, { parametres: d.parametres, modele: prep.modele });
+    if (!cout.ok) throw new ErreurFournisseurCertaine(`${cout.motif} · rien n’est envoyé`);
+    // Jamais envoyé à un modèle dont on n'a pas réservé le prix.
+    if (estClip && cout.modele !== prep.modele) throw new ErreurFournisseurCertaine(`modèle préparé (${prep.modele}) différent du modèle devisé (${cout.modele}) · rien n’est envoyé`);
     const url = urlSoumissionFal(this.queueUrl, prep.modele);
     if (!url) throw new ErreurFournisseurCertaine('adresse de file fal hors liste · rien n’est envoyé');
 

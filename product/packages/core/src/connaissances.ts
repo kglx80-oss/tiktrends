@@ -34,7 +34,8 @@
  * si l'identifiant de marque coïncidait.
  */
 
-import { accesTotal, ROLES_PLATEFORME, type RolePlateforme } from './equipe-plateforme';
+import { ROLES_PLATEFORME } from './equipe-plateforme';
+import { permissionsPlateformeEquipe } from './studios/securite';
 
 /* -------------------------------------------------------------------------- */
 /*  Types                                                                     */
@@ -726,12 +727,19 @@ export function changementPortee(avant: PorteeConnaissance, apres: PorteeConnais
 
 /**
  * Qui gère les connaissances · l'ACCÈS TOTAL plateforme (Admin+ et Admin
- * d'équipe), lu sur le rôle d'équipe de la session. Le rôle d'ESPACE n'entre
- * pas dans la décision · un owner ou un admin d'espace client n'est pas un
- * admin plateforme (toute inscription libre crée un owner).
+ * d'équipe) d'un compte ADMISSIBLE · la permission `knowledge.manage` du
+ * studio, calculée par la même règle (`permissionsPlateformeEquipe` ·
+ * `restreindrePlateforme`). Le rôle d'ESPACE n'entre pas dans la décision · un
+ * owner ou un admin d'espace client n'est pas un admin plateforme (toute
+ * inscription libre crée un owner).
+ *
+ * Sur main 62a341e3, le rôle seul suffisait · un compte qui avait capté un
+ * e-mail staff préinscrit (créé APRÈS l'inscription, donc non admissible)
+ * publiait des connaissances de portée plateforme, lues par le Jarvis de tous
+ * les clients.
  */
-export function peutGererConnaissances(equipeRole: string | null | undefined): boolean {
-  return !!equipeRole && (ROLES_PLATEFORME as readonly string[]).includes(equipeRole) && accesTotal(equipeRole as RolePlateforme);
+export function peutGererConnaissances(equipe: { role: string; plateformeAdmissible?: boolean } | null | undefined): boolean {
+  return !!equipe && (ROLES_PLATEFORME as readonly string[]).includes(equipe.role) && permissionsPlateformeEquipe(equipe).has('knowledge.manage');
 }
 
 /* -------------------------------------------------------------------------- */

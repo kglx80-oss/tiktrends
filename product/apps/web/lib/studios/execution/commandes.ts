@@ -228,7 +228,8 @@ export async function creerDevis(ctx: ContexteStudio, e: EntreeDevis, base: Base
       // L6-A · images clés des plans : consigne `shot.image` retenue, attestée, à jour, références intactes.
       const plans = await raccordPlansDevis(tx, ctx, { projet, contenu: courante.content as ContenuVersion, lignes: l.lignes });
       if (!plans.ok) throw new Refus(plans);
-      // Animation d'un plan : clip seul, image clé valide, paramètres construits par le serveur.
+      // Animation d'un plan : clip seul, image clé valide, paramètres construits par le serveur,
+      // ligne du clip reprise au tarif catalogue du modèle (prix à la seconde × durée).
       const clips = await raccordClipsDevis(tx, ctx, { projet, contenu: courante.content as ContenuVersion, lignes: l.lignes });
       if (!clips.ok) throw new Refus(clips);
       const empreinteImage = image.empreinte ?? plans.empreinte ?? clips.empreinte;
@@ -239,11 +240,13 @@ export async function creerDevis(ctx: ContexteStudio, e: EntreeDevis, base: Base
       // Pub entière · l'image prend le prix CATALOGUE du moteur et du paramètre envoyés ; le contrôle
       // visuel est coché par défaut (même en V2) et sa ligne couvre aussi la relecture (mots, packaging,
       // lisibilité), à sa borne. En calques, rien ne change.
-      let lignesProduction = l.lignes;
+      // Clip · lignes déjà reprises au tarif catalogue, choix figé (`raccordClipsDevis`) ; un clip se devise seul,
+      // jamais avec la pub entière : les deux reprises se composent sans se toucher.
+      let lignesProduction = clips.lignes;
       if (image.pubEntiere) {
         const t = tarifPubEntiere(image.pubEntiere.moteur);
         if (!t.ok) throw new Refus(erreurStudio('UNSUPPORTED_CAPABILITY', { traceId: ctx.traceId, targetIds: [OPERATION_IMAGE], message: `Pub entière indisponible · ${t.motif}.` }));
-        lignesProduction = lignesAuTarifPubEntiere(l.lignes, OPERATION_IMAGE, t);
+        lignesProduction = lignesAuTarifPubEntiere(lignesProduction, OPERATION_IMAGE, t);
       }
       const v = avecControleVision(lignesProduction, {
         actif: controleVisionActif({ demande: e.controleVision, fournisseurVision: adaptateurAnthropicGarde() !== null, devisImage: exigenceImageDuDevis(l.lignes).concerne, parDefaut: controleCocheParDefaut({ regime: regimeDevis, pubEntiere: !!image.pubEntiere }) }),

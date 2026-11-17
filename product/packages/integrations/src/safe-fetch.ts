@@ -157,3 +157,24 @@ export async function safeFetch(raw: string, opts: SafeFetchOptions = {}): Promi
   }
   return null; // trop de redirections
 }
+
+/**
+ * Requête vers une URL publique SANS suivre de redirection · pour un appel qui
+ * porte un secret (jeton d'API dans un en-tête) ou un corps (POST).
+ *
+ * `safeFetch` revalide chaque saut, mais il suit la redirection · bon pour une
+ * lecture anonyme, pas pour un jeton · un 307/308 rejoue la méthode, le corps
+ * ET les en-têtes personnalisés vers la nouvelle adresse. Ici, l'adresse est
+ * validée (schéma, port, adresse IP résolue, comme `assertPublicUrl`) et une
+ * réponse 3xx n'est JAMAIS suivie.
+ *
+ * null · adresse refusée, ou le serveur a répondu par une redirection. Les
+ * erreurs réseau remontent telles quelles, comme avec `fetch`.
+ */
+export async function fetchPublicSansRedirection(raw: string, init: Omit<RequestInit, 'redirect'> = {}): Promise<Response | null> {
+  const u = await assertPublicUrl(raw);
+  if (!u) return null;
+  const res = await fetch(u, { ...init, redirect: 'manual' });
+  if (res.status >= 300 && res.status < 400) return null;
+  return res;
+}

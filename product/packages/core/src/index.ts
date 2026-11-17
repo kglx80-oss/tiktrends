@@ -124,6 +124,7 @@ export * from './filtres-url';
 export * from './compte-vue';
 export * from './connaissances';
 export * from './echappement-html';
+export * from './shopify-domaine';
 export * from './formats-creatifs';
 export * from './accueil-vue';
 export * from './accueil-projets';

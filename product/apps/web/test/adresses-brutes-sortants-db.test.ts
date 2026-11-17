@@ -99,6 +99,7 @@ vi.mock('@tiktrends/ai', async (importOriginal) => ({ ...(await importOriginal<t
 import { db, schema, eq } from '@tiktrends/db';
 import { cleFournisseurDuJob, empreinteContenu, contenuVide, idLogoMarque, OPERATION_JOB_STUDIO, parametresImageDuDevis, photosDuProduit, refsDuJob, SCHEMA_VERSION_CONTENU, type SnapshotJob } from '@tiktrends/core';
 import { semer } from './studios-semis';
+import { DUREE_LIEN_FOURNISSEUR_MAX_S } from '@tiktrends/integrations';
 import type { BaseStudio } from '../../workers/src/studios/types';
 
 vi.setConfig({ testTimeout: 120_000, hookTimeout: 120_000 });
@@ -115,12 +116,13 @@ const BRUTES: ReadonlyArray<{ motif: RegExp; nom: string }> = [
 const occurrences = (t: string) => BRUTES.flatMap(({ motif, nom }) => [...t.matchAll(new RegExp(motif.source, 'g'))].map((m) => `${nom} · …${t.slice(Math.max(0, m.index! - 60), m.index! + 100)}…`));
 
 /**
- * Durée maximale d'une adresse signée remise à un fournisseur · le plafond de
- * `presignObjectUrl` (900 s, `packages/integrations/src/storage.ts`), au-delà
- * duquel la signature est refusée. Une file fal peut attendre plusieurs
- * minutes avant de lire ses références · 900 s est la borne du worker.
+ * Durée maximale d'une adresse signée remise à un fournisseur · le plafond
+ * PROPRE aux liens de fournisseur (`DUREE_LIEN_FOURNISSEUR_MAX_S`, une heure,
+ * `packages/integrations/src/storage.ts`), au-delà duquel la signature est
+ * refusée · tout autre lien reste sous 900 s. Une file fal peut attendre
+ * avant de lire ses références · un lien de 15 min y expirait (I5).
  */
-const DUREE_FOURNISSEUR_MAX = 900;
+const DUREE_FOURNISSEUR_MAX = DUREE_LIEN_FOURNISSEUR_MAX_S;
 /**
  * Les durées RÉELLEMENT utilisées, mesurées par cette garde (chaque adresse
  * signée de chaque point exercé porte exactement cette durée) · relevé du
@@ -129,7 +131,7 @@ const DUREE_FOURNISSEUR_MAX = 900;
  *   point                                          durée   source
  *   vision · tagging d'un fichier (un et lot)      300 s   `assetAiUrl` → `privateObjectUrl` (défaut)
  *   vision · description d'une créa Adsmap         300 s   `assetAiUrl` (corrigé ici, était BRUTE)
- *   fal · worker Studios (photo, logo, sortie, fichier) 900 s   `resoudreMedias` (`privateObjectUrl`/`presignGetUrl`, 900)
+ *   fal · worker Studios (photo, logo, sortie, fichier) 3 600 s `resoudreMedias` (`privateObjectUrlFournisseur`/`presignGetUrlFournisseur`, `DUREE_URL_FOURNISSEUR_S`) · était 900 s, porté à une heure le 16/11 (I5, tableau dans C/studios/execution/echecs-etape.ts)
  *
  * Une durée qui monte fait échouer la garde (« durée de signature trop
  * longue ») · qui la change le dit ici, mesurée.
@@ -138,7 +140,7 @@ const DUREES_MESUREES: Readonly<Record<string, number>> = {
   'vision · tagging d’un fichier': 300,
   'vision · tagging en lot': 300,
   'vision · description d’une créa Adsmap': 300,
-  'fal · worker Studios': 900,
+  'fal · worker Studios': 3_600,
 };
 
 const objet = (n: string, ws = ids.wsA) => `${BASE}/assets/${ws}/${n}`;
