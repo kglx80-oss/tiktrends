@@ -8,6 +8,8 @@ import { getSession, hashPassword, createSession } from '../../lib/auth';
 import { roleAtLeast, ROLE_LABEL, type Role } from '../../lib/rbac';
 import { sendMail } from '../../lib/mailer';
 import { inviteEmail } from '../../lib/emails';
+import { hit } from '../../lib/rate-limit';
+import { LIMITE_INVITATIONS, adresseInvitationValide } from '@tiktrends/core';
 
 const norm = (v: FormDataEntryValue | null) => (typeof v === 'string' ? v.trim() : '');
 const ASSIGNABLE: Role[] = ['admin', 'member', 'client_viewer']; // on n'invite pas un 2e owner ici
@@ -21,7 +23,17 @@ export async function createInviteAction(formData: FormData): Promise<void> {
   const email = norm(formData.get('email')).toLowerCase();
   const role = norm(formData.get('role')) as Role;
   if (!email) redirect('/team?e=email');
+  // UNE adresse (règle du noyau) · AVANT la limite · une saisie invalide ne consomme rien.
+  if (!adresseInvitationValide(email)) redirect('/team?e=email_invalide');
   if (!ASSIGNABLE.includes(role)) redirect('/team?e=role');
+
+  // Débit (règle et seuil au noyau) · AVANT la recherche du compte, sinon « a déjà un compte »
+  // resterait un oracle illimité. Deux clés, toutes deux comptées · l'espace, et la personne (une
+  // même personne ne retrouve pas 20 invitations en changeant d'espace).
+  const parEspace = hit(`invite:${s.workspaceId}`, LIMITE_INVITATIONS.max, LIMITE_INVITATIONS.fenetreMs).ok;
+  const parPersonne = hit(`invite:u:${s.user.id}`, LIMITE_INVITATIONS.max, LIMITE_INVITATIONS.fenetreMs).ok;
+  if (!parEspace) redirect('/team?e=throttled');
+  if (!parPersonne) redirect('/team?e=throttled_personne');
 
   // Déjà membre ?
   const [u] = await db.select({ id: schema.users.id }).from(schema.users).where(eq(schema.users.email, email)).limit(1);
@@ -38,7 +50,7 @@ export async function createInviteAction(formData: FormData): Promise<void> {
   let envoye = false;
   try {
     const m = inviteEmail({ inviterName: s.user.name, workspaceName: s.workspaceName, roleLabel: ROLE_LABEL[role], token });
-    envoye = (await sendMail({ to: email, subject: m.subject, html: m.html, text: m.text })).ok;
+    envoye = (await sendMail({ to: { name: '', address: email }, subject: m.subject, html: m.html, text: m.text })).ok;
   } catch { /* ignore */ }
   redirect(envoye ? '/team?ok=invite_mail' : '/team?ok=invite');
 }

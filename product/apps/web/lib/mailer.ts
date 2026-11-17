@@ -24,10 +24,10 @@ export function appUrl(): string {
 
 const FROM = () => process.env.MAIL_FROM || 'TikTrends <no-reply@tiktrends.co>';
 
-export async function sendMail(opts: { to: string; subject: string; html: string; text?: string }): Promise<{ ok: boolean; skipped?: boolean; error?: string }> {
+export async function sendMail(opts: { to: string | { name: string; address: string }; subject: string; html: string; text?: string }): Promise<{ ok: boolean; skipped?: boolean; error?: string }> {
   const t = getTransport();
   if (!t) {
-    console.log(`[mail:skip] (SMTP non configuré) « ${opts.subject} » → ${opts.to}`);
+    console.log(`[mail:skip] (SMTP non configuré) « ${opts.subject} » → ${typeof opts.to === 'string' ? opts.to : opts.to.address}`);
     return { ok: false, skipped: true };
   }
   try {

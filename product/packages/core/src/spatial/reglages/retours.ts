@@ -1,4 +1,4 @@
-import { RAISON_REFUS_MEMBRE } from './membres';
+import { LIMITE_INVITATIONS, RAISON_REFUS_MEMBRE } from './membres';
 
 /**
  * Spatial · Réglages · les messages des actions serveur qui redirigent
@@ -23,6 +23,9 @@ export function messagesRetourEquipe(): Record<string, string> {
     ...RAISON_REFUS_MEMBRE,
     email: 'Renseigne un e-mail.',
     already: 'Cette personne a déjà un compte.', notfound: 'Invitation introuvable.', bad: 'Demande incomplète · réessaie depuis la liste.',
+    throttled: `Limite de ${LIMITE_INVITATIONS.max} invitations par heure atteinte pour cet espace · réessaie un peu plus tard.`,
+    throttled_personne: `Limite de ${LIMITE_INVITATIONS.max} invitations par heure atteinte pour ton compte, tous espaces confondus · réessaie un peu plus tard.`,
+    email_invalide: 'Une seule adresse e-mail par invitation, sans espace, virgule ni point-virgule.',
   });
 }
 
