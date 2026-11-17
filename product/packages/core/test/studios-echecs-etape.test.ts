@@ -30,20 +30,29 @@ describe('suiteEchecEtape · reculer, puis échouer avec la bonne issue', () => 
     expect(suiteEchecEtape({ erreur: { echecsEtape: 3 }, etat: 'running', preuve: 'acceptee', maintenant: t0 })).toEqual({ suite: 'reculer', echecs: 4, prochainEssai: new Date(t0.getTime() + 160_000) });
   });
 
-  it('à la borne · failed par l’acteur de l’état, facturé si l’envoi a pu partir, sans frais sinon', () => {
+  it('à la borne · failed seulement sans envoi possible, en persistance ou en rapprochement · facturé si l’envoi a pu partir', () => {
     const e = { echecsEtape: ECHECS_ETAPE_MAX - 1 };
     const cas = [
       ['claimed', 'aucune', 'worker', 'echec_sans_frais'],
-      ['running', 'possible', 'worker', 'facture_sans_livrable'],
-      ['running', 'acceptee', 'worker', 'facture_sans_livrable'],
-      ['cancel_requested', 'acceptee', 'worker', 'facture_sans_livrable'],
+      ['running', 'aucune', 'worker', 'echec_sans_frais'],
+      ['cancel_requested', 'aucune', 'worker', 'echec_sans_frais'],
       ['persisting', 'acceptee', 'finaliseur', 'facture_sans_livrable'],
       ['reconciliation_required', 'possible', 'reconciliateur', 'facture_sans_livrable'],
+      ['reconciliation_required', 'aucune', 'reconciliateur', 'facture_sans_livrable'],
     ] as const;
     for (const [etat, preuve, acteur, issue] of cas) {
       const s = suiteEchecEtape({ erreur: e, etat, preuve, maintenant: t0 });
       expect(s, etat).toMatchObject({ suite: 'echouer', echecs: ECHECS_ETAPE_MAX, acteur, issue });
       expect(s.suite === 'echouer' && transitionJob(etat, 'failed', s.acteur).ok, `${etat} → failed refusé`).toBe(true);
+    }
+  });
+
+  it('à la borne, envoi possible ou accepté en running / cancel_requested / claimed · RAPPROCHEMENT, jamais un échec direct (doctrine #1100)', () => {
+    const e = { echecsEtape: ECHECS_ETAPE_MAX - 1 };
+    for (const [etat, preuve] of [['running', 'acceptee'], ['running', 'possible'], ['cancel_requested', 'acceptee'], ['claimed', 'possible']] as const) {
+      const s = suiteEchecEtape({ erreur: e, etat, preuve, maintenant: t0 });
+      expect(s, `${etat}/${preuve}`).toEqual({ suite: 'rapprocher', echecs: ECHECS_ETAPE_MAX, acteur: 'worker' });
+      expect(transitionJob(etat, 'reconciliation_required', 'worker').ok).toBe(true);
     }
   });
 

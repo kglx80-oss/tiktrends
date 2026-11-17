@@ -32,9 +32,15 @@
  * |   7    | 620 + 600 = 1 220 s                  |
  * |   8    | 1 220 + 600 = **1 820 s ≥ 1 800 s**  |
  *
- * **N = 8**. Au huitième échec consécutif, `failed` · crédits du client
- * rendus ; coût fournisseur retenu dès que l'envoi a pu partir
- * (`facture_sans_livrable`), aucun sinon (`echec_sans_frais`).
+ * **N = 8**. Au huitième échec consécutif :
+ *  · un envoi a PU partir (preuve `possible` ou `acceptee`) et le job est en
+ *    `claimed`, `running` ou `cancel_requested` · `reconciliation_required`
+ *    (jamais un échec direct · le fournisseur a peut-être livré, la
+ *    réconciliation le lit encore ; doctrine des échéances), compteur remis
+ *    à zéro ;
+ *  · sinon `failed` · crédits du client rendus ; coût fournisseur retenu en
+ *    `persisting` et en rapprochement (`facture_sans_livrable`), aucun quand
+ *    rien n'a pu partir (`echec_sans_frais`).
  *
  * ── I5 · adresses signées remises à fal ──────────────────────────────────────
  *
@@ -80,14 +86,16 @@ export function lireEchecsEtape(erreur: unknown): number {
 
 export type SuiteEchecEtape =
   | { suite: 'reculer'; echecs: number; prochainEssai: Date }
+  | { suite: 'rapprocher'; echecs: number; acteur: ActeurJob }
   | { suite: 'echouer'; echecs: number; acteur: ActeurJob; issue: IssueFinanciere };
 
 /** Un échec de plus sur l'étape d'un job · reculer, ou conclure à la borne. */
 export function suiteEchecEtape(e: { erreur: unknown; etat: EtatJob; preuve: PreuveSoumission; maintenant: Date }): SuiteEchecEtape {
   const echecs = lireEchecsEtape(e.erreur) + 1;
   if (echecs < ECHECS_ETAPE_MAX) return { suite: 'reculer', echecs, prochainEssai: new Date(e.maintenant.getTime() + reculEtapeMs(echecs)) };
+  if (e.preuve !== 'aucune' && (e.etat === 'claimed' || e.etat === 'running' || e.etat === 'cancel_requested')) return { suite: 'rapprocher', echecs, acteur: 'worker' };
   const acteur: ActeurJob = e.etat === 'persisting' ? 'finaliseur' : e.etat === 'reconciliation_required' ? 'reconciliateur' : 'worker';
-  const issue: IssueFinanciere = e.etat === 'persisting' || e.etat === 'reconciliation_required' || e.preuve !== 'aucune' ? 'facture_sans_livrable' : 'echec_sans_frais';
+  const issue: IssueFinanciere = e.etat === 'persisting' || e.etat === 'reconciliation_required' ? 'facture_sans_livrable' : 'echec_sans_frais';
   return { suite: 'echouer', echecs, acteur, issue };
 }
 
