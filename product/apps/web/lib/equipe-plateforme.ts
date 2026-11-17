@@ -23,9 +23,10 @@ export interface EquipeSession {
    * créé AVANT l'inscription de son e-mail dans `platform_staff` (aucun e-mail
    * n'est vérifié dans le produit). Absent → non admissible.
    *
-   * N'ENLÈVE RIEN · `role` et `matrice` restent lus comme avant (rail,
-   * `/admin/equipe`, connaissances, crédits illimités). Seul le nouveau studio
-   * doit le lire (`lib/studios/garde.ts`, branchement décrit au rapport SEC).
+   * `role` et `matrice` restent lus comme avant (rail, `/admin/equipe` en
+   * lecture). Le lisent · le nouveau studio (`lib/studios/garde.ts`),
+   * l'écriture de l'équipe (`peutEcrireEquipe`), la gestion des connaissances
+   * (`peutGererConnaissances`) et les crédits illimités (`accesTotalAdmissible`).
    */
   plateformeAdmissible?: boolean;
 }
