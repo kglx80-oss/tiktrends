@@ -5,7 +5,7 @@ import { db, schema } from '@tiktrends/db';
 import { googleConfigured, drivePickerConfigured, googleAccessToken, storageFromEnv, syncDriveAssets, driveDownload, driveFileMeta, putObject, storeDriveThumb, ecrireApresDepot } from '@tiktrends/integrations';
 import { DRIVE_SELECTEUR_INACTIF, texteMessageClient, entreeSynchroDrive, type DernierSyncDrive } from '@tiktrends/core';
 import { getSession } from '../../lib/auth';
-import { roleAtLeast } from '../../lib/rbac';
+import { peutBrancherConnecteur } from '../../lib/connexions-acces';
 import { refusEcritureBibliotheque, TEXTE_REFUS_BIBLIOTHEQUE } from '../../lib/bibliotheque-acces';
 import { getActiveBrand } from '../../lib/brands';
 import { decryptSecret } from '../../lib/secrets';
@@ -21,7 +21,7 @@ async function guard() {
   // admin. Avant, un admin d'un espace Starter synchronisait quand même.
   const refus = refusEcritureBibliotheque(s);
   if (refus) return { error: TEXTE_REFUS_BIBLIOTHEQUE[refus] };
-  if (!roleAtLeast(s.role, 'admin')) return { error: 'Action réservée aux administrateurs.' as const };
+  if (!peutBrancherConnecteur(s.role)) return { error: 'Action réservée aux administrateurs.' as const };
   const brand = await getActiveBrand(s.workspaceId);
   if (!brand) return { error: 'Sélectionne une marque active pour brancher son Drive.' as const };
   return { s, brand };

@@ -1,5 +1,6 @@
 import { schema, eq, and, isNull, sql } from '@tiktrends/db';
 import { capaciteVideo, cleInterrupteursEspace, type DecodeurMedia, type FournisseurStudio, type StockageStudio } from '@tiktrends/core';
+import { DELAI_SOUMISSION_FAL_MS } from '@tiktrends/integrations';
 import { MoteurStudio, type InterrupteursMoteur } from './moteur';
 import { DecodeurSharp } from './decodeur';
 import { decoderVideoFfmpeg } from './decodeur-video';
@@ -43,7 +44,7 @@ export function demarrerBoucleStudio(o: {
   journal?: (e: EntreeJournal) => void;
   /** Environnement des interrupteurs · `process.env` par défaut (bancs d'essai seulement). */
   env?: Readonly<Record<string, string | undefined>>;
-}): { arreter: () => void; moteur: MoteurStudio } {
+}): { arreter: () => Promise<void>; moteur: MoteurStudio } {
   let sonde: ReturnType<typeof demarrerSondeVideo> | null = null;
   let decodeur = o.decodeur;
   if (!decodeur) {
@@ -52,20 +53,92 @@ export function demarrerBoucleStudio(o: {
     decodeur = new DecodeurSharp({ video: (octets) => decoderVideoFfmpeg(octets), videoActif: () => capaciteVideo(s.derniere(), new Date()).decodage });
   }
   const moteur = new MoteurStudio({ base: o.base, fournisseur: o.fournisseur, stockage: o.stockage, decodeur, journal: o.journal, secretWebhook: process.env.STUDIO_WEBHOOK_SECRET ?? null, interrupteurs: interrupteursWorker(o.env ?? process.env) });
-  let enCours = false;
-  const minuterie = setInterval(async () => {
-    if (enCours) return;
-    enCours = true;
-    try {
-      await moteur.tour();
-      await relayerOutbox(o.base, async (e) => { console.log('[studios] événement', e.topic, e.aggregateId); });
-    } catch (e) {
-      console.error('[studios] tour en échec', e instanceof Error ? e.message : e);
-    } finally {
-      enCours = false;
-    }
+  let enCours: Promise<void> | null = null;
+  const minuterie = setInterval(() => {
+    if (enCours || moteur.arretDemande) return;
+    enCours = (async () => {
+      try {
+        await moteur.tour();
+        await relayerOutbox(o.base, async (e) => { console.log('[studios] événement', e.topic, e.aggregateId); });
+      } catch (e) {
+        console.error('[studios] tour en échec', e instanceof Error ? e.message : e);
+      } finally {
+        enCours = null;
+      }
+    })();
   }, o.intervalleMs ?? 2_000);
-  return { arreter: () => { clearInterval(minuterie); sonde?.arreter(); }, moteur };
+  /**
+   * Arrêt propre · plus aucun tour, le moteur n'entame plus d'étape, et la
+   * promesse rend la main quand le tour EN COURS est fini (une soumission
+   * partie a écrit sa requête). Idempotent.
+   */
+  const arreter = async () => {
+    clearInterval(minuterie);
+    moteur.demanderArret();
+    sonde?.arreter();
+    if (enCours) await enCours;
+  };
+  return { arreter, moteur };
+}
+
+/* ───────────────────────────── Arrêt sur signal ───────────────────────────── */
+
+/**
+ * Le pire de l'étape qu'on ne coupe JAMAIS · de la préparation à l'écriture de
+ * la requête (`MoteurStudio.demarrer`). Couper entre la soumission et
+ * `enregistrerRequete` laisse un job `running` sans identifiant · rapprochement
+ * (borné depuis par son échéance, mais coût incertain). Valeurs du code :
+ *
+ * | phase                        | borne  | source                                                               |
+ * | ---------------------------- | ------ | -------------------------------------------------------------------- |
+ * | préparation · médias relus   |  40 s  | retouche · source et masque relus (2 × 20 s, `stockageS3.relire`) ; image · 8 logos au plus × 5 s (`verifierEmpreinteObjetEspace`) |
+ * | soumission à fal             |  30 s  | `DELAI_SOUMISSION_FAL_MS`                                            |
+ * | écriture de la requête       |   5 s  | une transaction Postgres locale (mesurée sous 50 ms en pglite)       |
+ * | **total**                    | **75 s** |                                                                    |
+ *
+ * Délai d'arrêt · 1,5 × 75 s ≈ **115 s** · au-delà, le processus sort quand même
+ * (un tour bloqué ailleurs · dépôt S3 sans délai) · une finalisation coupée
+ * reprend sans régénérer. `docker-compose.yml` accorde **125 s**
+ * (`stop_grace_period`) · Docker n'envoie SIGKILL qu'après. Le point
+ * d'entrée lance `pnpm exec tsx` (le processus 1 attend son enfant) · mesuré
+ * le 16/11 dans un espace de processus isolé : `pnpm start` relaie SIGTERM
+ * mais sort aussitôt (ELIFECYCLE), l'enfant est tué avant d'avoir fini ;
+ * `pnpm exec tsx` et `tsx` attendent la fin propre.
+ */
+export const PHASES_ETAPE_INSECABLE: ReadonlyArray<{ phase: string; ms: number; source: string }> = [
+  { phase: 'préparation · médias relus', ms: 40_000, source: 'stockageS3.relire × 2 · verifierEmpreinteObjetEspace × 8' },
+  { phase: 'soumission à fal', ms: DELAI_SOUMISSION_FAL_MS, source: 'DELAI_SOUMISSION_FAL_MS' },
+  { phase: 'écriture de la requête', ms: 5_000, source: 'transaction locale' },
+];
+export const ETAPE_INSECABLE_PIRE_MS = PHASES_ETAPE_INSECABLE.reduce((s, p) => s + p.ms, 0);
+export const DELAI_ARRET_MAX_MS = Math.ceil((1.5 * ETAPE_INSECABLE_PIRE_MS) / 5_000) * 5_000;
+
+/**
+ * SIGTERM, SIGINT · arrêt propre UNE fois (un second signal ne relance rien),
+ * puis sortie 0 ; un arrêt qui dépasse `delaiMaxMs` sort en 1. Le processus
+ * est injecté (bancs d'essai).
+ */
+export function arretPropreSurSignal(o: {
+  processus: Pick<NodeJS.EventEmitter, 'on'>;
+  arreter: () => Promise<void>;
+  sortir: (code: number) => void;
+  delaiMaxMs?: number;
+  journal?: (m: string) => void;
+}): void {
+  const log = o.journal ?? ((m: string) => console.log(m));
+  let parti = false;
+  const surSignal = (signal: string) => {
+    if (parti) return;
+    parti = true;
+    log(`[studios] ${signal} reçu · arrêt propre, le tour en cours se termine`);
+    const borne = setTimeout(() => { log('[studios] arrêt trop long · sortie forcée, la finalisation reprendra au redémarrage'); o.sortir(1); }, o.delaiMaxMs ?? DELAI_ARRET_MAX_MS);
+    o.arreter().then(
+      () => { clearTimeout(borne); log('[studios] arrêt propre terminé'); o.sortir(0); },
+      (e) => { clearTimeout(borne); log(`[studios] arrêt en échec · ${e instanceof Error ? e.message : String(e)}`); o.sortir(1); },
+    );
+  };
+  o.processus.on('SIGTERM', () => surSignal('SIGTERM'));
+  o.processus.on('SIGINT', () => surSignal('SIGINT'));
 }
 
 export type EvenementOutbox = typeof schema.studioOutbox.$inferSelect;

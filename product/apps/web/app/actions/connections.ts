@@ -5,7 +5,7 @@ import { db, schema } from '@tiktrends/db';
 import { shopifyAdminTest, shopifyCommerceSync, metaAdsTest, metaAdsSync, type ShopifyCommerceInsights, type MetaAdsInsights } from '@tiktrends/integrations';
 import { domaineMyshopify, raisonDomaineShopify } from '@tiktrends/core';
 import { getSession } from '../../lib/auth';
-import { roleAtLeast } from '../../lib/rbac';
+import { peutBrancherConnecteur } from '../../lib/connexions-acces';
 import { getActiveBrand } from '../../lib/brands';
 import { encryptSecret, decryptSecret } from '../../lib/secrets';
 import { logAndTranslate } from '../../lib/error-log';
@@ -13,7 +13,7 @@ import { logAndTranslate } from '../../lib/error-log';
 async function guard() {
   const s = await getSession();
   if (!s || !db) return { error: 'Session expirée.' as const };
-  if (!roleAtLeast(s.role, 'admin')) return { error: 'Action réservée aux administrateurs.' as const };
+  if (!peutBrancherConnecteur(s.role)) return { error: 'Action réservée aux administrateurs.' as const };
   const brand = await getActiveBrand(s.workspaceId);
   if (!brand) return { error: 'Sélectionne une marque active.' as const };
   return { s, brand };

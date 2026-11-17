@@ -167,12 +167,13 @@ describe('contre-recette du 8 octobre · décodage réel avant completed et règ
 
   it('le MP4 de 88 octets ⇒ persisting, puis failed après le re-téléchargement borné · 0 média, 0 crédit réglé', async () => {
     const id = await semerJob();
-    const { m, fournisseur, stockage } = moteur();
+    const { m, fournisseur, stockage, decalage } = moteur();
     fournisseur.prochaine('sortie_imposee');
     fournisseur.octetsImposes = mp4Recette88();
     for (let i = 0; i < 6 && (await job(id)).state !== 'persisting'; i++) await m.tour();
     expect((await job(id)).state, 'le MP4 sans piste a terminé le job').toBe('persisting');
-    for (let i = 0; i < 6 && !['completed', 'failed'].includes((await job(id)).state); i++) await m.tour();
+    // Re-téléchargement après le recul de persistance (20 s, puis 40 s · `reculPersistanceMs`) · une minute par tour.
+    for (let i = 0; i < 6 && !['completed', 'failed'].includes((await job(id)).state); i++) { decalage.ms += 60_000; await m.tour(); }
     const j = await job(id);
     expect(j.state).toBe('failed');
     expect((j.error as { motif?: string }).motif).toMatch(/88 octets.*3 téléchargements refusés/);

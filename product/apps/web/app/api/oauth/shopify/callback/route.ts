@@ -6,6 +6,7 @@ import { fetchPublicSansRedirection } from '@tiktrends/integrations/src/safe-fet
 import { domaineMyshopify } from '@tiktrends/core';
 import { getSession } from '../../../../../lib/auth';
 import { verifyState } from '../../../../../lib/oauth-state';
+import { peutBrancherConnecteur, RETOUR_CONNEXION_REFUSEE } from '../../../../../lib/connexions-acces';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -34,6 +35,8 @@ export async function GET(req: NextRequest) {
 
   const s = await getSession();
   if (!s || s.workspaceId !== st.ws || !db) return back('?e=shopify_session');
+  // Avant l'échange du code · un non-administrateur n'écrit aucun jeton.
+  if (!peutBrancherConnecteur(s.role)) return NextResponse.redirect(appUrl + RETOUR_CONNEXION_REFUSEE);
 
   try {
     // Adresse publique seulement, aucune redirection suivie (le corps porte le secret de l'app).
