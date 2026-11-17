@@ -162,4 +162,30 @@ describe('onboarding (sans marque) · fil portée espace + personne', () => {
     await effacerOnboarding(pu1);
     expect(await messagesOnboarding(pu1)).toEqual([]);
   });
+
+  // Défaut réparé · la lecture triait en ascendant PUIS bornait à 120 · au-delà
+  // de 120 messages, l'écran d'onboarding montrait les 120 plus anciens et le
+  // contexte du modèle (`.slice(-40)` de la route) figeait les messages 81 à 120.
+  // Mutation (faite sur copie, restaurée) : remettre `asc` + borne fait tomber ce
+  // cas sur « le dernier message du fil d'onboarding doit être rendu » ; garder
+  // `desc` sans l'inversion le fait tomber sur « les 120 derniers, du plus ancien
+  // au plus récent ».
+  it('130 messages · le dernier est rendu, le premier non, en ordre chronologique', async () => {
+    const pu2 = { workspaceId: WS, userId: U2 };
+    const t0 = Date.parse('2026-03-01T10:00:00Z');
+    await db.insert(schema.jarvisOnboardingMessages).values(Array.from({ length: 130 }, (_, k) => ({
+      workspaceId: WS, userId: U2, role: k % 2 ? 'assistant' : 'user',
+      content: `Onboarding ${k + 1}`, createdAt: new Date(t0 + (k + 1) * 1000),
+    })));
+    const contenus = (await messagesOnboarding(pu2)).map((m) => m.content);
+
+    // Même borne qu'avant · le coût du contexte ne change pas, seuls les bons messages.
+    expect(contenus).toHaveLength(120);
+    expect(contenus, 'le dernier message du fil d’onboarding doit être rendu').toContain('Onboarding 130');
+    expect(contenus, 'le premier message (hors des 120 derniers) ne doit pas être rendu').not.toContain('Onboarding 1');
+    expect(contenus, 'les 120 derniers, du plus ancien au plus récent').toEqual(
+      Array.from({ length: 120 }, (_, k) => `Onboarding ${k + 11}`),
+    );
+    await effacerOnboarding(pu2);
+  });
 });
