@@ -3,6 +3,7 @@ import { and, eq, inArray } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
   epinglerProduit, changementsEpinglage, ajouterAssociation, retirerAssociation, VARIANTE_UNIQUE, erreurStudio,
+  definirFicheProduit, changementsFiche,
   validerVersement, refusFichiersVersement, verserReferences, cheminProjetStudio, LIBELLES_ROLE, LIBELLES_PORTEE,
   type ChangementPatch, type ReferenceBrief, type ResultatVersement,
 } from '@tiktrends/core';
@@ -51,10 +52,31 @@ export async function epinglerProduitPour(ctx: ContexteStudio, e: EntreeEpinglag
     { productId: e.productId, photoId: e.photoId, composants: e.composants, attributs: e.attributs, transformations: e.transformations },
     { produit: p?.produit ?? null, photos: p?.photos ?? [], variante: VARIANTE_UNIQUE },
     o.maintenant,
+    cat.epingle,
   );
   if (!r.ok) return erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, violations: r.violations });
   const changes = changementsEpinglage(cat.contenu, cat.brief, r.reference, idsPhotos(p));
   return ecrire(ctx, cat.projet.id, e.baseVersionId, changes, `Produit épinglé : ${r.reference.nom} · photo ${r.reference.photo.position} sur ${r.reference.photo.total}`);
+}
+
+export interface EntreeFiche { projectId: unknown; baseVersionId: unknown; fiche: unknown; vues?: unknown }
+
+/**
+ * La fiche du produit épinglé (taille réelle et son repère, ce que les photos
+ * ne montrent pas, ce qu'un achat contient, l'emballage) et ses vues · saisies
+ * à la main, règle PURE `definirFicheProduit` sur le catalogue serveur, UNE
+ * nouvelle version (`/productRef` seul). Aucun appel modèle, aucune dépense.
+ */
+export async function definirFicheProduitPour(ctx: ContexteStudio, e: EntreeFiche, o: Dependances): Promise<Resultat<{ version: VersionStudio; inchange: boolean }>> {
+  if (!estUuid(e.projectId)) return erreurStudio('NOT_FOUND', { traceId: ctx.traceId });
+  const c = await chargerCatalogueProjet(ctx, e.projectId, o);
+  if (!c.ok) return c;
+  const cat = c.catalogue;
+  if (!cat.epingle) return erreurStudio('MISSING_REFERENCE', { traceId: ctx.traceId, targetIds: [cat.projet.id], message: 'Épingle d’abord une photo du produit · la fiche s’y range.' });
+  const p = produitDuCatalogue(cat, cat.epingle.productId);
+  const r = definirFicheProduit(cat.epingle, { fiche: e.fiche, vues: e.vues }, p?.photos ?? []);
+  if (!r.ok) return erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, violations: r.violations });
+  return ecrire(ctx, cat.projet.id, e.baseVersionId, changementsFiche(r.reference), `Fiche produit : ${r.reference.nom}`);
 }
 
 export interface EntreeAssociation { projectId: unknown; baseVersionId: unknown; assetId: unknown; role: unknown; scope?: unknown }

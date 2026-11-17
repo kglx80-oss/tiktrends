@@ -1,0 +1,860 @@
+{
+ "une-photo": {
+  "prep": {
+   "ok": true,
+   "violations": [],
+   "references": [
+    {
+     "assetId": "pph_d5ee2b6cd883ec75efe4a9b0",
+     "assetVersion": "sha256-8f30f4bdcf9d8644",
+     "sha256": "8f30f4bdcf9d864408f7cd41b43585975803e0c2d6914078cd904bbdba6c9464",
+     "role": "product",
+     "scope": "product",
+     "allowedChanges": [
+      "detourage",
+      "recadrage",
+      "echelle",
+      "rotation",
+      "ombre",
+      "decor"
+     ],
+     "requiredComponents": [
+      "flacon"
+     ]
+    }
+   ],
+   "referenceIds": [
+    "pph_d5ee2b6cd883ec75efe4a9b0"
+   ],
+   "interditsTransfert": [],
+   "composantsProteges": [
+    "flacon"
+   ],
+   "invariants": [
+    "Même visuel",
+    "Produit, marque et allégations : uniquement ceux de la marque cible.",
+    "Une seule variable change par rapport au témoin.",
+    "Forme, couleurs, matières et étiquette du produit telles que sur la photo épinglée",
+    "Aucun composant ajouté, retiré ou remplacé",
+    "Composant obligatoire visible : flacon"
+   ],
+   "avertissements": []
+  },
+  "entree": {
+   "taskInputs": {
+    "briefId": "brief_ver_produit_prepare",
+    "conceptId": "concept_ver_produit_prepare",
+    "mode": "generative_scene",
+    "referenceIds": [
+     "pph_d5ee2b6cd883ec75efe4a9b0"
+    ],
+    "width": 1080,
+    "height": 1350
+   },
+   "resolvedDocuments": [
+    {
+     "id": "brief_ver_produit_prepare",
+     "version": "ver_produit_prepare",
+     "schemaKey": "Fact",
+     "content": {
+      "id": "brief_ver_produit_prepare",
+      "claim": "Objectif : Vérifier : Une accroche sur la tenue en course augmente le taux de clic.\nAudience : Coureurs 25-40 ans\nHypothèse : Une accroche sur la tenue en course augmente le taux de clic.\nVariable testée : Accroche\nTémoin : Accroche prix\nTraitement : Accroche tenue\nInvariants : Même visuel ; Produit, marque et allégations : uniquement ceux de la marque cible. ; Une seule variable change par rapport au témoin.\nExclusions : Nom, logo et identité visuelle de Lumière Botanique. ; Produit et packaging de Lumière Botanique. ; Allégations, chiffres et promesses de Lumière Botanique. ; Reprise mot pour mot du texte de la source.\nComposition : Structure observée à adapter : visuel fixe · accroche écrite en ouverture · appel à l’action explicite.\nFormats : Visuel fixe",
+      "sourceIds": [],
+      "kind": "declared",
+      "confidence": "high"
+     },
+     "sha256": "773113bc959f15e3548a0dcd0f31d77e4210fd2eb87c49aae845ec9773ed5db2"
+    },
+    {
+     "id": "concept_ver_produit_prepare",
+     "version": "ver_produit_prepare",
+     "schemaKey": "Fact",
+     "content": {
+      "id": "concept_ver_produit_prepare",
+      "claim": "Composition : Structure observée à adapter : visuel fixe · accroche écrite en ouverture · appel à l’action explicite.\nFormats : Visuel fixe\nAucun texte prévu.",
+      "sourceIds": [],
+      "kind": "declared",
+      "confidence": "high"
+     },
+     "sha256": "a6525e3b8ffc21057e62350929285dd918490b7f52ee089ab890faf0de02c7be"
+    }
+   ],
+   "references": [
+    {
+     "assetId": "pph_d5ee2b6cd883ec75efe4a9b0",
+     "assetVersion": "sha256-8f30f4bdcf9d8644",
+     "sha256": "8f30f4bdcf9d864408f7cd41b43585975803e0c2d6914078cd904bbdba6c9464",
+     "role": "product",
+     "scope": "product",
+     "allowedChanges": [
+      "detourage",
+      "recadrage",
+      "echelle",
+      "rotation",
+      "ombre",
+      "decor"
+     ],
+     "requiredComponents": [
+      "flacon"
+     ]
+    }
+   ],
+   "invariants": [
+    "Même visuel",
+    "Produit, marque et allégations : uniquement ceux de la marque cible.",
+    "Une seule variable change par rapport au témoin.",
+    "Forme, couleurs, matières et étiquette du produit telles que sur la photo épinglée",
+    "Aucun composant ajouté, retiré ou remplacé",
+    "Composant obligatoire visible : flacon"
+   ],
+   "facts": [
+    {
+     "id": "src_f94234d916b65602.obs.accroche",
+     "claim": "Accroche écrite (première phrase) : « Votre regard mérite mieux. »",
+     "sourceIds": [
+      "src_f94234d916b65602"
+     ],
+     "kind": "observed",
+     "confidence": "high"
+    },
+    {
+     "id": "src_f94234d916b65602.obs.texte",
+     "claim": "Texte publicitaire de 90 caractères.",
+     "sourceIds": [
+      "src_f94234d916b65602"
+     ],
+     "kind": "observed",
+     "confidence": "high"
+    },
+    {
+     "id": "src_f94234d916b65602.obs.cta",
+     "claim": "Appel à l’action affiché : « Acheter ».",
+     "sourceIds": [
+      "src_f94234d916b65602"
+     ],
+     "kind": "observed",
+     "confidence": "high"
+    },
+    {
+     "id": "src_f94234d916b65602.obs.structure",
+     "claim": "Visuel fixe (image).",
+     "sourceIds": [
+      "src_f94234d916b65602"
+     ],
+     "kind": "observed",
+     "confidence": "high"
+    },
+    {
+     "id": "src_f94234d916b65602.obs.lien",
+     "claim": "Renvoie vers une page de destination (lbcosmetiques.fr).",
+     "sourceIds": [
+      "src_f94234d916b65602"
+     ],
+     "kind": "observed",
+     "confidence": "high"
+    },
+    {
+     "id": "src_f94234d916b65602.obs.diffusion",
+     "claim": "Diffusée depuis 64 jours · une durée de diffusion ne prouve pas la rentabilité.",
+     "sourceIds": [
+      "src_f94234d916b65602"
+     ],
+     "kind": "measured",
+     "confidence": "medium"
+    },
+    {
+     "id": "produit.nom",
+     "claim": "Nom : Lunettes Sport Bandeau",
+     "sourceIds": [
+      "produit:11111111-1111-4111-8111-111111111111"
+     ],
+     "kind": "declared",
+     "confidence": "high"
+    },
+    {
+     "id": "produit.description",
+     "claim": "Description : Lunettes de sport avec bandeau élastique",
+     "sourceIds": [
+      "produit:11111111-1111-4111-8111-111111111111"
+     ],
+     "kind": "declared",
+     "confidence": "high"
+    },
+    {
+     "id": "produit.promesse",
+     "claim": "Promesse (bénéfice clé) : Tiennent pendant la course",
+     "sourceIds": [
+      "produit:11111111-1111-4111-8111-111111111111"
+     ],
+     "kind": "declared",
+     "confidence": "high"
+    },
+    {
+     "id": "produit.prix",
+     "claim": "Prix : 49,00 €",
+     "sourceIds": [
+      "produit:11111111-1111-4111-8111-111111111111"
+     ],
+     "kind": "declared",
+     "confidence": "high"
+    },
+    {
+     "id": "produit.page",
+     "claim": "Page produit : boutique.test/lunettes",
+     "sourceIds": [
+      "produit:11111111-1111-4111-8111-111111111111"
+     ],
+     "kind": "declared",
+     "confidence": "high"
+    },
+    {
+     "id": "produit.photo",
+     "claim": "Photo produit : 7 photos disponibles",
+     "sourceIds": [
+      "produit:11111111-1111-4111-8111-111111111111"
+     ],
+     "kind": "declared",
+     "confidence": "high"
+    },
+    {
+     "id": "hyp_1",
+     "claim": "Une accroche sur la tenue en course augmente le taux de clic.",
+     "sourceIds": [
+      "src_f94234d916b65602"
+     ],
+     "kind": "hypothesis",
+     "confidence": "low"
+    },
+    {
+     "id": "hyp_1.temoin",
+     "claim": "Témoin : Accroche prix",
+     "sourceIds": [
+      "src_f94234d916b65602"
+     ],
+     "kind": "hypothesis",
+     "confidence": "low"
+    },
+    {
+     "id": "hyp_1.traitement",
+     "claim": "Traitement : Accroche tenue",
+     "sourceIds": [
+      "src_f94234d916b65602"
+     ],
+     "kind": "hypothesis",
+     "confidence": "low"
+    },
+    {
+     "id": "hyp_1.mesure",
+     "claim": "Mesure : Taux de clic (CTR)",
+     "sourceIds": [
+      "src_f94234d916b65602"
+     ],
+     "kind": "hypothesis",
+     "confidence": "low"
+    },
+    {
+     "id": "hyp_1.decision",
+     "claim": "Règle de décision : +15 % après 3 000 impressions",
+     "sourceIds": [
+      "src_f94234d916b65602"
+     ],
+     "kind": "hypothesis",
+     "confidence": "low"
+    }
+   ]
+  }
+ },
+ "sept-photos-epinglee-5-concurrent": {
+  "prep": {
+   "ok": true,
+   "violations": [],
+   "references": [
+    {
+     "assetId": "pph_39485f5d9f0a6694e37c35f2",
+     "assetVersion": "sha256-3b5396844508e6a0",
+     "sha256": "3b5396844508e6a055475e7dee968c9df39a33a2fd5e39acda89d007e18b33d5",
+     "role": "product",
+     "scope": "product",
+     "allowedChanges": [
+      "detourage",
+      "recadrage",
+      "echelle",
+      "rotation",
+      "ombre",
+      "decor"
+     ],
+     "requiredComponents": [
+      "lunettes",
+      "bandeau"
+     ]
+    },
+    {
+     "assetId": "src_f94234d916b65602",
+     "assetVersion": "sha256-cc04b0fe60206b6b",
+     "sha256": "cc04b0fe60206b6b8d7a432649b259f41e666419c966022019f4522e9f32bf21",
+     "role": "style",
+     "scope": "background",
+     "allowedChanges": [],
+     "requiredComponents": []
+    }
+   ],
+   "referenceIds": [
+    "pph_39485f5d9f0a6694e37c35f2",
+    "src_f94234d916b65602"
+   ],
+   "interditsTransfert": [
+    "Référence src_f94234d916b65602 (Style d’une annonce concurrente de « Lumière Botanique ») : reprendre seulement matière, lumière, palette et cadrage · ni son sujet, ni son personnage, ni son produit, ni son logo, ni son texte, ni le nom de « Lumière Botanique »."
+   ],
+   "composantsProteges": [
+    "lunettes",
+    "bandeau"
+   ],
+   "invariants": [
+    "Même visuel",
+    "Produit, marque et allégations : uniquement ceux de la marque cible.",
+    "Une seule variable change par rapport au témoin.",
+    "Forme, couleurs, matières et étiquette du produit telles que sur la photo épinglée",
+    "Aucun composant ajouté, retiré ou remplacé",
+    "Composant obligatoire visible : lunettes",
+    "Composant obligatoire visible : bandeau",
+    "Référence src_f94234d916b65602 (Style d’une annonce concurrente de « Lumière Botanique ») : reprendre seulement matière, lumière, palette et cadrage · ni son sujet, ni son personnage, ni son produit, ni son logo, ni son texte, ni le nom de « Lumière Botanique »."
+   ],
+   "avertissements": []
+  },
+  "entree": {
+   "taskInputs": {
+    "briefId": "brief_ver_produit_prepare",
+    "conceptId": "concept_ver_produit_prepare",
+    "mode": "generative_scene",
+    "referenceIds": [
+     "pph_39485f5d9f0a6694e37c35f2",
+     "src_f94234d916b65602"
+    ],
+    "width": 1080,
+    "height": 1350
+   },
+   "resolvedDocuments": [
+    {
+     "id": "brief_ver_produit_prepare",
+     "version": "ver_produit_prepare",
+     "schemaKey": "Fact",
+     "content": {
+      "id": "brief_ver_produit_prepare",
+      "claim": "Objectif : Vérifier : Une accroche sur la tenue en course augmente le taux de clic.\nAudience : Coureurs 25-40 ans\nHypothèse : Une accroche sur la tenue en course augmente le taux de clic.\nVariable testée : Accroche\nTémoin : Accroche prix\nTraitement : Accroche tenue\nInvariants : Même visuel ; Produit, marque et allégations : uniquement ceux de la marque cible. ; Une seule variable change par rapport au témoin.\nExclusions : Nom, logo et identité visuelle de Lumière Botanique. ; Produit et packaging de Lumière Botanique. ; Allégations, chiffres et promesses de Lumière Botanique. ; Reprise mot pour mot du texte de la source.\nComposition : Structure observée à adapter : visuel fixe · accroche écrite en ouverture · appel à l’action explicite.\nFormats : Visuel fixe",
+      "sourceIds": [],
+      "kind": "declared",
+      "confidence": "high"
+     },
+     "sha256": "773113bc959f15e3548a0dcd0f31d77e4210fd2eb87c49aae845ec9773ed5db2"
+    },
+    {
+     "id": "concept_ver_produit_prepare",
+     "version": "ver_produit_prepare",
+     "schemaKey": "Fact",
+     "content": {
+      "id": "concept_ver_produit_prepare",
+      "claim": "Composition : Structure observée à adapter : visuel fixe · accroche écrite en ouverture · appel à l’action explicite.\nFormats : Visuel fixe\nAucun texte prévu.",
+      "sourceIds": [],
+      "kind": "declared",
+      "confidence": "high"
+     },
+     "sha256": "a6525e3b8ffc21057e62350929285dd918490b7f52ee089ab890faf0de02c7be"
+    }
+   ],
+   "references": [
+    {
+     "assetId": "pph_39485f5d9f0a6694e37c35f2",
+     "assetVersion": "sha256-3b5396844508e6a0",
+     "sha256": "3b5396844508e6a055475e7dee968c9df39a33a2fd5e39acda89d007e18b33d5",
+     "role": "product",
+     "scope": "product",
+     "allowedChanges": [
+      "detourage",
+      "recadrage",
+      "echelle",
+      "rotation",
+      "ombre",
+      "decor"
+     ],
+     "requiredComponents": [
+      "lunettes",
+      "bandeau"
+     ]
+    },
+    {
+     "assetId": "src_f94234d916b65602",
+     "assetVersion": "sha256-cc04b0fe60206b6b",
+     "sha256": "cc04b0fe60206b6b8d7a432649b259f41e666419c966022019f4522e9f32bf21",
+     "role": "style",
+     "scope": "background",
+     "allowedChanges": [],
+     "requiredComponents": []
+    }
+   ],
+   "invariants": [
+    "Même visuel",
+    "Produit, marque et allégations : uniquement ceux de la marque cible.",
+    "Une seule variable change par rapport au témoin.",
+    "Forme, couleurs, matières et étiquette du produit telles que sur la photo épinglée",
+    "Aucun composant ajouté, retiré ou remplacé",
+    "Composant obligatoire visible : lunettes",
+    "Composant obligatoire visible : bandeau",
+    "Référence src_f94234d916b65602 (Style d’une annonce concurrente de « Lumière Botanique ») : reprendre seulement matière, lumière, palette et cadrage · ni son sujet, ni son personnage, ni son produit, ni son logo, ni son texte, ni le nom de « Lumière Botanique »."
+   ],
+   "facts": [
+    {
+     "id": "src_f94234d916b65602.obs.accroche",
+     "claim": "Accroche écrite (première phrase) : « Votre regard mérite mieux. »",
+     "sourceIds": [
+      "src_f94234d916b65602"
+     ],
+     "kind": "observed",
+     "confidence": "high"
+    },
+    {
+     "id": "src_f94234d916b65602.obs.texte",
+     "claim": "Texte publicitaire de 90 caractères.",
+     "sourceIds": [
+      "src_f94234d916b65602"
+     ],
+     "kind": "observed",
+     "confidence": "high"
+    },
+    {
+     "id": "src_f94234d916b65602.obs.cta",
+     "claim": "Appel à l’action affiché : « Acheter ».",
+     "sourceIds": [
+      "src_f94234d916b65602"
+     ],
+     "kind": "observed",
+     "confidence": "high"
+    },
+    {
+     "id": "src_f94234d916b65602.obs.structure",
+     "claim": "Visuel fixe (image).",
+     "sourceIds": [
+      "src_f94234d916b65602"
+     ],
+     "kind": "observed",
+     "confidence": "high"
+    },
+    {
+     "id": "src_f94234d916b65602.obs.lien",
+     "claim": "Renvoie vers une page de destination (lbcosmetiques.fr).",
+     "sourceIds": [
+      "src_f94234d916b65602"
+     ],
+     "kind": "observed",
+     "confidence": "high"
+    },
+    {
+     "id": "src_f94234d916b65602.obs.diffusion",
+     "claim": "Diffusée depuis 64 jours · une durée de diffusion ne prouve pas la rentabilité.",
+     "sourceIds": [
+      "src_f94234d916b65602"
+     ],
+     "kind": "measured",
+     "confidence": "medium"
+    },
+    {
+     "id": "produit.nom",
+     "claim": "Nom : Lunettes Sport Bandeau",
+     "sourceIds": [
+      "produit:11111111-1111-4111-8111-111111111111"
+     ],
+     "kind": "declared",
+     "confidence": "high"
+    },
+    {
+     "id": "produit.description",
+     "claim": "Description : Lunettes de sport avec bandeau élastique",
+     "sourceIds": [
+      "produit:11111111-1111-4111-8111-111111111111"
+     ],
+     "kind": "declared",
+     "confidence": "high"
+    },
+    {
+     "id": "produit.promesse",
+     "claim": "Promesse (bénéfice clé) : Tiennent pendant la course",
+     "sourceIds": [
+      "produit:11111111-1111-4111-8111-111111111111"
+     ],
+     "kind": "declared",
+     "confidence": "high"
+    },
+    {
+     "id": "produit.prix",
+     "claim": "Prix : 49,00 €",
+     "sourceIds": [
+      "produit:11111111-1111-4111-8111-111111111111"
+     ],
+     "kind": "declared",
+     "confidence": "high"
+    },
+    {
+     "id": "produit.page",
+     "claim": "Page produit : boutique.test/lunettes",
+     "sourceIds": [
+      "produit:11111111-1111-4111-8111-111111111111"
+     ],
+     "kind": "declared",
+     "confidence": "high"
+    },
+    {
+     "id": "produit.photo",
+     "claim": "Photo produit : 7 photos disponibles",
+     "sourceIds": [
+      "produit:11111111-1111-4111-8111-111111111111"
+     ],
+     "kind": "declared",
+     "confidence": "high"
+    },
+    {
+     "id": "hyp_1",
+     "claim": "Une accroche sur la tenue en course augmente le taux de clic.",
+     "sourceIds": [
+      "src_f94234d916b65602"
+     ],
+     "kind": "hypothesis",
+     "confidence": "low"
+    },
+    {
+     "id": "hyp_1.temoin",
+     "claim": "Témoin : Accroche prix",
+     "sourceIds": [
+      "src_f94234d916b65602"
+     ],
+     "kind": "hypothesis",
+     "confidence": "low"
+    },
+    {
+     "id": "hyp_1.traitement",
+     "claim": "Traitement : Accroche tenue",
+     "sourceIds": [
+      "src_f94234d916b65602"
+     ],
+     "kind": "hypothesis",
+     "confidence": "low"
+    },
+    {
+     "id": "hyp_1.mesure",
+     "claim": "Mesure : Taux de clic (CTR)",
+     "sourceIds": [
+      "src_f94234d916b65602"
+     ],
+     "kind": "hypothesis",
+     "confidence": "low"
+    },
+    {
+     "id": "hyp_1.decision",
+     "claim": "Règle de décision : +15 % après 3 000 impressions",
+     "sourceIds": [
+      "src_f94234d916b65602"
+     ],
+     "kind": "hypothesis",
+     "confidence": "low"
+    }
+   ]
+  }
+ },
+ "sept-photos-epinglee-1-logo-bib": {
+  "prep": {
+   "ok": true,
+   "violations": [],
+   "references": [
+    {
+     "assetId": "pph_766bcc779039de733760e843",
+     "assetVersion": "sha256-788367c73c7ddf4c",
+     "sha256": "788367c73c7ddf4c53f65e68cc0d943e6227ab55b0e78ba63ace822b1c6301c0",
+     "role": "product",
+     "scope": "product",
+     "allowedChanges": [
+      "detourage",
+      "recadrage",
+      "echelle",
+      "rotation",
+      "ombre",
+      "decor"
+     ],
+     "requiredComponents": []
+    },
+    {
+     "assetId": "logo_aaaaaaaaaaaaaaaaaaaaaaaa",
+     "assetVersion": "sha256-aaaaaaaaaaaaaaaa",
+     "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "role": "logo",
+     "scope": "global",
+     "allowedChanges": [],
+     "requiredComponents": []
+    },
+    {
+     "assetId": "bib_33333333-3333-4333-8333-333333333333",
+     "assetVersion": "sha256-bbbbbbbbbbbbbbbb",
+     "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "role": "composition",
+     "scope": "global",
+     "allowedChanges": [],
+     "requiredComponents": []
+    }
+   ],
+   "referenceIds": [
+    "pph_766bcc779039de733760e843",
+    "logo_aaaaaaaaaaaaaaaaaaaaaaaa",
+    "bib_33333333-3333-4333-8333-333333333333"
+   ],
+   "interditsTransfert": [],
+   "composantsProteges": [],
+   "invariants": [
+    "Même visuel",
+    "Produit, marque et allégations : uniquement ceux de la marque cible.",
+    "Une seule variable change par rapport au témoin.",
+    "Forme, couleurs, matières et étiquette du produit telles que sur la photo épinglée",
+    "Aucun composant ajouté, retiré ou remplacé"
+   ],
+   "avertissements": [
+    "Aucun composant obligatoire déclaré · le contrôle visuel de l’identité reste exigé après génération."
+   ]
+  },
+  "entree": {
+   "taskInputs": {
+    "briefId": "brief_ver_produit_prepare",
+    "conceptId": "concept_ver_produit_prepare",
+    "mode": "generative_scene",
+    "referenceIds": [
+     "pph_766bcc779039de733760e843",
+     "logo_aaaaaaaaaaaaaaaaaaaaaaaa",
+     "bib_33333333-3333-4333-8333-333333333333"
+    ],
+    "width": 1080,
+    "height": 1350
+   },
+   "resolvedDocuments": [
+    {
+     "id": "brief_ver_produit_prepare",
+     "version": "ver_produit_prepare",
+     "schemaKey": "Fact",
+     "content": {
+      "id": "brief_ver_produit_prepare",
+      "claim": "Objectif : Vérifier : Une accroche sur la tenue en course augmente le taux de clic.\nAudience : Coureurs 25-40 ans\nHypothèse : Une accroche sur la tenue en course augmente le taux de clic.\nVariable testée : Accroche\nTémoin : Accroche prix\nTraitement : Accroche tenue\nInvariants : Même visuel ; Produit, marque et allégations : uniquement ceux de la marque cible. ; Une seule variable change par rapport au témoin.\nExclusions : Nom, logo et identité visuelle de Lumière Botanique. ; Produit et packaging de Lumière Botanique. ; Allégations, chiffres et promesses de Lumière Botanique. ; Reprise mot pour mot du texte de la source.\nComposition : Structure observée à adapter : visuel fixe · accroche écrite en ouverture · appel à l’action explicite.\nFormats : Visuel fixe",
+      "sourceIds": [],
+      "kind": "declared",
+      "confidence": "high"
+     },
+     "sha256": "773113bc959f15e3548a0dcd0f31d77e4210fd2eb87c49aae845ec9773ed5db2"
+    },
+    {
+     "id": "concept_ver_produit_prepare",
+     "version": "ver_produit_prepare",
+     "schemaKey": "Fact",
+     "content": {
+      "id": "concept_ver_produit_prepare",
+      "claim": "Composition : Structure observée à adapter : visuel fixe · accroche écrite en ouverture · appel à l’action explicite.\nFormats : Visuel fixe\nAucun texte prévu.",
+      "sourceIds": [],
+      "kind": "declared",
+      "confidence": "high"
+     },
+     "sha256": "a6525e3b8ffc21057e62350929285dd918490b7f52ee089ab890faf0de02c7be"
+    }
+   ],
+   "references": [
+    {
+     "assetId": "pph_766bcc779039de733760e843",
+     "assetVersion": "sha256-788367c73c7ddf4c",
+     "sha256": "788367c73c7ddf4c53f65e68cc0d943e6227ab55b0e78ba63ace822b1c6301c0",
+     "role": "product",
+     "scope": "product",
+     "allowedChanges": [
+      "detourage",
+      "recadrage",
+      "echelle",
+      "rotation",
+      "ombre",
+      "decor"
+     ],
+     "requiredComponents": []
+    },
+    {
+     "assetId": "logo_aaaaaaaaaaaaaaaaaaaaaaaa",
+     "assetVersion": "sha256-aaaaaaaaaaaaaaaa",
+     "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "role": "logo",
+     "scope": "global",
+     "allowedChanges": [],
+     "requiredComponents": []
+    },
+    {
+     "assetId": "bib_33333333-3333-4333-8333-333333333333",
+     "assetVersion": "sha256-bbbbbbbbbbbbbbbb",
+     "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "role": "composition",
+     "scope": "global",
+     "allowedChanges": [],
+     "requiredComponents": []
+    }
+   ],
+   "invariants": [
+    "Même visuel",
+    "Produit, marque et allégations : uniquement ceux de la marque cible.",
+    "Une seule variable change par rapport au témoin.",
+    "Forme, couleurs, matières et étiquette du produit telles que sur la photo épinglée",
+    "Aucun composant ajouté, retiré ou remplacé"
+   ],
+   "facts": [
+    {
+     "id": "src_f94234d916b65602.obs.accroche",
+     "claim": "Accroche écrite (première phrase) : « Votre regard mérite mieux. »",
+     "sourceIds": [
+      "src_f94234d916b65602"
+     ],
+     "kind": "observed",
+     "confidence": "high"
+    },
+    {
+     "id": "src_f94234d916b65602.obs.texte",
+     "claim": "Texte publicitaire de 90 caractères.",
+     "sourceIds": [
+      "src_f94234d916b65602"
+     ],
+     "kind": "observed",
+     "confidence": "high"
+    },
+    {
+     "id": "src_f94234d916b65602.obs.cta",
+     "claim": "Appel à l’action affiché : « Acheter ».",
+     "sourceIds": [
+      "src_f94234d916b65602"
+     ],
+     "kind": "observed",
+     "confidence": "high"
+    },
+    {
+     "id": "src_f94234d916b65602.obs.structure",
+     "claim": "Visuel fixe (image).",
+     "sourceIds": [
+      "src_f94234d916b65602"
+     ],
+     "kind": "observed",
+     "confidence": "high"
+    },
+    {
+     "id": "src_f94234d916b65602.obs.lien",
+     "claim": "Renvoie vers une page de destination (lbcosmetiques.fr).",
+     "sourceIds": [
+      "src_f94234d916b65602"
+     ],
+     "kind": "observed",
+     "confidence": "high"
+    },
+    {
+     "id": "src_f94234d916b65602.obs.diffusion",
+     "claim": "Diffusée depuis 64 jours · une durée de diffusion ne prouve pas la rentabilité.",
+     "sourceIds": [
+      "src_f94234d916b65602"
+     ],
+     "kind": "measured",
+     "confidence": "medium"
+    },
+    {
+     "id": "produit.nom",
+     "claim": "Nom : Lunettes Sport Bandeau",
+     "sourceIds": [
+      "produit:11111111-1111-4111-8111-111111111111"
+     ],
+     "kind": "declared",
+     "confidence": "high"
+    },
+    {
+     "id": "produit.description",
+     "claim": "Description : Lunettes de sport avec bandeau élastique",
+     "sourceIds": [
+      "produit:11111111-1111-4111-8111-111111111111"
+     ],
+     "kind": "declared",
+     "confidence": "high"
+    },
+    {
+     "id": "produit.promesse",
+     "claim": "Promesse (bénéfice clé) : Tiennent pendant la course",
+     "sourceIds": [
+      "produit:11111111-1111-4111-8111-111111111111"
+     ],
+     "kind": "declared",
+     "confidence": "high"
+    },
+    {
+     "id": "produit.prix",
+     "claim": "Prix : 49,00 €",
+     "sourceIds": [
+      "produit:11111111-1111-4111-8111-111111111111"
+     ],
+     "kind": "declared",
+     "confidence": "high"
+    },
+    {
+     "id": "produit.page",
+     "claim": "Page produit : boutique.test/lunettes",
+     "sourceIds": [
+      "produit:11111111-1111-4111-8111-111111111111"
+     ],
+     "kind": "declared",
+     "confidence": "high"
+    },
+    {
+     "id": "produit.photo",
+     "claim": "Photo produit : 7 photos disponibles",
+     "sourceIds": [
+      "produit:11111111-1111-4111-8111-111111111111"
+     ],
+     "kind": "declared",
+     "confidence": "high"
+    },
+    {
+     "id": "hyp_1",
+     "claim": "Une accroche sur la tenue en course augmente le taux de clic.",
+     "sourceIds": [
+      "src_f94234d916b65602"
+     ],
+     "kind": "hypothesis",
+     "confidence": "low"
+    },
+    {
+     "id": "hyp_1.temoin",
+     "claim": "Témoin : Accroche prix",
+     "sourceIds": [
+      "src_f94234d916b65602"
+     ],
+     "kind": "hypothesis",
+     "confidence": "low"
+    },
+    {
+     "id": "hyp_1.traitement",
+     "claim": "Traitement : Accroche tenue",
+     "sourceIds": [
+      "src_f94234d916b65602"
+     ],
+     "kind": "hypothesis",
+     "confidence": "low"
+    },
+    {
+     "id": "hyp_1.mesure",
+     "claim": "Mesure : Taux de clic (CTR)",
+     "sourceIds": [
+      "src_f94234d916b65602"
+     ],
+     "kind": "hypothesis",
+     "confidence": "low"
+    },
+    {
+     "id": "hyp_1.decision",
+     "claim": "Règle de décision : +15 % après 3 000 impressions",
+     "sourceIds": [
+      "src_f94234d916b65602"
+     ],
+     "kind": "hypothesis",
+     "confidence": "low"
+    }
+   ]
+  }
+ }
+}
