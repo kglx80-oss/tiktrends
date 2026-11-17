@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import { domaineMyshopify } from '@tiktrends/core';
 import { getSession } from '../../../../lib/auth';
 import { getActiveBrand } from '../../../../lib/brands';
 import { signState } from '../../../../lib/oauth-state';
@@ -19,8 +20,9 @@ export async function GET(req: NextRequest) {
   const brand = await getActiveBrand(s.workspaceId);
   if (!brand) return NextResponse.redirect(appUrl + '/connections?e=nobrand');
 
-  const shop = (new URL(req.url).searchParams.get('shop') || '').trim().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
-  if (!/\.myshopify\.com$/.test(shop)) return NextResponse.redirect(appUrl + '/connections?e=shopify_shop');
+  // Motif ANCRÉ (noyau) · `piege.com?.myshopify.com` ou `piege.com#.myshopify.com` visaient piege.com.
+  const shop = domaineMyshopify(new URL(req.url).searchParams.get('shop'));
+  if (!shop) return NextResponse.redirect(appUrl + '/connections?e=shopify_shop');
 
   const state = signState({ brandId: brand.id, ws: s.workspaceId, shop });
   const q = new URLSearchParams({
