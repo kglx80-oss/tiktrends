@@ -3,6 +3,7 @@ import {
   suitePagination, erreurLectureIncomplete, lireLectureIncomplete, phraseLectureIncomplete,
   BORNE_PAGES_META, TAILLE_PAGE_META, FENETRE_SYNCHRO_JOURS, ANNONCES_MAX_COMPTE_META, PAGES_VOLUME_LEGITIME_META, PAGES_BUDGET_MEMOIRE_META,
   BUDGET_MEMOIRE_LECTURE_OCTETS, OCTETS_PAR_LIGNE_CONVERTIE, paramsDeSuite, reprisePageMeta, ATTENTES_REPRISE_META_MS,
+  DUREE_MAX_LECTURE_META_MS, DELAI_REQUETE_META_MS,
   motifEchecRemontee, etatRemontee, texteRemontee, type RemonteeJournal,
 } from '../src';
 
@@ -31,7 +32,8 @@ describe('pagination Meta · la règle', () => {
     [{ pagesLues: 2, next: 'https://graph.facebook.com/x?access_token=t&limit=500', after: null }, { suite: 'incomplete', raison: 'curseur_absent' }],
     [{ pagesLues: 2, next: 'https://graph.facebook.com/x?access_token=t&after=Q2', after: null }, { suite: 'page', params: { after: 'Q2' } }],
     [{ pagesLues: 2, next: 'https://graph.facebook.com/x?access_token=t&offset=1000', after: undefined }, { suite: 'page', params: { offset: '1000' } }],
-    [{ pagesLues: 2, next: 'https://graph.facebook.com/x?access_token=t&__paging_token=P', after: undefined }, { suite: 'page', params: { __paging_token: 'P' } }],
+    // `__paging_token` seul (sans les since / until de la page suivante) redemanderait la même page · pas une suite.
+    [{ pagesLues: 2, next: 'https://graph.facebook.com/x?access_token=t&__paging_token=P', after: undefined }, { suite: 'incomplete', raison: 'curseur_absent' }],
     [{ pagesLues: 2, next: 'u', after: 'c', borne: 2 }, { suite: 'incomplete', raison: 'borne' }],
   ] as const)('%o → %o', (p, attendu) => expect(suitePagination(p)).toEqual(attendu));
   it('la suite lue dans `next` ne reprend JAMAIS son jeton', () => {
@@ -39,7 +41,13 @@ describe('pagination Meta · la règle', () => {
     expect(paramsDeSuite('pas une url')).toBeNull();
   });
 
+  it('la durée d’une lecture est sous les délais qui l’entourent · 15 min du worker, 800 s de la route', () => {
+    expect(DUREE_MAX_LECTURE_META_MS).toBe(12 * 60_000);
+    expect(DUREE_MAX_LECTURE_META_MS).toBeLessThan(Math.min(15 * 60_000, 800_000));
+    expect(DELAI_REQUETE_META_MS).toBe(60_000);
+  });
   it('le message d’erreur se relit · et toute autre erreur n’est pas une lecture incomplète', () => {
+    expect(lireLectureIncomplete(erreurLectureIncomplete('duree', 11))).toEqual({ raison: 'duree', pages: 11 });
     expect(lireLectureIncomplete(erreurLectureIncomplete('borne', 1210))).toEqual({ raison: 'borne', pages: 1210 });
     expect(lireLectureIncomplete(erreurLectureIncomplete('curseur_absent', 4))).toEqual({ raison: 'curseur_absent', pages: 4 });
     expect(lireLectureIncomplete('Meta : (#17) User request limit reached')).toBeNull();
@@ -57,7 +65,11 @@ describe('reprise d’une page · passager redemandé, autorisation jamais', () 
   });
   it.each([
     [{ status: 503, message: 'Meta : HTTP 503' }, 2_000],
-    [{ status: 500, code: 1, message: 'Meta : An unknown error has occurred.' }, 2_000],
+    [{ status: 500, code: 1, message: 'Meta : Please reduce the amount of data you’re asking for, then retry your request' }, null],
+    [{ status: 500, code: 1, transitoire: true, message: 'Meta : An unknown error has occurred.' }, 2_000],
+    // Autorisation SANS mot révélateur dans le message · seul le code la reconnaît.
+    [{ status: 500, code: 190, transitoire: true, message: 'Meta : HTTP 500' }, null],
+    [{ status: 500, code: 102, message: 'Meta : Session key invalid' }, null],
     [{ status: 400, code: 17, message: 'Meta : (#17) User request limit reached' }, 2_000],
     [{ status: 400, code: 80004, message: 'Meta : There have been too many calls to this ad-account' }, 2_000],
     [{ status: 400, code: 2, transitoire: true, message: 'Meta : Service temporarily unavailable' }, 2_000],
@@ -77,10 +89,11 @@ describe('pagination Meta · ce que l’écran dit', () => {
     source: 'meta', declencheur: 'nuit', le: '2026-11-17T07:01:00Z', ok: false, motif: 'autre',
     resume: { lectureIncomplete: { raison: 'borne', pages: 1210 } },
   };
-  const PHRASE = 'ce compte publicitaire renvoie plus de 1\u202f210 pages de mesures Meta, au-delà de ce que la mesure lit en une fois · rien n’a été écrit, les mesures précédentes restent en place · écris au support, la lecture de ce compte se règle de notre côté';
+  const PHRASE = 'ce compte publicitaire renvoie plus de 1\u202f210 pages de mesures Meta, au-delà de ce que la mesure lit en une fois · rien n’a été écrit, les mesures précédentes restent en place · écris au support · ce volume demande une lecture par tranches, pas encore disponible';
 
   it('la phrase · la cause et que rien n’a été écrit', () => {
     expect(phraseLectureIncomplete({ raison: 'borne', pages: 1210 })).toBe(PHRASE);
+    expect(phraseLectureIncomplete({ raison: 'duree', pages: 11 })).toBe('la lecture des mesures Meta a dépassé 12 min (11 pages lues) · rien n’a été écrit, les mesures précédentes restent en place · la remontée suivante réessaiera, si ça persiste écris au support');
     expect(phraseLectureIncomplete({ raison: 'curseur_absent', pages: 4 })).toBe('Meta a annoncé une suite de mesures sans moyen de la lire (page 4) · rien n’a été écrit, les mesures précédentes restent en place · la remontée suivante réessaiera, si ça persiste écris au support');
   });
   it('Connexions · la remontée est en échec, avec la phrase de la lecture incomplète (pas le « autre » générique)', () => {

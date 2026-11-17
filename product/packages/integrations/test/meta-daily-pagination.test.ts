@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
-import { BORNE_PAGES_META, ATTENTES_REPRISE_META_MS, lireLectureIncomplete } from '@tiktrends/core';
+import { BORNE_PAGES_META, ATTENTES_REPRISE_META_MS, DUREE_MAX_LECTURE_META_MS, lireLectureIncomplete, motifEchecRemontee } from '@tiktrends/core';
 import { metaDailySync, metaAdsetsSync, horlogeMeta } from '../src/meta-daily';
 
 /**
@@ -39,14 +39,17 @@ function fauxMeta(pages: number, o: { sansCurseurA?: number } = {}) {
 const lire = () => metaDailySync('act_1', JETON, { since: new Date('2026-07-20'), until: new Date('2026-11-17') });
 const echecDe = (p: Promise<unknown>) => p.then(() => null, (e: Error) => e);
 
-const attendreOrigine = horlogeMeta.attendre;
+const horlogeOrigine = { ...horlogeMeta };
+/** L'heure simulée · avance par les attentes et par ce que coûte chaque requête simulée. */
+let t = 0;
 beforeEach(() => {
-  appels.length = 0; attentes.length = 0;
-  horlogeMeta.attendre = async (ms) => { attentes.push(ms); };
+  appels.length = 0; attentes.length = 0; t = 0;
+  horlogeMeta.attendre = async (ms) => { attentes.push(ms); t += ms; };
+  horlogeMeta.maintenant = () => t;
   vi.spyOn(console, 'warn').mockImplementation(() => {});
   vi.spyOn(console, 'error').mockImplementation(() => {});
 });
-afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); horlogeMeta.attendre = attendreOrigine; });
+afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); Object.assign(horlogeMeta, horlogeOrigine); });
 
 describe('pagination Meta · complète ou en échec dit, jamais tronquée en silence', () => {
   it('30 pages (au-delà des 25 d’avant) · les 30 lignes sont rendues, une requête par page', async () => {
@@ -109,17 +112,21 @@ describe('suite lue dans l’URL `next` quand `cursors.after` manque · jamais l
 
 describe('chaque page est convertie DÈS réception · aucune ligne brute retenue', () => {
   it('les lignes brutes d’une page, abîmées dès la page suivante servie, ne changent rien au résultat', async () => {
-    // Le faux Meta ABÎME les lignes brutes qu'il a déjà rendues dès qu'on lui demande la page suivante ·
-    // seule une lecture qui les a converties avant de demander la suite rend des lignes justes.
+    // Les lignes brutes sont les objets que rend le décodage du corps · relevés au passage (`JSON.parse`), puis
+    // ABÎMÉS par le faux Meta dès qu'on lui demande la page suivante · seule une lecture qui les a converties
+    // avant de demander la suite rend des lignes justes.
     const rendues: Array<Record<string, unknown>> = [];
+    const parse = JSON.parse;
+    vi.spyOn(JSON, 'parse').mockImplementation((texte: string, ...r: unknown[]) => {
+      const v = parse(texte, ...(r as [])) as { data?: Array<Record<string, unknown>> };
+      if (Array.isArray(v?.data)) rendues.push(...v.data);
+      return v;
+    });
     vi.stubGlobal('fetch', async (url: string) => {
       for (const r of rendues) { r.ad_id = undefined; r.spend = '999999'; }
       const n = pageDe(new URL(url));
-      const data = [ligne(n), ligne(n + 100)];
-      rendues.push(...data);
       const paging = n + 1 < 5 ? { next: 'x', cursors: { after: `c${n + 1}` } } : {};
-      // Les objets eux-mêmes, comme `res.json()` les rend · pas une copie (un texte reparsé ne pourrait pas être abîmé après coup).
-      return { ok: true, status: 200, json: async () => ({ data, paging }) } as unknown as Response;
+      return new Response(JSON.stringify({ data: [ligne(n), ligne(n + 100)], paging }), { status: 200 });
     });
     const rows = await lire();
     expect(rows.length, 'des lignes brutes ont été gardées jusqu’à la fin de la lecture puis converties · elles pèsent sept fois une ligne convertie').toBe(10);
@@ -166,5 +173,60 @@ describe('reprise d’une page en échec passager · la même page, attentes cro
     expect(err?.message).toBe('Meta : Error validating access token: Session has expired');
     expect(attentes, 'une erreur d’autorisation a été redemandée').toEqual([]);
     expect(appels.filter((u) => pageDe(new URL(u)) === 3).length).toBe(1);
+  });
+});
+
+describe('corps coupé · un 200 dont la lecture du corps échoue est une requête qui n’a PAS abouti', () => {
+  /** Un 200 dont le corps se coupe (délai de 60 s, réseau) en cours de lecture. */
+  const coupure = async () => { throw new DOMException('The operation was aborted due to timeout', 'TimeoutError'); };
+  /** Comme un vrai `Response` · toute lecture du corps (`json`, `text`) rejette de la même façon. */
+  const corpsCoupe = () => ({ ok: true, status: 200, json: coupure, text: coupure }) as unknown as Response;
+
+  it('coupé une fois à la page 2 · redemandé, lecture complète', async () => {
+    let coupe = true;
+    vi.stubGlobal('fetch', async (url: string) => {
+      appels.push(url);
+      const n = pageDe(new URL(url));
+      if (n === 2 && coupe) { coupe = false; return corpsCoupe(); }
+      const paging = n + 1 < 4 ? { next: 'x', cursors: { after: `c${n + 1}` } } : {};
+      return new Response(JSON.stringify({ data: [ligne(n)], paging }), { status: 200 });
+    });
+    expect((await lire()).length, 'un corps coupé a fait échouer la lecture au lieu d’être redemandé').toBe(4);
+    expect(appels.filter((u) => pageDe(new URL(u)) === 2).length).toBe(2);
+    expect(attentes).toEqual([ATTENTES_REPRISE_META_MS[0]]);
+  });
+
+  it('coupé à chaque fois · échec au motif « réseau », pas « Meta : HTTP 200 »', async () => {
+    vi.stubGlobal('fetch', async () => corpsCoupe());
+    const err = await echecDe(lire());
+    expect(err?.message, 'un corps coupé a été lu comme un 200 illisible').not.toBe('Meta : HTTP 200');
+    expect(motifEchecRemontee(err!.message), 'un corps coupé n’est pas journalisé comme un échec réseau').toBe('reseau');
+    expect(attentes).toEqual([2_000, 6_000, 18_000]);
+  });
+});
+
+describe('durée d’une lecture · plafonnée, échec propre au-delà', () => {
+  it('chaque page met 61 s · la lecture s’arrête à 12 min, raison « durée », aucune requête après l’échéance', async () => {
+    const heures: number[] = [];
+    vi.stubGlobal('fetch', async (url: string) => {
+      heures.push(t);
+      appels.push(url);
+      t += 61_000;
+      const n = pageDe(new URL(url));
+      return new Response(JSON.stringify({ data: [ligne(n)], paging: { next: 'x', cursors: { after: `c${n + 1}` } } }), { status: 200 });
+    });
+    const err = await echecDe(lire());
+    expect(lireLectureIncomplete(err?.message), 'une lecture trop longue n’échoue pas en le disant').toEqual({ raison: 'duree', pages: 12 });
+    expect(Math.max(...heures), 'une requête est partie après l’échéance de la lecture').toBeLessThan(DUREE_MAX_LECTURE_META_MS);
+  });
+
+  it('une page toujours en 503 qui met 5 min à répondre · plus de reprise une fois l’échéance en vue, raison « durée »', async () => {
+    // 0 → 5 min, attente 2 s, → 10 min, attente 6 s, → 15 min · la troisième attente finirait après 12 min.
+    const heures: number[] = [];
+    vi.stubGlobal('fetch', async () => { heures.push(t); t += 300_000; return new Response('<html>503</html>', { status: 503 }); });
+    const err = await echecDe(lire());
+    expect(lireLectureIncomplete(err?.message), 'les reprises ont continué au-delà de l’échéance de la lecture').toEqual({ raison: 'duree', pages: 0 });
+    expect(attentes).toEqual([2_000, 6_000]);
+    expect(Math.max(...heures)).toBeLessThan(DUREE_MAX_LECTURE_META_MS);
   });
 });

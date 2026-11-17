@@ -23,7 +23,9 @@ import { describe, it, expect, vi, beforeAll } from 'vitest';
  *  - une erreur passagère d'une page (503, « (#17) ») · la page est
  *    redemandée, la synchro est complète ; une erreur qui ne passe jamais ·
  *    trois reprises aux attentes croissantes (relevées, jamais dormies), puis
- *    échec propre, rien d'écrit.
+ *    échec propre, rien d'écrit ;
+ *  - une lecture qui dépasse sa durée maximale (12 min, horloge simulée) ·
+ *    échec propre, rien d'écrit, Connexions dit la durée.
  */
 
 const ids = vi.hoisted(() => {
@@ -38,6 +40,8 @@ const meta = vi.hoisted(() => ({
   /** Page → réponses en échec à rendre avant de réussir (`Infinity` · jamais). */
   pannes: new Map<number, { fois: number; reponse: () => Response }>(),
   attentes: [] as number[],
+  /** Ce que coûte chaque requête sur l'horloge simulée (0 · l'horloge réelle sert). */
+  dureeRequete: 0,
 }));
 
 vi.mock('@tiktrends/db', async (importOriginal) => {
@@ -72,6 +76,7 @@ function fauxFetch() {
     const u = new URL(url);
     if (u.pathname.endsWith('/adsets')) return new Response(JSON.stringify({ data: [] }), { status: 200 });
     meta.appels++;
+    horloge.t += meta.dureeRequete;
     const n = Number(u.searchParams.get('after')?.replace('c', '') ?? '0');
     const panne = meta.pannes.get(n);
     if (panne && panne.fois > 0) { panne.fois--; return panne.reponse(); }
@@ -111,9 +116,10 @@ beforeAll(async () => {
   // Les attentes entre deux essais d'une page sont relevées, jamais dormies.
   horlogeMeta.attendre = async (ms) => { meta.attentes.push(ms); };
 });
+const horloge = { t: 0 };
 const http503 = () => new Response('<html>Service Unavailable</html>', { status: 503 });
 const limite17 = () => new Response(JSON.stringify({ error: { message: '(#17) User request limit reached', code: 17 } }), { status: 400 });
-const PHRASE_BORNE = 'ce compte publicitaire renvoie plus de 400 pages de mesures Meta, au-delà de ce que la mesure lit en une fois · rien n’a été écrit, les mesures précédentes restent en place · écris au support, la lecture de ce compte se règle de notre côté';
+const PHRASE_BORNE = 'ce compte publicitaire renvoie plus de 400 pages de mesures Meta, au-delà de ce que la mesure lit en une fois · rien n’a été écrit, les mesures précédentes restent en place · écris au support · ce volume demande une lecture par tranches, pas encore disponible';
 
 describe('synchro Adsmap · la pagination Meta lue jusqu’au bout, ou un échec dit', () => {
   it('le semis tient · trois journées d’une synchro précédente', async () => {
@@ -187,5 +193,24 @@ describe('synchro Adsmap · la pagination Meta lue jusqu’au bout, ou un échec
     expect(meta.attentes, 'les attentes ne sont pas croissantes, ou pas bornées').toEqual([2_000, 6_000, 18_000]);
     expect((await lireRemontees(ids.brand, 1))[0]).toMatchObject({ ok: false, motif: 'reseau' });
     meta.pannes = new Map();
+  });
+
+  it('une lecture qui dépasse 12 min (61 s par page, horloge simulée) · échec propre, rien d’écrit, écran qui dit la durée', async () => {
+    const avant = await journees();
+    meta.pages = Infinity;
+    meta.adSuivie = new Map([[0, [{ jour: J(2), spend: 555 }]]]);
+    meta.dureeRequete = 61_000;
+    horloge.t = 0;
+    const maintenant = horlogeMeta.maintenant;
+    horlogeMeta.maintenant = () => horloge.t;
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const echec = await runAdsMapSyncForBrand(ids.brand).then(() => null, (e: Error) => e)
+      .finally(() => { err.mockRestore(); horlogeMeta.maintenant = maintenant; meta.dureeRequete = 0; });
+    expect(echec, 'une lecture sans fin dans le temps a fini par réussir ou a été tronquée').not.toBeNull();
+    expect(await journees(), 'une lecture trop longue a écrit un jeu partiel').toEqual(avant);
+    const [j] = await lireRemontees(ids.brand, 1);
+    expect(j).toMatchObject({ ok: false, resume: { lectureIncomplete: { raison: 'duree', pages: 12 } } });
+    const e = etatRemontee({ connecte: true, cleDeclenchement: true, suspendueLe: null, derniereReussie: null, journal: [j!] }, new Date(), 'Europe/Paris');
+    expect(e.erreur, 'Connexions ne dit pas que la lecture a dépassé sa durée').toBe('la lecture des mesures Meta a dépassé 12 min (12 pages lues) · rien n’a été écrit, les mesures précédentes restent en place · la remontée suivante réessaiera, si ça persiste écris au support');
   });
 });

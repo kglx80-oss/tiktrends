@@ -21,16 +21,21 @@
  *
  *  - pas de `paging.next` · la lecture est finie ;
  *  - un `paging.next` · la suite se lit par le curseur `cursors.after`, sinon
- *    par le paramètre de suite que porte l'URL `next` (`after`, `offset`,
- *    `__paging_token`) · l'URL n'est JAMAIS suivie telle quelle, elle porte un
- *    jeton · on n'en garde que ce paramètre, avec notre propre jeton ;
+ *    par le paramètre de suite que porte l'URL `next` (`after`, `offset`) ·
+ *    l'URL n'est JAMAIS suivie telle quelle, elle porte un jeton · on n'en
+ *    garde que ce paramètre, avec notre propre jeton. `__paging_token` n'est
+ *    pas repris · il ne vaut qu'accompagné des `since` / `until` de la page
+ *    suivante, et seul il redemanderait la même page jusqu'à la borne ;
  *  - un `paging.next` qui n'offre aucun paramètre de suite · INCOMPLÈTE
  *    (`curseur_absent`) · on ne fait pas comme si la suite n'existait pas ;
  *  - un `paging.next` alors que la borne de pages est atteinte · INCOMPLÈTE
  *    (`borne`) ;
- *  - une page en échec PASSAGER (limite d'appels, réseau, 5xx) se redemande,
- *    la même page, avec une attente croissante (`reprisePageMeta`) · jamais
- *    sur une erreur de jeton ou de droits.
+ *  - une page en échec PASSAGER (limite d'appels, réseau, 5xx, corps coupé)
+ *    se redemande, la même page, avec une attente croissante
+ *    (`reprisePageMeta`) · jamais sur une erreur de jeton ou de droits, ni sur
+ *    « reduce the amount of data » (code 1, la même requête échouera encore) ;
+ *  - une lecture qui dépasse sa durée maximale (`DUREE_MAX_LECTURE_META_MS`)
+ *    · INCOMPLÈTE (`duree`).
  *
  * Une lecture incomplète FAIT ÉCHOUER la synchro de la marque, avant toute
  * écriture · les mesures précédentes restent en place, la raison est
@@ -78,14 +83,20 @@
  *
  *     Le tas par défaut de Node 22 vaut la moitié de la mémoire physique
  *     (mesuré · 8 240 Mo de tas pour 16 088 Mo, rapport 1,95). Sur le plus
- *     petit serveur plausible (2 Go) · ~1 Go de tas. La lecture en garde au
+ *     petit serveur plausible (2 Go) · ~1 Go de tas. UNE lecture en garde au
  *     plus un huitième · 128 Mio / 550 o = 244 032 lignes = 488 pages. Marge
  *     prise · **400 pages** (200 000 lignes, ~118 Mo au plus fort, mesuré à
  *     588 o) · soit 1 652 annonces diffusées chaque jour des 121, ou 4 000
  *     annonces sur 50 jours. Le même volume en brut · ~750 Mo.
  *
- * Au-delà, la synchro échoue en le disant · l'issue est du côté de l'équipe
- * (lecture par tranches de dates), la phrase envoie au support.
+ *     Le budget vaut pour UNE lecture. Plusieurs peuvent tourner en même
+ *     temps dans le même processus (« Mesurer maintenant » sur deux marques,
+ *     ou pendant la remontée de nuit) · chacune a le sien, rien ne les
+ *     plafonne ensemble · huit lectures à la borne prendraient le tas entier.
+ *
+ * Au-delà, la synchro échoue en le disant · un tel volume demande une lecture
+ * par tranches de dates, qui n'existe pas encore · la phrase envoie au support
+ * sans rien promettre de plus.
  *
  * Les ensembles (`/adsets`, une ligne par ensemble) passent sous la même borne ·
  * leur volume est inférieur d'un facteur 121 à celui des insights.
@@ -118,7 +129,22 @@ export const PAGES_BUDGET_MEMOIRE_META = Math.floor(BUDGET_MEMOIRE_LECTURE_OCTET
 /** La borne de pages d'une lecture Graph · le plus bas des deux plafonds, avec marge (488 → 400). */
 export const BORNE_PAGES_META = 400;
 
-export type RaisonLectureIncomplete = 'borne' | 'curseur_absent';
+/**
+ * La durée maximale d'UNE lecture paginée (insights ou ensembles), attentes
+ * de reprise comprises · 12 min. Dérivé des délais qui l'entourent, pas
+ * mesuré · le déclencheur du worker abandonne l'appel à 15 min
+ * (`triggerAdsMapSync`, `apps/workers/src/adsmap.ts`) et la route déclare
+ * 800 s (`maxDuration`, ~13 min, non appliqué par le serveur autonome) · il
+ * reste 1 à 3 min pour écrire et conclure. Sans elle, le pire cas d'une page
+ * est 4 essais × 60 s + 26 s d'attentes = 266 s · à 400 pages, ~29 h.
+ * Au-delà · échec propre, rien d'écrit.
+ */
+export const DUREE_MAX_LECTURE_META_MS = 12 * 60_000;
+
+/** Le délai d'UNE requête Graph · 60 s, ou ce qui reste avant l'échéance de la lecture. */
+export const DELAI_REQUETE_META_MS = 60_000;
+
+export type RaisonLectureIncomplete = 'borne' | 'curseur_absent' | 'duree';
 
 export type SuitePagination =
   | { suite: 'page'; params: Record<string, string> }
@@ -126,7 +152,7 @@ export type SuitePagination =
   | { suite: 'incomplete'; raison: RaisonLectureIncomplete };
 
 /** Les paramètres de suite qu'on accepte de l'URL `next` · rien d'autre n'en est repris (surtout pas `access_token`). */
-const PARAMS_SUITE = ['after', 'offset', '__paging_token'] as const;
+const PARAMS_SUITE = ['after', 'offset'] as const;
 
 /** Le paramètre de suite porté par l'URL `next` · `null` s'il n'y en a aucun (ou si l'URL est illisible). */
 export function paramsDeSuite(next: string): Record<string, string> | null {
@@ -153,10 +179,11 @@ export function suitePagination(p: { pagesLues: number; next?: string | null; af
 
 /**
  * Les attentes avant chaque reprise d'une MÊME page · trois reprises, chacune
- * trois fois plus longue (2 s, 6 s, 18 s · 26 s au plus pour une page).
- * Dérivé du budget d'un passage, pas mesuré chez Meta (injoignable depuis la
- * session) · la route de la synchro a 800 s (`maxDuration`) · une page qui
- * épuise ses reprises en prend 3 %. Avant la lecture complète, une erreur
+ * trois fois plus longue (2 s, 6 s, 18 s · 26 s d'attente au plus pour une
+ * page). Pas mesuré chez Meta (injoignable depuis la session) · choisi court
+ * devant le délai d'une requête (60 s) · le pire cas d'une page est donc
+ * 4 × 60 s + 26 s = 266 s, et c'est `DUREE_MAX_LECTURE_META_MS` qui borne la
+ * lecture entière, pas ces attentes. Avant la lecture complète, une erreur
  * d'une page sur 25 faisait échouer la marque · à 400 pages, sans reprise,
  * une seule erreur passagère la ferait échouer chaque nuit.
  */
@@ -164,8 +191,14 @@ export const ATTENTES_REPRISE_META_MS: readonly number[] = [2_000, 6_000, 18_000
 
 /** Codes Graph d'une erreur d'AUTORISATION · jeton (102, 190, 463, 467), droits (10, 200 à 299) · on ne redemande jamais. */
 const autorisation = (code: number) => code === 102 || code === 190 || code === 463 || code === 467 || code === 10 || (code >= 200 && code <= 299);
-/** Codes Graph PASSAGERS · inconnue (1), service indisponible (2), limites d'appels (4, 17, 32, 341, 613, 80000 à 80014). */
-const passager = (code: number) => [1, 2, 4, 17, 32, 341, 613].includes(code) || (code >= 80_000 && code <= 80_014);
+/** Codes Graph PASSAGERS · service indisponible (2), limites d'appels (4, 17, 32, 341, 613, 80000 à 80014). */
+const passager = (code: number) => [2, 4, 17, 32, 341, 613].includes(code) || (code >= 80_000 && code <= 80_014);
+/**
+ * Code 1 · « Please reduce the amount of data you're asking for » · la même
+ * requête échouera de même, même rendue en 500 · on ne redemande pas, sauf si
+ * Meta la dit lui-même passagère (`is_transient`).
+ */
+const tropDeDonnees = (e: EchecPageMeta) => e.code === 1 && e.transitoire !== true;
 
 export interface EchecPageMeta {
   /** Statut HTTP · `null` si la requête n'a pas abouti (réseau, délai). */
@@ -183,6 +216,7 @@ export function reprisePageMeta(e: EchecPageMeta, reprisesFaites: number): numbe
   const m = e.message.toLowerCase();
   if (e.code != null && autorisation(e.code)) return null;
   if (e.status === 401 || e.status === 403) return null;
+  if (tropDeDonnees(e)) return null;
   if (/access token|oauthexception|session has expired|has been invalidated|permission|not authorized/.test(m)) return null;
   const reprendre = e.status === null || e.status === 429 || e.status >= 500 || e.transitoire === true
     || (e.code != null && passager(e.code))
@@ -201,14 +235,19 @@ export function erreurLectureIncomplete(raison: RaisonLectureIncomplete, pagesLu
 
 /** Relit une erreur de lecture incomplète sur son message · `null` pour toute autre erreur. */
 export function lireLectureIncomplete(message: string | null | undefined): { raison: RaisonLectureIncomplete; pages: number } | null {
-  const m = /meta_lecture_incomplete raison=(borne|curseur_absent) pages=(\d+)/.exec(message ?? '');
+  const m = /meta_lecture_incomplete raison=(borne|curseur_absent|duree) pages=(\d+)/.exec(message ?? '');
   return m ? { raison: m[1] as RaisonLectureIncomplete, pages: Number(m[2]) } : null;
 }
 
 /** La phrase de l'écran · ce qui s'est passé, que rien n'a été écrit, et quoi faire. */
 export function phraseLectureIncomplete(l: { raison: RaisonLectureIncomplete; pages: number }): string {
   const n = l.pages.toLocaleString('fr-FR');
-  return l.raison === 'borne'
-    ? `ce compte publicitaire renvoie plus de ${n} pages de mesures Meta, au-delà de ce que la mesure lit en une fois · rien n’a été écrit, les mesures précédentes restent en place · écris au support, la lecture de ce compte se règle de notre côté`
-    : `Meta a annoncé une suite de mesures sans moyen de la lire (page ${n}) · rien n’a été écrit, les mesures précédentes restent en place · la remontée suivante réessaiera, si ça persiste écris au support`;
+  const rien = 'rien n’a été écrit, les mesures précédentes restent en place';
+  if (l.raison === 'borne') {
+    return `ce compte publicitaire renvoie plus de ${n} pages de mesures Meta, au-delà de ce que la mesure lit en une fois · ${rien} · écris au support · ce volume demande une lecture par tranches, pas encore disponible`;
+  }
+  if (l.raison === 'duree') {
+    return `la lecture des mesures Meta a dépassé ${DUREE_MAX_LECTURE_META_MS / 60_000} min (${n} pages lues) · ${rien} · la remontée suivante réessaiera, si ça persiste écris au support`;
+  }
+  return `Meta a annoncé une suite de mesures sans moyen de la lire (page ${n}) · ${rien} · la remontée suivante réessaiera, si ça persiste écris au support`;
 }
