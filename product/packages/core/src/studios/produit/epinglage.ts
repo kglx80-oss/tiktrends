@@ -22,6 +22,7 @@ import type { ChangementPatch } from '../patch';
 import type { BriefCanonique, FaitBrief, ReferenceBrief } from '../brief';
 import { faitsProduit, idSourceProduit, type ProduitMarque, type FaitProduit, type ManqueProduit } from '../sources/produit';
 import type { FichierCatalogue, NatureEmpreinte, VarianteCatalogue } from './catalogue';
+import type { FicheProduit } from './fiche';
 
 /* ───────────────────────── Transformations ───────────────────────────────── */
 
@@ -87,6 +88,16 @@ export interface ReferenceProduitEpinglee {
   transformationsAutorisees: TransformationProduit[];
   provenanceFaits: { origine: 'catalogue_produits'; productId: string; releveLe: string };
   epingleLe: string;
+  /**
+   * La fiche saisie par la personne (`fiche.ts`) · absente tant que rien
+   * n'est écrit. Ses champs deviennent des attributs immuables de la consigne.
+   */
+  fiche?: FicheProduit;
+  /**
+   * Les autres vues du produit choisies pour partir avec l'épinglée (`vues.ts`),
+   * dans l'ordre · absente = défaut (photos suivantes), liste vide = l'épinglée seule.
+   */
+  vuesChoisies?: string[];
 }
 
 export interface DemandeEpinglage {
@@ -130,6 +141,12 @@ export function epinglerProduit(
   d: DemandeEpinglage,
   catalogue: { produit: ProduitMarque | null; photos: readonly FichierCatalogue[]; variante: VarianteCatalogue },
   maintenant: Date,
+  /**
+   * La référence épinglée AVANT ce geste · même produit, sa fiche et ses vues
+   * choisies sont gardées (la nouvelle photo épinglée sort des vues). Autre
+   * produit : rien n'est repris.
+   */
+  precedente?: ReferenceProduitEpinglee | null,
 ): ResultatEpinglage {
   const v: ViolationStudio[] = [];
   const p = catalogue.produit;
@@ -171,8 +188,21 @@ export function epinglerProduit(
       transformationsAutorisees: transformations,
       provenanceFaits: { origine: 'catalogue_produits', productId: p.id, releveLe: iso },
       epingleLe: iso,
+      ...repriseDeFiche(precedente, p.id, photo.assetId, catalogue.photos),
     },
   };
+}
+
+/** La fiche et les vues choisies d'une référence précédente du MÊME produit. */
+function repriseDeFiche(prec: ReferenceProduitEpinglee | null | undefined, productId: string, epingleeId: string, photos: readonly FichierCatalogue[]): Pick<ReferenceProduitEpinglee, 'fiche' | 'vuesChoisies'> {
+  if (!prec || prec.productId !== productId) return {};
+  const out: Pick<ReferenceProduitEpinglee, 'fiche' | 'vuesChoisies'> = {};
+  if (prec.fiche) out.fiche = { ...prec.fiche };
+  if (Array.isArray(prec.vuesChoisies)) {
+    const ids = new Set(photos.filter((f) => f.provenance === 'produit' && f.productId === productId).map((f) => f.assetId));
+    out.vuesChoisies = prec.vuesChoisies.filter((id) => id !== epingleeId && ids.has(id));
+  }
+  return out;
 }
 
 /** Relit une référence ÉPINGLÉE · `null` pour l'instantané L4-B sans photo, ou une autre forme. */

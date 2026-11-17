@@ -40,6 +40,7 @@ const HORS_PROJET: Record<string, string> = {
   'prompt.*': 'registre des prompts · portée plateforme (`/admin/prompts`)',
   'studios.budget_essai': 'budget d’essai de l’espace · réglage administrateur',
   'studios.interrupteurs': 'interrupteurs des capacités de l’espace · réglage administrateur',
+  'studios.rapprochement.clore': 'clôture d’un rapprochement demandée depuis le Tour de contrôle (`/admin/taches`) · le projet lit la tâche close par sa transition `job.failed`',
   'equipe.membre.retire': 'membres de l’équipe plateforme',
   'equipe.membre.role': 'membres de l’équipe plateforme',
 };

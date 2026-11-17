@@ -311,6 +311,35 @@ describe('échecs · certain ou incertain, et ce que chacun coûte', () => {
   });
 });
 
+describe('catalogue vidéo · instantané studio_clip/1 en file au déploiement', () => {
+  it('worker sur Veo ⇒ refusé avant tout envoi (échec certain), aucune dépense, crédits rendus', async () => {
+    const lignes = [{ operation: 'clip:s1', nature: 'generation' as const, profil: 'animation' as const, unites: 1, credits: 200, usdMicros: 600_000, inclus: false }];
+    const v1 = { schema: 'studio_clip/1', operation: 'clip:s1', shotId: 's1', source: { assetId: `sta_${randomUUID()}`, sha256: 'a'.repeat(64) }, consigne: 'Mouvement : sourit.', interdits: ['texte incrusté'], dureeS: 5 };
+    const h = 'd'.repeat(64);
+    const [q] = await base.insert(schema.studioQuotes).values({ workspaceId: ws, brandId: brand, projectId: projet, projectVersionId: version, impactPlanHash: h, inputHash: h, pricingVersion: 'v', lines: lignes, maximumCredits: 200, maximumUsdMicros: 600_000, expiresAt: new Date(Date.now() + 60_000), createdBy: user }).returning();
+    const [a] = await base.insert(schema.studioApprovals).values({ quoteId: q!.id, workspaceId: ws, brandId: brand, inputHash: h, approvedBy: user }).returning();
+    const snapshot: SnapshotJob = { v: 1, quoteId: q!.id, projectVersionId: version, contentHash: h, impactPlanHash: h, pricingVersion: 'v', lignes, epinglage: null, reserve: { credits: 200, usdMicros: 600_000 }, parametres: v1 };
+    const [j] = await base.insert(schema.studioJobs).values({ workspaceId: ws, brandId: brand, projectId: projet, projectVersionId: version, quoteId: q!.id, approvalId: a!.id, operation: OPERATION_JOB_STUDIO, idempotencyKey: `k-${q!.id}`, inputHash: h, snapshot, createdBy: user }).returning();
+    await base.update(schema.studioApprovals).set({ consumedAt: new Date(), consumedJobId: j!.id }).where(eq(schema.studioApprovals.id, a!.id));
+    await base.insert(schema.studioBudgetLedger).values({ workspaceId: ws, brandId: brand, projectId: projet, jobId: j!.id, quoteId: q!.id, kind: 'reserve', credits: 200, usdMicros: 600_000, ref: refsDuJob(j!.id).reserve });
+    const avant = (await base.select().from(schema.workspaces).where(eq(schema.workspaces.id, ws)))[0]!.creditsBalance;
+    scenario = falNominal();
+    const stockage = new StockageMemoire();
+    const fournisseur = construireFournisseurFal({ base, decision: { ...DECISION, modeles: { ...DECISION.modeles, animation: 'fal-ai/veo3.1/fast/image-to-video' } }, fetch: fetchRejoue, env: { AI_SPEND_CAP_USD: '10' }, stockage: null, horloge: () => new Date(horloge.ms), verifierAdresse: async () => true });
+    // Un décodeur vidéo présent (sinon le moteur refuse tout clip avant le fournisseur) · jamais appelé ici, rien n'est livré.
+    const decodeur = new DecodeurSharp({ video: async () => { throw new Error('non appelé'); } });
+    const m = new MoteurStudio({ base, fournisseur, stockage, decodeur, bailMs: 60_000, horloge: () => new Date(horloge.ms) });
+    await tours(m, j!.id);
+    const fin = await job(j!.id);
+    expect(fin.state).toBe('failed');
+    expect((fin.error as { motif: string }).motif).toMatch(/instantané studio_clip\/1 \(5 s, sans ratio\) incompatible avec Veo 3\.1 Fast/);
+    expect(appels).toEqual([]);
+    expect(await depense(j!.id)).toEqual([]);
+    expect(await registre(j!.id)).toContainEqual(['release', 200, 600_000]);
+    expect((await base.select().from(schema.workspaces).where(eq(schema.workspaces.id, ws)))[0]!.creditsBalance).toBe(avant + 200);
+  });
+});
+
 describe('annulation', () => {
   it('avant démarrage : 0 soumission, `cancelled`, rien compté', async () => {
     const id = await semerJob();
@@ -385,6 +414,15 @@ describe('démarrage du worker studio', () => {
     expect((await job(id)).state).toBe('queued');
     expect(appels).toEqual([]);
     await base.update(schema.studioJobs).set({ state: 'cancel_requested', rowVersion: sql`${schema.studioJobs.rowVersion} + 1` }).where(eq(schema.studioJobs.id, id));
+  });
+
+  it('FAL_VIDEO_MODEL_I2V posée sans FAL_VIDEO_MODEL_STUDIO ⇒ avertissement au démarrage, même sans fournisseur', () => {
+    const logs: string[] = [];
+    demarrerWorkerStudio({ env: { FAL_VIDEO_MODEL_I2V: 'fal-ai/kling-video/v2/master/image-to-video' }, base, fetch: fetchRejoue, log: (l) => logs.push(l) });
+    expect(logs[0]).toBe('[studios] avertissement · FAL_VIDEO_MODEL_I2V est posée mais les Studios utilisent désormais FAL_VIDEO_MODEL_STUDIO · défaut Kling 2.5 turbo (fal-ai/kling-video/v2.5-turbo/pro/image-to-video). FAL_VIDEO_MODEL_I2V ne pilote plus que l’ancien « Vidéo IA ».');
+    const sans: string[] = [];
+    demarrerWorkerStudio({ env: { FAL_VIDEO_MODEL_I2V: 'x', FAL_VIDEO_MODEL_STUDIO: 'fal-ai/veo3.1/lite/image-to-video' }, base, fetch: fetchRejoue, log: (l) => sans.push(l) });
+    expect(sans.join(' ')).not.toContain('avertissement');
   });
 
   it('le worker et le branchement n’importent jamais le fournisseur simulé', () => {

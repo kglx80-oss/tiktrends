@@ -1,4 +1,5 @@
 import type Anthropic from '@anthropic-ai/sdk';
+import { borneMaxAppel } from '@tiktrends/core';
 
 /**
  * Relire une publicité produite entière · les mots, et le produit.
@@ -109,17 +110,14 @@ const OUTIL = {
 
 export interface ImageJointe { mediaType: string; base64: string }
 
+/** Plafond de sortie de la relecture · celui que la borne compte. */
+export const JETONS_SORTIE_CONTROLE_PUB = 700;
+
 /**
- * Relit une publicité entière · `null` si le modèle n'a rien rendu d'exploitable.
- *
- * Un échec ne doit jamais faire échouer la génération qui l'a déclenché · une
- * publicité produite mais non relue reste une publicité produite, et le lot ne
- * se perd pas parce qu'une vérification n'a pas abouti.
+ * La requête EXACTE de la relecture, sans l'envoyer · `controlePubEntiere`
+ * l'envoie telle quelle, et la borne du devis se calcule dessus.
  */
-export async function controlePubEntiere(
-  client: Anthropic,
-  o: { image: ImageJointe; reference?: ImageJointe | null },
-): Promise<ControlePub | null> {
+export function requeteControlePub(o: { image: ImageJointe; reference?: ImageJointe | null }, modele: string = CONTROLE_MODEL) {
   const avecRef = !!o.reference;
   const sys = [
     'Tu relis une publicité qui vient d’être produite par un modèle d’images.',
@@ -138,14 +136,42 @@ export async function controlePubEntiere(
     { type: 'text', text: avecRef ? 'Publicité, puis référence produit.' : 'Publicité.' },
   ];
 
-  const res = await client.messages.create({
-    model: CONTROLE_MODEL,
-    max_tokens: 700,
+  return {
+    model: modele,
+    max_tokens: JETONS_SORTIE_CONTROLE_PUB,
     system: sys,
-    messages: [{ role: 'user', content: contenu }],
+    messages: [{ role: 'user' as const, content: contenu }],
     tools: [OUTIL as unknown as Anthropic.Tool],
-    tool_choice: { type: 'tool', name: OUTIL.name },
-  });
+    tool_choice: { type: 'tool' as const, name: OUTIL.name },
+  };
+}
+
+/**
+ * Borne d'UNE relecture, en micro-dollars entiers, au tarif de `modele` · la
+ * requête réelle (consignes, outil, texte) avec la référence produit, chaque
+ * image comptée à sa borne de jetons (`VISION_JETONS_IMAGE_MAX`), la sortie à
+ * son plafond. Le texte ne dépend pas de la pub relue : la borne est exacte,
+ * et la même que la ligne du devis.
+ */
+export function borneControlePubMicros(modele: string = CONTROLE_MODEL): number {
+  const vide: ImageJointe = { mediaType: 'image/png', base64: '' };
+  const borne = Math.max(...[vide, null].map((reference) => borneMaxAppel(requeteControlePub({ image: vide, reference }, modele))));
+  return Math.ceil(borne * 1_000_000 - 1e-6);
+}
+
+/**
+ * Relit une publicité entière · `null` si le modèle n'a rien rendu d'exploitable.
+ *
+ * Un échec ne doit jamais faire échouer la génération qui l'a déclenché · une
+ * publicité produite mais non relue reste une publicité produite, et le lot ne
+ * se perd pas parce qu'une vérification n'a pas abouti.
+ */
+export async function controlePubEntiere(
+  client: Anthropic,
+  o: { image: ImageJointe; reference?: ImageJointe | null },
+): Promise<ControlePub | null> {
+  const avecRef = !!o.reference;
+  const res = await client.messages.create(requeteControlePub(o));
 
   const bloc = (res as Anthropic.Message).content.find((c) => c.type === 'tool_use');
   if (!bloc || bloc.type !== 'tool_use') return null;

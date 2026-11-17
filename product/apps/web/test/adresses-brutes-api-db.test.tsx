@@ -385,6 +385,8 @@ const ACTIONS: Readonly<Record<string, Readonly<Record<string, Appel | readonly 
     ouvrirIncidentAction: A(() => [{ titre: 'Incident', gravite: 'mineure', cause: '', constat: 'Constat' }]),
     annoterIncidentAction: A(() => [{ id: randomUUID(), texte: 'Note' }]),
     cloreIncidentAction: A(() => [{ id: randomUUID(), resolution: 'Résolu' }]),
+    // Aucun job studio · « Tâche introuvable », rien d'écrit.
+    cloreRapprochementAction: A(() => [{ jobId: randomUUID(), raison: 'fal confirme : aucune requête reçue' }]),
   },
   'app/actions/stripe.ts': { createCheckoutAction: A(() => [fd({ plan: 'business' })]), createPortalAction: A(), createTopupCheckoutAction: A(() => [fd({ pack: 'x' })]) },
   // Lot 10 · journal (lecture seule) et commentaires · texte seul, aucune adresse · une création inconnue est refusée (introuvable), rien d'écrit.
@@ -439,6 +441,7 @@ const ACTIONS: Readonly<Record<string, Readonly<Record<string, Appel | readonly 
   'app/actions/studios/produit.ts': {
     lireProduitProjet: L(PI), epinglerProduit: A(() => [{ ...PV()[0], productId: s.produit, photoId: 'x' }]),
     importerPhotoProduit: A(() => [{ ...PV()[0], productId: s.produit, dataUri: 'data:image/png;base64,iVBORw0KGgo=' }]),
+    definirFicheProduit: A(() => [{ ...PV()[0], fiche: { tailleReelle: '12 cm', echelle: 'main' }, vues: null }]),
     associerReference: A(() => [{ projectId: s.projetImage, baseVersionId: s.versionImage, assetId: `bib_${s.fichier}`, role: 'identity', scope: 'subject' }]), retirerReference: A(() => [{ projectId: s.projetImage, baseVersionId: s.versionImage, assetId: `bib_${s.fichier}`, role: 'style' }]),
     definirDroitsAsset: A(() => [{ assetId: s.fichier, licence: 'interne' }]), controlerCompilation: A(() => [{ projectId: s.projet, mode: 'composee' }]),
     compilerConsigneImage: A(() => [{ projectId: s.projet, mode: 'composee' }]), trancherComposants: A(() => [{ jobId: s.job, constats: [] }]),

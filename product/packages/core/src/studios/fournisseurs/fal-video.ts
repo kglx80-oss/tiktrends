@@ -14,27 +14,46 @@
  *    la consigne validée du plan. Le gabarit `animation.compile` du registre
  *    n'est pas consommé ici (aucun appel texte de plus par clip) · à brancher
  *    quand une compilation dédiée sera voulue.
- *  · Durée : 5 s, la durée de base du modèle (Kling « 5 »). Le forfait réservé
- *    (`FIXED_COSTS.fal_video`) couvre une durée de base ; une durée longue ne
- *    se devise pas tant que son prix n'est pas mesuré.
+ *  · Le MODÈLE est fixé AU DEVIS (`FAL_VIDEO_MODEL_STUDIO`, `modeleAnimationStudio`)
+ *    et porté par les paramètres : le worker envoie au modèle devisé, réserve
+ *    son prix, jamais celui d'un autre.
+ *  · Durée : la plus proche durée PERMISE du modèle au moins égale à celle du
+ *    plan, bornée (`dureeClipPour`, `catalogue-video.ts`) · Kling 5 ou 10 s,
+ *    Veo 4, 6 ou 8 s. Prix = prix à la seconde × durée (voix comprise).
+ *  · Voix native : seulement pour une prise parlée à l'image, refusée (raison
+ *    écrite, clip muet) quand le modèle ne parle pas la langue du projet
+ *    (`decisionAudioNatif`).
  *  · Un clip par job, seul dans son devis : la sortie i ⇒ opération i reste
  *    sans ambiguïté.
  *
- * Mêmes variables que `packages/integrations/src/fal.ts` : `FAL_VIDEO_MODEL_I2V`
- * (défaut Kling 2.5 turbo pro image → vidéo), aucun modèle nouveau.
+ * Schéma `studio_clip/2` (modèle, voix, résolution, ratio). Un instantané
+ * `studio_clip/1` écrit avant le catalogue (job déjà en file au déploiement)
+ * reste lisible : 5 s, muet, modèle du worker s'il est Kling du catalogue,
+ * réservé au moins à son prix de devis (plancher, `catalogue-video.ts`) ;
+ * tout autre modèle le refuse avant envoi (échec certain, crédits rendus).
+ * Un DEVIS d'avant le catalogue (ligne sans choix du clip) est refusé à
+ * l'approbation (`MESSAGE_DEVIS_AVANT_CATALOGUE`).
  */
 
 import { empreinteContenu } from '../version';
 import type { ContenuVersion, PlanStudio } from '../document';
-import type { ProfilOperation } from '../execution/tarifs';
+import type { LigneDevis, ProfilOperation } from '../execution/tarifs';
+import { dureePlanMs } from '../video/plans';
+import { formatVideo } from '../video/consigne-plan';
 import { adresseTransmissible, contientEmplacement, type MediaResolu } from './fal-image';
+import {
+  MODELE_VIDEO_STUDIO_DEFAUT, MOTIF_HORS_CATALOGUE, corpsFalVideo, decisionAudioNatif, dureeClipPour, entreeCatalogueVideo, langueDuProjet, ratioPourModele, tarifClip,
+  type RatioVideo, type ResolutionVideo, type TarifClip,
+} from './catalogue-video';
 /** Le plan réservé de l'image fixe du parcours image (`image/parcours.ts`) · jamais animé. */
 const PLAN_IMAGE = 's_image';
 
-export const SCHEMA_PARAMETRES_CLIP = 'studio_clip/1' as const;
-/** Défaut de `falGenerateVideo` en image → vidéo · même modèle, même variable. */
-export const MODELE_FAL_ANIMATION_DEFAUT = 'fal-ai/kling-video/v2.5-turbo/pro/image-to-video';
-/** Durée de base du modèle, en secondes · la seule devisée (voir l'en-tête). */
+export const SCHEMA_PARAMETRES_CLIP = 'studio_clip/2' as const;
+/** L'instantané d'avant le catalogue vidéo · encore lu (jobs déjà en file), plus jamais écrit. */
+export const SCHEMA_PARAMETRES_CLIP_V1 = 'studio_clip/1' as const;
+/** Défaut du modèle d'animation des Studios · celui déjà en service (Kling 2.5 turbo pro). */
+export const MODELE_FAL_ANIMATION_DEFAUT = MODELE_VIDEO_STUDIO_DEFAUT;
+/** Durée de base · celle d'un instantané `studio_clip/1` et d'un modèle hors catalogue (forfait de repli). */
 export const DUREE_CLIP_S = 5;
 /** Borne de la consigne de mouvement envoyée (le modèle accepte davantage · on reste court et lisible). */
 export const CONSIGNE_MOUVEMENT_MAX = 1_200;
@@ -46,7 +65,7 @@ export const INTERDITS_ANIMATION = [
 ] as const;
 
 export interface ParametresClipSnapshot {
-  schema: typeof SCHEMA_PARAMETRES_CLIP;
+  schema: typeof SCHEMA_PARAMETRES_CLIP | typeof SCHEMA_PARAMETRES_CLIP_V1;
   /** `clip:<plan>` · la seule opération du job. */
   operation: string;
   shotId: string;
@@ -55,8 +74,18 @@ export interface ParametresClipSnapshot {
   /** Consigne de mouvement dérivée du plan (`consigneMouvementDuPlan`). */
   consigne: string;
   interdits: string[];
+  /** Une durée permise du modèle (`dureeClipPour`). */
   dureeS: number;
+  /** Endpoint fal DEVISÉ · `null` sur un instantané `studio_clip/1` (modèle du worker). */
+  modele: string | null;
+  /** Voix native demandée au modèle (`decisionAudioNatif`). */
+  audio: boolean;
+  /** Résolution envoyée (Veo) · `null` pour un modèle sans ce paramètre. */
+  resolution: ResolutionVideo | null;
+  /** Ratio envoyé (Veo) · `null` quand le modèle le déduit de l'image clé. */
+  ratio: RatioVideo | null;
 }
+
 
 const net = (s: unknown, max = CHAMP_MAX): string => (typeof s === 'string' ? s.replace(/\s+/g, ' ').trim().slice(0, max) : '');
 const SHA = /^[a-f0-9]{64}$/;
@@ -89,21 +118,54 @@ export function consigneMouvementDuPlan(p: Pick<PlanStudio, 'action' | 'camera' 
   return parties.join(' ').slice(0, CONSIGNE_MOUVEMENT_MAX);
 }
 
-export type ParametresClip = { ok: true; parametres: ParametresClipSnapshot } | { ok: false; code: 'NOT_FOUND' | 'MISSING_REFERENCE' | 'INVALID_SCHEMA'; motif: string };
+type ParamsPlan = Pick<ParametresClipSnapshot, 'dureeS' | 'modele' | 'audio' | 'resolution' | 'ratio'> & { modele: string };
+
+export type ChoixClip = { ok: true; choix: ParamsPlan; limites: string[] } | { ok: false; code: 'NOT_FOUND' | 'UNSUPPORTED_CAPABILITY'; motif: string };
+
+/**
+ * Ce qu'un plan demande au modèle d'animation · durée permise, voix, ratio,
+ * résolution. Pur, sans image clé : l'écran l'affiche AVANT le devis, le devis
+ * le fige. Refus nommé quand le modèle ne sait pas faire le plan.
+ */
+export function choixClipDuPlan(e: { contenu: ContenuVersion; shotId: string; modele?: string | null }): ChoixClip {
+  const p = e.contenu.shots.byId[e.shotId];
+  if (!p) return { ok: false, code: 'NOT_FOUND', motif: 'Ce plan n’existe plus dans la version courante.' };
+  const modele = (e.modele ?? '').trim() || MODELE_FAL_ANIMATION_DEFAUT;
+  const m = entreeCatalogueVideo(modele);
+  // Un modèle sans prix n'est jamais devisé · aucun forfait d'un prix inconnu.
+  if (!m) return { ok: false, code: 'UNSUPPORTED_CAPABILITY', motif: `${MOTIF_HORS_CATALOGUE} (${modele}).` };
+  const limites: string[] = [];
+  const audio = decisionAudioNatif({ entree: m, langue: langueDuProjet(e.contenu), parole: p.speechMode });
+  if (audio.refus) limites.push(audio.refus);
+  if (audio.limite) limites.push(audio.limite);
+  const ratio = ratioPourModele(m, formatVideo(e.contenu));
+  if (!ratio.ok) return { ok: false, code: 'UNSUPPORTED_CAPABILITY', motif: ratio.raison };
+  const d = dureeClipPour(m, dureePlanMs(p));
+  if (d.bornee) limites.push(`plan plus long que le clip le plus long de ${m.libelle} · ${d.dureeS} s, le reste se règle au montage`);
+  return { ok: true, choix: { modele, dureeS: d.dureeS, audio: audio.audio, resolution: m.famille === 'veo' ? m.resolutionDefaut : null, ratio: ratio.ratio }, limites };
+}
+
+export type ParametresClip =
+  | { ok: true; parametres: ParametresClipSnapshot; limites: string[] }
+  | { ok: false; code: 'NOT_FOUND' | 'MISSING_REFERENCE' | 'INVALID_SCHEMA' | 'UNSUPPORTED_CAPABILITY'; motif: string };
 
 /**
  * Les paramètres d'un clip, construits par le SERVEUR au devis puis relus à
  * l'approbation · le plan doit exister et son image clé produite être connue
- * (média du projet et empreinte).
+ * (média du projet et empreinte). `modele` · `modeleAnimationStudio(env)`.
  */
 export function parametresDuClip(e: {
   contenu: ContenuVersion;
   shotId: string;
   /** L'image clé encore valide du plan · `null` si aucune. */
   keyframe: { assetUuid: string; sha256: string } | null;
+  modele?: string | null;
 }): ParametresClip {
   const p = e.contenu.shots.byId[e.shotId];
   if (!p) return { ok: false, code: 'NOT_FOUND', motif: 'Ce plan n’existe plus dans la version courante.' };
+  // Ce que le modèle ne sait pas faire (format) se dit d'abord : produire l'image clé n'y changerait rien.
+  const c = choixClipDuPlan({ contenu: e.contenu, shotId: e.shotId, modele: e.modele });
+  if (!c.ok) return c;
   if (!e.keyframe) return { ok: false, code: 'MISSING_REFERENCE', motif: 'Ce plan n’a pas d’image clé valide · produis-la avant de l’animer.' };
   if (!UUID.test(e.keyframe.assetUuid) || !SHA.test(e.keyframe.sha256)) return { ok: false, code: 'MISSING_REFERENCE', motif: 'Image clé illisible (média ou empreinte).' };
   const consigne = consigneMouvementDuPlan(p);
@@ -113,8 +175,9 @@ export function parametresDuClip(e: {
     parametres: {
       schema: SCHEMA_PARAMETRES_CLIP, operation: `clip:${e.shotId}`, shotId: e.shotId,
       source: { assetId: `sta_${e.keyframe.assetUuid}`, sha256: e.keyframe.sha256 },
-      consigne, interdits: [...INTERDITS_ANIMATION], dureeS: DUREE_CLIP_S,
+      consigne, interdits: [...INTERDITS_ANIMATION], ...c.choix,
     },
+    limites: c.limites,
   };
 }
 
@@ -124,33 +187,153 @@ export function empreinteParametresClip(p: ParametresClipSnapshot): string {
 }
 
 export function estParametresClip(x: unknown): boolean {
-  return estObjet(x) && x.schema === SCHEMA_PARAMETRES_CLIP;
+  return estObjet(x) && (x.schema === SCHEMA_PARAMETRES_CLIP || x.schema === SCHEMA_PARAMETRES_CLIP_V1);
 }
 
-/** Relecture défensive de `SnapshotJob.parametres` d'un clip · rien n'est complété par défaut. */
+const MODELE_FAL = /^[a-z0-9][a-z0-9._/-]{0,199}$/i;
+const RESOLUTIONS: readonly string[] = ['720p', '1080p'];
+
+/**
+ * Relecture défensive de `SnapshotJob.parametres` d'un clip · rien n'est
+ * complété par défaut, sauf l'instantané `studio_clip/1` (avant le catalogue) :
+ * lu comme ce qu'il était, 5 s, muet, modèle du worker.
+ */
 export function lireParametresClip(x: unknown): { ok: true; parametres: ParametresClipSnapshot } | { ok: false; violations: string[] } {
   const v: string[] = [];
-  if (!estObjet(x) || x.schema !== SCHEMA_PARAMETRES_CLIP) return { ok: false, violations: ['/parametres : schéma studio_clip/1 attendu'] };
-  if (typeof x.operation !== 'string' || planDeClip(x.operation) === null) v.push('/parametres/operation : clip:<plan> attendu');
-  if (typeof x.shotId !== 'string' || x.operation !== `clip:${x.shotId}`) v.push('/parametres/shotId : doit correspondre à l’opération');
-  const s = x.source;
+  if (!estParametresClip(x)) return { ok: false, violations: ['/parametres : schéma studio_clip/2 attendu'] };
+  const o = x as Record<string, unknown>;
+  if (typeof o.operation !== 'string' || planDeClip(o.operation) === null) v.push('/parametres/operation : clip:<plan> attendu');
+  if (typeof o.shotId !== 'string' || o.operation !== `clip:${o.shotId}`) v.push('/parametres/shotId : doit correspondre à l’opération');
+  const s = o.source;
   if (!estObjet(s) || typeof s.assetId !== 'string' || !/^sta_/.test(s.assetId) || !UUID.test(s.assetId.slice(4)) || typeof s.sha256 !== 'string' || !SHA.test(s.sha256)) {
     v.push('/parametres/source : image clé du projet (sta_<uuid>) et empreinte attendues');
   }
-  if (typeof x.consigne !== 'string' || !x.consigne.trim() || x.consigne.length > CONSIGNE_MOUVEMENT_MAX || contientEmplacement(x.consigne)) v.push('/parametres/consigne : texte de 1 à 1 200 caractères, sans emplacement');
-  if (!Array.isArray(x.interdits) || x.interdits.length > 20 || !x.interdits.every((i) => typeof i === 'string' && i.length <= CHAMP_MAX)) v.push('/parametres/interdits : liste bornée');
-  if (x.dureeS !== DUREE_CLIP_S) v.push(`/parametres/dureeS : ${DUREE_CLIP_S} s seulement`);
-  return v.length ? { ok: false, violations: v } : { ok: true, parametres: x as unknown as ParametresClipSnapshot };
+  if (typeof o.consigne !== 'string' || !o.consigne.trim() || o.consigne.length > CONSIGNE_MOUVEMENT_MAX || contientEmplacement(o.consigne)) v.push('/parametres/consigne : texte de 1 à 1 200 caractères, sans emplacement');
+  if (!Array.isArray(o.interdits) || o.interdits.length > 20 || !o.interdits.every((i) => typeof i === 'string' && i.length <= CHAMP_MAX)) v.push('/parametres/interdits : liste bornée');
+  if (o.schema === SCHEMA_PARAMETRES_CLIP_V1) {
+    if (o.dureeS !== DUREE_CLIP_S) v.push(`/parametres/dureeS : ${DUREE_CLIP_S} s seulement (studio_clip/1)`);
+    return v.length ? { ok: false, violations: v } : { ok: true, parametres: { ...(o as unknown as ParametresClipSnapshot), modele: null, audio: false, resolution: null, ratio: null } };
+  }
+  const modele = typeof o.modele === 'string' && MODELE_FAL.test(o.modele) ? o.modele : null;
+  if (!modele) v.push('/parametres/modele : endpoint fal attendu');
+  if (typeof o.audio !== 'boolean') v.push('/parametres/audio : vrai ou faux attendu');
+  const m = entreeCatalogueVideo(modele);
+  if (m) {
+    if (typeof o.dureeS !== 'number' || !m.dureesS.includes(o.dureeS)) v.push(`/parametres/dureeS : ${m.dureesS.join(', ')} s seulement (${m.libelle})`);
+    if (o.audio === true && !m.voix.native) v.push(`/parametres/audio : ${m.libelle} ne produit pas de voix`);
+    if (m.famille === 'veo') {
+      if (typeof o.resolution !== 'string' || !RESOLUTIONS.includes(o.resolution) || !m.prix[o.resolution as ResolutionVideo]) v.push(`/parametres/resolution : ${Object.keys(m.prix).join(' ou ')} attendue`);
+      if (typeof o.ratio !== 'string' || !(m.ratios ?? []).includes(o.ratio as RatioVideo)) v.push(`/parametres/ratio : ${(m.ratios ?? []).join(' ou ')} attendu`);
+    } else {
+      if (o.resolution !== null) v.push('/parametres/resolution : aucune pour ce modèle');
+      if (o.ratio !== null) v.push('/parametres/ratio : déduit de l’image clé pour ce modèle');
+    }
+  } else if (modele) {
+    v.push(`/parametres/modele : ${MOTIF_HORS_CATALOGUE.toLowerCase()} (${modele})`);
+  }
+  return v.length ? { ok: false, violations: v } : { ok: true, parametres: o as unknown as ParametresClipSnapshot };
 }
+
+/* ───────────────────────────── Tarif du clip ────────────────────────────── */
+
+/**
+ * Le tarif d'un clip DEVISÉ · celui que le devis affiche, que l'approbation
+ * revérifie et que le worker réserve. `modeleWorker` ne sert qu'à un
+ * instantané `studio_clip/1` (sans modèle).
+ */
+export function tarifDuClip(p: ParametresClipSnapshot, modeleWorker?: string | null): { ok: true; tarif: TarifClip; modele: string } | { ok: false; motif: string } {
+  const modele = p.modele ?? ((modeleWorker ?? '').trim() || MODELE_FAL_ANIMATION_DEFAUT);
+  const t = tarifClip({ modele, dureeS: p.dureeS, audio: p.audio, resolution: p.resolution });
+  return t.ok ? { ok: true, tarif: t.tarif, modele } : t;
+}
+
+/** Ce qui partira au fournisseur, figé dans la ligne du clip du devis. */
+export type ChoixClipDevise = Pick<ParametresClipSnapshot, 'dureeS' | 'audio' | 'resolution' | 'ratio'> & { modele: string };
+export type LigneClipDevis = LigneDevis & { clip: ChoixClipDevise };
+
+const choixDe = (p: ParametresClipSnapshot, modele: string): ChoixClipDevise => ({ modele, dureeS: p.dureeS, audio: p.audio, resolution: p.resolution, ratio: p.ratio });
+
+/** Le choix figé dans la ligne du clip d'un devis · `null` pour un devis d'avant le catalogue. */
+export function choixClipDuDevis(lignes: unknown, operation: string): ChoixClipDevise | null {
+  const ls = Array.isArray(lignes) ? (lignes as Array<Partial<LigneClipDevis> | null>) : [];
+  const c = ls.find((x) => x?.operation === operation && x?.profil === 'animation')?.clip;
+  return c && typeof c.modele === 'string' && typeof c.dureeS === 'number' && typeof c.audio === 'boolean' ? c : null;
+}
+
+export const MESSAGE_DEVIS_AVANT_CATALOGUE = 'Ce devis date d’avant le catalogue vidéo · redemande un devis. Rien n’a été débité.';
+
+/**
+ * La ligne du clip d'un devis, AU CATALOGUE · une unité par seconde, prix et
+ * crédits à la seconde (l'estimation), et ce qui partira (modèle, durée,
+ * voix, résolution, ratio) figé dans `clip`. Les autres lignes sont rendues
+ * telles quelles.
+ */
+export function lignesAvecTarifClip(lignes: readonly LigneDevis[], p: ParametresClipSnapshot): { ok: true; lignes: LigneDevis[] } | { ok: false; motif: string } {
+  const t = tarifDuClip(p);
+  if (!t.ok) return t;
+  if (!lignes.some((l) => l.operation === p.operation && l.profil === 'animation')) return { ok: false, motif: `ligne ${p.operation} absente du devis` };
+  return {
+    ok: true,
+    lignes: lignes.map((l) => (l.operation === p.operation && l.profil === 'animation'
+      ? { ...l, unites: t.tarif.unites, credits: t.tarif.creditsParUnite, usdMicros: t.tarif.usdMicrosParUnite, inclus: false, natureCout: 'estimation' as const, motifEstimation: t.tarif.motif, clip: choixDe(p, t.modele) }
+      : l)),
+  };
+}
+
+/**
+ * À l'approbation · ce qui partirait maintenant (paramètres relus) est-il
+ * EXACTEMENT ce que le devis a figé (modèle, durée, voix, résolution, ratio),
+ * et la ligne vaut-elle encore son tarif ? Comparé même à tarif égal (deux
+ * modèles ou deux résolutions au même prix). Sinon la phrase du refus, rien
+ * n'est débité. Un devis d'avant le catalogue est refusé à part.
+ */
+export function refusTarifClipChange(lignes: unknown, p: ParametresClipSnapshot): string | null {
+  const ls = Array.isArray(lignes) ? (lignes as Array<Partial<LigneDevis> | null>) : [];
+  const l = ls.find((x) => x?.operation === p.operation && x?.profil === 'animation');
+  const fige = choixClipDuDevis(lignes, p.operation);
+  if (l && !fige) return MESSAGE_DEVIS_AVANT_CATALOGUE;
+  const t = tarifDuClip(p);
+  if (fige && t.ok) {
+    const envoi = choixDe(p, t.modele);
+    if ((Object.keys(envoi) as Array<keyof ChoixClipDevise>).some((k) => envoi[k] !== fige[k])) {
+      return 'Le modèle, la durée, la voix ou le format du clip ont changé depuis ce devis · redemande un devis. Rien n’a été débité.';
+    }
+  }
+  if (!l || !t.ok) return 'Le clip de ce devis n’a plus de tarif · redemande un devis. Rien n’a été débité.';
+  if (l.unites !== t.tarif.unites || l.credits !== t.tarif.creditsParUnite || l.usdMicros !== t.tarif.usdMicrosParUnite) {
+    return 'Le modèle, la durée ou le prix du clip ont changé depuis ce devis · redemande un devis. Rien n’a été débité.';
+  }
+  return null;
+}
+
+/** Le prix d'un clip pour un plan, AVANT le devis · ce que l'écran annonce, ou pourquoi il est refusé. */
+export type PrixClipPlan =
+  | { ok: true; modele: string; libelleModele: string; dureeS: number; audio: boolean; credits: number; usdMicros: number; limites: string[] }
+  | { ok: false; raison: string };
+
+export function prixClipDuPlan(e: { contenu: ContenuVersion; shotId: string; modele?: string | null }): PrixClipPlan {
+  const c = choixClipDuPlan(e);
+  if (!c.ok) return { ok: false, raison: c.motif };
+  const t = tarifClip({ modele: c.choix.modele, dureeS: c.choix.dureeS, audio: c.choix.audio, resolution: c.choix.resolution });
+  if (!t.ok) return { ok: false, raison: t.motif };
+  return {
+    ok: true, modele: c.choix.modele, libelleModele: entreeCatalogueVideo(c.choix.modele)?.libelle ?? c.choix.modele,
+    dureeS: c.choix.dureeS, audio: c.choix.audio, credits: t.tarif.credits, usdMicros: t.tarif.usdMicros, limites: c.limites,
+  };
+}
+
+/* ───────────────────────────── Requête fal ──────────────────────────────── */
 
 export type RequeteFalAnimation =
   | { ok: true; modele: string; corps: Record<string, unknown>; operations: string[]; expurge: Record<string, unknown>; empreinte: string; limites: string[] }
   | { ok: false; code: 'INVALID_SCHEMA' | 'MISSING_REFERENCE' | 'UNSUPPORTED_CAPABILITY'; motif: string; cibles: string[] };
 
 /**
- * Le corps fal d'une animation · même forme que `falGenerateVideo` en image →
- * vidéo (`prompt`, `duration` en texte, `image_url` ; le modèle déduit le
- * ratio de l'image de départ), plus l'instruction négative du modèle.
+ * Le corps fal d'une animation, par FAMILLE du modèle devisé (`corpsFalVideo`) ·
+ * Kling : `prompt`, `image_url`, `duration` "5" | "10", `negative_prompt`
+ * (ratio déduit de l'image) ; Veo : `duration` "4s" | "6s" | "8s",
+ * `aspect_ratio`, `resolution`, `generate_audio` explicite, `negative_prompt`.
+ * `modele` (celui du worker) ne sert qu'à un instantané `studio_clip/1`.
  */
 export function requeteFalAnimation(e: {
   operations: ReadonlyArray<{ operation: string; profil: ProfilOperation }>;
@@ -166,20 +349,24 @@ export function requeteFalAnimation(e: {
   if (!lu.ok) return { ok: false, code: 'INVALID_SCHEMA', motif: lu.violations.join(' · '), cibles: [] };
   const p = lu.parametres;
   if (p.operation !== clips[0]!.operation) return { ok: false, code: 'INVALID_SCHEMA', motif: 'les paramètres ne correspondent pas au clip du job', cibles: [clips[0]!.operation] };
+  const modele = p.modele ?? e.modele;
+  const m = entreeCatalogueVideo(modele);
+  if (!m) return { ok: false, code: 'INVALID_SCHEMA', motif: `${MOTIF_HORS_CATALOGUE} (${modele}) · rien n’est envoyé`, cibles: [p.operation] };
+  // Un instantané d'avant le catalogue n'a ni ratio ni durée Veo : jamais envoyé à Veo.
+  if (p.modele === null && m.famille !== 'kling') return { ok: false, code: 'INVALID_SCHEMA', motif: `instantané studio_clip/1 (5 s, sans ratio) incompatible avec ${m.libelle} · redemande un devis`, cibles: [p.operation] };
   const s = e.source;
   if (!s || s.assetId !== p.source.assetId) return { ok: false, code: 'MISSING_REFERENCE', motif: 'image clé non résolue · aucune substitution', cibles: [p.source.assetId] };
   if (s.etat !== 'autorise') return { ok: false, code: 'MISSING_REFERENCE', motif: `image clé indisponible · ${s.motif}`, cibles: [s.assetId] };
   if (s.sha256 !== p.source.sha256) return { ok: false, code: 'MISSING_REFERENCE', motif: 'image clé modifiée depuis le devis · aucune substitution', cibles: [s.assetId] };
   if (!adresseTransmissible(s.url) || s.url.startsWith('data:')) return { ok: false, code: 'MISSING_REFERENCE', motif: 'image clé sans adresse transmissible au fournisseur', cibles: [s.assetId] };
-  const corps: Record<string, unknown> = {
-    prompt: p.consigne,
-    image_url: s.url,
-    duration: String(p.dureeS),
-    negative_prompt: p.interdits.join(', '),
-  };
-  const expurge: Record<string, unknown> = { ...corps, modele: e.modele, image_url: { assetId: s.assetId, sha256: s.sha256 } };
-  return {
-    ok: true, modele: e.modele, corps, operations: [p.operation], expurge, empreinte: empreinteContenu(expurge),
-    limites: ['ratio déduit de l’image clé par le modèle', `durée de base ${p.dureeS} s`],
-  };
+  const famille = m.famille;
+  const corps = corpsFalVideo({
+    famille, prompt: p.consigne, imageUrl: s.url, dureeS: p.dureeS, negatif: p.interdits.join(', '),
+    ratio: p.ratio, resolution: p.resolution, audio: p.audio,
+  });
+  const expurge: Record<string, unknown> = { ...corps, modele, image_url: { assetId: s.assetId, sha256: s.sha256 } };
+  const limites = famille === 'kling'
+    ? ['ratio déduit de l’image clé par le modèle', `durée ${p.dureeS} s`]
+    : [`ratio ${p.ratio}`, `durée ${p.dureeS} s`, `résolution ${p.resolution}`, p.audio ? 'voix native · à valider à l’écoute' : 'muet'];
+  return { ok: true, modele, corps, operations: [p.operation], expurge, empreinte: empreinteContenu(expurge), limites };
 }

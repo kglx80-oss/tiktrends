@@ -13,6 +13,9 @@ import {
 } from '@tiktrends/core';
 // R3 · ligne du contrôle visuel et nature des montants (borne / estimation).
 import { REFUS_DEPENSE_CLIENT, avecControleVision, controleVisionActif, exigenceImageDuDevis, qualifierDevis, type QualificationTotal } from '@tiktrends/core';
+// Pub entière · prix catalogue du moteur envoyé, relecture ajoutée à la ligne du contrôle visuel.
+import { tarifPubEntiere, lignesAuTarifPubEntiere, controleCocheParDefaut, OPERATION_IMAGE } from '@tiktrends/core';
+import { borneControlePubMicros, CONTROLE_MODEL } from '@tiktrends/ai';
 import { adaptateurAnthropicGarde, modeleTexte } from '../prompts/adaptateur';
 import type { ContexteStudio } from '../garde';
 import { ajouterAudit } from '../audit';
@@ -225,7 +228,8 @@ export async function creerDevis(ctx: ContexteStudio, e: EntreeDevis, base: Base
       // L6-A · images clés des plans : consigne `shot.image` retenue, attestée, à jour, références intactes.
       const plans = await raccordPlansDevis(tx, ctx, { projet, contenu: courante.content as ContenuVersion, lignes: l.lignes });
       if (!plans.ok) throw new Refus(plans);
-      // Animation d'un plan : clip seul, image clé valide, paramètres construits par le serveur.
+      // Animation d'un plan : clip seul, image clé valide, paramètres construits par le serveur,
+      // ligne du clip reprise au tarif catalogue du modèle (prix à la seconde × durée).
       const clips = await raccordClipsDevis(tx, ctx, { projet, contenu: courante.content as ContenuVersion, lignes: l.lignes });
       if (!clips.ok) throw new Refus(clips);
       const empreinteImage = image.empreinte ?? plans.empreinte ?? clips.empreinte;
@@ -233,9 +237,21 @@ export async function creerDevis(ctx: ContexteStudio, e: EntreeDevis, base: Base
       // ajouté après coup) · ajoutée par défaut, retirée si décochée, absente
       // quand il ne peut pas s'exécuter ici. Les totaux l'incluent.
       const regimeDevis = await regimeEspace(ctx.workspaceId);
-      const v = avecControleVision(l.lignes, {
-        actif: controleVisionActif({ demande: e.controleVision, fournisseurVision: adaptateurAnthropicGarde() !== null, devisImage: exigenceImageDuDevis(l.lignes).concerne, parDefaut: regimeDevis !== 'v2' }),
+      // Pub entière · l'image prend le prix CATALOGUE du moteur et du paramètre envoyés ; le contrôle
+      // visuel est coché par défaut (même en V2) et sa ligne couvre aussi la relecture (mots, packaging,
+      // lisibilité), à sa borne. En calques, rien ne change.
+      // Clip · lignes déjà reprises au tarif catalogue, choix figé (`raccordClipsDevis`) ; un clip se devise seul,
+      // jamais avec la pub entière : les deux reprises se composent sans se toucher.
+      let lignesProduction = clips.lignes;
+      if (image.pubEntiere) {
+        const t = tarifPubEntiere(image.pubEntiere.moteur);
+        if (!t.ok) throw new Refus(erreurStudio('UNSUPPORTED_CAPABILITY', { traceId: ctx.traceId, targetIds: [OPERATION_IMAGE], message: `Pub entière indisponible · ${t.motif}.` }));
+        lignesProduction = lignesAuTarifPubEntiere(lignesProduction, OPERATION_IMAGE, t);
+      }
+      const v = avecControleVision(lignesProduction, {
+        actif: controleVisionActif({ demande: e.controleVision, fournisseurVision: adaptateurAnthropicGarde() !== null, devisImage: exigenceImageDuDevis(l.lignes).concerne, parDefaut: controleCocheParDefaut({ regime: regimeDevis, pubEntiere: !!image.pubEntiere }) }),
         modele: modeleTexte(),
+        ...(image.pubEntiere ? { supplementParImageMicros: borneControlePubMicros(CONTROLE_MODEL) } : {}),
       });
 
       const [ip] = await tx.insert(schema.studioImpactPlans).values({

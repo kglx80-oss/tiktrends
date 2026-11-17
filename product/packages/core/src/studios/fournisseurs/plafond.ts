@@ -9,8 +9,10 @@
  *  · la décision est `checkBudget` du noyau, celle que la barrière web appelle ;
  *  · le plafond se lit comme `spendCapUsd()` du web : absent ou vide ⇒ 50 $,
  *    illisible ou négatif ⇒ 50 $ (jamais l'infini), sinon la valeur ;
- *  · le coût d'une soumission vient de la grille studio (`GRILLE_STUDIO`),
- *    elle-même dérivée de `FIXED_COSTS` : aucun prix n'est écrit ici.
+ *  · le coût d'une soumission d'image vient de la grille studio
+ *    (`GRILLE_STUDIO`, dérivée de `FIXED_COSTS`) ; celui d'un clip, du
+ *    catalogue vidéo (`tarifDuClip`, prix à la seconde × durée du modèle
+ *    devisé) : aucun prix n'est écrit ici.
  *
  * L'égalité avec la barrière web n'est pas une promesse : un test du web
  * (`fa-plafond-commun.test.ts`) compare `spendCapUsd()` et `plafondDepenseUsd()`
@@ -21,6 +23,7 @@
 import { sha256Hex } from '../version';
 import { GRILLE_STUDIO, type ProfilOperation } from '../execution/tarifs';
 import { rienNaEteFacture } from '../../spend-refund';
+import { lireParametresClip, tarifDuClip } from './fal-video';
 
 /** Défaut en dur de `apps/web/lib/spend-guard.ts` (`DEFAULT_CAP_USD`) · même valeur, comparée par test. */
 export const PLAFOND_DEFAUT_USD = 50;
@@ -66,27 +69,42 @@ export function coutSoumissionImage(operations: ReadonlyArray<{ operation: strin
 }
 
 export type CoutSoumissionStudio =
-  | { ok: true; usd: number; usdMicros: number; medias: number; poste: 'fal_image' | 'fal_video' }
+  | { ok: true; usd: number; usdMicros: number; medias: number; poste: 'fal_image' | 'fal_video'; /** Modèle dont le prix est réservé (clip) · `null` pour les images. */ modele: string | null }
   | { ok: false; motif: string };
 
 /**
  * Le coût PLAFOND d'une soumission studio, image OU animation · un job porte
- * des images (au tarif image chacune) ou UN clip (au forfait vidéo de la
- * grille, `FIXED_COSTS.fal_video`), jamais un mélange. La voix (sans tarif)
- * est refusée : on ne réserve pas un prix qu'on ne sait pas dire.
+ * des images (au tarif image chacune) ou UN clip, jamais un mélange. Le clip
+ * se réserve à son tarif catalogue (`tarifDuClip` : prix à la seconde du
+ * modèle devisé × durée, voix comprise), relevé au plancher de l'ancien
+ * forfait (`FIXED_COSTS.fal_video`) tant qu'aucune facture fal de ce modèle
+ * n'est rapprochée (`reserveClipUsdMicros`). Un modèle hors catalogue n'a pas
+ * de tarif : rien n'est réservé ni envoyé. Sans paramètres lisibles, rien
+ * n'est réservé. La voix (sans tarif) est refusée : on ne réserve pas un prix
+ * qu'on ne sait pas dire.
+ *
+ * `clip.modele` · le modèle que le worker a préparé ; il ne décide que pour un
+ * instantané `studio_clip/1` (sans modèle devisé).
  */
-export function coutSoumissionStudio(operations: ReadonlyArray<{ operation: string; profil: ProfilOperation }>): CoutSoumissionStudio {
+export function coutSoumissionStudio(
+  operations: ReadonlyArray<{ operation: string; profil: ProfilOperation }>,
+  clip?: { parametres: unknown; modele: string | null } | null,
+): CoutSoumissionStudio {
   const payantes = operations.filter((o) => o.profil !== 'calcul');
   const clips = payantes.filter((o) => o.profil === 'animation');
   if (clips.length === 0) {
     const c = coutSoumissionImage(operations);
-    return c.ok ? { ok: true, usd: c.usd, usdMicros: c.usdMicros, medias: c.images, poste: 'fal_image' } : c;
+    return c.ok ? { ok: true, usd: c.usd, usdMicros: c.usdMicros, medias: c.images, poste: 'fal_image', modele: null } : c;
   }
   if (clips.length !== payantes.length) return { ok: false, motif: 'un job d’animation ne porte que des clips' };
   if (clips.length !== 1) return { ok: false, motif: 'un seul clip par job' };
-  const t = GRILLE_STUDIO.animation.usdMicros;
-  if (t === null) return { ok: false, motif: 'aucun tarif d’animation dans la grille' };
-  return { ok: true, usd: t / 1_000_000, usdMicros: t, medias: 1, poste: 'fal_video' };
+  if (!clip) return { ok: false, motif: 'paramètres du clip absents · aucun tarif à réserver' };
+  const lu = lireParametresClip(clip.parametres);
+  if (!lu.ok) return { ok: false, motif: `paramètres du clip illisibles · ${lu.violations.join(' · ')}` };
+  if (lu.parametres.operation !== clips[0]!.operation) return { ok: false, motif: 'les paramètres ne correspondent pas au clip du job' };
+  const t = tarifDuClip(lu.parametres, clip.modele);
+  if (!t.ok) return { ok: false, motif: t.motif };
+  return { ok: true, usd: t.tarif.reserveUsdMicros / 1_000_000, usdMicros: t.tarif.reserveUsdMicros, medias: 1, poste: 'fal_video', modele: t.modele };
 }
 
 /**

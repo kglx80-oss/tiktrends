@@ -16,7 +16,7 @@
  * ici : il vit dans un module que la production n'importe pas.
  */
 
-import { MODELE_FAL_ANIMATION_DEFAUT } from './fal-video';
+import { MODELE_VIDEO_STUDIO_DEFAUT, modeleAnimationStudio } from './catalogue-video';
 
 export type DecisionFournisseur =
   | { ok: true; apiKey: string; queueUrl: string | null; modeles: { generation: string; edition: string; animation: string } }
@@ -44,8 +44,11 @@ export function decisionFournisseurStudio(env: Readonly<Record<string, string | 
     modeles: {
       generation: env.FAL_IMAGE_MODEL || MODELE_FAL_GENERATION_DEFAUT,
       edition: env.FAL_IMAGE_MODEL_EDIT || MODELE_FAL_EDITION_DEFAUT,
-      // Même variable et même défaut que `falGenerateVideo` (image → vidéo).
-      animation: env.FAL_VIDEO_MODEL_I2V || MODELE_FAL_ANIMATION_DEFAUT,
+      // Variable PROPRE aux Studios (`FAL_VIDEO_MODEL_STUDIO`, défaut Kling 2.5
+      // turbo pro) · `FAL_VIDEO_MODEL_I2V` reste celle de l'ancien « Vidéo IA ».
+      // Ne décide que pour un instantané `studio_clip/1` : un clip devisé part
+      // au modèle de son devis.
+      animation: modeleAnimationStudio(env),
     },
   };
 }
@@ -69,4 +72,14 @@ export const SONDAGE_INITIAL_MS = 2_000;
 export const SONDAGE_MAX_MS = 15_000;
 export function delaiSondageMs(lecturesEnCours: number): number {
   return Math.min(SONDAGE_MAX_MS, SONDAGE_INITIAL_MS * 2 ** Math.max(0, Math.min(10, lecturesEnCours)));
+}
+
+/**
+ * Bascule `FAL_VIDEO_MODEL_I2V` → `FAL_VIDEO_MODEL_STUDIO` · dite au démarrage
+ * du worker quand l'ancienne variable est posée sans la nouvelle (un poste qui
+ * pilotait les Studios par I2V repasse au défaut Kling 2.5 turbo). `null` sinon.
+ */
+export function avertissementModeleVideoStudio(env: Readonly<Record<string, string | undefined>>): string | null {
+  if (!(env.FAL_VIDEO_MODEL_I2V ?? '').trim() || (env.FAL_VIDEO_MODEL_STUDIO ?? '').trim()) return null;
+  return `FAL_VIDEO_MODEL_I2V est posée mais les Studios utilisent désormais FAL_VIDEO_MODEL_STUDIO · défaut Kling 2.5 turbo (${MODELE_VIDEO_STUDIO_DEFAUT}). FAL_VIDEO_MODEL_I2V ne pilote plus que l’ancien « Vidéo IA ».`;
 }
