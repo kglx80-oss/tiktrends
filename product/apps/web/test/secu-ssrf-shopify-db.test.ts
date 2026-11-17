@@ -32,6 +32,9 @@ import type { AddressInfo } from 'node:net';
 
 const h = vi.hoisted(() => {
   process.env.AUTH_SECRET = 'secret-de-test-ssrf-shopify-0123456789abcdef';
+  process.env.APP_URL = 'https://app.exemple.test';
+  process.env.SHOPIFY_API_KEY = 'shopify-cle';
+  process.env.SHOPIFY_API_SECRET = 'shopify-secret';
   const { randomUUID: u } = require('node:crypto') as typeof import('node:crypto');
   return {
     jeton: null as string | null,
@@ -46,8 +49,8 @@ vi.mock('node:dns/promises', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:dns/promises')>();
   const lookup = async (host: string, opts?: unknown) => {
     // Le DNS et le routage disent la MÊME chose · `interne.test` (et sa variante www) est 127.0.0.1.
-    if (host.replace(/^www\./, '') === 'interne.test') return [{ address: '127.0.0.1', family: 4 }];
-    if (host.endsWith('.test')) return [{ address: h.publique, family: 4 }];
+    if (/^(www\.)?interne\.(test|myshopify\.com)$/.test(host)) return [{ address: '127.0.0.1', family: 4 }];
+    if (host.endsWith('.test') || host.endsWith('.myshopify.com')) return [{ address: h.publique, family: 4 }];
     return (actual.lookup as (h: string, o?: unknown) => Promise<unknown>)(host, opts);
   };
   return { ...actual, lookup, default: { ...actual, lookup } };
@@ -71,7 +74,14 @@ import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { shopifyAdminTest, shopifyCommerceSync } from '@tiktrends/integrations';
 import { discoverShopify } from '../lib/shopify';
-import { connectShopifyAction } from '../app/actions/connections';
+import { connectShopifyAction, syncShopifyAction } from '../app/actions/connections';
+import { syncShopifyProductsAction } from '../app/actions/brand-detail';
+import { NextRequest } from 'next/server';
+import { createHmac } from 'node:crypto';
+import { signState } from '../lib/oauth-state';
+import { encryptSecret } from '@tiktrends/integrations';
+import { GET as departShopify } from '../app/api/oauth/shopify/route';
+import { GET as retourShopify } from '../app/api/oauth/shopify/callback/route';
 
 vi.setConfig({ testTimeout: 120_000, hookTimeout: 300_000 });
 
@@ -79,7 +89,9 @@ vi.setConfig({ testTimeout: 120_000, hookTimeout: 300_000 });
 
 const interne = { requetes: [] as Array<{ methode: string; chemin: string; jeton: string | null }> };
 const serveurs: Server[] = [];
-const port: Record<'interne' | 'redirige' | 'meta' | 'legitime', number> = { interne: 0, redirige: 0, meta: 0, legitime: 0 };
+const port: Record<'interne' | 'redirige' | 'meta' | 'legitime' | 'piege', number> = { interne: 0, redirige: 0, meta: 0, legitime: 0, piege: 0 };
+/** Un domaine PUBLIC qui n'est pas une boutique Shopify · il ne doit jamais recevoir le jeton Admin. */
+const piege = { jetons: [] as string[] };
 
 const json = (res: ServerResponse, statut: number, corps: unknown) => {
   res.writeHead(statut, { 'content-type': 'application/json', connection: 'close' });
@@ -99,13 +111,15 @@ async function ecouter(nom: keyof typeof port, rep: (req: IncomingMessage, res: 
 
 /** Où va réellement un nom · le DNS et le routage du faux réseau. null · hors du faux réseau (refusé). */
 function aiguiller(cible: URL): string | null {
-  const hote = cible.hostname.replace(/^www\./, '');
+  // `x.test` et `x.myshopify.com` · le même serveur (le nom de boutique compte, pas le suffixe).
+  const hote = cible.hostname.replace(/^www\./, '').replace(/\.(test|myshopify\.com)$/, '');
   const vers = (p: number) => `http://127.0.0.1:${p}${cible.pathname}${cible.search}`;
-  if (hote === 'interne.test' || hote === '169.254.169.254') return vers(port.interne);
+  if (hote === 'interne' || hote === '169.254.169.254') return vers(port.interne);
   if (hote === '127.0.0.1' && Number(cible.port) === port.interne) return vers(port.interne);
-  if (hote === 'boutique-redirige.test') return vers(port.redirige);
-  if (hote === 'boutique-meta.test') return vers(port.meta);
-  if (hote === 'boutique-legitime.test') return vers(port.legitime);
+  if (hote === 'boutique-redirige') return vers(port.redirige);
+  if (hote === 'boutique-meta') return vers(port.meta);
+  if (hote === 'boutique-legitime') return vers(port.legitime);
+  if (hote === 'boutique-piege' || hote.endsWith('.piege')) return vers(port.piege);
   return null;
 }
 
@@ -152,7 +166,16 @@ beforeAll(async () => {
       return json(res, 200, { data: { shop: { name: 'Boutique Légitime', currencyCode: 'EUR' }, orders: { edges: [] } } });
     }
     if (u.pathname === '/products.json') return json(res, 200, { products: u.searchParams.get('page') === '1' ? PRODUITS : [] });
+    if (req.method === 'POST' && u.pathname === '/admin/oauth/access_token') return json(res, 200, { access_token: 'shpat_legitime' });
     return json(res, 404, {});
+  });
+  await ecouter('piege', (req, res) => {
+    const jeton = req.headers['x-shopify-access-token'] as string | undefined;
+    if (jeton) piege.jetons.push(jeton);
+    const u = new URL(req.url ?? '/', 'http://x');
+    if (u.pathname === '/products.json') return json(res, 200, { products: u.searchParams.get('page') === '1' ? PRODUITS : [] });
+    if (u.pathname.endsWith('/oauth/access_token')) return json(res, 200, { access_token: 'shpat_vole' });
+    return json(res, 200, { data: { shop: { name: 'Boutique Piège', currencyCode: 'EUR' }, orders: { edges: [] } } });
   });
   vi.stubGlobal('fetch', fauxFetch);
 
@@ -168,7 +191,7 @@ afterAll(async () => {
   vi.unstubAllGlobals();
   await Promise.all(serveurs.map((s) => new Promise<void>((ok) => s.close(() => ok()))));
 });
-beforeEach(() => { interne.requetes = []; });
+beforeEach(() => { interne.requetes = []; piege.jetons = []; });
 
 const echec = (p: Promise<unknown>) => p.then(() => null, (e: unknown) => String(e));
 
@@ -215,17 +238,20 @@ describe('discoverShopify · le catalogue public ne relaie jamais une adresse in
 describe('adminGraphQL · le jeton Admin ne part jamais vers une adresse interne', () => {
   const CAS: Array<[string, () => string]> = [
     ['adresse interne avec port (127.0.0.1:port)', () => `127.0.0.1:${port.interne}`],
-    ['domaine public avec un port explicite', () => `boutique-legitime.test:${port.legitime}`],
+    ['domaine public avec un port explicite', () => `boutique-legitime.myshopify.com:${port.legitime}`],
     // 8443 est un port web que `assertPublicUrl` admet · seul le domaine nu exigé le refuse.
-    ['domaine public avec un port web explicite (8443)', () => 'boutique-legitime.test:8443'],
-    ['boutique qui redirige (307) vers l’interne', () => 'boutique-redirige.test'],
-    ['nom qui se résout en 127.0.0.1', () => 'interne.test'],
+    ['domaine public avec un port web explicite (8443)', () => 'boutique-legitime.myshopify.com:8443'],
+    ['boutique qui redirige (307) vers l’interne', () => 'boutique-redirige.myshopify.com'],
+    ['nom qui se résout en 127.0.0.1', () => 'interne.myshopify.com'],
+    ['domaine public hors .myshopify.com', () => 'boutique-piege.test'],
+    ['faux suffixe (.myshopify.com.piege.test)', () => 'boutique-legitime.myshopify.com.piege.test'],
   ];
   for (const [cas, domaine] of CAS) {
     it(`${cas} · refusé, aucune requête interne, aucun jeton transmis`, async () => {
       // Le VRAI jeton de la boutique · seul le domaine (port, redirection, adresse) doit faire refuser.
       const e = await echec(shopifyAdminTest(domaine(), 'shpat_legitime'));
       expect(interne.requetes, `le service interne a reçu la requête Admin (${cas})`).toEqual([]);
+      expect(piege.jetons, `le jeton Admin est parti hors .myshopify.com (${cas})`).toEqual([]);
       expect(e ?? '(aucun refus)', `la connexion aurait dû être refusée, en disant pourquoi (${cas})`).toMatch(/Shopify : (adresse refusée|domaine invalide)/);
       const e2 = await echec(shopifyCommerceSync(domaine(), 'shpat_legitime'));
       expect(e2 ?? '(aucun refus)').toMatch(/Shopify : (adresse refusée|domaine invalide)/);
@@ -234,9 +260,9 @@ describe('adminGraphQL · le jeton Admin ne part jamais vers une adresse interne
   }
 
   it('boutique légitime · inchangé · nom de boutique et synchro', async () => {
-    expect(await shopifyAdminTest('boutique-legitime.test', 'shpat_legitime')).toEqual({ shopName: 'Boutique Légitime', currency: 'EUR' });
-    expect(await shopifyAdminTest('https://boutique-legitime.test/admin', 'shpat_legitime')).toEqual({ shopName: 'Boutique Légitime', currency: 'EUR' });
-    const ins = await shopifyCommerceSync('boutique-legitime.test', 'shpat_legitime');
+    expect(await shopifyAdminTest('boutique-legitime.myshopify.com', 'shpat_legitime')).toEqual({ shopName: 'Boutique Légitime', currency: 'EUR' });
+    expect(await shopifyAdminTest('https://Boutique-Legitime.myshopify.com/admin', 'shpat_legitime')).toEqual({ shopName: 'Boutique Légitime', currency: 'EUR' });
+    const ins = await shopifyCommerceSync('boutique-legitime.myshopify.com', 'shpat_legitime');
     expect(ins).toMatchObject({ shopName: 'Boutique Légitime', currency: 'EUR', orders30d: 0, revenue30d: 0, topProducts: [] });
     expect(interne.requetes).toEqual([]);
   });
@@ -257,8 +283,84 @@ describe('connectShopifyAction · VRAI getSession (administrateur), base réelle
   });
 
   it('boutique légitime · inchangé · connectée et enregistrée', async () => {
-    const r = await connectShopifyAction({ domain: 'boutique-legitime.test', token: 'shpat_legitime' });
+    const r = await connectShopifyAction({ domain: 'boutique-legitime.myshopify.com', token: 'shpat_legitime' });
     expect(r).toEqual({ ok: true, shopName: 'Boutique Légitime' });
-    expect((await ligne()).d).toBe('boutique-legitime.test');
+    expect((await ligne()).d).toBe('boutique-legitime.myshopify.com');
+  });
+});
+
+/* ───────── #1102 · le jeton Admin ne quitte jamais .myshopify.com ───────── */
+
+const marque = async () => (await db!.select({ d: schema.brands.shopifyDomain, t: schema.brands.shopifyToken, url: schema.brands.url }).from(schema.brands).where(eq(schema.brands.id, h.ids.brand)))[0]!;
+async function brancher(domaine: string): Promise<void> {
+  await db!.update(schema.brands).set({ shopifyDomain: domaine, shopifyToken: encryptSecret('shpat_legitime'), url: null }).where(eq(schema.brands.id, h.ids.brand));
+}
+
+describe('syncShopifyProductsAction · le catalogue n’écrase jamais le domaine d’une boutique connectée', () => {
+  it('catalogue importé depuis un autre domaine · shopifyDomain gardé, la synchro Admin suivante ne part pas hors .myshopify.com', async () => {
+    await brancher('boutique-legitime.myshopify.com');
+    const r = await syncShopifyProductsAction({ brandId: h.ids.brand, domain: 'boutique-piege.test' });
+    expect(r.error).toBeUndefined();
+    expect(r.total, 'le catalogue public est importé comme avant').toBe(2);
+    const b = await marque();
+    expect(b.d, 'le domaine de la boutique connectée a été écrasé par celui du catalogue').toBe('boutique-legitime.myshopify.com');
+    expect(b.url, 'le domaine du catalogue va dans le site de la marque (vide)').toBe('https://boutique-piege.test');
+    const s = await syncShopifyAction();
+    expect(piege.jetons, 'la synchro Admin a envoyé le jeton hors .myshopify.com').toEqual([]);
+    expect(s.ok).toBe(true);
+  });
+
+  it('sans jeton Admin · inchangé · le domaine qui a répondu est mémorisé', async () => {
+    await db!.update(schema.brands).set({ shopifyDomain: null, shopifyToken: null, url: null }).where(eq(schema.brands.id, h.ids.brand));
+    const r = await syncShopifyProductsAction({ brandId: h.ids.brand, domain: 'boutique-legitime.test' });
+    expect(r.error).toBeUndefined();
+    expect((await marque()).d).toBe('boutique-legitime.test');
+  });
+});
+
+describe('Domaine personnalisé déjà enregistré avec un jeton · dit à l’écran, aucune requête', () => {
+  it('syncShopifyAction · la raison nomme .myshopify.com, le jeton ne part pas', async () => {
+    await brancher('boutique-piege.test');
+    const r = await syncShopifyAction();
+    expect(piege.jetons, 'le jeton est parti vers le domaine personnalisé').toEqual([]);
+    expect(r.error ?? '(aucun refus)', 'la synchro doit dire pourquoi elle ne part pas').toMatch(/domaine personnalisé.*\.myshopify\.com/);
+  });
+});
+
+describe('OAuth Shopify · départ et retour, défense en profondeur', () => {
+  const depart = (shop: string) => departShopify(new NextRequest(`https://app.exemple.test/api/oauth/shopify?shop=${encodeURIComponent(shop)}`));
+  for (const shop of ['boutique-piege.test?.myshopify.com', 'boutique-piege.test#.myshopify.com', 'a@boutique-piege.test/.myshopify.com', 'boutique-legitime.myshopify.com.piege.test']) {
+    it(`départ · « ${shop} » · refusé, jamais redirigé hors .myshopify.com`, async () => {
+      const l = (await depart(shop)).headers.get('location') ?? '';
+      expect(l, `le départ OAuth a visé un hôte hors .myshopify.com (${shop})`).toBe('https://app.exemple.test/connections?e=shopify_shop');
+    });
+  }
+  it('départ · boutique .myshopify.com · inchangé', async () => {
+    expect(new URL((await depart('boutique-legitime.myshopify.com')).headers.get('location')!).host).toBe('boutique-legitime.myshopify.com');
+  });
+
+  function retour(shop: string): NextRequest {
+    const p = new URLSearchParams({ code: 'code-shopify', shop, state: signState({ brandId: h.ids.brand, ws: h.ids.ws, shop }), timestamp: '1700000000' });
+    const message = [...p.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => `${k}=${v}`).join('&');
+    p.set('hmac', createHmac('sha256', process.env.SHOPIFY_API_SECRET!).update(message).digest('hex'));
+    return new NextRequest(`https://app.exemple.test/api/oauth/shopify/callback?${p}`);
+  }
+  it('retour · boutique résolue en 127.0.0.1 · l’échange du code ne part pas vers l’interne, rien d’écrit', async () => {
+    await brancher('boutique-legitime.myshopify.com');
+    const avant = await marque();
+    const r = await retourShopify(retour('interne.myshopify.com'));
+    expect(interne.requetes, 'l’échange du code OAuth a atteint le service interne').toEqual([]);
+    expect(r.headers.get('location')).toBe('https://app.exemple.test/connections?e=shopify_exchange');
+    expect(await marque()).toEqual(avant);
+  });
+  it('retour · hôte hors .myshopify.com (état signé compris) · refusé, aucun échange', async () => {
+    const r = await retourShopify(retour('boutique-piege.test'));
+    expect(piege.jetons).toEqual([]);
+    expect(r.headers.get('location')).toBe('https://app.exemple.test/connections?e=shopify_shop');
+  });
+  it('retour · boutique .myshopify.com · inchangé · jeton posé', async () => {
+    const r = await retourShopify(retour('boutique-legitime.myshopify.com'));
+    expect(r.headers.get('location')).toBe('https://app.exemple.test/connections?ok=shopify');
+    expect((await marque()).d).toBe('boutique-legitime.myshopify.com');
   });
 });

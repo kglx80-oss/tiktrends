@@ -2,6 +2,8 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { db, schema, eq, and } from '@tiktrends/db';
 import { encryptSecret } from '@tiktrends/integrations';
+import { fetchPublicSansRedirection } from '@tiktrends/integrations/src/safe-fetch';
+import { domaineMyshopify } from '@tiktrends/core';
 import { getSession } from '../../../../../lib/auth';
 import { verifyState } from '../../../../../lib/oauth-state';
 
@@ -21,6 +23,8 @@ export async function GET(req: NextRequest) {
   const shop = params.get('shop') || '';
   const st = verifyState<{ brandId: string; ws: string; shop: string }>(params.get('state'));
   if (!code || !st || st.shop !== shop) return back('?e=shopify_state');
+  // Défense en profondeur · l'échange du code ne vise que <nom>.myshopify.com (motif ancré du noyau).
+  if (domaineMyshopify(shop) !== shop) return back('?e=shopify_shop');
 
   // Vérification HMAC Shopify.
   const hmac = params.get('hmac') || '';
@@ -32,10 +36,13 @@ export async function GET(req: NextRequest) {
   if (!s || s.workspaceId !== st.ws || !db) return back('?e=shopify_session');
 
   try {
-    const r = await fetch(`https://${shop}/admin/oauth/access_token`, {
+    // Adresse publique seulement, aucune redirection suivie (le corps porte le secret de l'app).
+    const res = await fetchPublicSansRedirection(`https://${shop}/admin/oauth/access_token`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ client_id: apiKey, client_secret: apiSecret, code }),
-    }).then((x) => x.json()) as { access_token?: string };
+    });
+    if (!res) return back('?e=shopify_exchange');
+    const r = await res.json() as { access_token?: string };
     if (!r.access_token) return back('?e=shopify_token');
     await db.update(schema.brands).set({ shopifyDomain: shop, shopifyToken: encryptSecret(r.access_token) })
       .where(and(eq(schema.brands.id, st.brandId), eq(schema.brands.workspaceId, st.ws)));

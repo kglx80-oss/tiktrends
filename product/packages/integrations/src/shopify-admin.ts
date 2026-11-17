@@ -2,6 +2,7 @@
  * Shopify Admin API (app personnalisée · token shpat_...).
  * Remonte les vraies données commerce d'une boutique pour nourrir l'analyse (et Jarvis).
  */
+import { domaineMyshopify } from '@tiktrends/core';
 import { fetchPublicSansRedirection } from './safe-fetch';
 
 const API_VERSION = '2024-10';
@@ -16,15 +17,13 @@ export interface ShopifyCommerceInsights {
 }
 
 /**
- * Le domaine d'une boutique, nu · schéma et chemin retirés (comme avant). null
- * si ce n'est pas un nom d'hôte simple · un PORT explicite (`boutique.com:8443`,
- * `127.0.0.1:5432`), des identifiants (`a@b`), des crochets IPv6, un espace ou
- * une requête sont refusés. Le jeton Admin ne part que vers `https://<hôte>`
- * sur le port 443.
+ * Le domaine Admin d'une boutique · `<nom>.myshopify.com` seulement (règle du
+ * noyau, `domaineMyshopify`, motif ancré). Un port, un domaine personnalisé,
+ * un faux suffixe sont refusés · le jeton Admin ne part que vers
+ * `https://<nom>.myshopify.com` sur le port 443.
  */
 export function domaineBoutiqueAdmin(domain: string): string | null {
-  const d = domain.trim().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
-  return /^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/i.test(d) ? d : null;
+  return domaineMyshopify(domain);
 }
 
 /**
@@ -39,7 +38,7 @@ export function domaineBoutiqueAdmin(domain: string): string | null {
  */
 async function adminGraphQL<T>(domain: string, token: string, query: string, variables?: Record<string, unknown>): Promise<T> {
   const d = domaineBoutiqueAdmin(domain);
-  if (!d) throw new Error('Shopify : domaine invalide · indique le domaine de la boutique, sans port (ex : ta-boutique.myshopify.com).');
+  if (!d) throw new Error('Shopify : domaine invalide · indique le domaine .myshopify.com de la boutique, sans port (ex : ta-boutique.myshopify.com).');
   const res = await fetchPublicSansRedirection(`https://${d}/admin/api/${API_VERSION}/graphql.json`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-Shopify-Access-Token': token },

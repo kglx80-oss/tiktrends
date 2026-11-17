@@ -575,7 +575,7 @@ export async function importBrandDAAction(input: { brandId: string }): Promise<{
 export async function syncShopifyProductsAction(input: { brandId: string; domain?: string }): Promise<{ imported?: number; updated?: number; total?: number; error?: string }> {
   const g = await guardBrand(input.brandId);
   if (!g || !db) return { error: GUARD.role({ needRole: 'admin' }) };
-  const [b] = await db.select({ url: schema.brands.url, shopifyDomain: schema.brands.shopifyDomain }).from(schema.brands).where(eq(schema.brands.id, input.brandId)).limit(1);
+  const [b] = await db.select({ url: schema.brands.url, shopifyDomain: schema.brands.shopifyDomain, shopifyToken: schema.brands.shopifyToken }).from(schema.brands).where(eq(schema.brands.id, input.brandId)).limit(1);
   if (!b) return { error: GUARD.notFound('cette marque') };
 
   const domainInput = (input.domain || b.shopifyDomain || b.url || '').trim();
@@ -585,8 +585,16 @@ export async function syncShopifyProductsAction(input: { brandId: string; domain
   if (!found) return { error: `Catalogue Shopify introuvable sur ${domainInput.replace(/^https?:\/\//, '')}. Essaie le domaine .myshopify.com de ta boutique. Si ton catalogue public est désactivé, dis-le-moi et on passe par un jeton Storefront.` };
   const { origin, products } = found;
 
-  // Mémorise le domaine connecté (celui qui a répondu).
-  await db.update(schema.brands).set({ shopifyDomain: origin.replace('https://', '') }).where(eq(schema.brands.id, input.brandId));
+  // Mémorise le domaine qui a répondu · SAUF si une boutique est connectée par
+  // jeton Admin · `shopifyDomain` est alors le domaine où part ce jeton, et le
+  // catalogue (vitrine, souvent un domaine personnalisé) ne le réécrit jamais ·
+  // sinon la synchro suivante enverrait le jeton au domaine du catalogue. Le
+  // domaine du catalogue va dans le site de la marque s'il est vide (sans migration).
+  if (b.shopifyToken) {
+    if (!b.url) await db.update(schema.brands).set({ url: origin }).where(eq(schema.brands.id, input.brandId));
+  } else {
+    await db.update(schema.brands).set({ shopifyDomain: origin.replace('https://', '') }).where(eq(schema.brands.id, input.brandId));
+  }
 
   const existing = await db.select({ id: schema.products.id, name: schema.products.name }).from(schema.products).where(eq(schema.products.brandId, input.brandId));
   const byName = new Map(existing.map((e) => [normName(e.name), e.id]));
