@@ -26,7 +26,7 @@ import { db, schema } from '@tiktrends/db';
 import type { SaisieConnaissance } from '@tiktrends/core';
 import { creerConnaissanceAction, nouvelleVersionAction } from '../app/actions/connaissances';
 
-const adminPlus = () => ({ user: { id: 'u', email: 'equipe@agence.test', name: null }, workspaceId: ids.wsA, workspaceName: 'A', role: 'owner', plan: 'plus', equipe: { role: 'adminplus', matrice: {} } });
+const adminPlus = () => ({ user: { id: 'u', email: 'equipe@agence.test', name: null }, workspaceId: ids.wsA, workspaceName: 'A', role: 'owner', plan: 'plus', equipe: { role: 'adminplus', matrice: {}, plateformeAdmissible: true } });
 const saisie = (portee: SaisieConnaissance['portee'], texte = 'TEXTE_63'): SaisieConnaissance => ({ titre: 'Portée 63', type: 'savoir', texte, origine: { mode: 'saisie' }, portee });
 const ligne = async (id: string) => (await db.select({ v: schema.appSettings.value, u: schema.appSettings.updatedAt }).from(schema.appSettings).where(eq(schema.appSettings.key, `connaissance:${id}`)))[0];
 

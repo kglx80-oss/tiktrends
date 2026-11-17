@@ -48,7 +48,7 @@ import { demarrerMockFournisseur, type RequeteRecue } from './lot19b-mock-fourni
 
 const adminPlus = () => ({
   user: { id: ids.user, email: 'equipe@agence.test', name: null }, workspaceId: ids.ws, workspaceName: 'Démo',
-  role: 'owner', plan: 'plus', equipe: { role: 'adminplus', matrice: {} },
+  role: 'owner', plan: 'plus', equipe: { role: 'adminplus', matrice: {}, plateformeAdmissible: true },
 });
 const ownerEspace = () => ({ ...adminPlus(), user: { id: ids.user, email: 'owner@client.test', name: null }, equipe: null });
 
@@ -257,7 +257,7 @@ describe('garde · admin plateforme oui, owner d’espace non', () => {
   it('un rôle d’équipe gradé (manager) est refusé · un Admin plateforme est accepté', async () => {
     h.session = { ...adminPlus(), equipe: { role: 'manager', matrice: {} } };
     expect((await chargerConnaissancesAction()).error).toContain('Réservé à l’équipe plateforme');
-    h.session = { ...ownerEspace(), equipe: { role: 'admin', matrice: {} } };
+    h.session = { ...ownerEspace(), equipe: { role: 'admin', matrice: {}, plateformeAdmissible: true } };
     const r = await chargerConnaissancesAction();
     expect(r.error).toBeUndefined();
     expect(r.vue!.items.length).toBeGreaterThan(0);
