@@ -3,7 +3,7 @@ import {
   schema, eq, and, or, isNull, reserverDepense, annulerDepense, type BaseDepense,
 } from '@tiktrends/db';
 import {
-  decisionFournisseurStudio, requeteFalImage, lireParametresImage, lireSnapshotJob, operationsDuSnapshot, operationsMediaDuJob,
+  decisionFournisseurStudio, avertissementModeleVideoStudio, requeteFalImage, lireParametresImage, lireSnapshotJob, operationsDuSnapshot, operationsMediaDuJob,
   estParametresClip, lireParametresClip, requeteFalAnimation,
   photosDuProduit, empreinteAdresse, idLogoMarque, estEmpreinte, estParametresRetouche, lireParametresRetouche, requeteFalRetouche, logoTransmissible,
   decisionLogoServi, empreinteDuLogo, DUREE_URL_FOURNISSEUR_S,
@@ -263,6 +263,9 @@ export function demarrerWorkerStudio(o: {
   log?: (m: string) => void;
 }): ReturnType<typeof demarrerBoucleStudio> | null {
   const log = o.log ?? ((m: string) => console.log(m));
+  // Bascule FAL_VIDEO_MODEL_I2V → FAL_VIDEO_MODEL_STUDIO · dite, jamais silencieuse.
+  const bascule = avertissementModeleVideoStudio(o.env);
+  if (bascule) log(`[studios] avertissement · ${bascule}`);
   const d = decisionFournisseurStudio(o.env);
   if (!d.ok) { log(`[studios] ${d.raison} · ${MESSAGE_SANS_FOURNISSEUR}`); return null; }
   if (!o.base) { log(`[studios] base indisponible (DATABASE_URL) · ${MESSAGE_SANS_FOURNISSEUR}`); return null; }

@@ -9,9 +9,9 @@ import {
 /**
  * Animation d'un plan · règles pures. Le clip part de l'image clé VALIDE du
  * plan, la consigne de mouvement vient du plan, le corps fal suit
- * `falGenerateVideo` (image → vidéo), le coût réservé est le forfait vidéo de
- * la grille, et une image clé absente, remplacée ou modifiée bloque tout
- * avant le moindre envoi.
+ * `falGenerateVideo` (image → vidéo), le coût réservé est le tarif catalogue
+ * du modèle (prix à la seconde × durée · `catalogue-video.test.ts`), et une
+ * image clé absente, remplacée ou modifiée bloque tout avant le moindre envoi.
  */
 
 const KF = '22222222-2222-4222-8222-222222222222';
@@ -51,9 +51,9 @@ describe('consigne de mouvement · dérivée du plan, sans texte écran', () => 
 });
 
 describe('paramètres d’un clip · construits par le serveur', () => {
-  it('image clé valide ⇒ studio_clip/1, source sta_<uuid> et empreinte, durée de base', () => {
+  it('image clé valide ⇒ studio_clip/2, source sta_<uuid> et empreinte, durée de base de Kling, muet', () => {
     const p = params();
-    expect(p).toMatchObject({ schema: SCHEMA_PARAMETRES_CLIP, operation: 'clip:s1', shotId: 's1', source: { assetId: `sta_${KF}`, sha256: SHA }, dureeS: DUREE_CLIP_S });
+    expect(p).toMatchObject({ schema: SCHEMA_PARAMETRES_CLIP, operation: 'clip:s1', shotId: 's1', source: { assetId: `sta_${KF}`, sha256: SHA }, dureeS: DUREE_CLIP_S, modele: MODELE_FAL_ANIMATION_DEFAUT, audio: false, resolution: null, ratio: null });
     expect(lireParametresClip(p).ok).toBe(true);
     expect(empreinteParametresClip(p)).toMatch(/^[a-f0-9]{64}$/);
   });
@@ -61,8 +61,8 @@ describe('paramètres d’un clip · construits par le serveur', () => {
     expect(parametresDuClip({ contenu: contenu(), shotId: 's1', keyframe: null })).toMatchObject({ ok: false, code: 'MISSING_REFERENCE', motif: expect.stringMatching(/pas d’image clé valide/) });
     expect(parametresDuClip({ contenu: contenu(), shotId: 's9', keyframe: { assetUuid: KF, sha256: SHA } })).toMatchObject({ ok: false, code: 'NOT_FOUND' });
   });
-  it('relecture défensive · durée autre que la base, source étrangère, emplacement non résolu ⇒ refus', () => {
-    expect(lireParametresClip({ ...params(), dureeS: 10 }).ok).toBe(false);
+  it('relecture défensive · durée hors des durées du modèle, source étrangère, emplacement non résolu ⇒ refus', () => {
+    expect(lireParametresClip({ ...params(), dureeS: 7 }).ok).toBe(false);
     expect(lireParametresClip({ ...params(), source: { assetId: 'bib_x', sha256: SHA } }).ok).toBe(false);
     expect(lireParametresClip({ ...params(), consigne: 'Mouvement {{action}}' }).ok).toBe(false);
     expect(lireParametresClip({ ...params(), operation: 'clip:s2' }).ok).toBe(false);
@@ -96,9 +96,10 @@ describe('requête fal image → vidéo · rien ne part si un doute subsiste', (
   });
 });
 
-describe('coût, résultat, fournisseur · le clip au forfait vidéo de la grille', () => {
-  it('un clip ⇒ forfait animation de la grille, poste fal_video ; images ⇒ poste fal_image ; mélange refusé', () => {
-    expect(coutSoumissionStudio(ops)).toEqual({ ok: true, usd: GRILLE_STUDIO.animation.usdMicros! / 1e6, usdMicros: GRILLE_STUDIO.animation.usdMicros, medias: 1, poste: 'fal_video' });
+describe('coût, résultat, fournisseur · le clip au tarif catalogue de son modèle', () => {
+  it('un clip ⇒ réserve au tarif catalogue relevé au plancher (Kling 5 s = 0,60 $ sans facture rapprochée), poste fal_video ; sans paramètres ⇒ rien réservé ; images ⇒ poste fal_image ; mélange refusé', () => {
+    expect(coutSoumissionStudio(ops, { parametres: params(), modele: null })).toEqual({ ok: true, usd: 0.6, usdMicros: 600_000, medias: 1, poste: 'fal_video', modele: MODELE_FAL_ANIMATION_DEFAUT });
+    expect(coutSoumissionStudio(ops)).toMatchObject({ ok: false, motif: expect.stringMatching(/paramètres du clip absents/) });
     expect(coutSoumissionStudio([{ operation: 'keyframe:s1', profil: 'image_generation' }])).toMatchObject({ ok: true, poste: 'fal_image', usdMicros: GRILLE_STUDIO.image_generation.usdMicros });
     expect(coutSoumissionStudio([...ops, { operation: 'keyframe:s1', profil: 'image_generation' }]).ok).toBe(false);
     expect(coutSoumissionStudio([...ops, { operation: 'clip:s2', profil: 'animation' }]).ok).toBe(false);
@@ -109,11 +110,13 @@ describe('coût, résultat, fournisseur · le clip au forfait vidéo de la grill
     expect(lireResultatFal(200, {})).toMatchObject({ etat: 'echoue' });
     expect(operationsMediaDuJob([...ops, { operation: 'montage', profil: 'calcul' }])).toEqual(['clip:s1']);
   });
-  it('branchée exactement comme le fournisseur studio · modèle d’animation lu dans FAL_VIDEO_MODEL_I2V', () => {
+  it('branchée exactement comme le fournisseur studio · modèle d’animation lu dans FAL_VIDEO_MODEL_STUDIO, jamais dans FAL_VIDEO_MODEL_I2V', () => {
     const S3 = { S3_ENDPOINT: 'e', S3_BUCKET: 'b', S3_ACCESS_KEY_ID: 'i', S3_SECRET_ACCESS_KEY: 's' };
     expect(fournisseurAnimationBranche({ NODE_ENV: 'production', FAL_KEY: 'cle', ...S3 })).toBe(true);
     expect(fournisseurAnimationBranche({ FAL_KEY: 'cle', ...S3 })).toBe(false);
-    const d = decisionFournisseurStudio({ NODE_ENV: 'production', FAL_KEY: 'cle', FAL_VIDEO_MODEL_I2V: 'fal-ai/autre/i2v', ...S3 });
-    expect(d.ok && d.modeles.animation).toBe('fal-ai/autre/i2v');
+    const d = decisionFournisseurStudio({ NODE_ENV: 'production', FAL_KEY: 'cle', FAL_VIDEO_MODEL_STUDIO: 'fal-ai/veo3.1/fast/image-to-video', FAL_VIDEO_MODEL_I2V: 'fal-ai/autre/i2v', ...S3 });
+    expect(d.ok && d.modeles.animation).toBe('fal-ai/veo3.1/fast/image-to-video');
+    const seul = decisionFournisseurStudio({ NODE_ENV: 'production', FAL_KEY: 'cle', FAL_VIDEO_MODEL_I2V: 'fal-ai/autre/i2v', ...S3 });
+    expect(seul.ok && seul.modeles.animation).toBe(MODELE_FAL_ANIMATION_DEFAUT);
   });
 });

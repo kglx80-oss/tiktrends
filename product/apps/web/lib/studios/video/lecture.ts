@@ -4,6 +4,7 @@ import { db, schema } from '@tiktrends/db';
 import {
   aPermissionEspace, disponibiliteVideo, jugeSortiesValides, segmentsPlans, dureePlanMs, estSansTexte, estBriefCanonique, lireSnapshotJob,
   prixImage, raisonEchec, libelleQualiteImage, planDeKeyframe, planDeClip, formatVideo, LIBELLES_ETAT_IMAGE, GRILLE_STUDIO, DUREE_CLIP_S, planRenduFinal, ORIGINE_ARCHIVE_EXPORT,
+  prixClipDuPlan, modeleAnimationStudio, type PrixClipPlan,
   type ContenuVersion, type DisponibiliteVideo, type EtatJob, type LigneDevis, type StatutQualite, type VerdictConsignePlan,
   type ConsignePlanPersistee, type ErreurStudio, erreurStudio,
   referencesUtiliseesParPlan, type AnnonceLogosAReimporter,
@@ -59,6 +60,12 @@ export interface ClipVue {
   /** L'image clé du plan est produite et valide pour cette version · condition pour animer. */
   keyframePrete: boolean;
   devis: { id: string; inputHash: string; credits: number; usdMicros: number; expiresAt: string } | null;
+  /**
+   * Prix du clip de CE plan, annoncé avant le devis · modèle des Studios
+   * (`FAL_VIDEO_MODEL_STUDIO`), durée permise la plus proche, voix ; ou la
+   * raison pour laquelle le modèle ne sait pas faire ce plan.
+   */
+  prix?: PrixClipPlan;
 }
 
 /** La vidéo finale · assemblable maintenant ou pourquoi pas, ce qu'elle n'inclura pas, la dernière produite. */
@@ -91,7 +98,7 @@ export interface VueVideo {
   disponibilite: DisponibiliteVideo;
   coutTexteUsd: number;
   prix: { credits: number; usdMicros: number };
-  /** Forfait d'un clip (grille studio · `FIXED_COSTS.fal_video`), durée de base. */
+  /** Forfait de repli d'un clip (grille studio · `FIXED_COSTS.fal_video`), durée de base · le prix d'un plan est `clips[plan].prix`. */
   prixClip: { credits: number; usdMicros: number; dureeS: number };
   videoFinale: VideoFinaleVue;
   jobs: JobVideoVue[];
@@ -195,6 +202,7 @@ export async function lireVideoPour(ctx: ContexteStudio, projectId: unknown, o: 
 
   // Clips animés · un par plan, partis de l'image clé valide du plan.
   const clips: Record<string, ClipVue> = {};
+  const modeleVideo = modeleAnimationStudio(process.env);
   for (const sid of contenu.shots.order) {
     const op = `clip:${sid}`;
     const asset = assets.get(op);
@@ -204,6 +212,7 @@ export async function lireVideoPour(ctx: ContexteStudio, projectId: unknown, o: 
       media: asset && estUuid(asset) ? { assetId: asset, url: ROUTE_APERCU_MEDIA(asset) } : null,
       keyframePrete: valides.has(`keyframe:${sid}`),
       devis: d ? { id: d.id, inputHash: d.inputHash, credits: d.maximumCredits, usdMicros: Number(d.maximumUsdMicros), expiresAt: d.expiresAt.toISOString() } : null,
+      prix: prixClipDuPlan({ contenu, shotId: sid, modele: modeleVideo }),
     };
   }
 
