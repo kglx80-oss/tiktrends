@@ -55,6 +55,13 @@ vi.mock('next/headers', () => ({
   headers: async () => new Headers({ host: 'localhost' }),
 }));
 vi.mock('next/cache', () => ({ revalidatePath: () => {}, revalidateTag: () => {} }));
+// L'échange du code Shopify valide l'adresse résolue (`fetchPublicSansRedirection`, #1102) · la boutique
+// du test répond par une adresse publique de documentation (aucune résolution réelle, le réseau est le faux `fetch`).
+vi.mock('node:dns/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:dns/promises')>();
+  const lookup = async (host: string, opts?: unknown) => (host.endsWith('.myshopify.com') ? [{ address: '203.0.113.10', family: 4 }] : (actual.lookup as (h: string, o?: unknown) => Promise<unknown>)(host, opts));
+  return { ...actual, lookup, default: { ...actual, lookup } };
+});
 vi.mock('@tiktrends/db', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@tiktrends/db')>();
   const { pgMemoire } = await import('./helpers/pg-memoire');
