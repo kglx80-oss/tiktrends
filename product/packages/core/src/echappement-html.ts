@@ -27,7 +27,9 @@ export function desechapperHtml(html: string): string {
  * Un NOM qui ressemble à une adresse (`piege.com`, `https://piege.com/x`,
  * `www.piege.com`) · les messageries en font un lien cliquable d'elles-mêmes,
  * même échappé. On glisse une espace de largeur nulle (`&#8203;`) après chaque
- * point suivi d'une lettre ou d'un chiffre, et dans `://` · le nom s'affiche
+ * point (ASCII, et les points idéographiques et pleine chasse `。．｡` que les
+ * messageries lisent aussi comme des points) suivi d'une lettre ou d'un chiffre
+ * de toute écriture, et dans `://` · le nom s'affiche
  * à l'identique, aucun lien automatique ne se forme.
  *
  * Choix · neutraliser dans l'e-mail plutôt que refuser ces noms à la création
@@ -36,6 +38,16 @@ export function desechapperHtml(html: string): string {
  * risque n'existe QUE dans l'e-mail. S'applique à un texte DÉJÀ échappé
  * (`echapperHtml`).
  */
+/**
+ * Le même nom pour un SUJET d'e-mail (texte, pas HTML) · tronqué à `max`
+ * caractères (« … » ensuite), neutralisé par la même règle (espace de largeur
+ * nulle réelle, pas d'entité).
+ */
+export function nomPourSujet(nom: string, max = 60): string {
+  const court = nom.length > max ? `${nom.slice(0, max)}…` : nom;
+  return desechapperHtml(neutraliserAdresses(echapperHtml(court)));
+}
+
 export function neutraliserAdresses(texteEchappe: string): string {
-  return texteEchappe.replace(/\.(?=[a-z0-9])/gi, '.&#8203;').replace(/:\/\//g, ':&#8203;//');
+  return texteEchappe.replace(/[.。．｡](?=[\p{L}\p{N}])/gu, (p) => `${p}&#8203;`).replace(/:\/\//g, ':&#8203;//');
 }

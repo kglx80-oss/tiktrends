@@ -112,3 +112,22 @@ export function optionsRoleMembre(): ReadonlyArray<{ cle: CleRole; choisissable:
  * serait un oracle illimité) · une saisie invalide ne consomme rien.
  */
 export const LIMITE_INVITATIONS = { max: 20, fenetreMs: 60 * 60_000 } as const;
+
+/** Longueur maximale d'une adresse e-mail (RFC 5321 · chemin de 256 octets, chevrons compris). */
+export const LONGUEUR_MAX_ADRESSE = 254;
+
+/**
+ * Une invitation vise UNE adresse · recette #1103. « a@x.com, b@y.com » passait
+ * la limite de débit comme une seule demande, n'était trouvée par aucune
+ * recherche « déjà un compte », et nodemailer l'envoyait à TOUS · la borne de
+ * 20 par heure ne bornait rien. Refusé · plus d'un `@`, une partie vide, tout
+ * séparateur ou caractère d'adresse composée (`,` `;` `<` `>` `"`), tout blanc
+ * (espace, tabulation, retour à la ligne · injection d'en-tête), plus de 254
+ * caractères. Appliqué AVANT la limite · une saisie invalide ne consomme rien.
+ */
+export function adresseInvitationValide(adresse: string): boolean {
+  if (!adresse || adresse.length > LONGUEUR_MAX_ADRESSE) return false;
+  if (/[,;<>"\s]/.test(adresse)) return false;
+  const parts = adresse.split('@');
+  return parts.length === 2 && parts[0]!.length > 0 && parts[1]!.length > 0;
+}

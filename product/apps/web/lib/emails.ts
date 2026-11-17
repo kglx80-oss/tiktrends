@@ -1,5 +1,5 @@
 import 'server-only';
-import { desechapperHtml, echapperHtml as e, neutraliserAdresses } from '@tiktrends/core';
+import { desechapperHtml, echapperHtml as e, neutraliserAdresses, nomPourSujet } from '@tiktrends/core';
 import { appUrl } from './mailer';
 
 /**
@@ -67,7 +67,7 @@ export function inviteEmail(opts: { inviterName: string | null; workspaceName: s
     cta: { label: "Accepter l'invitation", href },
     footer: 'Cette invitation expire dans 7 jours.',
   });
-  return { subject: `Invitation à rejoindre ${opts.workspaceName} sur TikTrends`, html, text: strip(html) };
+  return { subject: `Invitation à rejoindre ${nomPourSujet(opts.workspaceName)} sur TikTrends`, html, text: strip(html) };
 }
 
 export function resetEmail(token: string) {
@@ -102,5 +102,5 @@ export function digestEmail(opts: {
     cta: opts.action ? { label: opts.action.label, href: `${appUrl()}${opts.action.href}` } : undefined,
     footer: `Récapitulatif hebdomadaire de ${nom(opts.brandName)} · envoyé uniquement les semaines où il s'est passé quelque chose.`,
   });
-  return { subject: `${opts.brandName} · ${opts.headline}`, html, text: strip(html) };
+  return { subject: `${nomPourSujet(opts.brandName)} · ${nomPourSujet(opts.headline)}`, html, text: strip(html) };
 }

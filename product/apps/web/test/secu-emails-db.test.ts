@@ -116,6 +116,22 @@ describe('Gabarits d’e-mail · toute valeur saisie est échappée (& < > " \')
     expect(inviteEmail({ inviterName: 'Inès', workspaceName: 'Maison Ordinaire', roleLabel: 'Membre', token: 't' }).html).toContain('l\'espace <b>Maison Ordinaire</b>');
   });
 
+  it('sujet · nom tronqué à 60 caractères et neutralisé comme le titre', () => {
+    const long = `https://piege.com/${'x'.repeat(100)}`;
+    const i = inviteEmail({ inviterName: 'Inès', workspaceName: long, roleLabel: 'Membre', token: 't' }).subject;
+    expect(i, 'le sujet de l’invitation porte une adresse reconnaissable').not.toMatch(/piege\.com|https:\/\//);
+    expect(i.replace(/\u200b/g, '').length, 'le nom du sujet n’est pas tronqué (espaces de largeur nulle non comptées)').toBeLessThanOrEqual('Invitation à rejoindre  sur TikTrends'.length + 61);
+    const d = digestEmail({ brandName: 'piege.com', headline: 'Semaine', lines: [], action: null }).subject;
+    expect(d, 'le sujet du récapitulatif porte une adresse reconnaissable').not.toMatch(/piege\.com/);
+    expect(inviteEmail({ inviterName: 'Inès', workspaceName: 'Maison Ordinaire', roleLabel: 'Membre', token: 't' }).subject).toBe('Invitation à rejoindre Maison Ordinaire sur TikTrends');
+  });
+
+  it('points d’autres écritures (。．｡) et lettre accentuée après le point · neutralisés aussi', () => {
+    for (const nom of ['piege。com', 'piege．com', 'piege｡com', 'piège.été']) {
+      expect(inviteEmail({ inviterName: 'Inès', workspaceName: nom, roleLabel: 'Membre', token: 't' }).html, `« ${nom} » non neutralisé`).toContain(`${nom.slice(0, 5)}${nom[5]}&#8203;`);
+    }
+  });
+
   it('texte brut · lisible (aucune entité), inchangé pour un nom ordinaire', () => {
     const t = inviteEmail({ inviterName: 'Inès', workspaceName: 'L\'Atelier "Nord" & Co', roleLabel: 'Membre', token: 't' }).text;
     expect(t).toContain('Inès t\'invite à rejoindre l\'espace L\'Atelier "Nord" & Co sur TikTrends en tant que Membre .');
@@ -171,8 +187,20 @@ describe('createInviteAction · VRAI getSession, base réelle', () => {
     await connecter(h.ids.admin);
     expect(await inviter('victime@exemple.test')).toBe('redirect:/team?ok=invite_mail');
     expect(h.courriels).toHaveLength(1);
+    expect(h.courriels[0]!.to, 'le destinataire part comme UNE adresse, jamais comme une liste').toEqual({ name: '', address: 'victime@exemple.test' });
     sansInjection(h.courriels[0]!.html!, 'courriel envoyé');
     expect(h.courriels[0]!.html).toContain(PIEGE_NOM);
+  });
+
+  it('plusieurs destinataires dans le champ e-mail · refusé AVANT la limite, rien d’écrit, aucun e-mail', async () => {
+    await connecter(h.ids.admin);
+    const avant = await invitationsDe(h.ids.ws);
+    for (const saisie of ['a@x.test, b@y.test', 'a@x.test;b@y.test', 'Nom <a@x.test>', 'a@x.test\nb@y.test']) {
+      expect(await inviter(saisie), `« ${saisie} » devait être refusé`).toBe('redirect:/team?e=email_invalide');
+    }
+    expect(await invitationsDe(h.ids.ws), 'une invitation à plusieurs destinataires a été écrite').toBe(avant);
+    expect(h.courriels, 'un e-mail est parti vers plusieurs destinataires').toEqual([]);
+    expect(messagesRetourEquipe()['e:email_invalide']).toMatch(/une seule adresse/i);
   });
 
   it('20 invitations dans l’heure passent · la 21e est refusée, rien d’écrit, aucun e-mail', async () => {
@@ -195,7 +223,8 @@ describe('createInviteAction · VRAI getSession, base réelle', () => {
     for (let i = 0; i < 20; i++) expect(await inviter(`m1-${i}@exemple.test`)).toBe('redirect:/team?ok=invite_mail');
     await db!.delete(schema.workspaceMembers).where(eq(schema.workspaceMembers.workspaceId, h.ids.wsM1));
     const r = await inviter('m2-0@exemple.test');
-    expect(r, 'la clé par utilisateur doit refuser la 21e invitation de l’heure, même dans un autre espace').toBe('redirect:/team?e=throttled');
+    expect(r, 'la clé par utilisateur doit refuser la 21e invitation de l’heure, même dans un autre espace').toBe('redirect:/team?e=throttled_personne');
+    expect(messagesRetourEquipe()['e:throttled_personne'], 'le refus par personne a sa propre phrase').toMatch(/ton compte/);
     expect(await invitationsDe(h.ids.wsM2)).toBe(0);
   });
 
