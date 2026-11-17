@@ -37,7 +37,7 @@ import {
 } from '@tiktrends/core';
 import * as depotPrompts from '../lib/studios/prompts/depot-prompts';
 import { chargerCatalogueProjet } from '../lib/studios/produit/catalogue';
-import { epinglerProduitPour, associerReferencePour } from '../lib/studios/produit/commandes';
+import { epinglerProduitPour, associerReferencePour, definirFicheProduitPour } from '../lib/studios/produit/commandes';
 import { creerProjetDepuisSourcesPour } from '../lib/studios/sources/projet';
 import { enregistrerVersion } from '../lib/studios/depot';
 import { compilerEtAttesterPour, retenirConsignePour } from '../lib/studios/image/consigne';
@@ -343,6 +343,27 @@ describe('parcours nominal · consigne persistée → devis → approbation → 
     expect(await controlerMediaPour(ctxDe(ids, 'ua'), { jobId: a.job.id })).toEqual({ ok: true, qualite: 'requires_review' });
     const vue2 = await lireParcoursImagePour(ctxDe(ids, 'ua'), projectId, { ...O, ...SANS_FOURNISSEUR });
     expect(vue2.ok && vue2.vue.jobs[0]!.libelleQualite).toContain('À relire');
+  });
+});
+
+describe('vues du produit · une par défaut, trois quand elles sont choisies · jusqu’au vrai worker', () => {
+  it('par défaut, seule la photo épinglée part · les vues choisies (3 puis 2) partent ensuite, dans l’ordre, avec la phrase « un seul article »', async () => {
+    const { projectId } = await projetEpingle();
+    const [id5, id3, id2] = [await photo(projectId, 5), await photo(projectId, 3), await photo(projectId, 2)];
+    const v = await courante(projectId);
+    const f = await definirFicheProduitPour(ctxDe(ids, 'ua'), { projectId, baseVersionId: v.id, fiche: null, vues: [id3, id2] }, O);
+    expect(f, JSON.stringify(f)).toMatchObject({ ok: true });
+    const { compilation } = await consigneRetenue(projectId);
+    if (!compilation.ok || compilation.statut !== 'compilee') throw new Error('compilation');
+    expect(compilation.consigne.references.map((r) => r.assetId)).toEqual([id5, id3, id2]);
+    const q = await devisPret(projectId);
+    const a = await approuver(q);
+    if (!a.ok) throw new Error(JSON.stringify(a));
+    expect(await executer(a.job.id)).toBe('completed');
+    const posts = appels.filter((x) => x.methode === 'POST');
+    const corps = JSON.parse(posts[posts.length - 1]!.corps!) as { prompt: string; image_urls: string[] };
+    expect(corps.image_urls).toEqual([PHOTOS[4], PHOTOS[2], PHOTOS[1]]);
+    expect(corps.prompt).toContain('les photos produit 1 à 3 sont des vues du même article · un seul exemplaire à l’image, sauf le contenu d’achat déclaré');
   });
 });
 
