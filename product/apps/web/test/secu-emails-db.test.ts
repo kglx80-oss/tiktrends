@@ -1,0 +1,241 @@
+// @vitest-environment node
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
+/**
+ * Injection HTML dans les e-mails · relecture sécurité de main 62a341e3.
+ *
+ * Les gabarits (`lib/emails.ts`) inséraient tels quels le nom de l'espace, le
+ * nom de la personne qui invite, le nom de la marque et les lignes du
+ * récapitulatif · des valeurs SAISIES. Un compte libre se nomme
+ * `<a href="https://piege.test">Valider ton compte</a>`, invite n'importe quelle
+ * adresse, et l'e-mail parti de NOTRE domaine porte son lien. Et
+ * `createInviteAction` n'avait aucune limite de débit · un relais d'e-mails.
+ *
+ * On lit le RÉSULTAT · le HTML rendu de chaque gabarit (aucune balise injectée,
+ * le texte échappé), le texte brut (lisible, inchangé pour un nom ordinaire),
+ * et, de bout en bout, avec le VRAI `getSession` sur un jeton signé et une
+ * base réelle (pglite), le courriel que nodemailer aurait envoyé et les lignes
+ * d'invitation écrites. 0 $ · rien ne part.
+ */
+
+const h = vi.hoisted(() => {
+  process.env.AUTH_SECRET = 'secret-de-test-emails-0123456789abcdef';
+  process.env.APP_URL = 'https://app.exemple.test';
+  process.env.SMTP_URL = 'smtp://faux.exemple.test:25';
+  const { randomUUID: u } = require('node:crypto') as typeof import('node:crypto');
+  return {
+    jeton: null as string | null,
+    courriels: [] as Array<{ to?: unknown; subject?: unknown; html?: string; text?: string }>,
+    ids: { ws: u(), autreWs: u(), admin: u(), autreAdmin: u(), multi: u(), wsM1: u(), wsM2: u() },
+  };
+});
+
+vi.mock('nodemailer', () => ({ default: { createTransport: () => ({ sendMail: async (m: (typeof h.courriels)[number]) => { h.courriels.push(m); return { messageId: 'faux' }; } }) } }));
+vi.mock('next/navigation', () => ({
+  redirect: (u: string) => { throw new Error(`redirect:${u}`); },
+  notFound: () => { throw new Error('notFound'); },
+}));
+vi.mock('next/headers', () => ({
+  cookies: async () => ({
+    get: (n: string) => (n === 'tt_session' && h.jeton ? { name: n, value: h.jeton } : undefined),
+    getAll: () => [], has: (n: string) => n === 'tt_session' && !!h.jeton, set: () => {}, delete: () => {},
+  }),
+  headers: async () => new Headers({ host: 'localhost' }),
+}));
+vi.mock('@tiktrends/db', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@tiktrends/db')>();
+  const { pgMemoire } = await import('./helpers/pg-memoire');
+  return { ...actual, db: await pgMemoire(actual.schema as unknown as Record<string, unknown>) };
+});
+
+import { SignJWT } from 'jose';
+import { eq } from 'drizzle-orm';
+import { db, schema } from '@tiktrends/db';
+import { messagesRetourEquipe, neutraliserAdresses } from '@tiktrends/core';
+import { welcomeEmail, inviteEmail, resetEmail, digestEmail } from '../lib/emails';
+import { createInviteAction } from '../app/actions/invites';
+
+vi.setConfig({ testTimeout: 120_000, hookTimeout: 300_000 });
+
+const PIEGE = '<a href="https://piege.test/x?a=1&b=2">Valider ton compte</a>';
+const PIEGE_ECHAPPE = '&lt;a href=&quot;https://piege.test/x?a=1&amp;b=2&quot;&gt;Valider ton compte&lt;/a&gt;';
+/** Un NOM saisi · échappé, puis neutralisé (aucun lien automatique) · `piege.test` y devient `piege.&#8203;test`. */
+const PIEGE_NOM = neutraliserAdresses(PIEGE_ECHAPPE);
+const APOS = 'L\'Atelier "Nord" & <Co>';
+const APOS_ECHAPPE = 'L&#39;Atelier &quot;Nord&quot; &amp; &lt;Co&gt;';
+
+/** Toutes les adresses des liens du HTML · seules celles de l'application doivent y être. */
+const liens = (html: string) => [...html.matchAll(/<a\s[^>]*href="([^"]*)"/g)].map((m) => m[1]);
+
+function sansInjection(html: string, quoi: string): void {
+  expect(html, `${quoi} · la balise saisie est rendue telle quelle`).not.toContain('href="https://piege.test');
+  expect(liens(html).every((l) => l!.startsWith('https://app.exemple.test')), `${quoi} · un lien étranger dans l’e-mail : ${liens(html).join(', ')}`).toBe(true);
+}
+
+describe('Gabarits d’e-mail · toute valeur saisie est échappée (& < > " \')', () => {
+  it('bienvenue · nom de l’espace et prénom', () => {
+    const m = welcomeEmail('<b>Pirate</b> Dupont', PIEGE);
+    sansInjection(m.html, 'bienvenue');
+    expect(m.html).toContain(PIEGE_NOM);
+    expect(m.html).toContain('Bienvenue, &lt;b&gt;Pirate&lt;/b&gt;');
+  });
+
+  it('invitation · nom de qui invite, nom de l’espace, rôle', () => {
+    const m = inviteEmail({ inviterName: PIEGE, workspaceName: APOS, roleLabel: 'Membre <i>', token: 'jeton_abc-123' });
+    sansInjection(m.html, 'invitation');
+    expect(m.html).toContain(PIEGE_NOM);
+    expect(m.html).toContain(`l'espace <b>${APOS_ECHAPPE}</b>`);
+    expect(m.html).toContain('<b>Membre &lt;i&gt;</b>');
+    expect(m.html).toContain('href="https://app.exemple.test/invite/jeton_abc-123"');
+  });
+
+  it('récapitulatif · marque, titre, lignes, geste', () => {
+    const m = digestEmail({ brandName: PIEGE, headline: APOS, lines: [PIEGE, 'Ligne <script>alert(1)</script>'], action: { label: '<img src=x onerror=1>', href: '/adsmap?v="x"', why: APOS } });
+    sansInjection(m.html, 'récapitulatif');
+    expect(m.html).not.toContain('<script>');
+    expect(m.html).not.toContain('<img');
+    expect(m.html).toContain(`<li style="margin:0 0 6px">${PIEGE_ECHAPPE}</li>`);
+    expect(m.html).toContain(`>${APOS_ECHAPPE}</h1>`);
+    expect(m.html).toContain('href="https://app.exemple.test/adsmap?v=&quot;x&quot;"');
+  });
+
+  it('réinitialisation · le jeton est échappé dans le lien', () => {
+    const m = resetEmail('a"b<c');
+    expect(m.html).toContain('href="https://app.exemple.test/reset/a&quot;b&lt;c"');
+    expect(m.html).not.toContain('a"b<c');
+  });
+
+  it('nom qui ressemble à une adresse · neutralisé dans l’e-mail (aucun lien automatique possible)', () => {
+    for (const nom of ['piege.com', 'https://piege.com/valider', 'www.piege.com']) {
+      const m = inviteEmail({ inviterName: nom, workspaceName: nom, roleLabel: 'Membre', token: 't' });
+      expect(m.html, `« ${nom} » reste une adresse reconnaissable dans l’e-mail`).not.toMatch(/piege\.com|https:\/\/piege|www\.piege/);
+      expect(m.html).toContain('piege.&#8203;com');
+      expect(welcomeEmail(null, nom).html).not.toMatch(/piege\.com/);
+      expect(digestEmail({ brandName: nom, headline: 'Semaine', lines: [], action: null }).html).not.toMatch(/piege\.com/);
+    }
+    expect(inviteEmail({ inviterName: 'Inès', workspaceName: 'Maison Ordinaire', roleLabel: 'Membre', token: 't' }).html).toContain('l\'espace <b>Maison Ordinaire</b>');
+  });
+
+  it('sujet · nom tronqué à 60 caractères et neutralisé comme le titre', () => {
+    const long = `https://piege.com/${'x'.repeat(100)}`;
+    const i = inviteEmail({ inviterName: 'Inès', workspaceName: long, roleLabel: 'Membre', token: 't' }).subject;
+    expect(i, 'le sujet de l’invitation porte une adresse reconnaissable').not.toMatch(/piege\.com|https:\/\//);
+    expect(i.replace(/\u200b/g, '').length, 'le nom du sujet n’est pas tronqué (espaces de largeur nulle non comptées)').toBeLessThanOrEqual('Invitation à rejoindre  sur TikTrends'.length + 61);
+    const d = digestEmail({ brandName: 'piege.com', headline: 'Semaine', lines: [], action: null }).subject;
+    expect(d, 'le sujet du récapitulatif porte une adresse reconnaissable').not.toMatch(/piege\.com/);
+    expect(inviteEmail({ inviterName: 'Inès', workspaceName: 'Maison Ordinaire', roleLabel: 'Membre', token: 't' }).subject).toBe('Invitation à rejoindre Maison Ordinaire sur TikTrends');
+  });
+
+  it('points d’autres écritures (。．｡) et lettre accentuée après le point · neutralisés aussi', () => {
+    for (const nom of ['piege。com', 'piege．com', 'piege｡com', 'piège.été']) {
+      expect(inviteEmail({ inviterName: 'Inès', workspaceName: nom, roleLabel: 'Membre', token: 't' }).html, `« ${nom} » non neutralisé`).toContain(`${nom.slice(0, 5)}${nom[5]}&#8203;`);
+    }
+  });
+
+  it('texte brut · lisible (aucune entité), inchangé pour un nom ordinaire', () => {
+    const t = inviteEmail({ inviterName: 'Inès', workspaceName: 'L\'Atelier "Nord" & Co', roleLabel: 'Membre', token: 't' }).text;
+    expect(t).toContain('Inès t\'invite à rejoindre l\'espace L\'Atelier "Nord" & Co sur TikTrends en tant que Membre .');
+    expect(t, 'une entité HTML dans le texte brut').not.toMatch(/&(amp|lt|gt|quot|#39);/);
+    const w = welcomeEmail('Inès Martin', 'Maison Ordinaire');
+    expect(w.html).toContain('Ton espace <b>Maison Ordinaire</b> est prêt.');
+    expect(w.html).toContain('Bienvenue, Inès 👋');
+    expect(w.text).toContain('Bienvenue, Inès 👋 Ton espace Maison Ordinaire est prêt.');
+    expect(w.subject).toBe('Bienvenue sur TikTrends 🎬');
+  });
+});
+
+/* ───────────────────── de bout en bout · invitation ───────────────────── */
+
+async function connecter(uid: string): Promise<void> {
+  h.jeton = await new SignJWT({ uid, ep: 0 }).setProtectedHeader({ alg: 'HS256' }).setIssuedAt().setExpirationTime('3600s')
+    .sign(new TextEncoder().encode(process.env.AUTH_SECRET!));
+}
+async function inviter(email: string, role = 'member'): Promise<string> {
+  const f = new FormData(); f.set('email', email); f.set('role', role);
+  try { await createInviteAction(f); return 'aucune redirection'; } catch (e) { return String((e as Error).message); }
+}
+const invitationsDe = async (ws: string) => (await db!.select().from(schema.invites).where(eq(schema.invites.workspaceId, ws))).length;
+
+beforeAll(async () => {
+  await db!.insert(schema.workspaces).values([
+    { id: h.ids.ws, name: PIEGE, plan: 'core' },
+    { id: h.ids.autreWs, name: 'Autre espace', plan: 'core' },
+  ]);
+  await db!.insert(schema.users).values([
+    { id: h.ids.admin, email: 'admin@emails.test', name: PIEGE },
+    { id: h.ids.autreAdmin, email: 'admin@autre.test', name: 'Autre' },
+  ]);
+  await db!.insert(schema.workspaceMembers).values([
+    { workspaceId: h.ids.ws, userId: h.ids.admin, role: 'admin' },
+    { workspaceId: h.ids.autreWs, userId: h.ids.autreAdmin, role: 'owner' },
+  ]);
+  // Un compte administrateur de DEUX espaces · l'espace courant est le plus ancien (M1).
+  await db!.insert(schema.workspaces).values([
+    { id: h.ids.wsM1, name: 'Multi un', plan: 'core', createdAt: new Date(Date.UTC(2026, 0, 1)) },
+    { id: h.ids.wsM2, name: 'Multi deux', plan: 'core', createdAt: new Date(Date.UTC(2026, 0, 2)) },
+  ]);
+  await db!.insert(schema.users).values({ id: h.ids.multi, email: 'multi@emails.test', name: 'Multi' });
+  await db!.insert(schema.workspaceMembers).values([
+    { workspaceId: h.ids.wsM1, userId: h.ids.multi, role: 'admin' },
+    { workspaceId: h.ids.wsM2, userId: h.ids.multi, role: 'admin' },
+  ]);
+});
+beforeEach(() => { h.courriels = []; });
+
+describe('createInviteAction · VRAI getSession, base réelle', () => {
+  it('le courriel d’invitation réellement envoyé ne porte pas le lien injecté', async () => {
+    await connecter(h.ids.admin);
+    expect(await inviter('victime@exemple.test')).toBe('redirect:/team?ok=invite_mail');
+    expect(h.courriels).toHaveLength(1);
+    expect(h.courriels[0]!.to, 'le destinataire part comme UNE adresse, jamais comme une liste').toEqual({ name: '', address: 'victime@exemple.test' });
+    sansInjection(h.courriels[0]!.html!, 'courriel envoyé');
+    expect(h.courriels[0]!.html).toContain(PIEGE_NOM);
+  });
+
+  it('plusieurs destinataires dans le champ e-mail · refusé AVANT la limite, rien d’écrit, aucun e-mail', async () => {
+    await connecter(h.ids.admin);
+    const avant = await invitationsDe(h.ids.ws);
+    for (const saisie of ['a@x.test, b@y.test', 'a@x.test;b@y.test', 'Nom <a@x.test>', 'a@x.test\nb@y.test']) {
+      expect(await inviter(saisie), `« ${saisie} » devait être refusé`).toBe('redirect:/team?e=email_invalide');
+    }
+    expect(await invitationsDe(h.ids.ws), 'une invitation à plusieurs destinataires a été écrite').toBe(avant);
+    expect(h.courriels, 'un e-mail est parti vers plusieurs destinataires').toEqual([]);
+    expect(messagesRetourEquipe()['e:email_invalide']).toMatch(/une seule adresse/i);
+  });
+
+  it('20 invitations dans l’heure passent · la 21e est refusée, rien d’écrit, aucun e-mail', async () => {
+    await connecter(h.ids.admin);
+    const deja = await invitationsDe(h.ids.ws); // l'invitation du cas précédent compte dans l'heure
+    for (let i = deja; i < 20; i++) expect(await inviter(`personne-${i}@exemple.test`), `invitation n° ${i + 1}`).toBe('redirect:/team?ok=invite_mail');
+    expect(await invitationsDe(h.ids.ws)).toBe(20);
+    h.courriels = [];
+    const r = await inviter('personne-21@exemple.test');
+    expect(r, 'la 21e invitation de l’heure doit être refusée').toBe('redirect:/team?e=throttled');
+    expect(await invitationsDe(h.ids.ws), 'la 21e invitation a été écrite').toBe(20);
+    expect(h.courriels, 'la 21e invitation a envoyé un e-mail').toEqual([]);
+    expect(messagesRetourEquipe()['e:throttled']).toMatch(/20 invitations par heure/);
+    // L'oracle « a déjà un compte » est sous la même limite · il ne dit plus rien une fois la limite atteinte.
+    expect(await inviter('admin@autre.test'), 'l’oracle « déjà un compte » échappe à la limite').toBe('redirect:/team?e=throttled');
+  });
+
+  it('une même personne n’a pas 20 invitations de plus en changeant d’espace (clé par utilisateur)', async () => {
+    await connecter(h.ids.multi);
+    for (let i = 0; i < 20; i++) expect(await inviter(`m1-${i}@exemple.test`)).toBe('redirect:/team?ok=invite_mail');
+    await db!.delete(schema.workspaceMembers).where(eq(schema.workspaceMembers.workspaceId, h.ids.wsM1));
+    const r = await inviter('m2-0@exemple.test');
+    expect(r, 'la clé par utilisateur doit refuser la 21e invitation de l’heure, même dans un autre espace').toBe('redirect:/team?e=throttled_personne');
+    expect(messagesRetourEquipe()['e:throttled_personne'], 'le refus par personne a sa propre phrase').toMatch(/ton compte/);
+    expect(await invitationsDe(h.ids.wsM2)).toBe(0);
+  });
+
+  it('un autre espace garde sa propre limite · inchangé', async () => {
+    await connecter(h.ids.autreAdmin);
+    expect(await inviter('quelquun@exemple.test')).toBe('redirect:/team?ok=invite_mail');
+    expect(await invitationsDe(h.ids.autreWs)).toBe(1);
+  });
+
+  it('une demande invalide (e-mail vide) ne consomme rien · inchangé', async () => {
+    await connecter(h.ids.autreAdmin);
+    expect(await inviter('')).toBe('redirect:/team?e=email');
+  });
+});
