@@ -123,6 +123,7 @@ export * from './retour-enregistrement';
 export * from './filtres-url';
 export * from './compte-vue';
 export * from './connaissances';
+export * from './shopify-domaine';
 export * from './formats-creatifs';
 export * from './accueil-vue';
 export * from './accueil-projets';

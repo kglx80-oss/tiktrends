@@ -170,7 +170,7 @@ describe('page · le garde lit le rôle d’ÉQUIPE, jamais le rôle d’espace'
     expect(await url()).toBe('/login');
   });
   it('Admin plateforme · la page se rend avec ses connaissances', async () => {
-    h.session = { ...base, role: 'member', equipe: { role: 'admin', matrice: {} } };
+    h.session = { ...base, role: 'member', equipe: { role: 'admin', matrice: {}, plateformeAdmissible: true } };
     const html = renderToStaticMarkup(await ConnaissancesPage());
     expect(html).toContain('<h1');
     expect(html).toContain('Connaissances');
