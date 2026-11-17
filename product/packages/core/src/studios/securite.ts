@@ -7,7 +7,7 @@
  * décision du catalogue, dates) et ne décident rien eux-mêmes.
  */
 
-import { estRoleEspace, type PermissionsStudio, type RoleEspace } from './permissions';
+import { estRoleEspace, permissionsStudio, type PermissionPlateforme, type PermissionsStudio, type RoleEspace } from './permissions';
 
 /* ────────────────────────────────────────────────────────────────────────── */
 /*  SEC-03 · qui peut générer, débiter ou écrire dans les studios historiques */
@@ -280,8 +280,10 @@ export function suiviFalDepuisJob(jobId: string, queueUrlConfig?: string | null)
  *    créé après a pu être créé par n'importe qui. Date manquante ou illisible →
  *    refus.
  *
- * Ne retire rien ailleurs · le rôle d'équipe, la matrice, `/admin/equipe`,
- * `/admin/connaissances` et les crédits illimités restent lus comme avant.
+ * Ailleurs · le rôle d'équipe et la matrice restent lus comme avant (rail,
+ * lecture de `/admin/equipe`) ; l'écriture de l'équipe, `/admin/connaissances`
+ * et les crédits illimités exigent aussi l'admissibilité
+ * (`peutEcrireEquipe`, `peutGererConnaissances`, `accesTotalAdmissible`).
  * Pour rendre admissible un membre légitime dont le compte est postérieur,
  * l'accès total le retire puis le réinscrit dans `/admin/equipe` (la nouvelle
  * entrée est alors postérieure au compte).
@@ -326,6 +328,30 @@ export function peutEcrireEquipe(equipe: { role: string; plateformeAdmissible?: 
 /** Retire toute permission de portée plateforme si le compte n'est pas admissible. */
 export function restreindrePlateforme(p: PermissionsStudio, admissible: boolean): PermissionsStudio {
   return admissible ? p : { espace: p.espace, plateforme: new Set() };
+}
+
+/**
+ * Les permissions de portée PLATEFORME d'une session d'équipe · LA règle du
+ * studio, sans copie · l'accès total ouvre (`permissionsStudio`), puis
+ * `restreindrePlateforme` les retire si le compte n'est pas admissible
+ * (`plateformeAdmissible === true`, règle d'antériorité de `equipeDeSession`).
+ * Elles ne dépendent ni du rôle d'espace ni des marques.
+ */
+export function permissionsPlateformeEquipe(equipe: { role: string; plateformeAdmissible?: boolean } | null | undefined): ReadonlySet<PermissionPlateforme> {
+  return restreindrePlateforme(
+    permissionsStudio({ roleEspace: 'client_viewer', studioOuvert: false, roleEquipe: equipe?.role ?? null }),
+    equipe?.plateformeAdmissible === true,
+  ).plateforme;
+}
+
+/**
+ * Accès total ET admissible · ce qui donne les crédits illimités d'équipe
+ * (`getSession` → `noterCreditsStaff`). Sur main 62a341e3, l'accès total seul
+ * suffisait · un compte qui avait capté un e-mail staff préinscrit (non
+ * admissible) ne payait plus rien.
+ */
+export function accesTotalAdmissible(equipe: { role: string; plateformeAdmissible?: boolean } | null | undefined): boolean {
+  return permissionsPlateformeEquipe(equipe).size > 0;
 }
 
 /* ────────────────────────────────────────────────────────────────────────── */

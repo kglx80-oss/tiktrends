@@ -3,6 +3,11 @@ import {
   controlerAvantCompilation, controlerSortieCompilation, consigneFinale, entreeCompilation, sourcesCitees, erreurStudio,
   type ConsigneImage, type ModeImage, type PreparationCompilation, type ErreurStudio,
 } from '@tiktrends/core';
+// Pub entière · copie de la carte, moteur du mode, cohérence avec le produit AVANT tout appel.
+import {
+  pubEntiereDuBrief, contradictionsProduit, chainesDeLaCopie, faitsDuProduit, phraseContradiction, estTypographie, TYPOGRAPHIE_PAR_DEFAUT,
+  type PubEntiere, type TypographieImage,
+} from '@tiktrends/core';
 import type { ContexteStudio } from '../garde';
 import { executerTache } from '../prompts/resolveur';
 import type { AdaptateurModele } from '../prompts/adaptateur';
@@ -57,17 +62,19 @@ export async function preparerCompilationPour(ctx: ContexteStudio, e: { projectI
 }
 
 export type ResultatCompilation =
-  | { ok: true; statut: 'compilee'; consigne: ConsigneImage; runId: string; preparation: PreparationCompilation; projectVersionId: string }
+  | { ok: true; statut: 'compilee'; consigne: ConsigneImage; runId: string; preparation: PreparationCompilation; projectVersionId: string; pubEntiere: PubEntiere | null }
   | { ok: true; statut: 'questions'; questions: string[]; runId: string | null; preparation: PreparationCompilation; projectVersionId: string }
   | ErreurStudio;
 
 export async function compilerConsigneImagePour(
   ctx: ContexteStudio,
-  e: { projectId: unknown; mode: unknown; largeur?: unknown; hauteur?: unknown },
+  e: { projectId: unknown; mode: unknown; largeur?: unknown; hauteur?: unknown; typographie?: unknown },
   o: DependancesCompilation,
 ): Promise<ResultatCompilation> {
   if (!estUuid(e.projectId)) return erreurStudio('NOT_FOUND', { traceId: ctx.traceId });
   if (!MODES.includes(e.mode as ModeImage)) return erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, violations: [{ chemin: 'mode', raison: 'mode faithful_composite ou generative_scene attendu' }] });
+  if (e.typographie !== undefined && !estTypographie(e.typographie)) return erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, violations: [{ chemin: 'typographie', raison: 'calques ou entiere attendu' }] });
+  const typographie: TypographieImage = (e.typographie as TypographieImage | undefined) ?? TYPOGRAPHIE_PAR_DEFAUT;
   const mode = e.mode as ModeImage;
   const c = await chargerCatalogueProjet(ctx, e.projectId, o);
   if (!c.ok) return c;
@@ -77,11 +84,27 @@ export async function compilerConsigneImagePour(
   if (!prep.ok || !cat.brief) {
     return erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, targetIds: [cat.projet.id], violations: prep.violations, message: `${messagePreparationCompilation(prep)} Aucun appel IA n’a été lancé.` });
   }
+  // Pub entière · la carte doit porter une accroche et ne pas contredire le produit (« Un goût fruits
+  // rouges » sur une étiquette « Goût mangue ») · refus AVANT l'appel texte, rien n'est facturé.
+  let pubEntiere: PubEntiere | null = null;
+  if (typographie === 'entiere') {
+    const pe = pubEntiereDuBrief(cat.brief);
+    if (!pe.ok) return erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, targetIds: [cat.projet.id], violations: [{ chemin: '/brief/texts', raison: pe.raison }], message: `${pe.raison} Aucun appel IA n’a été lancé.` });
+    const contradictions = contradictionsProduit(chainesDeLaCopie(pe.pub.copie), faitsDuProduit({ produit: cat.epingle, brief: cat.brief }));
+    if (contradictions.length) {
+      return erreurStudio('INVALID_SCHEMA', {
+        traceId: ctx.traceId, targetIds: [cat.projet.id], violations: contradictions.map((c) => ({ chemin: '/brief/texts', raison: phraseContradiction(c) })),
+        message: `Le texte de la pub contredit le produit · ${contradictions.map(phraseContradiction).join(' · ')}. Corrige le texte ou la fiche produit. Aucun appel IA n’a été lancé.`,
+      });
+    }
+    pubEntiere = pe.pub;
+  }
   if (!o.adaptateur) return erreurStudio('UNSUPPORTED_CAPABILITY', { traceId: ctx.traceId, message: MESSAGE_COMPILATION_SANS_FOURNISSEUR });
 
   const entree = entreeCompilation({
     prep, brief: cat.brief, versionId: cat.version.id, mode, idee: await ideeDuBriefPour(ctx, cat.projet.brandId, cat.brief),
     largeur: typeof e.largeur === 'number' ? e.largeur : 1080, hauteur: typeof e.hauteur === 'number' ? e.hauteur : 1350,
+    ...(typographie === 'entiere' ? { typographie } : {}),
   });
   const r = await executerTache({
     templateKey: 'image.compile',
@@ -114,5 +137,5 @@ export async function compilerConsigneImagePour(
   if (violations.length) {
     return erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, violations, message: 'La consigne reçue attribue un rôle non choisi, nomme ou recopie le concurrent, ou ne protège pas un composant · rien n’a été retenu.' });
   }
-  return { ok: true, statut: 'compilee', consigne: consigneFinale(sortie.result, prep), runId: r.runId, preparation: prep, projectVersionId: cat.version.id };
+  return { ok: true, statut: 'compilee', consigne: consigneFinale(sortie.result, prep), runId: r.runId, preparation: prep, projectVersionId: cat.version.id, pubEntiere };
 }

@@ -50,7 +50,7 @@ export interface EntreeSousTitres {
 }
 
 export type ResultatSousTitresVideo =
-  | { ok: true; octets: Uint8Array; constat: ConstatSousTitres & { brules: true }; mesures: MesureImage[] }
+  | { ok: true; octets: Uint8Array; constat: ConstatSousTitres & { brules: true }; mesures: MesureImage[]; /** Durée RELUE du fichier brûlé (même que l'entrée à une image près, sinon refus). */ dureeMs: number }
   | {
     ok: false; motif: string; cause: 'binaire' | 'entree' | 'rendu' | 'verification'; constat: ConstatSousTitres & { brules: false }; mesures: MesureImage[];
     /** Fin de la sortie d'erreur d'ffmpeg · pour le JOURNAL du serveur seulement, jamais montrée à l'écran. */
@@ -205,7 +205,7 @@ export async function brulerSousTitresFfmpeg(e: EntreeSousTitres, o: OptionsSous
       return refus('verification', `aucun texte visible à ${absent.instantMs} ms (${absent.pixelsTexte} pixels changés, ${PIXELS_TEXTE_MIN} attendus au moins)`, mesures);
     }
     const ass2 = e.ass.match(/\nDialogue: /g)?.length ?? 0;
-    return { ok: true, octets: new Uint8Array(await readFile(sortie)), constat: { brules: true, cartons: ass2, cartonsVerifies: vus.length }, mesures };
+    return { ok: true, octets: new Uint8Array(await readFile(sortie)), constat: { brules: true, cartons: ass2, cartonsVerifies: vus.length }, mesures, dureeMs };
   } finally {
     await rm(dossier, { recursive: true, force: true }).catch(() => {});
   }

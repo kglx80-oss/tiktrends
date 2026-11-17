@@ -44,7 +44,7 @@ export class DepenseRefusee extends ErreurFournisseurCertaine {
 export interface ImputationStudio {
   workspaceId: string;
   jobId: string;
-  /** Coût plafond de la soumission, en dollars (`coutSoumissionImage`). */
+  /** Coût plafond de la soumission, en dollars (`coutSoumissionStudio` · image au tarif de la grille, clip au tarif catalogue du modèle). */
   usd: number;
   /**
    * `FixedCostKind` · même libellé de modèle que les lignes fal du web ;

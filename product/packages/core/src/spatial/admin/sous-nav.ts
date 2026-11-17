@@ -9,7 +9,7 @@
  *  · `promptRead` · `gardePlateforme('prompt.read')` · Bibliothèque IA,
  *    Registre IA, Modèles IA ;
  *  · `providerConfigure` · `gardePlateforme('provider.configure')` · Interrupteurs ;
- *  · `connaissances` · `peutGererConnaissances(rôle d'équipe)` ;
+ *  · `connaissances` · `peutGererConnaissances(équipe)` · accès total ET admissible ;
  *  · `equipe` · un rôle d'équipe à accès total (Rôles & droits).
  */
 export interface DroitsSousNavAdmin {

@@ -37,7 +37,7 @@ vi.mock('../app/actions/studios/video', () => m);
 
 import {
   disponibiliteVideo, timelineDesPlans, segmentsPlans, prixImage, messageHorsLigneStudio, libelleAnimationIndisponible, LIBELLE_ANIMATION_SANS_FOURNISSEUR,
-  MESSAGE_REPONSE_PERDUE_MONTAGE, gesteVideoReessayable,
+  MESSAGE_REPONSE_PERDUE_MONTAGE, gesteVideoReessayable, prixClipDuPlan,
   type ContenuVersion, type PlanStudio, type EntreeDisponibiliteVideo,
 } from '@tiktrends/core';
 
@@ -241,6 +241,44 @@ describe('indisponibilités dites, aucun geste actif qui ne mène nulle part', (
     expect(q('[data-geste="lancer-clip"]')!.textContent).toContain('Devis du clip · 20 crédits · valable jusqu’à'); expect(q('[data-geste="lancer-clip"]')!.textContent).not.toContain('$');  // en crédits (29/10) · jamais un montant en argent
     expect(bouton('Approuver et animer · 20 crédits')?.disabled).toBe(false);
     expect(m.approuverEtLancerClip).not.toHaveBeenCalled();
+  });
+
+  it('catalogue vidéo · le prix du clip DE CE PLAN (modèle, durée, voix) avant le clic, en crédits ; voix refusée dite ; un plan que le modèle ne sait pas faire dit pourquoi', async () => {
+    const ANIME = { ...TOUT, decodeurVideo: true, fournisseurVideo: true };
+    const c = contenu();
+    c.shots.byId.s1 = { ...c.shots.byId.s1!, estimatedDurationMs: 7500, speechMode: 'lipsync' };
+    c.shots.byId.s2 = { ...c.shots.byId.s2!, speechMode: 'lipsync' };
+    // Les prix viennent de la VRAIE règle du noyau, comme dans `lecture.ts`.
+    const veo = prixClipDuPlan({ contenu: c, shotId: 's1', modele: 'fal-ai/veo3.1/fast/image-to-video' });
+    const kling = prixClipDuPlan({ contenu: c, shotId: 's2', modele: 'fal-ai/kling-video/v2.5-turbo/pro/image-to-video' });
+    expect(veo).toMatchObject({ ok: true, credits: 688, dureeS: 8 });
+    afficher(vue({ contenu: c, clips: {
+      s1: { etat: 'a_produire', media: null, keyframePrete: true, devis: null, prix: veo },
+      s2: { etat: 'a_produire', media: null, keyframePrete: true, devis: null, prix: kling },
+    } }, ANIME), 's1');
+    expect(levier('devis-clip').disabled).toBe(false);
+    expect(levier('devis-clip').textContent).toContain('688 cr.');
+    expect(levier('devis-clip').textContent).toContain('Clip de 8 s · Veo 3.1 Fast');
+    await cliquer(levier('devis-clip'));
+    const detail = q('[data-geste="devis-clip"]')!.textContent ?? '';
+    expect(detail).toContain('Un clip de 8 s · Veo 3.1 Fast avec voix native · depuis l’image clé · 688 crédits · le devis ne débite rien.');
+    expect(detail).toContain('voix native en français · français non confirmé officiellement · à valider à l’écoute');
+    expect(detail).not.toContain('$');
+    await cliquer(q('[data-vsel="s2"]'));
+    expect(levier('devis-clip').disabled).toBe(false);
+    expect(levier('devis-clip').textContent).toContain('Clip de 5 s · Kling 2.5 turbo pro');
+    await cliquer(levier('devis-clip'));
+    expect(q('[data-geste="devis-clip"]')!.textContent).toContain('Voix native en français refusée avec Kling 2.5 turbo pro');
+    // Un plan que le modèle ne sait pas faire (format) ferme le levier, la raison écrite dessous.
+    const carre = { ...c, brief: { formats: ['1:1'] } };
+    const refus = prixClipDuPlan({ contenu: carre, shotId: 's1', modele: 'fal-ai/veo3.1/fast/image-to-video' });
+    afficher(vue({ contenu: carre, clips: { s1: { etat: 'a_produire', media: null, keyframePrete: true, devis: null, prix: refus } } }, ANIME), 's1');
+    await cliquer(q('[data-vsel="s1"]'));
+    expect(levier('devis-clip').disabled).toBe(true);
+    expect(raison('devis-clip')).toContain('Veo 3.1 Fast ne produit qu’en 9:16 ou 16:9');
+    // Fermé ⇒ aucun prix annoncé (ni sur le devis, ni sur « Animer le plan »).
+    expect(levier('devis-clip').textContent).not.toMatch(/\d+ cr\./);
+    expect(levier('lancer-clip').textContent).not.toMatch(/\d+ cr\./);
   });
 
   it('sans release · storyboard et consigne inactifs avec leur raison, chemin manuel ouvert', async () => {

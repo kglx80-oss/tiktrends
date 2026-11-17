@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   avecControleParole, avecControleVision, controleParoleApprouve, reserveControleParoleMicros, libelleLigneDevis, libelleCaseControleParole,
   vueLignesDevis, qualifierDevis, phraseCoutDevis, estLigneDeProduction, operationsDuSnapshot, coutSoumissionStudio, capacitesDesOperations,
-  idDepenseControleParole, idDepenseDuJob, lireTranscriptionFal, corpsTranscriptionFal, prisesParleesDuDevis,
+  idDepenseControleParole, idDepenseDuJob, lireTranscriptionFal, corpsTranscriptionFal, prisesParleesDuDevis, priseAControler,
   OPERATION_CONTROLE_PAROLE, PROFIL_CONTROLE_PAROLE, TARIF_TRANSCRIPTION_MICROS_PAR_MINUTE, MODELE_FAL_TRANSCRIPTION, URL_TRANSCRIPTION_FAL,
   GRILLE_STUDIO, type LigneDevis, type SnapshotJob, type ContenuVersion,
 } from '../src';
@@ -70,7 +70,8 @@ describe('ligne « contrôle de la parole » du devis', () => {
     expect(lignes.filter(estLigneDeProduction).map((l) => l.operation)).toEqual(['clip:s1']);
     const snap = { lignes } as unknown as SnapshotJob;
     expect(operationsDuSnapshot(snap)).toEqual([{ operation: 'clip:s1', profil: 'animation' }]);
-    expect(coutSoumissionStudio(operationsDuSnapshot(snap))).toMatchObject({ ok: true, poste: 'fal_video' });
+    // La ligne de contrôle ne trouble pas le décompte · le seul refus est l'absence des paramètres du clip, comme pour un clip seul.
+    expect(coutSoumissionStudio(operationsDuSnapshot(snap))).toEqual({ ok: false, motif: 'paramètres du clip absents · aucun tarif à réserver' });
   });
 
   it('interrupteur · la ligne relève de la capacité vidéo, aucun interrupteur nouveau', () => {
@@ -78,10 +79,22 @@ describe('ligne « contrôle de la parole » du devis', () => {
     expect(capacitesDesOperations(['clip:s1', OPERATION_CONTROLE_PAROLE])).toEqual(['video']);
   });
 
-  it('les prises parlées d’un devis · clips dont le plan a une réplique et un mode de parole', () => {
-    const plan = (sid: string, narration: string, speechMode: string) => ({ shotId: sid, narration, speechMode, estimatedDurationMs: 4_000 });
-    const contenu = { shots: { order: ['s1', 's2', 's3'], byId: { s1: plan('s1', 'Découvre la crème.', 'lipsync'), s2: plan('s2', '', 'voiceover'), s3: plan('s3', 'Texte', 'none') } } } as unknown as ContenuVersion;
-    expect(prisesParleesDuDevis(contenu, [clip('s1'), clip('s2'), clip('s3')], 5_000)).toEqual([{ operation: 'clip:s1', dureeMs: 5_000 }]);
+  it('PRISE PARLÉE à l’image seulement · voix native demandée ET rendue par le modèle ET lipsync avec réplique (règle de #1101 réutilisée)', () => {
+    const plan = (speechMode: 'lipsync' | 'voiceover' | 'none', narration = 'Découvre la crème.') => ({ shotId: 's1', narration, speechMode, estimatedDurationMs: 4_000 });
+    const contenu = (p: object) => ({ brief: null, shots: { order: ['s1'], byId: { s1: p } } }) as unknown as ContenuVersion;
+    const clipP = (modele: string, audio: boolean) => ({ operation: 'clip:s1', shotId: 's1', modele, audio, dureeS: 6 });
+    const VEO = 'fal-ai/veo3.1/fast/image-to-video';
+    const KLING = 'fal-ai/kling-video/v2.5-turbo/pro/image-to-video';
+    // Veo, voix native, lipsync avec réplique ⇒ contrôle (durée du clip).
+    expect(prisesParleesDuDevis(contenu(plan('lipsync')), clipP(VEO, true))).toEqual([{ operation: 'clip:s1', dureeMs: 6_000 }]);
+    expect(priseAControler(clipP(VEO, true), plan('lipsync'), 'fr')).toBe(true);
+    // Kling avec narration (même si une piste audio était livrée) ⇒ rien.
+    expect(prisesParleesDuDevis(contenu(plan('lipsync')), clipP(KLING, true))).toEqual([]);
+    // Veo sans voix native demandée, Veo voix off, plan muet, pas de clip ⇒ rien.
+    expect(prisesParleesDuDevis(contenu(plan('lipsync')), clipP(VEO, false))).toEqual([]);
+    expect(prisesParleesDuDevis(contenu(plan('voiceover')), clipP(VEO, true))).toEqual([]);
+    expect(prisesParleesDuDevis(contenu(plan('lipsync', '  ')), clipP(VEO, true))).toEqual([]);
+    expect(prisesParleesDuDevis(contenu(plan('lipsync')), null)).toEqual([]);
   });
 });
 

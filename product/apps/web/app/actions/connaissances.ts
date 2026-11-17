@@ -41,7 +41,7 @@ const REFUS = 'Réservé à l’équipe plateforme (Admin+ ou Admin) · un rôle
 async function garde(): Promise<{ auteur: string } | { error: string }> {
   const s = await getSession();
   if (!s) return { error: GUARD.session() };
-  if (!peutGererConnaissances(s.equipe?.role)) return { error: REFUS };
+  if (!peutGererConnaissances(s.equipe)) return { error: REFUS };
   return { auteur: s.user.email };
 }
 

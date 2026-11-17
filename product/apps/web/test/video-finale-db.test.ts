@@ -49,12 +49,14 @@ import { publierSondeVideo } from '../../workers/src/studios/sonde-video';
 import { DecodeurSharp } from '../../workers/src/studios/decodeur';
 import { decoderVideoFfmpeg } from '../../workers/src/studios/decodeur-video';
 import type { BaseStudio } from '../lib/studios/execution/types';
-import { imageGrise, pixelsChanges, PIXELS_TEXTE_MIN, type EntreeAssemblage, type ResultatAssemblage } from '@tiktrends/integrations';
-import { ACTION_AUDIT_CONTROLE_PAROLE, NON_INCLUS_SOUS_TITRES, miseEnPageSousTitres } from '@tiktrends/core';
+import { imageGrise, pixelsChanges, brulerSousTitresFfmpeg, PIXELS_TEXTE_MIN, type EntreeAssemblage, type ResultatAssemblage } from '@tiktrends/integrations';
+import { ACTION_AUDIT_CONTROLE_PAROLE, NON_INCLUS_SOUS_TITRES, miseEnPageSousTitres, nonInclusDuRendu } from '@tiktrends/core';
 
 const ids = etat.ids;
 const base = db as unknown as BaseStudio;
 const FFMPEG = spawnSync('ffmpeg', ['-version']).status === 0 && spawnSync('ffprobe', ['-version']).status === 0;
+// En CI, ffmpeg est installé (ci.yml) · son absence fait ÉCHOUER le fichier, jamais sauter ses gardes en silence.
+if (process.env.CI && !FFMPEG) throw new Error('ffmpeg et ffprobe absents en CI · les gardes sur le vrai MP4 ne se sautent pas en CI · installer ffmpeg (.github/workflows/ci.yml)');
 const LECTURE = { maintenant: new Date(), releasePubliee: true, fournisseurTexte: true, plafondAtteint: false, fournisseurImage: true, coutTexteUsd: 0.14 };
 const BRANCHE = { FAL_KEY: 'cle-fal-reelle-de-test', STUDIO_FOURNISSEUR_REEL: 'autorise', S3_ENDPOINT: 'e', S3_BUCKET: 'b', S3_ACCESS_KEY_ID: 'x', S3_SECRET_ACCESS_KEY: 'y' };
 /**
@@ -175,7 +177,10 @@ describe.skipIf(!FFMPEG)('vidéo finale · assemblage réel des clips des plans'
     expect(a).toMatchObject({ origin: 'render', mime: 'video/mp4', durationMs: r.video.dureeMs, width: 1080, height: 1920, storageState: 'stored', projectId: projet.projectId });
     expect(conserve.get(a!.storageKey)?.length).toBe(a!.bytes);
     expect(a!.rights).toMatchObject({ videoFinale: { versionId: projet.versionId, musique: musiqueId } });
-    renduReel = { ok: true, octets: conserve.get(a!.storageKey)!, mesure: { largeur: a!.width!, hauteur: a!.height!, dureeMs: a!.durationMs! } };
+    // Les clips du banc sont muets (testsrc, aucune piste) · la mesure le dit, et « non inclus » ne promet aucune voix.
+    expect((a!.rights as { videoFinale: { nonInclus: string[] } }).videoFinale.nonInclus).toEqual(r.video.nonInclus);
+    expect(r.video.nonInclus.join(' ')).not.toMatch(/Voix · non vérifiée · à l’assemblage/);
+    renduReel = { ok: true, octets: conserve.get(a!.storageKey)!, mesure: { largeur: a!.width!, hauteur: a!.height!, dureeMs: a!.durationMs!, dureeAudioMs: a!.durationMs!, sonDesSegments: c.shots.order.map(() => false) }, chemin: null };
     expect((a!.rights as { videoFinale: { clips: string[] } }).videoFinale.clips).toHaveLength(c.shots.order.length);
     // Le fichier conservé est relu ici aussi : H.264 + AAC, et la piste n'est PAS silencieuse (la musique y est).
     const f = join(dossier, 'final.mp4');
@@ -222,6 +227,10 @@ describe.skipIf(!FFMPEG)('vidéo finale · assemblage réel des clips des plans'
     const ensuite = await assemblerVideoFinalePour(ctxDe(ids, 'ua'), { projectId: projet.projectId }, { lecteur, stockage: memoire, assembler: rejoue });
     expect(ensuite.ok, !ensuite.ok ? `${ensuite.code} ${ensuite.message}` : '').toBe(true);
     expect(rejoues.length - appels).toBe(1);
+    // Un filtre audio absent du ffmpeg du serveur ⇒ capacité manquante, nommée · pas « Assemblage impossible ».
+    const sansFiltre = async () => ({ ok: false as const, motif: 'filtre audio loudnorm absent de ffmpeg sur ce serveur', cause: 'filtre' as const });
+    expect(await assemblerVideoFinalePour(ctxDe(ids, 'ua'), { projectId: projet.projectId }, { lecteur, stockage: memoire, assembler: sansFiltre }))
+      .toMatchObject({ ok: false, code: 'UNSUPPORTED_CAPABILITY', message: expect.stringContaining('filtre audio loudnorm absent de ffmpeg sur ce serveur') });
   });
 
   it('droits du forfait (29/10) · sous TARIFS_V2, une vidéo plus longue que le forfait est refusée avant tout rendu, le forfait qui la permet nommé ; sans l’interrupteur, rien ne change', async () => {
@@ -282,9 +291,21 @@ describe.skipIf(!FFMPEG)('vidéo finale · assemblage réel des clips des plans'
       });
     }
 
-    const r = await assemblerVideoFinalePour(ctxDe(ids, 'ua'), { projectId: projet.projectId }, { lecteur, stockage: memoire, assembler: rejoue });
+    // L'assemblage laisse le MP4 SUR DISQUE (`chemin`, #1101) · la passe le lit par son chemin, jamais une copie en mémoire.
+    const surDisque = join(dossier, 'video-assemblee.mp4');
+    writeFileSync(surDisque, renduReel!.ok ? renduReel!.octets : new Uint8Array());
+    const entrees: Array<{ chemin?: string; octets?: Uint8Array; dureeMs: number }> = [];
+    const r = await assemblerVideoFinalePour(ctxDe(ids, 'ua'), { projectId: projet.projectId }, {
+      lecteur, stockage: memoire,
+      assembler: async (e) => { const x = await rejoue(e); return x.ok ? { ...x, chemin: surDisque } : x; },
+      bruler: async (e) => { entrees.push({ chemin: e.chemin, octets: e.octets, dureeMs: e.dureeMs }); return brulerSousTitresFfmpeg(e); },
+    });
     expect(r.ok, !r.ok ? `${r.code} ${r.message}` : '').toBe(true);
     if (!r.ok) return;
+    expect(entrees).toEqual([{ chemin: surDisque, octets: undefined, dureeMs: renduReel!.ok ? renduReel!.mesure.dureeMs : 0 }]);
+    // La base est la liste recalculée sur le son MESURÉ (`nonInclusDuRendu`, #1101) · seule la ligne des sous-titres en sort.
+    const base = nonInclusDuRendu({ segments: [0, 1, 2].map((i) => ({ shotId: `s${i}`, rang: i + 1, assetId: '', dureeMs: 3000 })), musique: { assetId: musiqueId, gainDb: -12 }, parles: [1, 2], textes: [], sousTitres: true }, [false, false, false]);
+    expect(r.video.nonInclus).toEqual(base.filter((l) => l !== NON_INCLUS_SOUS_TITRES));
     expect(r.video.nonInclus).not.toContain(NON_INCLUS_SOUS_TITRES);
     expect(r.video.nonInclus.some((l) => l.startsWith('Sous-titres'))).toBe(false);
     const [a] = await db.select().from(schema.studioAssets).where(eq(schema.studioAssets.id, r.video.assetId));
@@ -302,5 +323,10 @@ describe.skipIf(!FFMPEG)('vidéo finale · assemblage réel des clips des plans'
     // Hors carton (le plan « s_fin », muet) · aucune différence de texte.
     const [j0, j1] = await Promise.all([imageGrise('ffmpeg', avant, 7500, 1080, 1920, { delaiMs: 30_000 }), imageGrise('ffmpeg', apres, 7500, 1080, 1920, { delaiMs: 30_000 })]);
     expect(pixelsChanges(j0!, j1!, 1080, 0, 1920)).toBeLessThanOrEqual(50);
+    // Même durée que l'assemblage · à une image près (la passe réencode à la cadence du montage).
+    const pr = spawnSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', apres], { encoding: 'utf8' });
+    const dureeBrulee = Math.round(Number(pr.stdout.trim()) * 1000);
+    expect(Math.abs(dureeBrulee - (renduReel!.ok ? renduReel!.mesure.dureeMs : 0))).toBeLessThanOrEqual(1000 / 30 + 1);
+    expect(a!.durationMs).toBe(dureeBrulee);
   }, DELAI_RENDU_REEL_MS);
 });

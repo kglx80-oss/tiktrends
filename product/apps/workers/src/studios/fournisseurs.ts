@@ -3,14 +3,14 @@ import {
   schema, eq, and, or, isNull, reserverDepense, annulerDepense, type BaseDepense,
 } from '@tiktrends/db';
 import {
-  decisionFournisseurStudio, requeteFalImage, lireParametresImage, lireSnapshotJob, operationsDuSnapshot, operationsMediaDuJob,
+  decisionFournisseurStudio, avertissementModeleVideoStudio, requeteFalImage, lireParametresImage, lireSnapshotJob, operationsDuSnapshot, operationsMediaDuJob,
   estParametresClip, lireParametresClip, requeteFalAnimation,
   photosDuProduit, empreinteAdresse, idLogoMarque, estEmpreinte, estParametresRetouche, lireParametresRetouche, requeteFalRetouche, logoTransmissible,
-  decisionLogoServi, empreinteDuLogo,
+  decisionLogoServi, empreinteDuLogo, DUREE_URL_FOURNISSEUR_S,
   type DecisionFournisseur, type DemandeFournisseur, type EmpreinteFichier, type FournisseurStudio, type MediaResolu, type RequeteFal, type StockageStudio,
 } from '@tiktrends/core';
 import {
-  FournisseurFal, BarriereDepenseStudio, TranscripteurFal, storageFromEnv, putObject, presignGetUrl, privateObjectUrl, objectKeyFromUrl, basePubliqueStockage, verifierEmpreinteObjetEspace,
+  FournisseurFal, BarriereDepenseStudio, TranscripteurFal, storageFromEnv, putObject, presignGetUrl, presignGetUrlFournisseur, privateObjectUrlFournisseur, objectKeyFromUrl, basePubliqueStockage, verifierEmpreinteObjetEspace,
   type PortDepense, type PreparationFal, type StorageConfig,
 } from '@tiktrends/integrations';
 import { demarrerBoucleStudio } from './boucle';
@@ -118,7 +118,7 @@ export async function resoudreMedias(
         .where(and(eq(S.id, id.slice(4)), eq(S.workspaceId, job.workspaceId), eq(S.brandId, job.brandId), eq(S.storageState, 'stored'))).limit(1);
       if (!m || !m.mime.startsWith('image/') || !estEmpreinte(m.sha256) || m.storageKey.startsWith('simule/')) out.push(absent(id));
       else if (!stockage) out.push({ assetId: id, etat: 'sans_media', motif: 'stockage objet non configuré' });
-      else out.push({ assetId: id, etat: 'autorise', url: presignGetUrl(stockage, m.storageKey, 900), sha256: m.sha256 });
+      else out.push({ assetId: id, etat: 'autorise', url: presignGetUrlFournisseur(stockage, m.storageKey, DUREE_URL_FOURNISSEUR_S), sha256: m.sha256 });
     } else if (id.startsWith('bib_') && UUID.test(id.slice(4))) {
       const A = schema.assets;
       // Un fichier mis à la corbeille entre le devis et l'exécution ne part pas au fournisseur.
@@ -131,7 +131,7 @@ export async function resoudreMedias(
   }
   return out.map(m => {
     if (m.etat !== 'autorise' || !stockage || !objectKeyFromUrl(stockage, m.url)) return m;
-    const url = privateObjectUrl(stockage, m.url, job.workspaceId, 900);
+    const url = privateObjectUrlFournisseur(stockage, m.url, job.workspaceId, DUREE_URL_FOURNISSEUR_S);
     return url ? { ...m, url } : absent(m.assetId);
   });
 }
@@ -271,7 +271,8 @@ export function construireControleParole(o: {
     base: o.base,
     stockage: stockageS3(o.stockage, o.fetch),
     transcrire: (d) => transcripteur.transcrire(d),
-    adresse: (cle) => presignGetUrl(o.stockage, cle, 900),
+    // Même durée de signature que les autres envois au fournisseur (`DUREE_URL_FOURNISSEUR_S`).
+    adresse: (cle) => presignGetUrlFournisseur(o.stockage, cle, DUREE_URL_FOURNISSEUR_S),
     horloge: o.horloge,
     journal: (m) => console.log(m),
   };
@@ -290,6 +291,9 @@ export function demarrerWorkerStudio(o: {
   log?: (m: string) => void;
 }): ReturnType<typeof demarrerBoucleStudio> | null {
   const log = o.log ?? ((m: string) => console.log(m));
+  // Bascule FAL_VIDEO_MODEL_I2V → FAL_VIDEO_MODEL_STUDIO · dite, jamais silencieuse.
+  const bascule = avertissementModeleVideoStudio(o.env);
+  if (bascule) log(`[studios] avertissement · ${bascule}`);
   const d = decisionFournisseurStudio(o.env);
   if (!d.ok) { log(`[studios] ${d.raison} · ${MESSAGE_SANS_FOURNISSEUR}`); return null; }
   if (!o.base) { log(`[studios] base indisponible (DATABASE_URL) · ${MESSAGE_SANS_FOURNISSEUR}`); return null; }

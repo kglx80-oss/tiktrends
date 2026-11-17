@@ -17,7 +17,7 @@ import { isFounder } from './founder';
  */
 const EMAILS_STAFF_ILLIMITE = new Set<string>();
 
-/** Appelé par getSession · `illimite` = le compte a un rôle d'équipe à accès total. */
+/** Appelé par getSession · `illimite` = rôle d'équipe à accès total ET compte admissible (`accesTotalAdmissible`). */
 export function noterCreditsStaff(email: string | null | undefined, illimite: boolean): void {
   const e = email?.trim().toLowerCase();
   if (!e) return;

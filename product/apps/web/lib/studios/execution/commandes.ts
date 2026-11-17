@@ -13,7 +13,10 @@ import {
 } from '@tiktrends/core';
 // R3 · ligne du contrôle visuel et nature des montants (borne / estimation).
 import { REFUS_DEPENSE_CLIENT, avecControleVision, controleVisionActif, exigenceImageDuDevis, qualifierDevis, type QualificationTotal } from '@tiktrends/core';
-import { avecControleParole, prisesParleesDuDevis, DUREE_CLIP_S } from '@tiktrends/core';
+// Pub entière · prix catalogue du moteur envoyé, relecture ajoutée à la ligne du contrôle visuel.
+import { tarifPubEntiere, lignesAuTarifPubEntiere, controleCocheParDefaut, OPERATION_IMAGE } from '@tiktrends/core';
+import { borneControlePubMicros, CONTROLE_MODEL } from '@tiktrends/ai';
+import { avecControleParole, prisesParleesDuDevis } from '@tiktrends/core';
 import { adaptateurAnthropicGarde, modeleTexte } from '../prompts/adaptateur';
 import type { ContexteStudio } from '../garde';
 import { ajouterAudit } from '../audit';
@@ -226,7 +229,8 @@ export async function creerDevis(ctx: ContexteStudio, e: EntreeDevis, base: Base
       // L6-A · images clés des plans : consigne `shot.image` retenue, attestée, à jour, références intactes.
       const plans = await raccordPlansDevis(tx, ctx, { projet, contenu: courante.content as ContenuVersion, lignes: l.lignes });
       if (!plans.ok) throw new Refus(plans);
-      // Animation d'un plan : clip seul, image clé valide, paramètres construits par le serveur.
+      // Animation d'un plan : clip seul, image clé valide, paramètres construits par le serveur,
+      // ligne du clip reprise au tarif catalogue du modèle (prix à la seconde × durée).
       const clips = await raccordClipsDevis(tx, ctx, { projet, contenu: courante.content as ContenuVersion, lignes: l.lignes });
       if (!clips.ok) throw new Refus(clips);
       const empreinteImage = image.empreinte ?? plans.empreinte ?? clips.empreinte;
@@ -234,18 +238,29 @@ export async function creerDevis(ctx: ContexteStudio, e: EntreeDevis, base: Base
       // ajouté après coup) · ajoutée par défaut, retirée si décochée, absente
       // quand il ne peut pas s'exécuter ici. Les totaux l'incluent.
       const regimeDevis = await regimeEspace(ctx.workspaceId);
-      const vision = avecControleVision(l.lignes, {
-        actif: controleVisionActif({ demande: e.controleVision, fournisseurVision: adaptateurAnthropicGarde() !== null, devisImage: exigenceImageDuDevis(l.lignes).concerne, parDefaut: regimeDevis !== 'v2' }),
+      // Pub entière · l'image prend le prix CATALOGUE du moteur et du paramètre envoyés ; le contrôle
+      // visuel est coché par défaut (même en V2) et sa ligne couvre aussi la relecture (mots, packaging,
+      // lisibilité), à sa borne. En calques, rien ne change.
+      // Clip · lignes déjà reprises au tarif catalogue, choix figé (`raccordClipsDevis`) ; un clip se devise seul,
+      // jamais avec la pub entière : les deux reprises se composent sans se toucher.
+      let lignesProduction = clips.lignes;
+      if (image.pubEntiere) {
+        const t = tarifPubEntiere(image.pubEntiere.moteur);
+        if (!t.ok) throw new Refus(erreurStudio('UNSUPPORTED_CAPABILITY', { traceId: ctx.traceId, targetIds: [OPERATION_IMAGE], message: `Pub entière indisponible · ${t.motif}.` }));
+        lignesProduction = lignesAuTarifPubEntiere(lignesProduction, OPERATION_IMAGE, t);
+      }
+      const vision = avecControleVision(lignesProduction, {
+        actif: controleVisionActif({ demande: e.controleVision, fournisseurVision: adaptateurAnthropicGarde() !== null, devisImage: exigenceImageDuDevis(l.lignes).concerne, parDefaut: controleCocheParDefaut({ regime: regimeDevis, pubEntiere: !!image.pubEntiere }) }),
         modele: modeleTexte(),
+        ...(image.pubEntiere ? { supplementParImageMicros: borneControlePubMicros(CONTROLE_MODEL) } : {}),
       });
-      // Contrôle de la parole · une prise PARLÉE (plan avec réplique) est
-      // transcrite à sa livraison et comparée à la réplique ; la même
-      // transcription pose les sous-titres. Ligne chiffrée du devis, posée
-      // APRÈS le contrôle visuel (qui ne garde que les lignes de production),
-      // seulement quand le fournisseur fal est branché (même clé que l'animation).
+      // Contrôle de la parole · seulement une prise PARLÉE À L'IMAGE (voix native demandée au modèle qui
+      // la rend, lipsync avec réplique · `priseAControler`, règle de la prise réutilisée) : sa transcription
+      // est comparée à la réplique et pose les sous-titres. Kling ou voix off : aucune ligne, 0 $. Ligne
+      // chiffrée posée APRÈS le contrôle visuel (qui ne garde que les lignes de production), fal branché.
       const v = avecControleParole(vision.lignes, {
         actif: fournisseurAnimationBranche(process.env),
-        prises: prisesParleesDuDevis(courante.content as ContenuVersion, vision.lignes, DUREE_CLIP_S * 1000),
+        prises: prisesParleesDuDevis(courante.content as ContenuVersion, clips.parametres),
       });
 
       const [ip] = await tx.insert(schema.studioImpactPlans).values({

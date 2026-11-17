@@ -21,7 +21,8 @@ import type { JobStudio, TxStudio, EntreeJournal } from './types';
 export async function reglerJob(
   tx: TxStudio,
   job: JobStudio,
-  snapshot: SnapshotJob,
+  /** Les lignes du devis · ne chiffrent que l'issue `livre` ; vides pour un échec (instantané illisible compris). */
+  lignes: SnapshotJob['lignes'],
   issue: IssueFinanciere,
   o: { operationsLivrees?: string[]; coutFournisseurUsdMicros?: number | null; worker: string; journal: EntreeJournal[] },
 ): Promise<void> {
@@ -35,7 +36,7 @@ export async function reglerJob(
   const d = decisionReglement({
     issue,
     reserve: { credits: reserve.credits, usdMicros: Number(reserve.usdMicros) },
-    lignes: snapshot.lignes,
+    lignes,
     operationsLivrees: o.operationsLivrees,
     coutFournisseurUsdMicros: o.coutFournisseurUsdMicros ?? null,
   });

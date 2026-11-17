@@ -1,10 +1,13 @@
 import 'server-only';
 import { createHash } from 'node:crypto';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { assemblerVideoFfmpeg, type EntreeAssemblage, type ResultatAssemblage } from '@tiktrends/integrations';
 import {
-  aPermissionEspace, erreurStudio, planRenduFinal, ORIGINE_ARCHIVE_EXPORT,
+  aPermissionEspace, erreurStudio, planRenduFinal, nonInclusDuRendu, ORIGINE_ARCHIVE_EXPORT,
   type ContenuVersion, type ErreurStudio, type PlanRenduFinal, type StockageStudio,
 } from '@tiktrends/core';
 import type { ContexteStudio } from '../garde';
@@ -26,10 +29,13 @@ import type { EntreeSousTitres, ResultatSousTitresVideo } from '@tiktrends/integ
  * 0 crédit) :
  *  1. version courante lue dans la portée ; plan pur `planRenduFinal` (chaque
  *     plan a son clip VALIDE pour cette version, musique relue) · ce qui n'est
- *     pas inclus (voix, texte écran, sous-titres) est dit, jamais simulé ;
+ *     pas inclus (voix d'une prise muette, texte écran, sous-titres) est dit,
+ *     jamais simulé ;
  *  2. chaque clip relu dans la portée (`lireMediaDansPortee` : stocké, octets,
  *     empreinte, type réel MP4) et dans la MARQUE du projet ;
- *  3. assemblage ffmpeg, fichier produit RELU par ffprobe (`assemblerVideoFfmpeg`) ;
+ *  3. assemblage ffmpeg, son des prises gardé, fichier produit RELU par
+ *     ffprobe (`assemblerVideoFfmpeg`) · le son de chaque prise y est MESURÉ, et
+ *     « non inclus » est recalculé sur cette mesure (`nonInclusDuRendu`) ;
  *     puis, si les sous-titres sont voulus, passe SÉPARÉE qui les brûle sur les
  *     mots transcrits des prises (`passeSousTitres`) · « Sous-titres » ne sort
  *     de la liste « non inclus » que si l'image produite les montre ;
@@ -134,23 +140,30 @@ export async function assemblerVideoFinalePour(ctx: ContexteStudio, e: { project
   }
   assemblagesEnCours += 1;
   let r: ResultatAssemblage;
-  let nonInclus = plan.nonInclus;
+  let nonInclus: string[] = [];
+  // Le MP4 assemblé reste sur disque le temps de la passe des sous-titres (lu par son chemin), puis le dossier part.
+  const sortie = await mkdtemp(join(tmpdir(), 'tt-video-finale-'));
   try {
-    r = await (deps.assembler ?? ((x) => assemblerVideoFfmpeg(x)))({
+    r = await (deps.assembler ?? ((x) => assemblerVideoFfmpeg(x, { dossierSortie: sortie })))({
       segments, musique: pv.musique && plan.musique ? { octets: pv.musique, gainDb: plan.musique.gainDb } : null,
       largeur: plan.largeur, hauteur: plan.hauteur, fps: plan.fps,
     });
     if (r.ok) {
-      // Passe séparée · le MP4 assemblé reçoit les sous-titres des mots dits, relus sur l'image.
-      const st = await passeSousTitres(db, { portee: { workspaceId: projet.workspaceId, brandId: projet.brandId }, plan, octets: r.octets, dureeMs: r.mesure.dureeMs }, deps.bruler);
-      r = { ...r, octets: st.octets };
+      // Ce que la vidéo n'inclut pas, d'après le fichier · une prise parlée livrée avec du son a dit sa réplique.
+      const base = nonInclusDuRendu(plan, r.mesure.sonDesSegments);
+      // Passe séparée · le MP4 assemblé reçoit les sous-titres des mots dits, relus sur l'image, même durée.
+      const st = await passeSousTitres(db, { portee: { workspaceId: projet.workspaceId, brandId: projet.brandId }, plan, base, octets: r.octets, chemin: r.chemin, dureeMs: r.mesure.dureeMs }, deps.bruler);
+      // La durée conservée est celle RELUE du fichier gardé (brûlé ou non).
+      r = { ...r, octets: st.octets, mesure: { ...r.mesure, dureeMs: st.dureeMs } };
       nonInclus = st.nonInclus;
     }
   } finally {
     assemblagesEnCours -= 1;
+    await rm(sortie, { recursive: true, force: true }).catch(() => {});
   }
   if (!r.ok) {
     console.error(`[studios] ${ctx.traceId} vidéo finale · ${r.cause} · ${r.motif}`);
+    if (r.cause === 'filtre') return erreurStudio('UNSUPPORTED_CAPABILITY', { traceId: ctx.traceId, message: `Le serveur ne sait pas encore monter le son · ${r.motif}. Rien n’a été conservé.` });
     return erreurStudio(r.cause === 'binaire' ? 'UNSUPPORTED_CAPABILITY' : 'INVALID_SCHEMA', { traceId: ctx.traceId, message: `Assemblage impossible · ${r.motif}. Rien n’a été conservé.` });
   }
 

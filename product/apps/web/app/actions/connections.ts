@@ -3,8 +3,9 @@
 import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { shopifyAdminTest, shopifyCommerceSync, metaAdsTest, metaAdsSync, type ShopifyCommerceInsights, type MetaAdsInsights } from '@tiktrends/integrations';
+import { domaineMyshopify, raisonDomaineShopify } from '@tiktrends/core';
 import { getSession } from '../../lib/auth';
-import { roleAtLeast } from '../../lib/rbac';
+import { peutBrancherConnecteur } from '../../lib/connexions-acces';
 import { getActiveBrand } from '../../lib/brands';
 import { encryptSecret, decryptSecret } from '../../lib/secrets';
 import { logAndTranslate } from '../../lib/error-log';
@@ -12,7 +13,7 @@ import { logAndTranslate } from '../../lib/error-log';
 async function guard() {
   const s = await getSession();
   if (!s || !db) return { error: 'Session expirée.' as const };
-  if (!roleAtLeast(s.role, 'admin')) return { error: 'Action réservée aux administrateurs.' as const };
+  if (!peutBrancherConnecteur(s.role)) return { error: 'Action réservée aux administrateurs.' as const };
   const brand = await getActiveBrand(s.workspaceId);
   if (!brand) return { error: 'Sélectionne une marque active.' as const };
   return { s, brand };
@@ -51,9 +52,12 @@ export async function getConnectionState(): Promise<ConnectionState | null> {
 export async function connectShopifyAction(input: { domain: string; token: string }): Promise<{ ok?: true; shopName?: string; error?: string }> {
   const g = await guard();
   if ('error' in g) return { error: g.error };
-  const domain = (input.domain || '').trim().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+  const saisi = (input.domain || '').trim().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
   const token = (input.token || '').trim();
-  if (!domain || !token) return { error: 'Renseigne le domaine et le token Admin API.' };
+  if (!saisi || !token) return { error: 'Renseigne le domaine et le token Admin API.' };
+  // Le jeton Admin ne part que vers <nom>.myshopify.com (règle du noyau) · un domaine personnalisé est dit, pas tenté.
+  const domain = domaineMyshopify(saisi);
+  if (!domain) return { error: 'Indique le domaine .myshopify.com de ta boutique (ex : ta-boutique.myshopify.com) · le domaine personnalisé sert la vitrine, pas l’API Admin.' };
   try {
     const { shopName } = await shopifyAdminTest(domain, token);
     await db!.update(schema.brands).set({ shopifyDomain: domain, shopifyToken: encryptSecret(token) }).where(eq(schema.brands.id, g.brand.id));
@@ -67,6 +71,8 @@ export async function syncShopifyAction(): Promise<{ ok?: true; insights?: Shopi
   const [b] = await db!.select({ domain: schema.brands.shopifyDomain, token: schema.brands.shopifyToken }).from(schema.brands).where(eq(schema.brands.id, g.brand.id)).limit(1);
   const token = decryptSecret(b?.token);
   if (!b?.domain || !token) return { error: 'Connecte d’abord ta boutique Shopify.' };
+  // Domaine personnalisé enregistré (avant la règle .myshopify.com) · dit à l'écran, aucune requête.
+  if (!domaineMyshopify(b.domain)) return { error: raisonDomaineShopify(b.domain) };
   try {
     const insights = await shopifyCommerceSync(b.domain, token);
     await db!.update(schema.brands).set({ commerceInsights: insights, shopifySyncedAt: new Date(), insightsSyncedAt: new Date() }).where(eq(schema.brands.id, g.brand.id));

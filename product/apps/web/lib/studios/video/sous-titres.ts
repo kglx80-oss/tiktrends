@@ -2,7 +2,7 @@ import 'server-only';
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { schema } from '@tiktrends/db';
 import {
-  ACTION_AUDIT_CONTROLE_PAROLE, FICHIER_POLICE_SOUS_TITRES, NON_INCLUS_SOUS_TITRES, motsDuJournal, motsDuMontage, sousTitresAss, instantsDeControle, nonInclusApresSousTitres,
+  ACTION_AUDIT_CONTROLE_PAROLE, FICHIER_POLICE_SOUS_TITRES, motsDuJournal, motsDuMontage, sousTitresAss, instantsDeControle, nonInclusApresSousTitres,
   type ConstatSousTitres, type MotHorodate, type PlanRenduFinal,
 } from '@tiktrends/core';
 import { brulerSousTitresFfmpeg, type EntreeSousTitres, type ResultatSousTitresVideo } from '@tiktrends/integrations';
@@ -45,18 +45,21 @@ export interface PasseSousTitres {
 }
 
 /**
- * La passe des sous-titres sur un MP4 assemblé · rend les octets à conserver
- * (brûlés si le constat le dit, sinon ceux de l'assemblage, intacts) et la
- * liste « non inclus » relue d'après le constat.
+ * La passe des sous-titres sur un MP4 assemblé · par son CHEMIN quand
+ * l'assemblage l'a laissé sur disque (`chemin` de `assemblerVideoFfmpeg`), par
+ * ses octets sinon. Rend les octets à conserver (brûlés si le constat le dit,
+ * sinon ceux de l'assemblage, intacts), la durée RELUE, et la liste « non
+ * inclus » : `base` est celle recalculée sur le son mesuré (`nonInclusDuRendu`),
+ * seule la ligne des sous-titres en sort, et seulement sur le constat.
  */
 export async function passeSousTitres(
   ex: ExecStudio,
-  e: { portee: { workspaceId: string; brandId: string }; plan: PlanRenduFinal; octets: Uint8Array; dureeMs: number },
+  e: { portee: { workspaceId: string; brandId: string }; plan: PlanRenduFinal; base: readonly string[]; octets: Uint8Array; chemin: string | null; dureeMs: number },
   bruler: (x: EntreeSousTitres) => Promise<ResultatSousTitresVideo> = (x) => brulerSousTitresFfmpeg(x),
 ): Promise<PasseSousTitres> {
-  const sans = (constat: ConstatSousTitres | null): PasseSousTitres => ({ octets: e.octets, dureeMs: e.dureeMs, nonInclus: nonInclusApresSousTitres(e.plan.nonInclus, constat), constat });
-  // Sous-titres désactivés, ou aucun plan parlé : rien à poser, la liste ne change pas.
-  if (!e.plan.nonInclus.includes(NON_INCLUS_SOUS_TITRES)) return { octets: e.octets, dureeMs: e.dureeMs, nonInclus: [...e.plan.nonInclus], constat: null };
+  const sans = (constat: ConstatSousTitres | null): PasseSousTitres => ({ octets: e.octets, dureeMs: e.dureeMs, nonInclus: nonInclusApresSousTitres(e.base, constat), constat });
+  // Sous-titres désactivés, ou aucun plan parlé (`sousTitres`, `parles` du plan) : rien à poser, la liste ne change pas.
+  if (!e.plan.sousTitres || e.plan.parles.length === 0) return { octets: e.octets, dureeMs: e.dureeMs, nonInclus: [...e.base], constat: null };
   const mots = motsDuMontage(e.plan.segments, await motsDesPrises(ex, e.portee, e.plan.segments));
   if (mots.length === 0) return sans({ brules: false, raison: 'aucune prise parlée transcrite' });
   const st = sousTitresAss(mots, { largeur: e.plan.largeur, hauteur: e.plan.hauteur, dureeMs: e.dureeMs });
@@ -64,12 +67,13 @@ export async function passeSousTitres(
   const polices = dossierPolicesEmbarquees(FICHIER_POLICE_SOUS_TITRES);
   if (!polices) return sans({ brules: false, raison: 'police Liberation Sans introuvable sur le serveur' });
   const r = await bruler({
-    octets: e.octets, ass: st.ass, largeur: e.plan.largeur, hauteur: e.plan.hauteur, dureeMs: e.dureeMs, fps: e.plan.fps,
+    ...(e.chemin ? { chemin: e.chemin } : { octets: e.octets }),
+    ass: st.ass, largeur: e.plan.largeur, hauteur: e.plan.hauteur, dureeMs: e.dureeMs, fps: e.plan.fps,
     zone: st.page.zone, controles: instantsDeControle(st.cartons, e.dureeMs), dossierPolices: polices,
   });
   if (!r.ok) {
     console.error(`[studios] sous-titres non brûlés · ${r.cause} · ${r.motif}${r.detail ? ` · ${r.detail}` : ''}`);
     return sans(r.constat);
   }
-  return { octets: r.octets, dureeMs: e.dureeMs, nonInclus: nonInclusApresSousTitres(e.plan.nonInclus, r.constat), constat: r.constat };
+  return { octets: r.octets, dureeMs: r.dureeMs, nonInclus: nonInclusApresSousTitres(e.base, r.constat), constat: r.constat };
 }

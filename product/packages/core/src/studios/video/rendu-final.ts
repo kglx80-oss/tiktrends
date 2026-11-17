@@ -6,8 +6,13 @@
  * (sortie produite pour cette version), tenu à la durée du plan ; la musique
  * choisie s'ajoute à son gain ; le format est celui du projet.
  *
- * Ce qui n'est PAS fait, et le dit (jamais simulé) :
- *  · la voix (aucun fournisseur de voix branché) · la narration n'est pas dite ;
+ * Le son des prises est gardé au montage (voix, lèvres et son du lieu naissent
+ * dans la prise, `prise-parlee.ts`). Ce qui n'est PAS fait, et le dit (jamais
+ * simulé) :
+ *  · la voix d'un plan parlé dont la prise livrée est MUETTE · avant le clic,
+ *    on ne sait pas encore : c'est dit comme tel ; après l'assemblage, la
+ *    mesure du fichier (`sonDesSegments`) tranche, plan par plan
+ *    (`nonInclusDuRendu`) ;
  *  · le texte écran n'est pas incrusté ;
  *  · les sous-titres ne sont incrustés que s'ils sont posés sur les mots
  *    TRANSCRITS des prises et vus sur l'image produite (`nonInclusApresSousTitres`) ;
@@ -22,6 +27,7 @@
 import type { ContenuVersion, FpsRationnel } from '../document';
 import { dureePlanMs } from './plans';
 import { formatVideo } from './consigne-plan';
+import { estPriseParlee } from './prise-parlee';
 
 /** Bornes · une publicité courte. Au-delà, l'assemblage synchrone n'est pas proposé. */
 export const PLANS_RENDU_MAX = 12;
@@ -41,8 +47,13 @@ export interface PlanRenduFinal {
   fps: FpsRationnel;
   dureeMs: number;
   musique: { assetId: string; gainDb: number } | null;
-  /** Ce que cette vidéo ne contient pas, en clair · affiché avant le clic. */
+  /** Ce que cette vidéo ne contient pas, en clair · affiché avant le clic (son des prises encore inconnu). */
   nonInclus: string[];
+  /** Rangs des plans à prise parlée (mode voix off ou lipsync, narration présente). */
+  parles: number[];
+  /** Rangs des plans qui portent un texte écran. */
+  textes: number[];
+  sousTitres: boolean;
 }
 
 /** La ligne des sous-titres · dite tant qu'ils ne sont pas RÉELLEMENT brûlés dans la vidéo produite. */
@@ -86,7 +97,7 @@ export function planRenduFinal(e: {
     const duree = Math.round(dureePlanMs(p));
     if (!Number.isFinite(duree) || duree < DUREE_PLAN_RENDU_MIN_MS) v.push({ cible: sid, raison: `Le plan ${rang} dure moins d’une demi-seconde.` });
     if (clip && UUID.test(clip)) segments.push({ shotId: sid, rang, assetId: clip, dureeMs: duree });
-    if (p.speechMode !== 'none' && p.narration.trim()) parle.push(rang);
+    if (estPriseParlee(p)) parle.push(rang);
     if (p.onScreenText.some((x) => x.trim())) texte.push(rang);
   });
   const dureeMs = segments.reduce((s, x) => s + x.dureeMs, 0);
@@ -100,17 +111,38 @@ export function planRenduFinal(e: {
   }
   if (v.length) return { ok: false, violations: v };
 
-  const nonInclus: string[] = [];
-  const liste = (rangs: number[]) => rangs.map((r) => `plan ${r}`).join(', ');
-  if (parle.length) nonInclus.push(`Voix · aucun fournisseur de voix n’est branché, la narration n’est pas dite (${liste(parle)}).`);
-  if (texte.length) nonInclus.push(`Texte écran · non incrusté (${liste(texte)}).`);
-  if (t.subtitles.enabled && parle.length) nonInclus.push(NON_INCLUS_SOUS_TITRES);
-  if (!musique) nonInclus.push('Musique · aucune choisie, bande son silencieuse.');
+  const plan = { segments, largeur: format.largeur, hauteur: format.hauteur, fps: { num: t.fps.num, den: t.fps.den }, dureeMs, musique, parles: parle, textes: texte, sousTitres: t.subtitles.enabled };
+  return { ok: true, plan: { ...plan, nonInclus: nonInclusDuRendu(plan) } };
+}
 
-  return {
-    ok: true,
-    plan: { segments, largeur: format.largeur, hauteur: format.hauteur, fps: { num: t.fps.num, den: t.fps.den }, dureeMs, musique, nonInclus },
-  };
+/**
+ * Ce que la vidéo finale n'inclut pas · `son` est la mesure du fichier
+ * assemblé, segment par segment (`sonDesSegments` de l'assembleur) ; sans
+ * elle (avant le clic), le son des prises est inconnu et dit comme tel.
+ */
+export function nonInclusDuRendu(p: Pick<PlanRenduFinal, 'segments' | 'musique' | 'parles' | 'textes' | 'sousTitres'>, son?: ReadonlyArray<boolean>): string[] {
+  const out: string[] = [];
+  const liste = (rangs: number[]) => rangs.map((r) => `plan ${r}`).join(', ');
+  const mesure = !!son && son.length === p.segments.length;
+  const sonDu = (rang: number) => mesure && son![p.segments.findIndex((x) => x.rang === rang)] === true;
+  if (p.parles.length) {
+    if (!mesure) out.push(`Voix · non vérifiée · à l’assemblage, seule la présence de son dans la prise est contrôlée, pas les mots dits (${liste(p.parles)}).`);
+    else {
+      const muettes = p.parles.filter((r) => !sonDu(r));
+      const sonores = p.parles.filter((r) => sonDu(r));
+      if (muettes.length) out.push(`Voix · prise muette, la narration n’est pas dite (${liste(muettes)}).`);
+      // Du son n'est pas la réplique · la vérification des mots dits viendra du contrôle de la parole.
+      if (sonores.length) out.push(`Voix · son présent dans la prise, réplique non vérifiée (${liste(sonores)}).`);
+    }
+  }
+  if (p.textes.length) out.push(`Texte écran · non incrusté (${liste(p.textes)}).`);
+  if (p.sousTitres && p.parles.length) out.push(NON_INCLUS_SOUS_TITRES);
+  if (!p.musique) {
+    out.push(!mesure
+      ? 'Musique · aucune choisie, la bande son sera le son des prises, un silence si elles sont muettes.'
+      : son!.some(Boolean) ? 'Musique · aucune choisie, la bande son est le son des prises.' : 'Musique · aucune choisie, bande son silencieuse.');
+  }
+  return out;
 }
 
 /**

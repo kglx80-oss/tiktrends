@@ -29,6 +29,7 @@ const brand = randomUUID();
 const user = randomUUID();
 let projet = '';
 let version = '';
+let versionVoixOff = '';
 let PRISE_PARLEE = new Uint8Array();
 let PRISE_MUETTE = new Uint8Array();
 
@@ -43,10 +44,14 @@ beforeAll(async () => {
   await base.insert(schema.users).values({ id: user, email: `${user}@w.test` });
   await base.insert(schema.brands).values({ id: brand, workspaceId: ws, name: 'B' });
   const [p] = await base.insert(schema.studioProjects).values({ workspaceId: ws, brandId: brand, kind: 'video', title: 'P', ownerId: user }).returning();
-  const c = { ...contenuVide(), shots: { order: ['s1'], byId: { s1: plan(REPLIQUE, 'voiceover') } } };
+  const c = { ...contenuVide(), shots: { order: ['s1'], byId: { s1: plan(REPLIQUE, 'lipsync') } } };
   const [v] = await base.insert(schema.studioProjectVersions).values({ projectId: p!.id, workspaceId: ws, brandId: brand, n: 1, schemaVersion: SCHEMA_VERSION_CONTENU, content: c, contentHash: empreinteContenu(c as never), authorId: user }).returning();
   projet = p!.id;
   version = v!.id;
+  // Une seconde version · le même plan en VOIX OFF (la réplique est dite hors champ).
+  const c2 = { ...contenuVide(), shots: { order: ['s1'], byId: { s1: plan(REPLIQUE, 'voiceover') } } };
+  const [v2] = await base.insert(schema.studioProjectVersions).values({ projectId: p!.id, workspaceId: ws, brandId: brand, n: 2, schemaVersion: SCHEMA_VERSION_CONTENU, content: c2, contentHash: empreinteContenu(c2 as never), authorId: user }).returning();
+  versionVoixOff = v2!.id;
   const d = await mkdtemp(join(tmpdir(), 'prise-'));
   const x = promisify(execFile);
   await x('ffmpeg', ['-v', 'error', '-y', '-f', 'lavfi', '-i', 'testsrc=size=64x64:rate=24:duration=2', '-f', 'lavfi', '-i', 'sine=frequency=440:duration=2', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-shortest', '-f', 'mp4', join(d, 'p.mp4')]);
@@ -56,8 +61,12 @@ beforeAll(async () => {
   await rm(d, { recursive: true, force: true });
 });
 
-const ligneClip: LigneDevis = { operation: 'clip:s1', nature: 'generation', profil: 'animation', unites: 1, credits: GRILLE_STUDIO.animation.credits!, usdMicros: GRILLE_STUDIO.animation.usdMicros!, inclus: false };
-const parametresClip = { schema: 'studio_clip/1', operation: 'clip:s1', shotId: 's1', source: { assetId: `sta_${randomUUID()}`, sha256: 'a'.repeat(64) }, consigne: 'Mouvement.', interdits: [], dureeS: 5 };
+/** La ligne du clip APPROUVÉE · 6 s à 70 000 µ$ et 40 crédits la seconde (le prix réellement accepté, pas la grille). */
+const ligneClip: LigneDevis = { operation: 'clip:s1', nature: 'generation', profil: 'animation', unites: 6, credits: 40, usdMicros: 70_000, inclus: false };
+const VEO = 'fal-ai/veo3.1/fast/image-to-video';
+const KLING = 'fal-ai/kling-video/v2.5-turbo/pro/image-to-video';
+/** Prise PARLÉE à l'image · Veo, voix native demandée. */
+const parametresClip = { schema: 'studio_clip/2', operation: 'clip:s1', shotId: 's1', source: { assetId: `sta_${randomUUID()}`, sha256: 'a'.repeat(64) }, consigne: 'Mouvement.', interdits: [], dureeS: 6, modele: VEO, audio: true };
 
 let stockes: Map<string, Uint8Array>;
 let appels: DemandeTranscription[];
@@ -65,14 +74,14 @@ let dite: string;
 beforeEach(() => { stockes = new Map(); appels = []; dite = REPLIQUE; });
 
 /** Un clip livré (`completed`, qualité `pending`) et sa prise stockée. */
-async function semerPrise(o: { parole?: boolean; octets?: Uint8Array } = {}): Promise<string> {
+async function semerPrise(o: { parole?: boolean; octets?: Uint8Array; clip?: Record<string, unknown>; versionId?: string } = {}): Promise<string> {
   const lignes = o.parole === false ? [ligneClip] : avecControleParole([ligneClip], { actif: true, prises: [{ operation: 'clip:s1', dureeMs: 5_000 }] }).lignes;
   const h = 'c'.repeat(64);
   const cle = `studios/${ws}/${randomUUID()}/clip_s1.mp4`;
   stockes.set(cle, o.octets ?? PRISE_PARLEE);
   const [a] = await base.insert(schema.studioAssets).values({ workspaceId: ws, brandId: brand, projectId: projet, storageKey: cle, mime: 'video/mp4', bytes: 1, sha256: 'b'.repeat(64), origin: 'generated', storageState: 'stored' }).returning();
-  const snapshot: SnapshotJob = { v: 1, quoteId: randomUUID(), projectVersionId: version, contentHash: h, impactPlanHash: h, pricingVersion: 'v', lignes, epinglage: null, reserve: { credits: 25, usdMicros: 610_000 }, parametres: parametresClip };
-  const [j] = await base.insert(schema.studioJobs).values({ workspaceId: ws, brandId: brand, projectId: projet, projectVersionId: version, operation: OPERATION_JOB_STUDIO, idempotencyKey: `k-${randomUUID()}`, inputHash: h, snapshot, createdBy: user, state: 'completed', result: { assets: { 'clip:s1': a!.id } } }).returning();
+  const snapshot: SnapshotJob = { v: 1, quoteId: randomUUID(), projectVersionId: version, contentHash: h, impactPlanHash: h, pricingVersion: 'v', lignes, epinglage: null, reserve: { credits: 240, usdMicros: 430_000 }, parametres: { ...parametresClip, ...o.clip } };
+  const [j] = await base.insert(schema.studioJobs).values({ workspaceId: ws, brandId: brand, projectId: projet, projectVersionId: o.versionId ?? version, operation: OPERATION_JOB_STUDIO, idempotencyKey: `k-${randomUUID()}`, inputHash: h, snapshot, createdBy: user, state: 'completed', result: { assets: { 'clip:s1': a!.id } } }).returning();
   return j!.id;
 }
 
@@ -123,7 +132,7 @@ describe('contrôle de la parole des prises livrées', () => {
     expect(await qualite(job)).toBe('requires_review');
     const [a] = await audit(job);
     expect(a).toMatchObject({ versionBefore: 'pending', versionAfter: 'requires_review', reason: 'La prise ne dit pas la réplique validée · manque « sans ».' });
-    expect(a!.details).toMatchObject({ conforme: false, manquants: ['sans'], prixReprise: { credits: GRILLE_STUDIO.animation.credits, usdMicros: GRILLE_STUDIO.animation.usdMicros! + 10_000 }, reprisesFaites: 0 });
+    expect(a!.details).toMatchObject({ conforme: false, manquants: ['sans'], prixReprise: { credits: 240, usdMicros: 420_000 + 10_000 }, reprisesFaites: 0 });
   });
 
   it('la reprise refusée à son tour · plus aucune relance, revue humaine', async () => {
@@ -141,6 +150,17 @@ describe('contrôle de la parole des prises livrées', () => {
     expect(await controlerParolesEnAttente(deps())).toEqual([]);
     expect(appels).toHaveLength(0);
     expect(await audit(job)).toHaveLength(0);
+  });
+
+  it('prise NON parlée à l’image · Kling avec narration et piste audio, Veo sans voix demandée, Veo voix off ⇒ « sans objet », 0 appel, 0 $', async () => {
+    for (const o of [{ clip: { modele: KLING, audio: true } }, { clip: { audio: false } }, { versionId: versionVoixOff }]) {
+      await viderFile();
+      const job = await semerPrise(o);
+      const [r] = await controlerParolesEnAttente(deps());
+      expect(r, JSON.stringify(o)).toMatchObject({ jobId: job, suite: 'sans_objet' });
+      expect(r!.raison).toMatch(/prise non parlée à l’image/);
+    }
+    expect(appels).toHaveLength(0);
   });
 
   it('prise muette · « sans objet », 0 appel', async () => {

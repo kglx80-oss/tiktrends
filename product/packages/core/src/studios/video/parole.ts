@@ -57,6 +57,9 @@
  */
 
 import type { MotHorodate } from './sous-titres';
+import type { ContenuVersion, PlanStudio } from '../document';
+import { estPriseParlee, voixNativeDemandee } from './prise-parlee';
+import { langueDuProjet } from '../fournisseurs/catalogue-video';
 
 /*
  * « euh » (et toute hésitation) est un ÉCART, pas une variante : une hésitation
@@ -382,26 +385,34 @@ export function suiteControleParole(e: { verdict: Pick<VerdictParole, 'conforme'
   return { suite: 'proposer_reprise', raison, prix: { credits: e.prixReprise.credits, usdMicros: e.prixReprise.usdMicros } };
 }
 
-/* ─────────────────────────── Prises parlées d'un devis ──────────────────── */
+/* ─────────────────────────── Prises à contrôler ────────────────────────── */
 
 /**
- * Les prises PARLÉES d'un devis · les clips (`clip:<plan>`) dont le plan, dans
- * la version devisée, a une réplique et un mode de parole autre que « sans
- * voix ». Ce sont elles que le contrôle de la parole transcrit ; `dureePriseMs`
- * est la durée du clip que le modèle produit (la réserve en dépend).
+ * La prise est-elle PARLÉE À L'IMAGE au sens de la prise (`prise-parlee.ts`) ?
+ * Trois conditions, la règle de `priseDuClip` RÉUTILISÉE : voix native
+ * demandée au clip ET rendue par son modèle dans la langue
+ * (`voixNativeDemandee`), plan parlé avec sa réplique (`estPriseParlee`), et
+ * parole synchronisée (`lipsync`) · c'est alors la réplique qui a été envoyée
+ * au modèle, mot pour mot. Une piste audio seule ne suffit JAMAIS : un modèle
+ * muet (Kling) livre parfois une piste silencieuse ou d'ambiance, et la
+ * transcrire ferait payer pour « aucun mot ». La voix off n'est pas contrôlée.
+ */
+export function priseAControler(parametres: { audio?: unknown; modele?: string | null }, plan: Pick<PlanStudio, 'speechMode' | 'narration'>, langue: string): boolean {
+  return voixNativeDemandee(parametres, langue) && estPriseParlee(plan) && plan.speechMode === 'lipsync';
+}
+
+/**
+ * Les prises à contrôler d'un devis de clip (un clip se devise seul) · celle
+ * du clip si `priseAControler`, à la durée du clip (la réserve en dépend).
  */
 export function prisesParleesDuDevis(
-  contenu: { shots: { byId: Readonly<Record<string, { narration: string; speechMode: string } | undefined>> } },
-  lignes: ReadonlyArray<{ operation: string }>,
-  dureePriseMs: number,
+  contenu: Pick<ContenuVersion, 'shots' | 'brief'>,
+  parametres: { operation: string; shotId: string; audio?: unknown; modele?: string | null; dureeS: number } | null,
 ): Array<{ operation: string; dureeMs: number }> {
-  const out: Array<{ operation: string; dureeMs: number }> = [];
-  for (const l of lignes) {
-    if (!l.operation.startsWith('clip:')) continue;
-    const p = contenu.shots.byId[l.operation.slice('clip:'.length)];
-    if (p && p.speechMode !== 'none' && typeof p.narration === 'string' && p.narration.trim()) out.push({ operation: l.operation, dureeMs: dureePriseMs });
-  }
-  return out;
+  if (!parametres) return [];
+  const p = contenu.shots.byId[parametres.shotId];
+  if (!p || !priseAControler(parametres, p, langueDuProjet(contenu))) return [];
+  return [{ operation: parametres.operation, dureeMs: parametres.dureeS * 1000 }];
 }
 
 /**
@@ -439,4 +450,16 @@ export function motsDuJournal(details: unknown): MotHorodate[] | null {
     out.push({ texte: m[0], debutMs: m[1] as number, finMs: m[2] as number });
   }
   return out;
+}
+
+/**
+ * Le prix d'une reprise · celui que la personne a RÉELLEMENT approuvé pour ce
+ * clip (ligne `clip:<plan>` de l'instantané : modèle, durée et tarif figés au
+ * devis), plus le contrôle de la parole de la nouvelle prise. Jamais la grille.
+ */
+export function prixRepriseDuClip(lignes: unknown, operation: string, controleUsdMicros: number): PrixReprise {
+  const l = Array.isArray(lignes) ? (lignes as Array<{ operation?: unknown; unites?: unknown; credits?: unknown; usdMicros?: unknown } | null>).find((x) => x?.operation === operation) : undefined;
+  const n = (x: unknown) => (Number.isInteger(x) && (x as number) >= 0 ? (x as number) : 0);
+  const unites = Math.max(1, n(l?.unites));
+  return { credits: n(l?.credits) * unites, usdMicros: n(l?.usdMicros) * unites + n(controleUsdMicros) };
 }

@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { schema, eq, and, sql, asc } from '@tiktrends/db';
 import {
   lireSnapshotJob, estParametresClip, planDeClip, controleParoleApprouve, repriseParoleApprouvee, controlerParole, suiteControleParole,
-  transitionQualite, estErreurCertaine, motsPourJournal, modeControleParole, GRILLE_STUDIO, ACTION_AUDIT_CONTROLE_PAROLE, ACTION_AUDIT_CONTROLE_PAROLE_ESSAI,
+  transitionQualite, estErreurCertaine, motsPourJournal, modeControleParole, priseAControler, langueDuProjet, prixRepriseDuClip, ACTION_AUDIT_CONTROLE_PAROLE, ACTION_AUDIT_CONTROLE_PAROLE_ESSAI,
   type ModeControleParole,
   type ContenuVersion, type StockageStudio, type TranscriptionLue,
 } from '@tiktrends/core';
@@ -153,6 +153,10 @@ async function examiner(d: DependancesControleParole, job: JobStudio, essai: num
   const [v] = await d.base.select({ content: V.content }).from(V).where(and(eq(V.id, job.projectVersionId), eq(V.workspaceId, job.workspaceId))).limit(1);
   const plan = (v?.content as ContenuVersion | undefined)?.shots.byId[shotId];
   if (!plan || plan.speechMode === 'none' || !plan.narration.trim()) return sansObjet('plan sans réplique à dire dans la version du job', base);
+  // La réplique a-t-elle été DEMANDÉE au modèle (voix native rendue, lipsync) ? Une piste audio seule ne suffit jamais.
+  if (!priseAControler(snap.parametres as { audio?: unknown; modele?: string | null }, plan, langueDuProjet(v!.content as ContenuVersion))) {
+    return sansObjet('prise non parlée à l’image · la réplique n’a pas été demandée au modèle (voix native non rendue ou voix off), rien n’est transcrit', base);
+  }
 
   const S = schema.studioAssets;
   const [a] = assetId ? await d.base.select({ storageKey: S.storageKey, mime: S.mime }).from(S)
@@ -182,10 +186,9 @@ async function examiner(d: DependancesControleParole, job: JobStudio, essai: num
 
   const verdict = controlerParole(plan.narration, t.transcription.texte);
   const faites = await reprisesFaites(d.base, job, operation);
-  const anim = GRILLE_STUDIO.animation;
   const s = suiteControleParole({
     verdict, reprisesFaites: faites, repriseApprouvee: repriseParoleApprouvee(snap.lignes, operation),
-    prixReprise: { credits: anim.credits ?? 0, usdMicros: (anim.usdMicros ?? 0) + ligne.usdMicros },
+    prixReprise: prixRepriseDuClip(snap.lignes, operation, ligne.usdMicros),
     mode: d.mode ?? modeControleParole(),
   });
   return {

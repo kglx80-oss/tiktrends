@@ -5,6 +5,7 @@
 export * from './plafond';
 export * from './fal-image';
 export * from './fal-video';
+export * from './catalogue-video';
 export * from './fal-file';
 export * from './choix';
 export * from './retouche';

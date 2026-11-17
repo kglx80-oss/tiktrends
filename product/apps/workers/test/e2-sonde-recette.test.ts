@@ -39,7 +39,8 @@ describe('sonde vidéo de recette', () => {
     expect(r.ligne).toMatch(/^ÉCHEC · sonde vidéo publiée mais sans capacité · sonde vidéo périmée/);
   });
 
-  it.skipIf(!existsSync('/usr/bin/ffmpeg'))('sonde RÉELLE (ffmpeg du conteneur) ⇒ OK', async () => {
+  // En CI, ffmpeg est installé (ci.yml) · son absence fait échouer ce cas au lieu de le sauter.
+  it.skipIf(!existsSync('/usr/bin/ffmpeg') && !process.env.CI)('sonde RÉELLE (ffmpeg du conteneur) ⇒ OK', async () => {
     const r = await sonderPourRecette({ base });
     expect(r.ok, r.ligne).toBe(true);
   }, 60_000);
