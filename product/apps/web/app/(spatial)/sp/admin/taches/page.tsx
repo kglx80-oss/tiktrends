@@ -14,7 +14,9 @@ const UNITE = { un: 'tâche', plusieurs: 'tâches' } as const;
  * (admin de l'espace ET fondateur) AVANT toute lecture. LECTURE SEULE · les
  * tâches de toute la plateforme, segment, recherche et page relus au serveur
  * (`?segment=&q=&page=`) · l'âge se calcule contre l'horloge de la requête,
- * passée à la règle du noyau. Aucune relance, aucune annulation d'ici.
+ * passée à la règle du noyau. Aucune relance, aucune annulation d'ici · un
+ * seul geste d'écriture, « Clore le rapprochement » (action serveur à sa
+ * propre porte, le worker règle).
  * « Durées mesurées » · les tâches terminées et leurs transitions, mesurées
  * au noyau (`mesurerDureesTaches`) · le segment « Bloquées » reçoit le seuil
  * appliqué de CHAQUE tâche (`resolveurSeuils`), le même que l'export.
@@ -62,7 +64,7 @@ export default async function TachesSpatial({ searchParams }: { searchParams?: P
         methode: METHODE_DUREES,
         limite: durees.limite,
       }}
-      note={`${adminPluriel(table.filtrees.length, 'tâche')} dans ce filtre${table.q ? ` pour « ${table.q} »` : ''} · lecture seule, rien n’est relancé ni annulé d’ici (une relance est une nouvelle tâche, lancée depuis l’atelier de son espace) · coût engagé lu au registre de budget, jamais recalculé · l’export reprend tout le filtre, toutes pages, colonnes de la table.`}
+      note={`${adminPluriel(table.filtrees.length, 'tâche')} dans ce filtre${table.q ? ` pour « ${table.q} »` : ''} · rien n’est relancé ni annulé d’ici (une relance est une nouvelle tâche, lancée depuis l’atelier de son espace) · « Clore le rapprochement » clôt en échec une tâche interrompue dont aucun livrable ne viendra (crédits rendus, coût fournisseur retenu) · coût engagé lu au registre de budget, jamais recalculé · l’export reprend tout le filtre, toutes pages, colonnes de la table.`}
     />
   );
 }

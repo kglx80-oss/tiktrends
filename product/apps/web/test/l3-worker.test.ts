@@ -421,7 +421,8 @@ describe('recette du 8 octobre · 50 réconciliations n’affament pas le suivi 
     const bloques = Array.from({ length: 50 }, (_, i) => ({
       workspaceId: m!.workspaceId, brandId: m!.brandId, projectId: m!.projectId, projectVersionId: m!.projectVersionId,
       operation: m!.operation, state: 'reconciliation_required' as const, idempotencyKey: `famine-${randomUUID()}-${i}`,
-      inputHash: m!.inputHash, snapshot: m!.snapshot, updatedAt: new Date('2020-01-01T00:00:00Z'), createdAt: new Date('2020-01-01T00:00:00Z'),
+      // Plus anciens que le job lancé, mais DANS leur échéance de rapprochement (20 min, `ECHEANCES_TRAVAIL_MS`) · au-delà, ils seraient clos.
+      inputHash: m!.inputHash, snapshot: m!.snapshot, updatedAt: new Date(Date.now() - 60_000), createdAt: new Date('2020-01-01T00:00:00Z'),
     }));
     const ins = await db.insert(schema.studioJobs).values(bloques).returning({ id: schema.studioJobs.id });
     try {
