@@ -165,6 +165,13 @@ describe('page · le garde lit le rôle d’ÉQUIPE, jamais le rôle d’espace'
     h.session = { ...base, role: 'admin', equipe: undefined };
     expect(await url()).toBe('/dashboard');
   });
+  // M4 · la page REND la redirection pour un Admin d'équipe non admissible (compte créé après son inscription).
+  it('Admin plateforme NON admissible → /dashboard, rien n’est rendu', async () => {
+    h.session = { ...base, role: 'member', equipe: { role: 'admin', matrice: {}, plateformeAdmissible: false } };
+    expect(await url()).toBe('/dashboard');
+    h.session = { ...base, role: 'owner', equipe: { role: 'adminplus', matrice: {} } };
+    expect(await url(), 'admissibilité absente = non admissible').toBe('/dashboard');
+  });
   it('sans session → /login', async () => {
     h.session = null;
     expect(await url()).toBe('/login');

@@ -8,6 +8,7 @@
  */
 
 import { estRoleEspace, permissionsStudio, type PermissionPlateforme, type PermissionsStudio, type RoleEspace } from './permissions';
+import { ROLES_ACCES_TOTAL } from '../equipe-plateforme';
 
 /* ────────────────────────────────────────────────────────────────────────── */
 /*  SEC-03 · qui peut générer, débiter ou écrire dans les studios historiques */
@@ -349,9 +350,15 @@ export function permissionsPlateformeEquipe(equipe: { role: string; plateformeAd
  * (`getSession` → `noterCreditsStaff`). Sur main 62a341e3, l'accès total seul
  * suffisait · un compte qui avait capté un e-mail staff préinscrit (non
  * admissible) ne payait plus rien.
+ *
+ * Écrite telle qu'elle se dit · `accesTotal(role) && plateformeAdmissible ===
+ * true`, et non « au moins une permission plateforme du studio » : l'argent ne
+ * doit pas suivre un catalogue de permissions qui n'a rien à voir avec lui
+ * (`test/acces-total-admissible.test.ts` le vide et vérifie que la réponse ne
+ * bouge pas).
  */
 export function accesTotalAdmissible(equipe: { role: string; plateformeAdmissible?: boolean } | null | undefined): boolean {
-  return permissionsPlateformeEquipe(equipe).size > 0;
+  return !!equipe && (ROLES_ACCES_TOTAL as readonly string[]).includes(equipe.role) && equipe.plateformeAdmissible === true;
 }
 
 /* ────────────────────────────────────────────────────────────────────────── */
