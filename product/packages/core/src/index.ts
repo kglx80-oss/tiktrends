@@ -124,6 +124,7 @@ export * from './retour-enregistrement';
 export * from './filtres-url';
 export * from './compte-vue';
 export * from './connaissances';
+export * from './equipe-admissibilite';
 export * from './echappement-html';
 export * from './shopify-domaine';
 export * from './formats-creatifs';

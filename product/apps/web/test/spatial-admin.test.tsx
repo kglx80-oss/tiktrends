@@ -39,6 +39,7 @@ import { PosteSav } from '../spatial/vues/admin/sav-client';
 import { MatriceDroitsSpatiale } from '../spatial/vues/admin/droits-client';
 import { VerifierStripe } from '../spatial/vues/admin/paiements-client';
 import { OUTILS_ADMIN } from '../spatial/vues/admin/sous-nav';
+import { MESSAGE_NON_ADMISSIBLE, admissibiliteMembre } from '@tiktrends/core';
 
 /**
  * Tour de contrôle Spatial · parité de structure avec la maquette, écran par
@@ -189,6 +190,22 @@ describe('Spatial · Tour de contrôle · parité de structure avec la maquette'
     expect(sans.rendu).toEqual(p.reference);
     expect(rendre(<Droits {...propsDroits()} journal="/admin/audit" />)).toContain('href="/admin/audit"');
     expect(rendre(<Droits {...propsDroits()} />), 'sans porte ouverte, aucun lien vers le registre').not.toContain('data-journal');
+  });
+
+  it('« Rôles & droits » · admissibilité (suivi #1106) en seuls ajouts · message dédié, seconde pastille, consigne', () => {
+    const adm = admissibiliteMembre({ role: 'admin', fondateurCode: false, compteCreeLe: null, staffInscritLe: '2026-10-05T12:00:00Z' });
+    const ok = admissibiliteMembre({ role: 'admin', fondateurCode: false, compteCreeLe: '2026-10-01T12:00:00Z', staffInscritLe: '2026-10-05T12:00:00Z' });
+    const base = propsDroits();
+    const p = pariteAdmin(rendre(<Droits {...base} nonAdmissible={MESSAGE_NON_ADMISSIBLE} equipe={base.equipe.map((m, i) => ({ ...m, admissibilite: i === 1 ? adm : ok }))} />), 'a-droits');
+    const retirer = (rendu: string[], ligne: string) => { const avant = rendu.length; const r = rendu.filter((l) => l !== ligne); return { r, n: avant - r.length }; };
+    const alerte = retirer(p.rendu, '  section.tile[style:border-left,font-size,line-height]');
+    expect(alerte.n, 'le message dédié, une seule fois, sous l’en-tête').toBe(1);
+    const consigne = retirer(alerte.r, '          p.faint[style:font-size,grid-column,line-height,margin]');
+    expect(consigne.n, 'une consigne, sous la seule ligne non admissible').toBe(1);
+    const pastilleOk = retirer(consigne.r, '            span.g.pill[style:max-width,white-space]');
+    const pastilleKo = retirer(pastilleOk.r, '            span.pill.r[style:max-width,white-space]');
+    expect([pastilleOk.n, pastilleKo.n], 'une pastille d’admissibilité par membre, après celle du rôle, qui passe à la ligne au lieu d’être rognée').toEqual([3, 1]);
+    expect(pastilleKo.r).toEqual(p.reference);
   });
 
   it('« Bibliothèque IA » reproduit la maquette, « Rechercher une consigne… » en seul ajout', () => {

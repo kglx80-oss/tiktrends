@@ -29,7 +29,7 @@ vi.mock('@tiktrends/db', async (importOriginal) => {
 });
 
 import { db, schema } from '@tiktrends/db';
-import { permissionsStudio, restreindrePlateforme, PERMISSIONS_PLATEFORME } from '@tiktrends/core';
+import { permissionsStudio, restreindrePlateforme, PERMISSIONS_PLATEFORME, messageNonAdmissible, MESSAGE_NON_ADMISSIBLE, MESSAGE_FONDATEUR_HORS_CODE } from '@tiktrends/core';
 import { equipeDeSession } from '../lib/equipe-plateforme';
 import { estFondateurCode, isFounder } from '../lib/founder';
 
@@ -83,6 +83,14 @@ describe('SEC-10 · equipeDeSession · antériorité du compte', () => {
   it('fondateur par FOUNDER_EMAILS seulement · rôle conservé, non admissible (liste codée exigée)', async () => {
     const e = await equipeDeSession(ENV_FONDATEUR);
     expect(e).toMatchObject({ role: 'adminplus', plateformeAdmissible: false });
+  });
+
+  it('le message dédié suit les faits de la session · inscrit puis compte postérieur, ou fondateur de l’environnement sans inscription', async () => {
+    expect(messageNonAdmissible(await equipeDeSession(CAPTE))).toBe(MESSAGE_NON_ADMISSIBLE);
+    const env = await equipeDeSession(ENV_FONDATEUR);
+    expect(env?.inscritEquipe, 'un fondateur de l’environnement n’a pas de ligne d’équipe').toBe(false);
+    expect(messageNonAdmissible(env), 'un fondateur de l’environnement lit « créé après ton inscription »').toBe(MESSAGE_FONDATEUR_HORS_CODE);
+    expect(messageNonAdmissible(await equipeDeSession(LEGITIME))).toBeNull();
   });
 
   it('compte client · aucune équipe, comme avant', async () => {

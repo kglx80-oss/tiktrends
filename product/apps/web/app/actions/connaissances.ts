@@ -2,7 +2,7 @@
 
 import { randomUUID } from 'node:crypto';
 import {
-  peutGererConnaissances, validerSaisie, creerConnaissance, nouvelleVersion, publierVersion,
+  refusConnaissances, validerSaisie, creerConnaissance, nouvelleVersion, publierVersion,
   retirerConnaissance, vueConnaissance, apercuContextePlateforme, derniereVersion, changementPortee,
   verifierConfirmationPublication,
   type SaisieConnaissance, type VueConnaissance, type Connaissance, type Resultat, type PorteeConnaissance,
@@ -36,12 +36,14 @@ export interface VueAdminConnaissances {
 
 type Retour = { vue?: VueAdminConnaissances; error?: string; id?: string };
 
-const REFUS = 'Réservé à l’équipe plateforme (Admin+ ou Admin) · un rôle d’espace, même propriétaire, ne suffit pas.';
-
 async function garde(): Promise<{ auteur: string } | { error: string }> {
   const s = await getSession();
   if (!s) return { error: GUARD.session() };
-  if (!peutGererConnaissances(s.equipe)) return { error: REFUS };
+  // La vraie raison du refus (noyau) · un Admin d'équipe NON admissible (compte
+  // créé après son inscription, SEC-10) lit pourquoi et quoi demander, au lieu
+  // de « réservé aux Admin ».
+  const refus = refusConnaissances(s.equipe);
+  if (refus) return { error: refus };
   return { auteur: s.user.email };
 }
 

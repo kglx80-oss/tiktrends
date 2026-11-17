@@ -1,3 +1,4 @@
+import type { AdmissibiliteMembre } from '@tiktrends/core';
 import { Ic, Lien, Vue } from '../../communs';
 import { Pill, TeteAdmin, Vide, type BandeauAdmin } from './base';
 import { GererMembre, InviterMembre, MatriceDroitsSpatiale, type CaseDroit } from './droits-client';
@@ -20,7 +21,12 @@ export interface PropsDroits {
   lignes: ReadonlyArray<{ rubrique: string; cases: readonly CaseDroit[] }>;
   verrouille: boolean;
   rolesInvitation: ReadonlyArray<{ cle: string; libelle: string }> | null;
-  equipe: ReadonlyArray<{ email: string; initiales: string; role: string; total: boolean; depuis: string; cleRole?: string; moi?: boolean }>;
+  equipe: ReadonlyArray<{ email: string; initiales: string; role: string; total: boolean; depuis: string; cleRole?: string; moi?: boolean; admissibilite?: AdmissibiliteMembre }>;
+  /**
+   * SEC-10 · le message dédié au compte de la session quand il a l'accès total
+   * sans être admissible (`messageNonAdmissible`) · `null` sinon.
+   */
+  nonAdmissible?: string | null;
   /** Les gestes par membre (rôle, retrait) · absent en lecture seule. */
   gestion?: boolean;
   audit: ReadonlyArray<{ id: string; initiales: string; acteur: string; texte: string; quand: string }>;
@@ -32,6 +38,9 @@ export function Droits(p: PropsDroits) {
   return (
     <Vue>
       <TeteAdmin titre="Rôles & droits" sous="droits" actif="/admin/equipe" bandeau={p.bandeau} />
+      {p.nonAdmissible && (
+        <section className="tile" role="status" data-non-admissible="" style={{ borderLeft: '3px solid var(--bad)', fontSize: '13.5px', lineHeight: 1.5 }}>{p.nonAdmissible}</section>
+      )}
       <section className="tile">
         <div className="sech"><h2>Matrice des droits</h2><span className="faint" style={{ fontSize: '12.5px' }}>{p.legende}</span></div>
         <MatriceDroitsSpatiale roles={p.roles} lignes={p.lignes} verrouille={p.verrouille} />
@@ -41,9 +50,12 @@ export function Droits(p: PropsDroits) {
           <div className="sech"><h2>Équipe interne</h2>{p.rolesInvitation && <InviterMembre roles={p.rolesInvitation} />}</div>
           <div className="atable">
             {p.equipe.map((m) => (
-              <div className="atr" key={m.email} style={{ gridTemplateColumns: p.gestion && p.rolesInvitation ? 'auto 1.2fr 1fr 1fr auto' : 'auto 1.2fr 1fr 1fr' }}>
-                <span className="me" style={{ width: 30, height: 30, fontSize: '10.5px' }}>{m.initiales}</span><span><b>{m.email}</b></span><span><Pill c={m.total ? 'w' : ''}>{m.role}</Pill></span><span className="faint">{m.depuis}</span>
+              <div className="atr" key={m.email} data-membre={m.email} data-admissibilite={m.admissibilite?.statut} style={{ gridTemplateColumns: p.gestion && p.rolesInvitation ? 'auto 1.2fr 1fr 1fr auto' : 'auto 1.2fr 1fr 1fr' }}>
+                <span className="me" style={{ width: 30, height: 30, fontSize: '10.5px' }}>{m.initiales}</span><span><b>{m.email}</b></span>
+                <span><Pill c={m.total ? 'w' : ''}>{m.role}</Pill>{m.admissibilite && <> <span className={`pill ${m.admissibilite.admissible ? 'g' : 'r'}`} style={{ whiteSpace: 'normal', maxWidth: '100%' }}>{m.admissibilite.libelle}</span></>}</span>
+                <span className="faint">{m.admissibilite ? `${m.depuis} · ${m.admissibilite.compte}` : m.depuis}</span>
                 {p.gestion && p.rolesInvitation && <span><GererMembre email={m.email} role={m.cleRole ?? ''} moi={!!m.moi} roles={p.rolesInvitation} /></span>}
+                {m.admissibilite?.consigne && <p data-consigne="" className="faint" style={{ gridColumn: '1 / -1', margin: 0, fontSize: '12.5px', lineHeight: 1.45 }}>{m.admissibilite.consigne}</p>}
               </div>
             ))}
             {p.equipe.length === 0 && <Vide>Aucun membre inscrit · les fondateurs ont l’accès total par le code.</Vide>}

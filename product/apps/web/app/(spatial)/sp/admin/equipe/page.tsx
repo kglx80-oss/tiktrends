@@ -1,11 +1,12 @@
 import { redirect } from 'next/navigation';
-import { desc, eq, isNull, like, or } from 'drizzle-orm';
+import { desc, eq, inArray, isNull, like, or } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
   CLES_RUBRIQUES, LIBELLE_ROLE_PLATEFORME, ROLES_MATRICIELS, ROLES_PLATEFORME, RUBRIQUES_PLATEFORME, accesTotal, adminDateCourte, adminIlYa,
-  caseDroit, initialesAvatar, peutEcrireEquipe, rubriquesApresBascule, texteAudit, type MatriceDroits, type RolePlateforme,
+  admissibiliteMembre, caseDroit, initialesAvatar, messageNonAdmissible, peutEcrireEquipe, rubriquesApresBascule, texteAudit, type MatriceDroits, type RolePlateforme,
 } from '@tiktrends/core';
 import { getSession } from '../../../../../lib/auth';
+import { estFondateurCode } from '../../../../../lib/founder';
 import { Droits } from '../../../../../spatial/vues/admin/Droits';
 import { bandeauSeul } from '../donnees';
 import { droitsSousNavAdmin } from '../../../../../lib/onglets-reglages';
@@ -41,6 +42,15 @@ export default async function DroitsSpatial({ searchParams }: { searchParams: Pr
       .where(or(isNull(schema.studioAuditEvents.workspaceId), like(schema.studioAuditEvents.action, 'studios.%')))
       .orderBy(desc(schema.studioAuditEvents.occurredAt)).limit(5) : Promise.resolve([]),
   ]);
+  // SEC-10 · la date de création du compte de chaque membre, pour dire s'il est
+  // admissible · même lecture que `equipeDeSession` (e-mail stocké en minuscules).
+  // Seulement pour qui peut écrire l'équipe · un compte non admissible, en
+  // lecture seule, ne voit ni les dates de compte ni le statut des autres.
+  const emails = peutEcrire ? staffRows.map((r) => r.email) : [];
+  const comptes = db && emails.length
+    ? await db.select({ email: schema.users.email, createdAt: schema.users.createdAt }).from(schema.users).where(inArray(schema.users.email, emails))
+    : [];
+  const compteDe = new Map(comptes.map((c) => [c.email, c.createdAt]));
   const matrice: MatriceDroits = {};
   for (const r of rightsRows) matrice[r.role as RolePlateforme] = (r.rubriques as string[]) ?? [];
   const rang = (r: RolePlateforme) => ROLES_PLATEFORME.indexOf(r);
@@ -68,7 +78,9 @@ export default async function DroitsSpatial({ searchParams }: { searchParams: Pr
         .map((m) => ({
           email: m.email, initiales: initialesAvatar('', m.email), role: LIBELLE_ROLE_PLATEFORME[m.role], total: accesTotal(m.role), depuis: `depuis le ${adminDateCourte(m.depuis)}`,
           cleRole: m.role, moi: m.email.trim().toLowerCase() === s.user.email.trim().toLowerCase(),
+          admissibilite: peutEcrire ? admissibiliteMembre({ role: m.role, fondateurCode: estFondateurCode(m.email), compteCreeLe: compteDe.get(m.email) ?? null, staffInscritLe: m.depuis }) : undefined,
         }))}
+      nonAdmissible={messageNonAdmissible(s.equipe)}
       gestion={peutEcrire}
       journal={droitsSousNavAdmin(s).tour ? '/admin/audit' : null}
       audit={auditRows.map((a) => {
