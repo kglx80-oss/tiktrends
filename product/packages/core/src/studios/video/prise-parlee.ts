@@ -30,6 +30,7 @@ import {
   consigneMouvementDuPlan, parametresDuClip, CONSIGNE_MOUVEMENT_MAX, type ParametresClip,
 } from '../fournisseurs/fal-video';
 import { contientEmplacement } from '../fournisseurs/fal-image';
+import { entreeCatalogueVideo, langueDuProjet, modeleRendLaVoix } from '../fournisseurs/catalogue-video';
 
 /** Langues d'une prise parlée · celles que le studio sait écrire. */
 export const LANGUES_PRISE: Readonly<Record<string, string>> = { fr: 'français', en: 'anglais' };
@@ -85,9 +86,11 @@ const fr = (n: number, d = 1) => n.toFixed(d).replace(/\.0+$/, '').replace('.', 
  * parle. Refus AVANT le devis : réplique qui ne tient pas dans la durée du
  * clip (`compterMots` / `MOTS_PAR_SECONDE_NARRATION`), guillemets, emplacement.
  */
-export function priseDuClip<P extends { consigne: string; dureeS: number; audio?: unknown }>(parametres: P, p: PlanPrise, langue: string = LANGUE_PROJET):
+export function priseDuClip<P extends { consigne: string; dureeS: number; audio?: unknown; modele?: string | null }>(parametres: P, p: PlanPrise, langue: string = LANGUE_PROJET):
   { ok: true; parametres: P } | { ok: false; code: 'INVALID_SCHEMA'; motif: string } {
-  if (parametres.audio !== true || !estPriseParlee(p)) return { ok: true, parametres };
+  // Deux conditions · la voix native est DEMANDÉE au clip (`audio`), et le modèle la REND dans cette langue
+  // (`modeleRendLaVoix`, la seule source du catalogue) · sinon le clip est muet et la consigne celle d'avant.
+  if (parametres.audio !== true || !modeleRendLaVoix(entreeCatalogueVideo(parametres.modele ?? null), langue) || !estPriseParlee(p)) return { ok: true, parametres };
   const mots = compterMots(p.narration);
   const secondes = mots / MOTS_PAR_SECONDE_NARRATION;
   if (secondes > parametres.dureeS) {
@@ -108,6 +111,6 @@ export function priseDuClip<P extends { consigne: string; dureeS: number; audio?
 export function parametresDeLaPrise(e: Parameters<typeof parametresDuClip>[0] & { langue?: string }): ParametresClip {
   const r = parametresDuClip(e);
   if (!r.ok) return r;
-  const x = priseDuClip(r.parametres, e.contenu.shots.byId[e.shotId] as PlanStudio, e.langue ?? LANGUE_PROJET);
+  const x = priseDuClip(r.parametres, e.contenu.shots.byId[e.shotId] as PlanStudio, e.langue ?? langueDuProjet(e.contenu));
   return x.ok ? { ...r, parametres: x.parametres } : x;
 }

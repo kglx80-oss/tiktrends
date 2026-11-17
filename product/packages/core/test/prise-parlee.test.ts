@@ -93,8 +93,10 @@ describe('prise parlée · la consigne', () => {
 
 describe('prise parlée · les paramètres du clip', () => {
   const kf = { assetUuid: KF, sha256: SHA };
-  const base = (p: PlanStudio) => {
-    const r = parametresDuClip({ contenu: contenu(p), shotId: 's1', keyframe: kf });
+  const VEO = 'fal-ai/veo3.1/fast/image-to-video';
+  const KLING = 'fal-ai/kling-video/v2.5-turbo/pro/image-to-video';
+  const base = (p: PlanStudio, modele: string = VEO) => {
+    const r = parametresDuClip({ contenu: contenu(p), shotId: 's1', keyframe: kf, modele });
     if (!r.ok) throw new Error(r.motif);
     return r.parametres;
   };
@@ -105,8 +107,25 @@ describe('prise parlée · les paramètres du clip', () => {
   it('plan parlé, modèle SANS voix native (Kling, défaut) ⇒ consigne muette d’avant · rien de payé pour une voix qui ne viendra pas', () => {
     for (const speechMode of ['lipsync', 'voiceover'] as const) {
       const p = plan({ speechMode });
-      expect(parametresDeLaPrise({ contenu: contenu(p), shotId: 's1', keyframe: kf })).toEqual(parametresDuClip({ contenu: contenu(p), shotId: 's1', keyframe: kf }));
+      for (const modele of [undefined, KLING]) {
+        expect(parametresDeLaPrise({ contenu: contenu(p), shotId: 's1', keyframe: kf, modele })).toEqual(parametresDuClip({ contenu: contenu(p), shotId: 's1', keyframe: kf, modele }));
+      }
       expect(priseDuClip({ ...base(p), audio: false }, p)).toEqual({ ok: true, parametres: { ...base(p), audio: false } });
+    }
+  });
+  it('de bout en bout · Veo 3.1 (voix native) en lipsync ⇒ prise PARLÉE ; en voix off ⇒ clip muet, consigne d’avant', () => {
+    const lip = plan({ speechMode: 'lipsync' });
+    const r = parametresDeLaPrise({ contenu: contenu(lip), shotId: 's1', keyframe: kf, modele: VEO });
+    expect(r.ok && r.parametres.audio).toBe(true);
+    expect(r.ok && r.parametres.consigne).toBe(consigne(lip));
+    const off = plan({ speechMode: 'voiceover' });
+    expect(parametresDeLaPrise({ contenu: contenu(off), shotId: 's1', keyframe: kf, modele: VEO })).toEqual(parametresDuClip({ contenu: contenu(off), shotId: 's1', keyframe: kf, modele: VEO }));
+  });
+  it('voix native demandée à un modèle qui ne rend pas la voix (Kling, hors catalogue) ⇒ consigne muette · `modeleRendLaVoix` tranche', () => {
+    const p = plan({ speechMode: 'lipsync' });
+    for (const modele of [KLING, 'fal-ai/inconnu/image-to-video']) {
+      const x = { ...base(p, KLING), modele, audio: true };
+      expect(priseDuClip(x, p), modele).toEqual({ ok: true, parametres: x });
     }
   });
   it('plan parlé, voix native demandée au modèle ⇒ même clip, consigne de la prise, relue par le contrat', () => {
