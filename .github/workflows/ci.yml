@@ -56,6 +56,12 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      # Les gardes sur le VRAI MP4 (assemblage de la vidéo finale, son des prises,
+      # décodeur vidéo du worker) lancent ffmpeg et ffprobe. Sans eux, en CI, ces
+      # fichiers de test ÉCHOUENT (`process.env.CI`) au lieu de se sauter.
+      - name: Installer ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
       - name: Tests
         run: pnpm test
 

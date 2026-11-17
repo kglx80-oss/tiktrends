@@ -54,6 +54,8 @@ import type { EntreeAssemblage, ResultatAssemblage } from '@tiktrends/integratio
 const ids = etat.ids;
 const base = db as unknown as BaseStudio;
 const FFMPEG = spawnSync('ffmpeg', ['-version']).status === 0 && spawnSync('ffprobe', ['-version']).status === 0;
+// En CI, ffmpeg est installé (ci.yml) · son absence fait ÉCHOUER le fichier, jamais sauter ses gardes en silence.
+if (process.env.CI && !FFMPEG) throw new Error('ffmpeg et ffprobe absents en CI · les gardes sur le vrai MP4 ne se sautent pas en CI · installer ffmpeg (.github/workflows/ci.yml)');
 const LECTURE = { maintenant: new Date(), releasePubliee: true, fournisseurTexte: true, plafondAtteint: false, fournisseurImage: true, coutTexteUsd: 0.14 };
 const BRANCHE = { FAL_KEY: 'cle-fal-reelle-de-test', STUDIO_FOURNISSEUR_REEL: 'autorise', S3_ENDPOINT: 'e', S3_BUCKET: 'b', S3_ACCESS_KEY_ID: 'x', S3_SECRET_ACCESS_KEY: 'y' };
 /**
@@ -174,7 +176,10 @@ describe.skipIf(!FFMPEG)('vidéo finale · assemblage réel des clips des plans'
     expect(a).toMatchObject({ origin: 'render', mime: 'video/mp4', durationMs: r.video.dureeMs, width: 1080, height: 1920, storageState: 'stored', projectId: projet.projectId });
     expect(conserve.get(a!.storageKey)?.length).toBe(a!.bytes);
     expect(a!.rights).toMatchObject({ videoFinale: { versionId: projet.versionId, musique: musiqueId } });
-    renduReel = { ok: true, octets: conserve.get(a!.storageKey)!, mesure: { largeur: a!.width!, hauteur: a!.height!, dureeMs: a!.durationMs! } };
+    // Les clips du banc sont muets (testsrc, aucune piste) · la mesure le dit, et « non inclus » ne promet aucune voix.
+    expect((a!.rights as { videoFinale: { nonInclus: string[] } }).videoFinale.nonInclus).toEqual(r.video.nonInclus);
+    expect(r.video.nonInclus.join(' ')).not.toMatch(/Voix · non vérifiée · à l’assemblage/);
+    renduReel = { ok: true, octets: conserve.get(a!.storageKey)!, mesure: { largeur: a!.width!, hauteur: a!.height!, dureeMs: a!.durationMs!, dureeAudioMs: a!.durationMs!, sonDesSegments: c.shots.order.map(() => false) }, chemin: null };
     expect((a!.rights as { videoFinale: { clips: string[] } }).videoFinale.clips).toHaveLength(c.shots.order.length);
     // Le fichier conservé est relu ici aussi : H.264 + AAC, et la piste n'est PAS silencieuse (la musique y est).
     const f = join(dossier, 'final.mp4');
@@ -221,6 +226,10 @@ describe.skipIf(!FFMPEG)('vidéo finale · assemblage réel des clips des plans'
     const ensuite = await assemblerVideoFinalePour(ctxDe(ids, 'ua'), { projectId: projet.projectId }, { lecteur, stockage: memoire, assembler: rejoue });
     expect(ensuite.ok, !ensuite.ok ? `${ensuite.code} ${ensuite.message}` : '').toBe(true);
     expect(rejoues.length - appels).toBe(1);
+    // Un filtre audio absent du ffmpeg du serveur ⇒ capacité manquante, nommée · pas « Assemblage impossible ».
+    const sansFiltre = async () => ({ ok: false as const, motif: 'filtre audio loudnorm absent de ffmpeg sur ce serveur', cause: 'filtre' as const });
+    expect(await assemblerVideoFinalePour(ctxDe(ids, 'ua'), { projectId: projet.projectId }, { lecteur, stockage: memoire, assembler: sansFiltre }))
+      .toMatchObject({ ok: false, code: 'UNSUPPORTED_CAPABILITY', message: expect.stringContaining('filtre audio loudnorm absent de ffmpeg sur ce serveur') });
   });
 
   it('droits du forfait (29/10) · sous TARIFS_V2, une vidéo plus longue que le forfait est refusée avant tout rendu, le forfait qui la permet nommé ; sans l’interrupteur, rien ne change', async () => {

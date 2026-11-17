@@ -64,7 +64,7 @@ describe('impact · ordre des plans → rien n’est régénéré', () => {
 });
 
 describe('impact · narration, voix, musique', () => {
-  it('narration en voix off · la voix du plan seulement, pas le clip', () => {
+  it('narration en voix off · la voix du plan seulement, pas le clip (la voix off se pose au montage, le clip reste muet)', () => {
     const a = contenuVideo();
     const b = copie(a);
     b.shots.byId.s_ouverture!.narration = 'Encore des boutons ?';
@@ -72,6 +72,14 @@ describe('impact · narration, voix, musique', () => {
     expect(generationsDuPlan(p)).toEqual(['voix:s_ouverture']);
     expect(p.reutilisees).toContain('keyframe:s_ouverture');
     expect(p.reutilisees).toContain('clip:s_ouverture');
+  });
+
+  it('plan muet · sa narration ne touche aucun clip', () => {
+    const a = contenuVideo();
+    a.shots.byId.s_ouverture!.speechMode = 'none';
+    const b = copie(a);
+    b.shots.byId.s_ouverture!.narration = 'Encore des boutons ?';
+    expect(generationsDuPlan(calculerPlanImpact(a, b))).toEqual([]);
   });
 
   it('narration en lipsync · la voix ET le clip du plan', () => {

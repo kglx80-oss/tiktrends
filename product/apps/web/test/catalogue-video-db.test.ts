@@ -87,6 +87,30 @@ beforeAll(async () => {
 });
 afterEach(() => { vi.unstubAllEnvs(); brancher(); });
 
+/** Un projet dont l'image clé du plan est produite (job réel du banc) et déposée comme un média réel. */
+async function projetAvecImageCle(ajuster: Parameters<typeof projetTest>[4]) {
+  const pr = await projetTest(db, ids, ids.brandA1, ids.ua, ajuster);
+  const dk = await creerDevis(ctxDe(ids, 'ua'), { projectId: pr.projectId, operations: [`keyframe:${PLAN}`], variante: true }, base, new Date());
+  if (!dk.ok) throw new Error(dk.code);
+  const ak = await approuverEtMettreEnFile(ctxDe(ids, 'ua'), { quoteId: dk.devis.id, inputHash: dk.devis.inputHash, creditsAnnonces: dk.devis.maximumCredits, idempotencyKey: `k-${dk.devis.id}` }, { illimite: false });
+  if (!ak.ok) throw new Error(ak.code);
+  expect(await jusquAuBout(db, banc(db).moteur, ak.job.id)).toBe('completed');
+  const [a] = await db.select().from(schema.studioAssets).where(eq(schema.studioAssets.projectId, pr.projectId));
+  await db.update(schema.studioAssets).set({ storageKey: `studios/${a!.id}.png` }).where(eq(schema.studioAssets.id, a!.id));
+  return pr;
+}
+/** Devis → approbation → corps préparé par le VRAI préparateur du worker · ce que fal RECEVRAIT. */
+async function corpsDuClip(projectId: string) {
+  const d = await devisClip(projectId);
+  if (!d.ok) throw new Error(`${d.code} ${d.message}`);
+  const r = await approuver(d.devis);
+  if (!r.ok) throw new Error(r.code);
+  const [job] = await db.select().from(schema.studioJobs).where(eq(schema.studioJobs.id, r.job.id));
+  const prep = await preparateurFal(base, { modeles: MODELES_WORKER, stockage: CFG })({ cleIdempotence: cleFournisseurDuJob(r.job.id), operations: [], parametres: {} }, r.job.id);
+  if (!prep.ok) throw new Error(prep.motif);
+  return { prep, devisModele: (d.devis.lignes.find((x) => x.profil === 'animation') as unknown as { clip: { modele: string } }).clip.modele, snap: lireSnapshotJob(job!.snapshot)! };
+}
+
 describe('catalogue vidéo · écran, devis, approbation, préparation et réserve du worker', () => {
   it('Veo 3.1 Lite · écran = devis = débit = réserve du worker (4 s × 0,03 $, 72 crédits), corps Veo du modèle devisé', async () => {
     modeleStudio(VEO_LITE);
@@ -200,6 +224,25 @@ describe('catalogue vidéo · écran, devis, approbation, préparation et réser
     expect(coutSoumissionStudio(operationsDuSnapshot(ancien), { parametres: ancien.parametres, modele: prep.modele })).toMatchObject({ ok: true, usdMicros: ancien.reserve.usdMicros });
     const veo = await preparateurFal(base, { modeles: { ...MODELES_WORKER, animation: VEO_FAST }, stockage: CFG })({ cleIdempotence: cle, operations: [], parametres: {} }, r.job.id);
     expect(veo).toMatchObject({ ok: false, motif: expect.stringMatching(/^INVALID_SCHEMA · instantané studio_clip\/1/) });
+  });
+
+  it('Veo 3.1 Fast · prise LIPSYNC de bout en bout ⇒ la réplique validée est dans le corps envoyé, voix native demandée, modèle du devis ; en voix off ⇒ aucune réplique, clip muet', async () => {
+    modeleStudio(VEO_FAST);
+    const lip = await projetAvecImageCle((c) => { c.shots.byId[PLAN]!.speechMode = 'lipsync'; });
+    const a = await corpsDuClip(lip.projectId);
+    expect(a.devisModele).toBe(VEO_FAST);
+    expect(a.prep.modele).toBe(VEO_FAST);
+    expect(a.prep.corps.generate_audio).toBe(true);
+    expect(String(a.prep.corps.prompt)).toMatch(/^Prise parlée en français, face caméra · /);
+    expect(String(a.prep.corps.prompt)).toContain('« Tu en as marre des boutons ? »');
+    expect(a.prep.corps.prompt).toBe(a.snap.parametres.consigne);
+
+    const off = await projetAvecImageCle((c) => { c.shots.byId[PLAN]!.speechMode = 'voiceover'; });
+    const b = await corpsDuClip(off.projectId);
+    expect(b.prep.modele).toBe(VEO_FAST);
+    expect(b.prep.corps.generate_audio).toBe(false);
+    expect(String(b.prep.corps.prompt)).toMatch(/^Mouvement : /);
+    expect(String(b.prep.corps.prompt)).not.toContain('Tu en as marre des boutons');
   });
 
   it('Kling + prise parlée en français ⇒ l’écran dit avant le clic que la voix native est refusée, le devis part MUET au prix muet', async () => {
