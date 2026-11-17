@@ -16,6 +16,11 @@
  * `time_increment: 1` donne une ligne par jour. Le reste est de la pagination.
  */
 
+import {
+  BORNE_PAGES_META, DELAI_REQUETE_META_MS, DUREE_MAX_LECTURE_META_MS, TAILLE_PAGE_META,
+  erreurLectureIncomplete, reprisePageMeta, suitePagination, type EchecPageMeta,
+} from '@tiktrends/core';
+
 const GRAPH = 'https://graph.facebook.com/v21.0';
 
 /** Une journée d'une annonce · correspond à une ligne de `metrics_daily`. */
@@ -97,25 +102,102 @@ const fromMinor = (v: unknown): number | null => {
 };
 
 interface Paged<T> { data: T[]; paging?: { next?: string; cursors?: { after?: string } } }
+type ReponseGraph<T> = Paged<T> & { error?: { message: string; code?: number; is_transient?: boolean } };
 
 /**
- * Appel Graph avec pagination suivie.
- * Le curseur `after` est préféré à l'URL `next` : celle-ci porte le jeton en
- * clair et finirait dans les journaux au moindre message d'erreur.
+ * L'horloge de la lecture · l'attente entre deux essais d'une même page, et
+ * l'heure qui sert à l'échéance (`DUREE_MAX_LECTURE_META_MS`). Remplaçable
+ * par les tests (aucune vraie attente dans un test), jamais ailleurs.
  */
-async function graphAll<T>(path: string, token: string, params: Record<string, string>, maxPages = 25): Promise<T[]> {
-  const out: T[] = [];
-  let after: string | undefined;
-  for (let page = 0; page < maxPages; page++) {
-    const qs = new URLSearchParams({ access_token: token, limit: '500', ...params, ...(after ? { after } : {}) });
-    const res = await fetch(`${GRAPH}/${path}?${qs.toString()}`, { signal: AbortSignal.timeout(60_000) });
-    const json = (await res.json()) as Paged<T> & { error?: { message: string; code?: number } };
-    if (!res.ok || json.error) throw new Error('Meta : ' + (json.error?.message || `HTTP ${res.status}`));
-    out.push(...(json.data ?? []));
-    after = json.paging?.cursors?.after;
-    if (!after || !json.paging?.next) break;
+export const horlogeMeta = {
+  attendre: (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms)),
+  maintenant: (): number => Date.now(),
+};
+
+/** L'échéance de la lecture est passée (ou le serait avant la fin d'une attente) · échec `duree`. */
+const horsDelai = (pagesFinies: number) => new Error(erreurLectureIncomplete('duree', pagesFinies));
+
+/**
+ * Une page Graph, redemandée sur un échec PASSAGER (limite d'appels, réseau,
+ * 5xx, corps coupé) selon `reprisePageMeta` · la même URL, donc le même
+ * curseur, toujours valable. Une erreur de jeton ou de droits n'est jamais
+ * redemandée. Rien ne dépasse l'échéance de la lecture · ni une requête (son
+ * délai est ramené à ce qui reste), ni une attente.
+ */
+async function pageGraph<T>(url: string, arete: string, echeance: number, pagesFinies: number): Promise<ReponseGraph<T>> {
+  for (let reprises = 0; ; reprises++) {
+    const reste = echeance - horlogeMeta.maintenant();
+    if (reste <= 0) throw horsDelai(pagesFinies);
+    let echec: EchecPageMeta;
+    let erreur: Error;
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(Math.min(DELAI_REQUETE_META_MS, reste)) });
+      // Le corps est LU ici, hors du décodage · un flux coupé (délai, réseau) part au `catch`, comme une requête qui n'a pas abouti.
+      const texte = await res.text();
+      let json: ReponseGraph<T> | null = null;
+      // Une passerelle en panne répond du HTML · illisible ici, l'échec reste celui du statut HTTP.
+      try { json = JSON.parse(texte) as ReponseGraph<T>; } catch { json = null; }
+      if (res.ok && json && !json.error) return json;
+      erreur = new Error('Meta : ' + (json?.error?.message || `HTTP ${res.status}`));
+      echec = { status: res.status, code: json?.error?.code ?? null, transitoire: json?.error?.is_transient === true, message: erreur.message };
+    } catch (e) {
+      // La requête ou son corps n'a pas abouti (réseau, délai) · l'erreur d'origine, son message ne porte pas l'URL.
+      erreur = e as Error;
+      echec = { status: null, message: erreur.message };
+    }
+    const attente = reprisePageMeta(echec, reprises);
+    if (attente === null) throw erreur;
+    if (horlogeMeta.maintenant() + attente >= echeance) throw horsDelai(pagesFinies);
+    console.warn('[meta] page redemandée', JSON.stringify({ arete, reprise: reprises + 1, attenteMs: attente, status: echec.status, code: echec.code ?? null }));
+    await horlogeMeta.attendre(attente);
   }
-  return out;
+}
+
+/**
+ * Appel Graph avec pagination suivie, JUSQU'AU BOUT ou en échec · jamais un
+ * jeu tronqué rendu comme complet. La règle (fin, page suivante, lecture
+ * incomplète, reprise, durée) et ses bornes vivent dans `@tiktrends/core`
+ * (`pagination-meta.ts`).
+ *
+ * Chaque page est CONVERTIE dès réception (`convertir`) et ses lignes brutes
+ * relâchées · garder les brutes jusqu'à la fin coûtait 3 869 octets de tas par
+ * ligne contre 550 convertie (mesuré, tableau dans `pagination-meta.ts`).
+ *
+ * L'URL `next` n'est jamais suivie : elle porte le jeton en clair et finirait
+ * dans les journaux au moindre message d'erreur · on n'en reprend que le
+ * paramètre de suite, avec notre jeton.
+ */
+async function graphAll<TBrut, T>(
+  path: string, token: string, params: Record<string, string>,
+  convertir: (r: TBrut) => T | null, borne = BORNE_PAGES_META,
+): Promise<T[]> {
+  const out: T[] = [];
+  const arete = path.split('/').pop() ?? '';   // l'arête seulement (`insights`, `adsets`) · le chemin porte l'identifiant du compte
+  const echeance = horlogeMeta.maintenant() + DUREE_MAX_LECTURE_META_MS;
+  let suite: Record<string, string> = {};
+  for (let pagesLues = 1; ; pagesLues++) {
+    const qs = new URLSearchParams({ ...params, ...suite, access_token: token, limit: String(TAILLE_PAGE_META) });
+    let json: ReponseGraph<TBrut>;
+    try {
+      json = await pageGraph<TBrut>(`${GRAPH}/${path}?${qs.toString()}`, arete, echeance, pagesLues - 1);
+    } catch (e) {
+      if ((e as Error).message.startsWith('meta_lecture_incomplete')) {
+        console.error('[meta] lecture incomplète', JSON.stringify({ arete, raison: 'duree', pages: pagesLues - 1, lignes: out.length }));
+      }
+      throw e;
+    }
+    for (const brute of json.data ?? []) {
+      const r = convertir(brute);
+      if (r !== null) out.push(r);
+    }
+    const s = suitePagination({ pagesLues, borne, next: json.paging?.next, after: json.paging?.cursors?.after });
+    if (s.suite === 'fin') return out;
+    if (s.suite === 'incomplete') {
+      console.error('[meta] lecture incomplète', JSON.stringify({ arete, raison: s.raison, pages: pagesLues, lignes: out.length }));
+      throw new Error(erreurLectureIncomplete(s.raison, pagesLues));
+    }
+    suite = s.params;
+  }
 }
 
 interface DailyRaw {
@@ -174,13 +256,12 @@ export async function metaDailySync(
   adAccountId: string, token: string,
   opts: { since: Date; until: Date },
 ): Promise<MetaDailyRow[]> {
-  const rows = await graphAll<DailyRaw>(`${normAct(adAccountId)}/insights`, token, {
+  return graphAll<DailyRaw, MetaDailyRow>(`${normAct(adAccountId)}/insights`, token, {
     level: 'ad',
     fields: DAILY_FIELDS,
     time_increment: '1',
     time_range: JSON.stringify({ since: ymd(opts.since), until: ymd(opts.until) }),
-  });
-  return rows.map(toDailyRow).filter((r): r is MetaDailyRow => r !== null);
+  }, toDailyRow);
 }
 
 interface AdsetRaw {
@@ -207,8 +288,7 @@ export function toAdsetInfo(r: AdsetRaw): MetaAdsetInfo | null {
 
 /** Ad sets du compte, avec leur budget · nécessaire au contrôle de protocole. */
 export async function metaAdsetsSync(adAccountId: string, token: string): Promise<MetaAdsetInfo[]> {
-  const rows = await graphAll<AdsetRaw>(`${normAct(adAccountId)}/adsets`, token, {
+  return graphAll<AdsetRaw, MetaAdsetInfo>(`${normAct(adAccountId)}/adsets`, token, {
     fields: 'id,name,campaign_id,status,daily_budget,lifetime_budget,campaign{daily_budget,lifetime_budget}',
-  });
-  return rows.map(toAdsetInfo).filter((r): r is MetaAdsetInfo => r !== null);
+  }, toAdsetInfo);
 }

@@ -1,7 +1,7 @@
 import 'server-only';
 import { db, schema, eq, and, inArray, sql } from '@tiktrends/db';
 import { decryptSecret, metaDailySync, metaAdsetsSync, type MetaDailyRow, type MetaAdsetInfo } from '@tiktrends/integrations';
-import { matchByName, matchByBatchVariant, porteuseSynchro, type EntreeMesure, type ProtocoleAd } from '@tiktrends/core';
+import { matchByName, matchByBatchVariant, porteuseSynchro, FENETRE_SYNCHRO_JOURS, type EntreeMesure, type ProtocoleAd } from '@tiktrends/core';
 import { refreshDecisions } from './decisions';
 import { daterJalons } from './jarvis-memory';
 import { jointureCreaDeLaMarque } from './adsmap-medias';
@@ -37,10 +37,15 @@ import { adsDeLaMarque, invaliderRetenues, journaliserRemontee, recalculerVerdic
  *    rendu les compte (`adsCreaEtrangere`).
  *
  * Best-effort par marque : une marque en échec n'arrête pas les suivantes.
+ *
+ * Une lecture Meta INCOMPLÈTE (pagination non suivie jusqu'au bout,
+ * `pagination-meta.ts`) fait échouer la marque AVANT toute écriture · un jeu
+ * partiel n'est jamais écrit, la mesure n'est pas datée, la raison est
+ * journalisée.
  */
 
-/** Au-delà, on ne redemande pas l'historique : les lots anciens sont clos. */
-const MAX_LOOKBACK_DAYS = 120;
+/** Au-delà, on ne redemande pas l'historique : les lots anciens sont clos · la borne de pagination Meta en dépend. */
+const MAX_LOOKBACK_DAYS = FENETRE_SYNCHRO_JOURS;
 
 export interface AdsMapSyncReport {
   brands: number;
@@ -231,7 +236,11 @@ async function syncBrand(
 
   const [daily, adsets] = await Promise.all([
     metaDailySync(brand.account, brand.token, { since, until: aujourdhui }),
-    metaAdsetsSync(brand.account, brand.token).catch(() => [] as MetaAdsetInfo[]),
+    // Ensembles illisibles (lecture incomplète comprise) · la mesure continue sans budget, comme avant, mais le DIT au journal.
+    metaAdsetsSync(brand.account, brand.token).catch((e) => {
+      console.warn('[adsmap] ensembles non lus', brand.id, (e as Error).message);
+      return [] as MetaAdsetInfo[];
+    }),
   ]);
   if (!daily.length) return;
 
