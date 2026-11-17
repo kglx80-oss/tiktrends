@@ -142,8 +142,15 @@ export async function toucherConversation(p: PorteeConversation, id: string): Pr
     .where(and(eq(C.id, id), eq(C.workspaceId, p.workspaceId), eq(C.brandId, p.brandId), eq(C.userId, p.userId)));
 }
 
+/** Borne de lecture d'une conversation · l'écran et le contexte du modèle lisent au plus ce nombre de messages. */
+const MESSAGES_LUS = 120;
+
 /**
- * Les messages d'une conversation de la portée, du plus ancien au plus récent.
+ * Les `MESSAGES_LUS` DERNIERS messages d'une conversation de la portée, rendus du
+ * plus ancien au plus récent. On trie en descendant pour borner (sinon une
+ * conversation longue ne rendrait que ses premiers messages, et les derniers
+ * échanges disparaîtraient de l'écran comme du contexte), puis on remet dans
+ * l'ordre chronologique.
  * `conversationId === null` · le fil principal (messages sans `conversation_id`).
  */
 export async function messagesDeConversation(p: PorteeConversation, conversationId: string | null): Promise<MessageLu[]> {
@@ -153,8 +160,8 @@ export async function messagesDeConversation(p: PorteeConversation, conversation
       eq(M.workspaceId, p.workspaceId), eq(M.brandId, p.brandId), eq(M.userId, p.userId),
       conversationId === null ? isNull(M.conversationId) : eq(M.conversationId, conversationId),
     ))
-    .orderBy(asc(M.createdAt)).limit(120);
-  return rows.map((r) => ({ id: r.id, role: r.role, content: r.content, createdAt: r.createdAt as Date }));
+    .orderBy(desc(M.createdAt)).limit(MESSAGES_LUS);
+  return rows.reverse().map((r) => ({ id: r.id, role: r.role, content: r.content, createdAt: r.createdAt as Date }));
 }
 
 /** Efface les messages d'une conversation de la portée (le fil, pas la ligne de titre). */

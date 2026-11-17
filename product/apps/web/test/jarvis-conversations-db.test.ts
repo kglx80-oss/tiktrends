@@ -16,6 +16,11 @@ import { describe, it, expect, beforeAll, vi } from 'vitest';
  * `messagesDeConversation` fait passer la lecture inter-personnes au vert · le
  * cas « u2 ne lit pas le fil de u1 » tombe alors en rouge, la garde regarde donc
  * la bonne chose.
+ *
+ * Mutation (faite sur copie, restaurée) : remettre `asc` + borne dans
+ * `messagesDeConversation` fait tomber « 130 messages » sur « le dernier message
+ * de la conversation doit être rendu » ; garder `desc` sans l'inversion le fait
+ * tomber sur « les 120 derniers, du plus ancien au plus récent ».
  */
 
 vi.mock('@tiktrends/db', async (importOriginal) => {
@@ -76,6 +81,29 @@ describe('créer, ouvrir, restituer', () => {
 
     const nommee = await messagesDeConversation(p1, conv);
     expect(nommee.map((m) => m.content)).toEqual(['Message de la conversation nommée']);
+  });
+});
+
+describe('conversation longue · la borne garde les DERNIERS messages', () => {
+  // Défaut réparé · la lecture triait en ascendant PUIS bornait à 120 · au-delà
+  // de 120 messages, l'écran montrait les 120 plus anciens et le contexte du
+  // modèle (`.slice(-40)` de la route) figeait les messages 81 à 120 · les
+  // derniers échanges disparaissaient de l'écran ET de ce que Jarvis relit.
+  it('130 messages · le dernier est rendu, le premier non, en ordre chronologique', async () => {
+    const conv = await creerConversation(p1);
+    const t0 = Date.parse('2026-02-01T10:00:00Z');
+    for (let i = 1; i <= 130; i++) {
+      await message(conv, U1, B1, i % 2 ? 'user' : 'assistant', `Message ${i}`, new Date(t0 + i * 1000));
+    }
+    const contenus = (await messagesDeConversation(p1, conv)).map((m) => m.content);
+
+    // Même borne qu'avant · le coût du contexte ne change pas, seuls les bons messages.
+    expect(contenus).toHaveLength(120);
+    expect(contenus, 'le dernier message de la conversation doit être rendu').toContain('Message 130');
+    expect(contenus, 'le premier message (hors des 120 derniers) ne doit pas être rendu').not.toContain('Message 1');
+    expect(contenus, 'les 120 derniers, du plus ancien au plus récent').toEqual(
+      Array.from({ length: 120 }, (_, k) => `Message ${k + 11}`),
+    );
   });
 });
 
