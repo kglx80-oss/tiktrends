@@ -385,6 +385,8 @@ const ACTIONS: Readonly<Record<string, Readonly<Record<string, Appel | readonly 
     ouvrirIncidentAction: A(() => [{ titre: 'Incident', gravite: 'mineure', cause: '', constat: 'Constat' }]),
     annoterIncidentAction: A(() => [{ id: randomUUID(), texte: 'Note' }]),
     cloreIncidentAction: A(() => [{ id: randomUUID(), resolution: 'Résolu' }]),
+    // Aucun job studio · « Tâche introuvable », rien d'écrit.
+    cloreRapprochementAction: A(() => [{ jobId: randomUUID(), raison: 'fal confirme : aucune requête reçue' }]),
   },
   'app/actions/stripe.ts': { createCheckoutAction: A(() => [fd({ plan: 'business' })]), createPortalAction: A(), createTopupCheckoutAction: A(() => [fd({ pack: 'x' })]) },
   // Lot 10 · journal (lecture seule) et commentaires · texte seul, aucune adresse · une création inconnue est refusée (introuvable), rien d'écrit.

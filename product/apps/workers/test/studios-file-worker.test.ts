@@ -67,14 +67,14 @@ function fournisseurFautif() {
       return sim.statut(id);
     },
     telecharger: (id, ref) => sim.telecharger(id, ref),
-    annuler: sim.annuler ? (id) => sim.annuler!(id) : undefined,
+    annuler: async (id) => { if (fautives.has(id)) throw new TypeError('annulation · réponse illisible'); return sim.annuler?.(id); },
   };
-  return { f, fautives, appels };
+  return { f, fautives, appels, sim };
 }
 
 const horloge = { ms: Date.parse('2026-11-16T10:00:00Z') };
 const job = async (id: string) => (await base.select().from(schema.studioJobs).where(eq(schema.studioJobs.id, id)))[0]!;
-const solde = async () => (await base.select({ s: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, ws)))[0]!.s;
+const rendus = async (id: string) => (await base.select().from(schema.creditLedger).where(eq(schema.creditLedger.refId, refsDuJob(id).release))).map((r) => r.delta);
 const tentatives = async (id: string) => (await base.select().from(schema.studioJobAttempts).where(eq(schema.studioJobAttempts.jobId, id))).length;
 const registre = async (id: string) => (await base.select().from(schema.studioBudgetLedger).where(eq(schema.studioBudgetLedger.jobId, id))).map((r) => [r.kind, r.credits, Number(r.usdMicros)]).sort();
 
@@ -141,15 +141,15 @@ describe('relecture de #1104 · aucun job fautif sans issue, quel que soit son �
   it('CRITIQUE 1 · `claimed` dont l’instantané est illisible (bail 60 s) · failed echec_sans_frais, au plus N tentatives, réserve rendue', { timeout: 180_000 }, async () => {
     const { f } = fournisseurFautif();
     const m = moteurFautif(f);
-    const avant = await solde();
     const id = await semerJob({ snapshotIllisible: true });
     for (let i = 0; i < 400 && !['failed', 'completed', 'cancelled'].includes((await job(id)).state); i++) { await m.tour(); horloge.ms += 10_000; }
     const j = await job(id);
     expect(j.state, `le job fautif ne finit jamais · état ${j.state}, ${JSON.stringify(j.error)}`).toBe('failed');
     expect((j.error as { issue?: string }).issue).toBe('echec_sans_frais');
-    expect(await tentatives(id), 'le job est repris en boucle (remise en file)').toBeLessThanOrEqual(ECHECS_ETAPE_MAX);
+    expect(await tentatives(id), 'le job est remis en file entre deux essais (le recul dépasse le bail)').toBe(1);
     expect(await registre(id)).toEqual([['release', 4, 80_000], ['reserve', 4, 80_000], ['settle', 0, 0]]);
-    expect(await solde()).toBe(avant);
+    // Le rendu de CE job (les jobs laissés par les cas précédents se concluent aussi pendant ces tours, à leur échéance).
+    expect(await rendus(id), 'les crédits du job ne sont pas rendus à l’espace').toEqual([4]);
   });
 
   it('IMPORTANT 2 · `running` envoi accepté, suivi qui lève · à la borne, rapprochement (jamais un échec direct), compteur remis à zéro · puis issue bornée', { timeout: 180_000 }, async () => {
@@ -171,5 +171,80 @@ describe('relecture de #1104 · aucun job fautif sans issue, quel que soit son �
     expect(await registre(id)).toEqual([['release', 4, 0], ['reserve', 4, 80_000], ['settle', 0, 80_000]]);
     const audit = await base.select().from(schema.studioAuditEvents).where(eq(schema.studioAuditEvents.targetId, id));
     expect(audit.filter((a) => a.action === 'job.failed').map((a) => a.effectiveRole)).toEqual(['systeme:reconciliateur']);
+  });
+});
+
+describe('relecture de #1104 · combiné avec les échéances de #1100 · une étape qui lève en boucle, dans CHAQUE état, finit', () => {
+  const decodeurQuiLeve = { decoderImage: async () => { throw new RangeError('décodeur · état interne incohérent'); } } as unknown as DecodeurSharp;
+  const cas: Array<{ etat: string; preparer: (id: string, o: ReturnType<typeof fournisseurFautif>) => Promise<void>; decodeur?: DecodeurSharp; issue: string; passages: string[] }> = [
+    { etat: 'running', issue: 'facture_sans_livrable', passages: ['running', 'reconciliation_required', 'failed'], preparer: async (id, o) => { o.fautives.add((await job(id)).providerRequestId!); } },
+    { etat: 'cancel_requested', issue: 'facture_sans_livrable', passages: ['cancel_requested', 'reconciliation_required', 'failed'], preparer: async (id, o) => {
+      const j = await job(id);
+      o.fautives.add(j.providerRequestId!);
+      await base.update(schema.studioJobs).set({ state: 'cancel_requested', rowVersion: j.rowVersion + 1, updatedAt: new Date(horloge.ms) }).where(eq(schema.studioJobs.id, id));
+    } },
+    { etat: 'reconciliation_required', issue: 'facture_sans_livrable', passages: ['reconciliation_required', 'failed'], preparer: async (id, o) => {
+      const j = await job(id);
+      o.fautives.add(j.providerRequestId!);
+      await base.update(schema.studioJobs).set({ state: 'reconciliation_required', rowVersion: j.rowVersion + 1, updatedAt: new Date(horloge.ms) }).where(eq(schema.studioJobs.id, id));
+    } },
+    { etat: 'persisting', issue: 'facture_sans_livrable', passages: ['persisting', 'failed'], decodeur: decodeurQuiLeve, preparer: async (id, o) => { o.sim.terminer((await job(id)).providerRequestId!); } },
+  ];
+  for (const c of cas) {
+    it(`${c.etat} · issue finale bornée (≤ 100 min d’horloge), crédits rendus, un seul règlement`, { timeout: 240_000 }, async () => {
+      const o = fournisseurFautif();
+      const m = new MoteurStudio({ base, fournisseur: o.f, stockage: new StockageSimule({ drapeau: DRAPEAU_SIMULE, env: { NODE_ENV: 'test' } }), decodeur: c.decodeur ?? new DecodeurSharp(), bailMs: 60_000, horloge: () => new Date(horloge.ms), alerte: () => {} });
+      const id = await semerJob();
+      for (let i = 0; i < 5 && (await job(id)).state !== 'running'; i++) { await m.tour(); horloge.ms += 2_000; }
+      expect((await job(id)).state).toBe('running');
+      await c.preparer(id, o);
+      const etats: string[] = [];
+      for (let i = 0; i < 600 && !['failed', 'completed', 'cancelled'].includes((await job(id)).state); i++) {
+        await m.tour(); horloge.ms += 10_000;
+        const e = (await job(id)).state;
+        if (etats[etats.length - 1] !== e) etats.push(e);
+      }
+      const j = await job(id);
+      expect(j.state, `${c.etat} fautif sans issue · ${etats.join(' → ')} · ${JSON.stringify(j.error)}`).toBe('failed');
+      expect(etats, 'les états traversés').toEqual(c.passages);
+      expect((j.error as { issue?: string }).issue).toBe(c.issue);
+      expect(await rendus(id)).toEqual([4]);
+      expect(violationsRegistreJob((await base.select().from(schema.studioBudgetLedger).where(eq(schema.studioBudgetLedger.jobId, id))).map((x) => ({ kind: x.kind, credits: x.credits, usdMicros: Number(x.usdMicros) })), j.state)).toEqual([]);
+    });
+  }
+});
+
+describe('relecture de #1104 · corollaire · conclure sans instantané', () => {
+  it('rapprochement à l’instantané illisible, clôture demandée par l’administration (#1100) · failed, crédits rendus, sans relire l’instantané', async () => {
+    const { f } = fournisseurFautif();
+    const m = new MoteurStudio({ base, fournisseur: f, stockage: new StockageSimule({ drapeau: DRAPEAU_SIMULE, env: { NODE_ENV: 'test' } }), decodeur: new DecodeurSharp(), bailMs: 60_000, horloge: () => new Date(horloge.ms), alerte: () => {} });
+    const id = await semerJob({ snapshotIllisible: true });
+    const j0 = await job(id);
+    await base.update(schema.studioJobs).set({
+      state: 'reconciliation_required', rowVersion: j0.rowVersion + 1, updatedAt: new Date(horloge.ms),
+      error: { clotureDemandee: { par: user, raison: 'fal confirme : aucune requête reçue', a: new Date(horloge.ms).toISOString() } },
+    }).where(eq(schema.studioJobs.id, id));
+    await m.tour();
+    const j = await job(id);
+    expect(j.state, `clôture impossible sans instantané · ${JSON.stringify(j.error)}`).toBe('failed');
+    expect((j.error as { issue?: string }).issue).toBe('facture_sans_livrable');
+    expect(await rendus(id)).toEqual([4]);
+  });
+});
+
+describe('relecture de #1104 · une remise en file ne remet pas le compteur à zéro', () => {
+  it('bail d’un autre worker expiré, job `claimed` avec 3 échecs comptés · remis en file, compteur GARDÉ', async () => {
+    const { f } = fournisseurFautif();
+    const m = new MoteurStudio({ base, fournisseur: f, stockage: new StockageSimule({ drapeau: DRAPEAU_SIMULE, env: { NODE_ENV: 'test' } }), decodeur: new DecodeurSharp(), bailMs: 60_000, horloge: () => new Date(horloge.ms), alerte: () => {} });
+    const id = await semerJob({ snapshotIllisible: true });
+    const j0 = await job(id);
+    await base.update(schema.studioJobs).set({
+      state: 'claimed', rowVersion: j0.rowVersion + 1, leaseOwner: 'wk-mort', leaseExpiresAt: new Date(horloge.ms - 1_000), heartbeatAt: new Date(horloge.ms - 1_000),
+      error: { echecsEtape: 3, prochainEssaiEtape: new Date(horloge.ms - 1_000).toISOString(), derniereErreurEtape: 'instantané illisible' },
+    }).where(eq(schema.studioJobs.id, id));
+    await m.tour({ maxNouveaux: 0 });
+    const j = await job(id);
+    expect(j.state).toBe('queued');
+    expect((j.error as { echecsEtape?: number } | null)?.echecsEtape, 'la remise en file a remis le compteur à zéro').toBe(3);
   });
 });

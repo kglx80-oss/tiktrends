@@ -59,7 +59,7 @@ import { avecSpatial } from './spatial/fournisseur';
 import { semer, session, type IdsStudios } from './studios-semis';
 import { ctxDe } from './l3-harnais';
 import { projetAvecBrief, lancerLot, executer, KEYFRAMES } from './l4c-harnais';
-import { exporterTourAction, ouvrirIncidentAction } from '../app/actions/tour-controle';
+import { cloreRapprochementAction, exporterTourAction, ouvrirIncidentAction } from '../app/actions/tour-controle';
 
 vi.setConfig({ testTimeout: 120_000, hookTimeout: 120_000 });
 
@@ -186,12 +186,16 @@ describe('Tâches de génération · segments calculés à l’horloge injectée
     expect((await page('taches', { q: 'introuvable' })).textContent).toContain('Aucune tâche ne correspond à ce filtre.');
   });
 
-  it('lecture seule · seuls gestes, des LIENS · « Déclarer un incident » sur l’échec, « Rapprocher le coût » sur l’interrompue', async () => {
+  it('gestes · des LIENS (« Déclarer un incident » sur l’échec, « Rapprocher le coût » sur l’interrompue) et UN seul bouton, « Clore le rapprochement », sur l’interrompue, fermé tant qu’aucune raison n’est écrite', async () => {
     h.session = fondateur();
     const d = await page('taches');
     expect([...d.querySelectorAll('[data-declarer]')].map((a) => [a.getAttribute('data-declarer'), a.getAttribute('href')])).toEqual([[ids.echec, `/admin/incidents?tache=${ids.echec}#declarer`]]);
     expect([...d.querySelectorAll('[data-rapprocher]')].map((a) => [a.getAttribute('data-rapprocher'), a.getAttribute('href')])).toEqual([[ids.rapprocher, '/admin/depenses#a-reconcilier']]);
-    expect(d.querySelectorAll('[data-section="taches"] form, [data-table="taches"] button'), 'un bouton ou un formulaire dans la table').toHaveLength(0);
+    expect(d.querySelectorAll('[data-section="taches"] form'), 'un formulaire dans la table').toHaveLength(0);
+    const boutons = [...d.querySelectorAll('[data-table="taches"] button')];
+    expect(boutons.map((b) => [b.closest('[data-tache]')?.getAttribute('data-tache'), b.getAttribute('data-geste')]), 'seule l’interrompue porte un bouton').toEqual([[ids.rapprocher, 'clore-rapprochement']]);
+    expect(boutons[0]!.getAttribute('aria-disabled'), 'le bouton s’ouvre sans raison écrite').toBe('true');
+    expect(d.querySelector(`[data-cloture="${ids.rapprocher}"] [data-raison-cloture]`)?.textContent, 'la raison du contrôle fermé n’est pas dite à côté').toContain('Écris pourquoi aucun livrable ne viendra');
   });
 
   it('export = la table affichée, cellule par cellule · « =1+1 » neutralisé, aucun secret, le filtre suivi', async () => {
@@ -319,5 +323,38 @@ describe('Refus · seul le fondateur, admin de son espace, lit les tâches et le
     for (const ecran of ['taches', 'audit'] as const) {
       for (const segment of [undefined, 'echec', 'sensibles']) expect(await exporter({ ecran, segment }), `export ${ecran} accepté hors porte`).toEqual({ ok: false, message: REFUS });
     }
+    const avantJob = (await db!.select().from(schema.studioJobs).where(eq(schema.studioJobs.id, ids.rapprocher)))[0]!;
+    expect(await cloreRapprochementAction({ jobId: ids.rapprocher, raison: 'fal confirme : aucune requête reçue' }), 'clôture acceptée hors porte').toEqual({ ok: false, message: REFUS });
+    const apres = (await db!.select().from(schema.studioJobs).where(eq(schema.studioJobs.id, ids.rapprocher)))[0]!;
+    expect([apres.state, apres.error, apres.rowVersion], 'la clôture refusée a écrit sur la tâche').toEqual([avantJob.state, avantJob.error, avantJob.rowVersion]);
+    expect(await db!.select().from(schema.studioAuditEvents).where(eq(schema.studioAuditEvents.action, 'studios.rapprochement.clore')), 'audit écrit par un refus').toHaveLength(0);
+  });
+});
+
+describe('« Clore le rapprochement » · la demande et son audit, le worker règle', () => {
+  it('raison trop courte · refusée, rien écrit · puis la demande posée, auditée (sensible), le bouton fermé avec sa raison · un second clic ne pose rien', async () => {
+    h.session = fondateur();
+    expect(await cloreRapprochementAction({ jobId: ids.rapprocher, raison: 'court' })).toMatchObject({ ok: false });
+    expect(await cloreRapprochementAction({ jobId: 'pas-un-uuid', raison: 'fal confirme : aucune requête reçue' })).toEqual({ ok: false, message: 'Tâche introuvable · rien n’a été clos.' });
+    expect(await cloreRapprochementAction({ jobId: ids.echec, raison: 'fal confirme : aucune requête reçue' })).toEqual({ ok: false, message: 'Cette tâche n’est plus en rapprochement · rien n’a été clos.' });
+    expect(await db!.select().from(schema.studioAuditEvents).where(eq(schema.studioAuditEvents.action, 'studios.rapprochement.clore'))).toHaveLength(0);
+
+    const r = await cloreRapprochementAction({ jobId: ids.rapprocher, raison: '  fal confirme :   aucune requête reçue ' });
+    expect(r).toMatchObject({ ok: true, id: ids.rapprocher });
+    const j = (await db!.select().from(schema.studioJobs).where(eq(schema.studioJobs.id, ids.rapprocher)))[0]!;
+    expect(j.state, 'le site ne règle rien lui-même').toBe('reconciliation_required');
+    expect((j.error as { clotureDemandee?: { par: string; raison: string } }).clotureDemandee).toMatchObject({ par: ids.uF, raison: 'fal confirme : aucune requête reçue' });
+    expect((await db!.select().from(schema.studioBudgetLedger).where(eq(schema.studioBudgetLedger.jobId, ids.rapprocher))).map((m) => m.kind), 'le registre a bougé côté site').toEqual(['reserve']);
+    const audit = await db!.select().from(schema.studioAuditEvents).where(eq(schema.studioAuditEvents.action, 'studios.rapprochement.clore'));
+    expect(audit.map((a) => [a.actorId, a.targetId, a.reason])).toEqual([[ids.uF, ids.rapprocher, 'fal confirme : aucune requête reçue']]);
+    expect(ACTIONS_SENSIBLES).toContain('studios.rapprochement.clore');
+
+    expect(await cloreRapprochementAction({ jobId: ids.rapprocher, raison: 'une seconde raison écrite' })).toEqual({ ok: false, message: 'Clôture déjà demandée · le worker la règle à son prochain tour.' });
+    expect(await db!.select().from(schema.studioAuditEvents).where(eq(schema.studioAuditEvents.action, 'studios.rapprochement.clore'))).toHaveLength(1);
+
+    const d = await page('taches', { segment: 'rapprochement' });
+    const b = d.querySelector(`[data-cloture="${ids.rapprocher}"] button`)!;
+    expect(b.getAttribute('aria-disabled'), 'clôture déjà demandée, bouton ouvert').toBe('true');
+    expect(d.querySelector(`[data-cloture="${ids.rapprocher}"] [data-raison-cloture]`)?.textContent).toContain('Clôture demandée');
   });
 });

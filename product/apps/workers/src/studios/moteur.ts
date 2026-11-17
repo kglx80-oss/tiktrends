@@ -11,6 +11,8 @@ import {
   type SnapshotJob, type IssueFinanciere, type SortieFournisseur,
   capacitesCoupees, capacitesDesLignes,
   lireEchecsEtape, suiteEchecEtape, ECHECS_ETAPE_MAX,
+  ETATS_A_ECHEANCE, CLE_ENTREE_ETAT, CODE_ECHEC_PERSISTANCE, marqueEntreeEtat, entreeDansEtat, profilEcheance, decisionEcheance, suitePersistance,
+  lireClotureDemandee, motifClotureDemandee,
 } from '@tiktrends/core';
 import { reglerJob } from './registre';
 import { retoucherSortie, type TraceRetouche } from './retouche';
@@ -52,7 +54,28 @@ import type { BaseStudio, ExecStudio, JobStudio, TentativeStudio, TxStudio, Entr
  *    visuel, `requires_review`, jamais `passed` (G-B) ;
  *  · une retouche masquée n'est JAMAIS livrée brute : la sortie décodée est
  *    recomposée sur la source sous le masque, contrôlée (0 pixel hors zone +
- *    fondu), encodée, relue et recontrôlée avant le dépôt (G-B, IMG-06).
+ *    fondu), encodée, relue et recontrôlée avant le dépôt (G-B, IMG-06) ;
+ *  · AUCUN job sans issue (C1, I2) · `running`, `cancel_requested`,
+ *    `persisting` et `reconciliation_required` ont une échéance comptée depuis
+ *    l'entrée dans l'état (`execution/echeances.ts`, tableau mesuré) · au-delà,
+ *    `reconciliation_required` (jamais une resoumission), puis `failed` en
+ *    `facture_sans_livrable` (crédits rendus, coût fournisseur retenu) · la
+ *    persistance retente avec un recul exponentiel borné, jamais à chaque tour ;
+ *  · une étape qui LÈVE (I1, `etapeGardee`) ne bloque pas le tour · comptée
+ *    dans `error.echecsEtape`, job repoussé (`heartbeatAt` = prochain essai,
+ *    20 s → 10 min) avec un bail prolongé au-delà, remise à zéro seulement
+ *    par une étape jouée · au 8ᵉ échec, rapprochement si un envoi a pu partir,
+ *    sinon `failed` · la conclusion n'exige pas l'instantané ;
+ *  · DEUX reculs en `persisting`, distincts · l'échec NORMAL de persistance
+ *    (stockage, décodage · `noterEchecPersistance`, `error.prochainEssai`,
+ *    borné par l'échéance de 48 min) et l'exception d'étape ci-dessus
+ *    (`error.echecsEtape`, `heartbeatAt`). `noterEchecPersistance` REMPLACE
+ *    `error` en entier · un échec de persistance efface donc le compteur
+ *    d'exceptions (c'est voulu : l'étape a joué jusqu'au bout) ; l'échéance
+ *    de 48 min, elle, ne s'efface pas (`error.depuis`, marque d'entrée) ;
+ *  · arrêt demandé (`demanderArret`, SIGTERM) · aucune étape nouvelle, l'étape
+ *    en cours finit, et une soumission partie est TOUJOURS suivie de
+ *    l'écriture de sa requête avant que la boucle rende la main.
  */
 
 /** `col < d` · horloge injectée (jamais `now()` SQL) pour que les tests pilotent le temps. */
@@ -143,6 +166,7 @@ export class MoteurStudio {
   private readonly sortieJournal: (e: EntreeJournal) => void;
   private readonly interrupteurs: InterrupteursMoteur | null;
   private readonly alerte: (m: string) => void;
+  private arret = false;
 
   constructor(o: OptionsMoteur) {
     this.base = o.base;
@@ -160,6 +184,15 @@ export class MoteurStudio {
   }
 
   private maintenant(): Date { return this.horloge(); }
+
+  /**
+   * Arrêt demandé (SIGTERM) · le tour en cours ne commence plus d'étape, ne
+   * réclame plus de job et la finalisation s'arrête entre deux fichiers (elle
+   * reprend plus tard, sans régénérer). Une étape déjà commencée va au bout :
+   * une soumission partie est suivie de l'écriture de sa requête.
+   */
+  demanderArret(): void { this.arret = true; }
+  get arretDemande(): boolean { return this.arret; }
   private finBail(): Date { return new Date(this.maintenant().getTime() + this.bailMs); }
 
   /** Transaction + journal publié seulement après validation. */
@@ -183,8 +216,13 @@ export class MoteurStudio {
     const v = transitionJob(job.state as EtatJob, vers, acteur);
     if (!v.ok) throw new Error(v.raison);
     const now = this.maintenant();
+    // L'entrée dans l'état, pour son échéance · même écriture, même horloge que la décision.
+    const marque = ETATS_A_ECHEANCE.includes(vers) ? marqueEntreeEtat(vers, now) : null;
+    const result = !marque ? set.result
+      : set.result !== undefined ? { ...((set.result ?? {}) as Record<string, unknown>), [CLE_ENTREE_ETAT]: marque }
+        : sql`jsonb_set(coalesce(${J.result}, '{}'::jsonb), ${`{${CLE_ENTREE_ETAT}}`}::text[], ${JSON.stringify(marque)}::jsonb)`;
     const [j] = await tx.update(J)
-      .set({ ...set, state: vers, rowVersion: job.rowVersion + 1, updatedAt: now, ...(jobTerminal(vers) ? { finishedAt: now, leaseOwner: null, leaseExpiresAt: null } : {}) })
+      .set({ ...set, ...(result !== undefined ? { result } : {}), state: vers, rowVersion: job.rowVersion + 1, updatedAt: now, ...(jobTerminal(vers) ? { finishedAt: now, leaseOwner: null, leaseExpiresAt: null } : {}) })
       .where(and(eq(J.id, job.id), eq(J.state, job.state), eq(J.rowVersion, job.rowVersion)))
       .returning();
     if (!j) throw new PerteDeCourse(`job ${job.id} a changé`);
@@ -307,14 +345,20 @@ export class MoteurStudio {
     const libre = or(isNull(J.leaseOwner), eq(J.leaseOwner, this.workerId), avant(J.leaseExpiresAt, now));
     // Un job reculé après une étape en échec porte son prochain essai dans `heartbeatAt` · pas avant.
     const du = sql`(${J.heartbeatAt} is null or ${J.heartbeatAt} <= ${now.toISOString()})`;
+    // Une persistance en recul attend son prochain essai (`error.prochainEssai`, écrit en ISO par le worker).
+    const horsRecul = sql`not (${J.state} = 'persisting' and coalesce(${J.error}->>'prochainEssai', '') > ${now.toISOString()})`;
     const actifs = await this.base.select().from(J)
-      .where(and(inArray(J.state, ETATS_A_SUIVRE), libre, du))
+      .where(and(inArray(J.state, ETATS_A_SUIVRE), libre, du, horsRecul))
       .orderBy(sql`${J.heartbeatAt} asc nulls first`, J.updatedAt).limit(SUIVIS_PAR_TOUR);
     const aReconcilier = await this.base.select().from(J)
       .where(and(eq(J.state, 'reconciliation_required'), libre, du))
       .orderBy(sql`${J.heartbeatAt} asc nulls first`, J.updatedAt).limit(RECONCILIATIONS_PAR_TOUR);
-    for (const j of [...actifs, ...aReconcilier]) if (await this.etapeGardee(j)) etapes += 1;
+    for (const j of [...actifs, ...aReconcilier]) {
+      if (this.arret) return etapes;
+      if (await this.etapeGardee(j)) etapes += 1;
+    }
     for (let i = 0; i < (o.maxNouveaux ?? 5); i++) {
+      if (this.arret) break;
       let j: JobStudio | null;
       try {
         j = await this.reclamer();
@@ -430,10 +474,11 @@ export class MoteurStudio {
         case 'running':
           if (job.providerRequestId) await this.suivre(job);
           else await this.chercherOuReconcilier(job, 'bail repris sans identifiant de requête');
+          await this.appliquerEcheance(job.id);
           break;
         case 'persisting': await this.finaliser(job); break;
-        case 'cancel_requested': await this.traiterAnnulation(job); break;
-        case 'reconciliation_required': await this.reconcilier(job); break;
+        case 'cancel_requested': await this.traiterAnnulation(job); await this.appliquerEcheance(job.id); break;
+        case 'reconciliation_required': await this.reconcilier(job); await this.appliquerEcheance(job.id); break;
         default: return 'rien';
       }
       return 'joue';
@@ -448,6 +493,32 @@ export class MoteurStudio {
     await this.tx(async (tx, journal) => {
       await this.transition(tx, journal, job, 'queued', 'worker', `bail de ${job.leaseOwner} expiré avant soumission`, { leaseOwner: null, leaseExpiresAt: null, heartbeatAt: null });
       if (t && t.state === 'started') await tx.update(A).set({ state: 'abandoned', finishedAt: this.maintenant(), error: { motif: 'bail expiré avant soumission' } }).where(eq(A.id, t.id));
+    });
+  }
+
+  /**
+   * L'échéance de l'état, APRÈS l'étape · le fournisseur a eu sa dernière
+   * lecture. Relit le job (l'état qui compte est celui de la base) · `running`
+   * ou `cancel_requested` échus passent en rapprochement ; un rapprochement
+   * échu, ou dont l'administration a demandé la clôture, finit en `failed`
+   * (`facture_sans_livrable` · crédits rendus, coût fournisseur retenu).
+   */
+  private async appliquerEcheance(jobId: string): Promise<void> {
+    const j = await this.relire(this.base, jobId);
+    if (!j) return;
+    const etat = j.state as EtatJob;
+    if (etat !== 'running' && etat !== 'cancel_requested' && etat !== 'reconciliation_required') return;
+    if (etat === 'reconciliation_required') {
+      const c = lireClotureDemandee(j.error);
+      if (c) { await this.terminer(j, 'failed', 'reconciliateur', 'facture_sans_livrable', motifClotureDemandee(c.raison), null); return; }
+    }
+    const d = decisionEcheance({ etat, profil: profilEcheance(lireSnapshotJob(j.snapshot)?.lignes), entreeLe: entreeDansEtat(j), maintenant: this.maintenant() });
+    if (!d.echu) return;
+    if (d.vers === 'failed') { await this.terminer(j, 'failed', d.acteur, d.issue ?? 'facture_sans_livrable', d.motif, null); return; }
+    await this.tx(async (tx, journal) => {
+      await this.transition(tx, journal, j, 'reconciliation_required', d.acteur, d.motif);
+      const t = await this.tentativeCourante(tx, j.id);
+      if (t && (t.state === 'started' || t.state === 'submitted')) await tx.update(A).set({ state: 'uncertain', error: { motif: d.motif } }).where(eq(A.id, t.id));
     });
   }
 
@@ -558,7 +629,8 @@ export class MoteurStudio {
         const t = await this.tentativeCourante(tx, job.id);
         if (t) await tx.update(A).set({ state: 'succeeded', cost: { usdMicros: statut.coutUsdMicros }, finishedAt: this.maintenant() }).where(eq(A.id, t.id));
       });
-      const j = await this.relire(this.base, job.id);
+      // Arrêt demandé · la finalisation attend la reprise (le job reste `persisting`, rien n'est perdu).
+      const j = this.arret ? null : await this.relire(this.base, job.id);
       if (j) await this.finaliser(j);
       return;
     }
@@ -629,6 +701,8 @@ export class MoteurStudio {
     }
     const fichiers: Array<{ operation: string; cle: string; mime: string; octets: number; sha256: string; largeur: number | null; hauteur: number | null; parentAssetId: string | null; retouche: TraceRetouche | null }> = [];
     for (const s of sorties) {
+      // Arrêt demandé · on s'arrête entre deux fichiers, le job reste `persisting` et reprend tel quel.
+      if (this.arret) return;
       let octets: Uint8Array;
       try {
         ({ octets } = await this.f.telecharger(requestId, s.ref));
@@ -771,13 +845,29 @@ export class MoteurStudio {
     await this.noterEchecPersistance(job, motif, essais);
   }
 
+  /**
+   * Un échec de persistance · le prochain essai attend un recul exponentiel
+   * borné (20 s, 40 s… 10 min, `suitePersistance`) au lieu du tour suivant ;
+   * au-delà de l'échéance de l'état (48 min), `failed` en
+   * `facture_sans_livrable` · crédits rendus, coût fournisseur retenu.
+   */
   private async noterEchecPersistance(job: JobStudio, motif: string, essaisMedia: number = this.essaisMedia(job)): Promise<void> {
+    const now = this.maintenant();
+    const entree = entreeDansEtat(job);
+    const s = suitePersistance({ erreur: job.error, entreeLe: entree, maintenant: now, profil: profilEcheance(lireSnapshotJob(job.snapshot)?.lignes) });
+    if (s.suite === 'echec') {
+      await this.terminer(job, 'failed', 'finaliseur', 'facture_sans_livrable', `${motif} · ${s.motif}`, this.resultat(job).coutUsdMicros ?? null);
+      return;
+    }
     await this.base.update(J).set({
-      error: { code: 'PERSISTENCE_FAILED', motif, a: this.maintenant().toISOString(), ...(essaisMedia > 0 ? { essaisMedia } : {}) },
-      // Bail rendu court : la reprise de finalisation peut venir d'un autre worker.
-      leaseExpiresAt: this.maintenant(), updatedAt: this.maintenant(),
+      error: {
+        code: CODE_ECHEC_PERSISTANCE, motif, a: now.toISOString(), depuis: entree.toISOString(),
+        echecsPersistance: s.echecs, prochainEssai: s.prochainEssai.toISOString(), ...(essaisMedia > 0 ? { essaisMedia } : {}),
+      },
+      // Bail rendu court : la reprise de finalisation peut venir d'un autre worker, après le recul.
+      leaseExpiresAt: now, updatedAt: now,
     }).where(and(eq(J.id, job.id), eq(J.state, 'persisting'), eq(J.rowVersion, job.rowVersion)));
-    this.noter({ t: this.maintenant().toISOString(), type: 'transition', worker: this.workerId, jobId: job.id, de: 'persisting', vers: 'persisting', acteur: 'finaliseur', motif: `PERSISTENCE_FAILED · ${motif}` });
+    this.noter({ t: now.toISOString(), type: 'transition', worker: this.workerId, jobId: job.id, de: 'persisting', vers: 'persisting', acteur: 'finaliseur', motif: `PERSISTENCE_FAILED · ${motif} · essai ${s.echecs}, prochain à ${s.prochainEssai.toISOString()}` });
   }
 
   /* ───────────────────────────── Annuler ───────────────────────────────── */
@@ -820,9 +910,9 @@ export class MoteurStudio {
   /* ─────────────────────────── Réconcilier ─────────────────────────────── */
 
   /**
-   * `reconciliation_required` → issue PROUVÉE par le fournisseur ou rien.
-   * Sans identifiant ni recherche possible, le job attend une preuve (webhook
-   * portant la clé, ou action manuelle) · aucune soumission.
+   * `reconciliation_required` → issue PROUVÉE par le fournisseur, sinon
+   * l'issue de l'échéance (ou de la clôture demandée par l'administration),
+   * posée juste après par `appliquerEcheance` · aucune soumission.
    */
   async reconcilier(job: JobStudio): Promise<void> {
     let requestId = job.providerRequestId;

@@ -12,4 +12,5 @@ export * from './fournisseur';
 export * from './vue';
 export * from './reprise';
 export * from './echecs-etape';
+export * from './echeances';
 export * from './snapshot';
