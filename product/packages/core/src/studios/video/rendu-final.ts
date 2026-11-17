@@ -120,7 +120,7 @@ export function nonInclusDuRendu(p: Pick<PlanRenduFinal, 'segments' | 'musique' 
   const mesure = !!son && son.length === p.segments.length;
   const sonDu = (rang: number) => mesure && son![p.segments.findIndex((x) => x.rang === rang)] === true;
   if (p.parles.length) {
-    if (!mesure) out.push(`Voix · non garantie, seule une prise livrée avec du son dit la narration · vérifié à l’assemblage (${liste(p.parles)}).`);
+    if (!mesure) out.push(`Voix · non vérifiée · à l’assemblage, seule la présence de son dans la prise est contrôlée, pas les mots dits (${liste(p.parles)}).`);
     else {
       const muettes = p.parles.filter((r) => !sonDu(r));
       const sonores = p.parles.filter((r) => sonDu(r));

@@ -218,14 +218,14 @@ export const ECART_AAC_MS = 22;
  * crête (`volumedetect`). `false` pour un fichier sans piste, à piste muette ou
  * illisible (ffmpeg le refusera au montage) ; `'absent'` si un binaire manque.
  */
-export async function sonDeLaPrise(fichier: string, o: { ffmpeg: string; ffprobe: string; delaiMs: number; env?: NodeJS.ProcessEnv; /** Partie MONTÉE (s) · le son au-delà n'entre pas au montage. */ dureeS?: string }): Promise<boolean | 'absent'> {
+export async function sonDeLaPrise(fichier: string, o: { ffmpeg: string; ffprobe: string; delaiMs: number; env?: NodeJS.ProcessEnv; /** Partie MONTÉE (s) · le son au-delà n'entre pas au montage. */ dureeS?: string }): Promise<boolean | { absent: 'ffmpeg' | 'ffprobe' }> {
   const p = await lancer(o.ffprobe, ['-v', 'error', '-protocol_whitelist', 'file', '-f', 'mp4', '-show_entries', 'stream=codec_type', '-of', 'json', fichier], o);
-  if (p.absent) return 'absent';
+  if (p.absent) return { absent: 'ffprobe' };
   let flux: Array<{ codec_type?: string }> = [];
   try { flux = (JSON.parse(p.stdout) as { streams?: Array<{ codec_type?: string }> }).streams ?? []; } catch { return false; }
   if (p.code !== 0 || !flux.some((x) => x.codec_type === 'audio')) return false;
   const v = await lancer(o.ffmpeg, ['-nostdin', '-hide_banner', '-v', 'info', '-nostats', '-protocol_whitelist', 'file', '-f', 'mp4', '-i', fichier, ...(o.dureeS ? ['-t', o.dureeS] : []), '-map', '0:a:0', '-af', 'volumedetect', '-f', 'null', '-'], o);
-  if (v.absent) return 'absent';
+  if (v.absent) return { absent: 'ffmpeg' };
   if (v.code !== 0) return false;
   const m = /max_volume:\s*(-?\d+(?:\.\d+)?|-inf) dB/.exec(v.stderr);
   return !!m && m[1] !== '-inf' && Number(m[1]) > SEUIL_SILENCE_DB;
@@ -249,7 +249,7 @@ export async function assemblerVideoFfmpeg(e: EntreeAssemblage, o: OptionsAssemb
       args.push('-protocol_whitelist', 'file', '-f', 'mp4', '-i', f);
       // Le son de la prise, lu sur le MÉDIA LIVRÉ · un clip illisible est laissé à ffmpeg, qui le refusera.
       const son = await sonDeLaPrise(f, { ffmpeg, ffprobe, delaiMs, env: o.env, dureeS: dureeSegmentS(e.segments[i]!.dureeMs, `${e.fps.num}/${e.fps.den}`) });
-      if (son === 'absent') return { ok: false, motif: 'ffprobe absent du serveur · le son des prises ne peut pas être lu', cause: 'binaire' };
+      if (typeof son === 'object') return { ok: false, motif: `${son.absent} absent du serveur · le son des prises ne peut pas être lu`, cause: 'binaire' };
       sonDesSegments.push(son === true);
     }
     if (e.musique) {
@@ -260,6 +260,10 @@ export async function assemblerVideoFfmpeg(e: EntreeAssemblage, o: OptionsAssemb
       args.push('-f', 'lavfi', '-t', s(totalMs), '-i', 'anullsrc=r=48000:cl=stereo');
     }
     const fps = `${e.fps.num}/${e.fps.den}`;
+    // La durée DEMANDÉE à ffmpeg, et relue ensuite · avec le son des prises, chaque plan dure ses images entières
+    // (⌈durée × fps⌉, pour que la voix reste calée) ; 12 plans de 2,750 s à 30 i/s font 33,2 s, pas 33,0 s.
+    // Sans son, la durée d'avant (somme des plans). Comparer au total brut refusait un fichier juste.
+    const dureeDemandeeMs = sonDesSegments.some(Boolean) ? Math.round(Number(dureeTotaleS(e.segments.map((x) => x.dureeMs), fps)) * 1000) : totalMs;
     const sortie = join(dossier, 'final.mp4');
     args.push(
       '-filter_complex', grapheAssemblage({ n: e.segments.length, dureesMs: e.segments.map((x) => x.dureeMs), largeur: e.largeur, hauteur: e.hauteur, fps, musique: !!e.musique, gainDb: e.musique?.gainDb ?? 0, totalMs, sonDesSegments }),
@@ -289,7 +293,7 @@ export async function assemblerVideoFfmpeg(e: EntreeAssemblage, o: OptionsAssemb
     const uneImageMs = (1000 * e.fps.den) / e.fps.num;
     if (!video || video.codec_name !== 'h264' || !audio || audio.codec_name !== 'aac') return { ok: false, motif: 'flux vidéo H.264 ou audio AAC absent du fichier produit', cause: 'verification' };
     if (video.width !== e.largeur || video.height !== e.hauteur) return { ok: false, motif: `dimensions produites ${video.width}×${video.height}, attendues ${e.largeur}×${e.hauteur}`, cause: 'verification' };
-    if (!Number.isFinite(dureeMs) || Math.abs(dureeMs - totalMs) > uneImageMs + 100) return { ok: false, motif: `durée produite ${dureeMs} ms, attendue ${totalMs} ms`, cause: 'verification' };
+    if (!Number.isFinite(dureeMs) || Math.abs(dureeMs - dureeDemandeeMs) > uneImageMs + 100) return { ok: false, motif: `durée produite ${dureeMs} ms, attendue ${dureeDemandeeMs} ms`, cause: 'verification' };
     // La bande son couvre les images · une voix décalée ou coupée ne sort jamais.
     const dureeVideoMs = Math.round(Number(video.duration ?? 'NaN') * 1000);
     const dureeAudioMs = Math.round(Number(audio.duration ?? 'NaN') * 1000);

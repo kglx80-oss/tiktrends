@@ -25,7 +25,7 @@
  */
 
 import type { ModeParole, PlanStudio } from '../document';
-import { compterMots, MOTS_PAR_SECONDE_NARRATION } from './plans';
+import { compterMots, dureePlanMs, MOTS_PAR_SECONDE_NARRATION } from './plans';
 import {
   consigneMouvementDuPlan, parametresDuClip, CONSIGNE_MOUVEMENT_MAX, type ParametresClip,
 } from '../fournisseurs/fal-video';
@@ -57,7 +57,7 @@ export const repliqueDuPlan = (p: Pick<PlanStudio, 'narration'>): string => p.na
 
 export type ConsignePrise = { ok: true; consigne: string; parlee: boolean } | { ok: false; motif: string };
 
-type PlanPrise = Pick<PlanStudio, 'action' | 'camera' | 'subject' | 'environment' | 'lighting' | 'framing' | 'narration' | 'speechMode'>;
+type PlanPrise = Pick<PlanStudio, 'action' | 'camera' | 'subject' | 'environment' | 'lighting' | 'framing' | 'narration' | 'speechMode'> & Partial<Pick<PlanStudio, 'estimatedDurationMs' | 'actualDurationMs'>>;
 
 export function consigneDeLaPrise(p: PlanPrise, langue: string = LANGUE_PROJET): ConsignePrise {
   const mouvement = consigneMouvementDuPlan(p);
@@ -93,8 +93,13 @@ export function priseDuClip<P extends { consigne: string; dureeS: number; audio?
   if (parametres.audio !== true || !modeleRendLaVoix(entreeCatalogueVideo(parametres.modele ?? null), langue) || !estPriseParlee(p)) return { ok: true, parametres };
   const mots = compterMots(p.narration);
   const secondes = mots / MOTS_PAR_SECONDE_NARRATION;
-  if (secondes > parametres.dureeS) {
-    return { ok: false, code: 'INVALID_SCHEMA', motif: `La réplique se dit en ${fr(secondes)} s environ (${mots} mots à ${fr(MOTS_PAR_SECONDE_NARRATION)} mots par seconde), le clip en dure ${fr(parametres.dureeS)} · raccourcis-la ou allonge le plan, rien n’est parti.` };
+  // Ce qui sera VU de la prise · le plus court du clip et du plan (au montage, le clip est coupé à la durée du
+  // plan) : une réplique plus longue serait coupée, le clip payé pour rien.
+  const planS = typeof p.estimatedDurationMs === 'number' ? dureePlanMs(p as Pick<PlanStudio, 'estimatedDurationMs' | 'actualDurationMs'>) / 1000 : Infinity;
+  const borne = Math.min(parametres.dureeS, planS);
+  if (secondes > borne) {
+    const quoi = planS < parametres.dureeS ? `le plan en dure ${fr(planS)}` : `le clip en dure ${fr(parametres.dureeS)}`;
+    return { ok: false, code: 'INVALID_SCHEMA', motif: `La réplique se dit en ${fr(secondes)} s environ (${mots} mots à ${fr(MOTS_PAR_SECONDE_NARRATION)} mots par seconde), ${quoi} · raccourcis-la ou allonge le plan, rien n’est parti.` };
   }
   const c = consigneDeLaPrise(p, langue);
   if (!c.ok) return { ok: false, code: 'INVALID_SCHEMA', motif: c.motif };

@@ -108,9 +108,14 @@ afterAll(() => rm(dossier, { recursive: true, force: true }));
 describe('graphe · le son des prises', () => {
   it('aucune prise sonore ⇒ graphe d’avant, caractère pour caractère (avec ou sans musique)', () => {
     const base = { n: 2, dureesMs: [3000, 4500], largeur: 1080, hauteur: 1920, fps: '30/1', gainDb: -12, totalMs: 7500 };
-    for (const musique of [true, false]) {
-      expect(grapheAssemblage({ ...base, musique, sonDesSegments: [false, false] })).toBe(grapheAssemblage({ ...base, musique }));
-      expect(grapheAssemblage({ ...base, musique })).toContain('concat=n=2:v=1:a=0[v]');
+    // Chaînes FIGÉES · produites par le `grapheAssemblage` de main (62a341e3) avant ce chantier, jamais par le code testé.
+    const AVANT = {
+      avecMusique: '[0:v]fps=30/1,scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1,tpad=stop_mode=clone:stop_duration=3.000,trim=duration=3.000,setpts=PTS-STARTPTS[v0];[1:v]fps=30/1,scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1,tpad=stop_mode=clone:stop_duration=4.500,trim=duration=4.500,setpts=PTS-STARTPTS[v1];[v0][v1]concat=n=2:v=1:a=0[v];[2:a]aresample=48000,aformat=channel_layouts=stereo,volume=-12dB,atrim=duration=7.500,apad=whole_dur=7.500,afade=t=out:st=7.000:d=0.5[a]',
+      sansMusique: '[0:v]fps=30/1,scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1,tpad=stop_mode=clone:stop_duration=3.000,trim=duration=3.000,setpts=PTS-STARTPTS[v0];[1:v]fps=30/1,scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1,tpad=stop_mode=clone:stop_duration=4.500,trim=duration=4.500,setpts=PTS-STARTPTS[v1];[v0][v1]concat=n=2:v=1:a=0[v];[2:a]atrim=duration=7.500[a]',
+    };
+    for (const [musique, attendu] of [[true, AVANT.avecMusique], [false, AVANT.sansMusique]] as const) {
+      expect(grapheAssemblage({ ...base, musique })).toBe(attendu);
+      expect(grapheAssemblage({ ...base, musique, sonDesSegments: [false, false] })).toBe(attendu);
     }
   });
 
@@ -216,6 +221,23 @@ describe.skipIf(!FFMPEG)('assemblage réel · le son des prises', { timeout: DEL
       const d = await durees(r.octets);
       expect(Math.abs(d.audio - d.video), `audio ${d.audio} s, vidéo ${d.video} s (musique : ${!!musique})`).toBeLessThanOrEqual(UNE_IMAGE_S / 2);
     }
+  });
+
+  it('12 plans de 2,750 s à 30 i/s avec une prise sonore ⇒ assemblé (la relecture compare à la durée réellement demandée, 12 × 83 images)', async () => {
+    const segments = [{ octets: BIP, dureeMs: 2750 }, ...Array.from({ length: 11 }, () => ({ octets: MUET, dureeMs: 2750 }))];
+    const r = await assemblerVideoFfmpeg({ segments, musique: null, largeur: 360, hauteur: 640, fps: { num: 30, den: 1 } });
+    expect(r.ok, !r.ok ? r.motif : '').toBe(true);
+    if (!r.ok) return;
+    // 2,750 s à 30 i/s = 83 images = 2,7667 s · 12 plans = 33,2 s d'images, pas 33,0 s.
+    expect(Math.abs(r.mesure.dureeMs - 33_200)).toBeLessThanOrEqual(1000 / 30);
+    const d = await durees(r.octets);
+    expect(Math.abs(d.audio - d.video), `audio ${d.audio} s, vidéo ${d.video} s`).toBeLessThanOrEqual(UNE_IMAGE_S / 2);
+  });
+
+  it('ffmpeg absent alors que ffprobe est là ⇒ le refus nomme ffmpeg, pas ffprobe', async () => {
+    const r = await assemblerVideoFfmpeg({ segments: [{ octets: BIP, dureeMs: 1000 }], musique: null, largeur: 360, hauteur: 640, fps: { num: 30, den: 1 } }, { ffmpeg: '/chemin/inexistant/ffmpeg' });
+    expect(r).toMatchObject({ ok: false, cause: 'binaire' });
+    expect(!r.ok && r.motif).toMatch(/^ffmpeg absent du serveur/);
   });
 
   it('le son n’est mesuré que sur la partie MONTÉE · un bip après la fin du plan ne fait pas une prise sonore', async () => {

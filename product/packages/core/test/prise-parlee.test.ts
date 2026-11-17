@@ -138,11 +138,19 @@ describe('prise parlée · les paramètres du clip', () => {
     expect(lireParametresClip(r.parametres).ok).toBe(true);
   });
   it('réplique plus longue que ce que la durée du clip permet de dire ⇒ refus AVANT le devis, raison écrite', () => {
-    const p = plan({ narration: 'un deux trois quatre cinq six sept huit neuf dix onze douze treize quatorze' });
+    const p = plan({ narration: 'un deux trois quatre cinq six sept huit neuf dix onze douze treize quatorze', estimatedDurationMs: 10_000 });
     const r = priseDuClip({ ...base(p), audio: true, dureeS: 5 }, p);
     expect(r).toMatchObject({ ok: false, code: 'INVALID_SCHEMA' });
     expect(!r.ok && r.motif).toBe(`La réplique se dit en 5,6 s environ (14 mots à ${String(MOTS_PAR_SECONDE_NARRATION).replace('.', ',')} mots par seconde), le clip en dure 5 · raccourcis-la ou allonge le plan, rien n’est parti.`);
     expect(priseDuClip({ ...base(p), audio: true, dureeS: 8 }, p).ok).toBe(true);
+  });
+  it('plan plus court que le clip ⇒ la réplique est jugée sur le PLAN (le reste serait coupé au montage, clip payé pour rien)', () => {
+    // 14 mots ≈ 5,6 s · clip de 8 s, mais plan de 4 s : au montage, la réplique serait coupée à 4 s.
+    const p = plan({ narration: 'un deux trois quatre cinq six sept huit neuf dix onze douze treize quatorze', estimatedDurationMs: 4000 });
+    const r = priseDuClip({ ...base(p), audio: true, dureeS: 8 }, p);
+    expect(r).toMatchObject({ ok: false, code: 'INVALID_SCHEMA' });
+    expect(!r.ok && r.motif).toMatch(/se dit en 5,6 s environ .*le plan en dure 4 /);
+    expect(priseDuClip({ ...base(p), audio: true, dureeS: 8 }, { ...p, estimatedDurationMs: 6000 }).ok).toBe(true);
   });
   it('réplique avec un emplacement non résolu, ou image clé absente ⇒ refus', () => {
     const p = plan({ narration: 'Bonjour {{prenom}}' });
@@ -163,7 +171,7 @@ describe('vidéo finale · « non inclus » dit la vérité sur la voix', () => 
 
   it('avant le clic · son inconnu, dit comme tel', () => {
     expect(r.plan.nonInclus).toEqual([
-      'Voix · non garantie, seule une prise livrée avec du son dit la narration · vérifié à l’assemblage (plan 1, plan 3).',
+      'Voix · non vérifiée · à l’assemblage, seule la présence de son dans la prise est contrôlée, pas les mots dits (plan 1, plan 3).',
       'Sous-titres · non incrustés.',
       'Musique · aucune choisie, la bande son sera le son des prises, un silence si elles sont muettes.',
     ]);

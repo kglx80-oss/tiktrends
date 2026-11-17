@@ -44,7 +44,7 @@ describe('vidéo finale · plan d’assemblage', () => {
     if (!r.ok) return;
     expect(r.plan.musique).toEqual({ assetId: U(9), gainDb: 12 });
     expect(r.plan.nonInclus).toEqual([
-      'Voix · non garantie, seule une prise livrée avec du son dit la narration · vérifié à l’assemblage (plan 1).',
+      'Voix · non vérifiée · à l’assemblage, seule la présence de son dans la prise est contrôlée, pas les mots dits (plan 1).',
       'Texte écran · non incrusté (plan 1).',
       'Sous-titres · non incrustés.',
     ]);
