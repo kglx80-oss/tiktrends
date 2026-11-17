@@ -1,6 +1,7 @@
 import { schema, eq, and, isNull, sql } from '@tiktrends/db';
 import { capaciteVideo, cleInterrupteursEspace, type DecodeurMedia, type FournisseurStudio, type StockageStudio } from '@tiktrends/core';
-import { DELAI_SOUMISSION_FAL_MS } from '@tiktrends/integrations';
+import { DELAI_SOUMISSION_FAL_MS, DELAI_TRANSCRIPTION_FAL_MS } from '@tiktrends/integrations';
+import { DELAI_MESURE_PRISE_MS } from './controle-parole';
 import { MoteurStudio, type InterrupteursMoteur } from './moteur';
 import { DecodeurSharp } from './decodeur';
 import { decoderVideoFfmpeg } from './decodeur-video';
@@ -44,6 +45,12 @@ export function demarrerBoucleStudio(o: {
   journal?: (e: EntreeJournal) => void;
   /** Environnement des interrupteurs · `process.env` par défaut (bancs d'essai seulement). */
   env?: Readonly<Record<string, string | undefined>>;
+  /**
+   * Travail après chaque tour du moteur · le contrôle de la parole des prises
+   * livrées (`controlerParolesEnAttente`). Son échec est journalisé, il
+   * n'arrête jamais le moteur.
+   */
+  apresTour?: () => Promise<unknown>;
 }): { arreter: () => Promise<void>; moteur: MoteurStudio } {
   let sonde: ReturnType<typeof demarrerSondeVideo> | null = null;
   let decodeur = o.decodeur;
@@ -59,6 +66,8 @@ export function demarrerBoucleStudio(o: {
     enCours = (async () => {
       try {
         await moteur.tour();
+        // Arrêt demandé pendant le tour · le contrôle de la parole n'est pas lancé.
+        if (o.apresTour && !moteur.arretDemande) await o.apresTour().catch((e) => console.error('[studios] contrôle de la parole en échec', e instanceof Error ? e.message : e));
         await relayerOutbox(o.base, async (e) => { console.log('[studios] événement', e.topic, e.aggregateId); });
       } catch (e) {
         console.error('[studios] tour en échec', e instanceof Error ? e.message : e);
@@ -111,6 +120,26 @@ export const PHASES_ETAPE_INSECABLE: ReadonlyArray<{ phase: string; ms: number; 
   { phase: 'écriture de la requête', ms: 5_000, source: 'transaction locale' },
 ];
 export const ETAPE_INSECABLE_PIRE_MS = PHASES_ETAPE_INSECABLE.reduce((s, p) => s + p.ms, 0);
+/**
+ * Le contrôle de la parole d'UNE prise (`controlerParolesEnAttente`, après le
+ * tour) · lancé seulement sans arrêt demandé, l'arrêt relu avant chaque prise :
+ * au pire une prise est en cours au signal. Ses bornes tiennent dans l'étape
+ * insécable (garde `studios-arret-worker.test.ts`) · le délai d'arrêt ne bouge pas.
+ *
+ * | phase                 | borne | source                                     |
+ * | --------------------- | ----- | ------------------------------------------ |
+ * | relecture de la prise |  20 s | `stockageS3.relire`                        |
+ * | mesure ffprobe        |  10 s | `DELAI_MESURE_PRISE_MS`                    |
+ * | transcription fal     |  40 s | `DELAI_TRANSCRIPTION_FAL_MS`               |
+ * | écriture du journal   |   5 s | une transaction locale                     |
+ * | **total**             | **75 s** |                                         |
+ */
+export const PHASES_CONTROLE_PAROLE: ReadonlyArray<{ phase: string; ms: number; source: string }> = [
+  { phase: 'relecture de la prise', ms: 20_000, source: 'stockageS3.relire' },
+  { phase: 'mesure ffprobe', ms: DELAI_MESURE_PRISE_MS, source: 'DELAI_MESURE_PRISE_MS' },
+  { phase: 'transcription fal', ms: DELAI_TRANSCRIPTION_FAL_MS, source: 'DELAI_TRANSCRIPTION_FAL_MS' },
+  { phase: 'écriture du journal', ms: 5_000, source: 'transaction locale' },
+];
 export const DELAI_ARRET_MAX_MS = Math.ceil((1.5 * ETAPE_INSECABLE_PIRE_MS) / 5_000) * 5_000;
 
 /**

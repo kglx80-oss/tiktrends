@@ -46,8 +46,18 @@ export interface ImputationStudio {
   jobId: string;
   /** Coût plafond de la soumission, en dollars (`coutSoumissionStudio` · image au tarif de la grille, clip au tarif catalogue du modèle). */
   usd: number;
-  /** `FixedCostKind` · même libellé de modèle que les lignes fal du web. */
-  modele: 'fal_image' | 'fal_video';
+  /**
+   * `FixedCostKind` · même libellé de modèle que les lignes fal du web ;
+   * `fal_transcription` · contrôle de la parole d'une prise (Scribe v2).
+   */
+  modele: 'fal_image' | 'fal_video' | 'fal_transcription';
+  /**
+   * Identifiant de la ligne `ai_spend` · par défaut celui du job
+   * (`idDepenseDuJob`, une soumission par job). Une transcription en porte un
+   * à elle (`idDepenseControleParole` : job, prise, essai), dérivé lui aussi :
+   * une seconde réservation pour la même prise retombe sur la même ligne.
+   */
+  idDepense?: string;
 }
 
 export class BarriereDepenseStudio {
@@ -71,7 +81,7 @@ export class BarriereDepenseStudio {
    * dépense est rendue) ; toute autre erreur garde la dépense.
    */
   async sousPlafondStudio<T>(imp: ImputationStudio, appel: () => Promise<T>): Promise<T> {
-    const id = idDepenseDuJob(imp.jobId);
+    const id = imp.idDepense ?? idDepenseDuJob(imp.jobId);
     const cap = this.plafondUsd();
     let r: Awaited<ReturnType<PortDepense['reserver']>>;
     try {
@@ -86,7 +96,7 @@ export class BarriereDepenseStudio {
     if (!r.ok) {
       // Une soumission déjà engagée pour ce job : son issue est inconnue d'ici,
       // jamais une seconde soumission, jamais un « certain » qui rendrait sa dépense.
-      if (r.dejaEngagee) throw new ErreurFournisseurIncertaine(`${r.raison} · réconciliation, aucune seconde soumission`);
+      if (r.dejaEngagee) throw Object.assign(new ErreurFournisseurIncertaine(`${r.raison} · réconciliation, aucune seconde soumission`), { dejaEngagee: true as const });
       throw new DepenseRefusee(r.raison);
     }
     try {

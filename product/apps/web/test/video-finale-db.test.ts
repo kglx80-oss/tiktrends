@@ -49,7 +49,8 @@ import { publierSondeVideo } from '../../workers/src/studios/sonde-video';
 import { DecodeurSharp } from '../../workers/src/studios/decodeur';
 import { decoderVideoFfmpeg } from '../../workers/src/studios/decodeur-video';
 import type { BaseStudio } from '../lib/studios/execution/types';
-import type { EntreeAssemblage, ResultatAssemblage } from '@tiktrends/integrations';
+import { imageGrise, pixelsChanges, brulerSousTitresFfmpeg, PIXELS_TEXTE_MIN, type EntreeAssemblage, type ResultatAssemblage } from '@tiktrends/integrations';
+import { ACTION_AUDIT_CONTROLE_PAROLE, NON_INCLUS_SOUS_TITRES, miseEnPageSousTitres, nonInclusDuRendu } from '@tiktrends/core';
 
 const ids = etat.ids;
 const base = db as unknown as BaseStudio;
@@ -261,4 +262,89 @@ describe.skipIf(!FFMPEG)('vidéo finale · assemblage réel des clips des plans'
       await db.update(schema.workspaces).set({ plan: 'core' }).where(eq(schema.workspaces.id, ids.wsA));
     }
   });
+
+  /**
+   * Sous-titres · posés sur les mots TRANSCRITS des prises (journal du contrôle
+   * de la parole), brûlés par la passe séparée, puis LUS sur l'image du fichier
+   * conservé. Dernier cas du bloc : une fois les transcriptions au journal,
+   * chaque assemblage suivant brûlerait aussi (encodage 1080×1920 de plus).
+   */
+  it('sous-titres · sans transcription la ligne reste avec sa raison ; avec, brûlés, vus sur l’image, sortis de « non inclus »', async () => {
+    const sans = await assemblerVideoFinalePour(ctxDe(ids, 'ua'), { projectId: projet.projectId }, { lecteur, stockage: memoire, assembler: rejoue });
+    expect(sans.ok && sans.video.nonInclus).toContain('Sous-titres · non incrustés (aucune prise parlée transcrite).');
+
+    // Le journal du contrôle de la parole, tel que le worker l'écrit (un par prise retenue).
+    const J = schema.studioJobs;
+    const prises: Record<string, { job: string; asset: string }> = {};
+    for (const j of await db.select().from(J).where(and(eq(J.projectId, projet.projectId), eq(J.state, 'completed')))) {
+      for (const [op, asset] of Object.entries((j.result as { assets?: Record<string, string> } | null)?.assets ?? {})) if (op.startsWith('clip:')) prises[op.slice(5)] = { job: j.id, asset };
+    }
+    const mots: Record<string, Array<[string, number, number]>> = {
+      s_ouverture: [['Tu', 300, 450], ['en', 460, 560], ['as', 570, 700], ['marre', 710, 1000], ['des', 1010, 1100], ['boutons ?', 1110, 1600]],
+      s_produit: [['Voici', 200, 500], ['le', 510, 600], ['sérum.', 610, 1100]],
+    };
+    for (const sid of Object.keys(mots)) {
+      await db.insert(schema.studioAuditEvents).values({
+        actorId: null, effectiveRole: 'systeme:controle', workspaceId: ids.wsA, brandId: ids.brandA1, action: ACTION_AUDIT_CONTROLE_PAROLE,
+        targetType: 'studio_job', targetId: prises[sid]!.job, versionBefore: 'pending', versionAfter: 'pending', reason: 'parole conforme', traceId: 'test',
+        details: { suite: 'conforme', conforme: true, operation: `clip:${sid}`, projectId: projet.projectId, assetId: prises[sid]!.asset, mots: mots[sid] },
+      });
+    }
+
+    // L'assemblage laisse le MP4 SUR DISQUE (`chemin`, #1101) · la passe le lit par son chemin, jamais une copie en mémoire.
+    const surDisque = join(dossier, 'video-assemblee.mp4');
+    writeFileSync(surDisque, renduReel!.ok ? renduReel!.octets : new Uint8Array());
+    const entrees: Array<{ chemin?: string; octets?: Uint8Array; dureeMs: number }> = [];
+    const r = await assemblerVideoFinalePour(ctxDe(ids, 'ua'), { projectId: projet.projectId }, {
+      lecteur, stockage: memoire,
+      assembler: async (e) => { const x = await rejoue(e); return x.ok ? { ...x, chemin: surDisque } : x; },
+      bruler: async (e) => { entrees.push({ chemin: e.chemin, octets: e.octets, dureeMs: e.dureeMs }); return brulerSousTitresFfmpeg(e); },
+    });
+    expect(r.ok, !r.ok ? `${r.code} ${r.message}` : '').toBe(true);
+    if (!r.ok) return;
+    expect(entrees).toEqual([{ chemin: surDisque, octets: undefined, dureeMs: renduReel!.ok ? renduReel!.mesure.dureeMs : 0 }]);
+    // La base est la liste recalculée sur le son MESURÉ (`nonInclusDuRendu`, #1101) · seule la ligne des sous-titres en sort.
+    const base = nonInclusDuRendu({ segments: [0, 1, 2].map((i) => ({ shotId: `s${i}`, rang: i + 1, assetId: '', dureeMs: 3000 })), musique: { assetId: musiqueId, gainDb: -12 }, parles: [1, 2], textes: [], sousTitres: true }, [false, false, false]);
+    expect(r.video.nonInclus).toEqual(base.filter((l) => l !== NON_INCLUS_SOUS_TITRES));
+    expect(r.video.nonInclus).not.toContain(NON_INCLUS_SOUS_TITRES);
+    expect(r.video.nonInclus.some((l) => l.startsWith('Sous-titres'))).toBe(false);
+    const [a] = await db.select().from(schema.studioAssets).where(eq(schema.studioAssets.id, r.video.assetId));
+    expect((a!.rights as { videoFinale: { nonInclus: string[] } }).videoFinale.nonInclus).toEqual(r.video.nonInclus);
+
+    // L'image du fichier CONSERVÉ, au milieu du carton « Tu en as marre », comparée au rendu sans sous-titres.
+    const avant = join(dossier, 'sans-sous-titres.mp4');
+    const apres = join(dossier, 'avec-sous-titres.mp4');
+    writeFileSync(avant, renduReel!.ok ? renduReel!.octets : new Uint8Array());
+    writeFileSync(apres, conserve.get(a!.storageKey)!);
+    const page = miseEnPageSousTitres(1080, 1920);
+    const [i0, i1] = await Promise.all([imageGrise('ffmpeg', avant, 650, 1080, 1920, { delaiMs: 30_000 }), imageGrise('ffmpeg', apres, 650, 1080, 1920, { delaiMs: 30_000 })]);
+    expect(pixelsChanges(i0!, i1!, 1080, page.zone.haut, page.zone.bas)).toBeGreaterThanOrEqual(PIXELS_TEXTE_MIN);
+    expect(pixelsChanges(i0!, i1!, 1080, 1920 - Math.ceil(1920 * 0.2), 1920), 'du texte dans les 20 % bas').toBeLessThanOrEqual(20);
+    // Hors carton (le plan « s_fin », muet) · aucune différence de texte.
+    const [j0, j1] = await Promise.all([imageGrise('ffmpeg', avant, 7500, 1080, 1920, { delaiMs: 30_000 }), imageGrise('ffmpeg', apres, 7500, 1080, 1920, { delaiMs: 30_000 })]);
+    expect(pixelsChanges(j0!, j1!, 1080, 0, 1920)).toBeLessThanOrEqual(50);
+    // Même durée que l'assemblage · à une image près (la passe réencode à la cadence du montage).
+    const pr = spawnSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', apres], { encoding: 'utf8' });
+    const dureeBrulee = Math.round(Number(pr.stdout.trim()) * 1000);
+    expect(Math.abs(dureeBrulee - (renduReel!.ok ? renduReel!.mesure.dureeMs : 0))).toBeLessThanOrEqual(1000 / 30 + 1);
+    expect(a!.durationMs).toBe(dureeBrulee);
+  }, DELAI_RENDU_REEL_MS);
+
+  it('dossier de travail impossible (mkdtemp) ⇒ refus dit, le verrou est rendu · l’assemblage suivant passe', async () => {
+    vi.stubEnv('TMPDIR', join(dossier, 'nexiste-pas', 'du-tout'));
+    try {
+      const r = await assemblerVideoFinalePour(ctxDe(ids, 'ua'), { projectId: projet.projectId }, { lecteur, stockage: memoire, assembler: rejoue });
+      expect(r).toMatchObject({ ok: false });
+      expect(!r.ok && r.code).not.toBe('RATE_LIMITED');
+    } finally {
+      vi.stubEnv('TMPDIR', '');
+    }
+    const ensuite = await assemblerVideoFinalePour(ctxDe(ids, 'ua'), { projectId: projet.projectId }, { lecteur, stockage: memoire, assembler: rejoue, bruler: async () => { throw new Error('libass a planté'); } });
+    // Une passe des sous-titres qui LÈVE ne perd pas le MP4 assemblé · il est conservé tel quel, la raison dite.
+    expect(ensuite.ok, !ensuite.ok ? `${ensuite.code} ${ensuite.message}` : '').toBe(true);
+    if (!ensuite.ok) return;
+    expect(ensuite.video.nonInclus).toContain('Sous-titres · non incrustés (passe des sous-titres en échec).');
+    const [a] = await db.select().from(schema.studioAssets).where(eq(schema.studioAssets.id, ensuite.video.assetId));
+    expect(Buffer.compare(Buffer.from(conserve.get(a!.storageKey)!), Buffer.from(renduReel!.ok ? renduReel!.octets : new Uint8Array()))).toBe(0);
+  }, DELAI_RENDU_REEL_MS);
 });

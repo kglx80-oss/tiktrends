@@ -132,6 +132,23 @@ describe('aucun chemin du worker ni des intégrations ne contourne le plafond', 
     }
   });
 
+  it('chaque transcripteur réel (contrôle de la parole) envoie UNE requête, et dans `sousPlafondStudio`', () => {
+    // Scribe v2 se facture à la minute d'audio · même contrat que les fournisseurs média :
+    // réserve AVANT l'envoi, rendue si l'échec est certain, aucune seconde requête.
+    const transcripteurs = sourcesHorsWeb.filter((f) => /URL_TRANSCRIPTION_FAL|class\s+Transcripteur/.test(f.s));
+    expect(transcripteurs.length, 'aucun transcripteur trouvé · la garde regarde-t-elle le bon endroit ?').toBeGreaterThan(0);
+    for (const f of transcripteurs) {
+      const posts = [...f.s.matchAll(/method:\s*'POST'/g)].map((m) => m.index!);
+      const enveloppe = f.s.indexOf('sousPlafondStudio(');
+      expect(posts.length, `${f.p} · une seule requête de transcription attendue`).toBe(1);
+      expect(enveloppe, `${f.p} · transcription sans sousPlafondStudio`).toBeGreaterThan(-1);
+      expect(posts[0]! > enveloppe, `${f.p} · la requête de transcription est hors de l'enveloppe de dépense`).toBe(true);
+    }
+    // Le worker n'appelle le modèle QUE par le transcripteur gardé (aucune adresse fal écrite à côté).
+    const directs = sourcesHorsWeb.filter((f) => /speech-to-text|scribe/i.test(f.s) && !/class\s+Transcripteur/.test(f.s) && /fetch\(/.test(f.s)).map((f) => f.p);
+    expect(directs, `appelle la transcription hors du transcripteur gardé : ${directs.join(', ')}`).toEqual([]);
+  });
+
   it('aucune soumission à la file fal en dehors d’un fournisseur couvert', () => {
     const coupables = sourcesHorsWeb
       // `fal.ts` (bibliothèque historique) porte l'URL par défaut ; ses points

@@ -12,3 +12,5 @@ export * from './export-video';
 export * from './rendu-final';
 export * from './prise-parlee';
 export * from './confirmation';
+export * from './parole';
+export * from './sous-titres';

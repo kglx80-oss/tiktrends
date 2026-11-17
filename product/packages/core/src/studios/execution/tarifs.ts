@@ -87,7 +87,7 @@ export function profilDuNoeud(id: string, nature: NatureNoeud): ProfilOperation 
 }
 
 /** Profil d'une ligne · une opération de production, ou le contrôle visuel (R3). */
-export type ProfilLigne = ProfilOperation | 'controle_visuel';
+export type ProfilLigne = ProfilOperation | 'controle_visuel' | 'controle_parole';
 
 export interface LigneDevis {
   /** Identifiant du nœud du plan d'impact (`keyframe:s_ouverture`, `composition`…), ou `controle:vision`. */
@@ -211,9 +211,9 @@ export function borneControleVisionParImageMicros(modele: string): number {
   return Math.ceil(costOfTokens(modele, entree, JETONS_SORTIE_CONTROLE_VISION) * 1_000_000 - 1e-6);
 }
 
-/** Une ligne de production (envoyée au fournisseur média) · tout sauf le contrôle visuel. */
+/** Une ligne de production (envoyée au fournisseur média) · tout sauf les contrôles (visuel, parole). */
 export function estLigneDeProduction(l: { profil: string }): boolean {
-  return l.profil !== PROFIL_CONTROLE_VISION;
+  return l.profil !== PROFIL_CONTROLE_VISION && l.profil !== PROFIL_CONTROLE_PAROLE;
 }
 
 /**
@@ -274,9 +274,81 @@ export function controleVisionApprouve(lignes: unknown): { unites: number; usdMi
   return { unites: l.unites!, usdMicros: l.usdMicros!, totalUsdMicros: l.unites! * l.usdMicros! };
 }
 
+/* ═════════════════ Contrôle de la parole, ligne du devis ═══════════════════ */
+
+/**
+ * Une prise PARLÉE (le modèle vidéo dit la réplique) est transcrite mot à mot
+ * à sa livraison (Scribe v2 sur fal, `fal-transcription.ts`) puis comparée à
+ * la réplique validée (`parole.ts`) · la même transcription pose les
+ * sous-titres sur les mots vraiment dits. Coût réel : une ligne VISIBLE et
+ * CHIFFRÉE du devis, acceptée avec lui, comme le contrôle visuel. Sans cette
+ * ligne approuvée, aucune transcription : 0 appel, 0 ligne `ai_spend`.
+ *
+ * ── Une BORNE par prise ──────────────────────────────────────────────────────
+ *
+ * Tarif relevé sur la page fal du modèle (16/11) : 0,008 $ par minute d'audio.
+ * Réserve d'une prise = durée × 0,008 $/min, arrondie au CENT SUPÉRIEUR
+ * (`reserveControleParoleMicros`) : une prise de 5 s réserve 0,01 $. La ligne
+ * porte la réserve de la prise la plus longue devisée ; à l'exécution, la
+ * durée MESURÉE de la prise livrée donne sa réserve, et une réserve plus haute
+ * que la ligne approuvée est refusée avant tout appel (rien n'est transcrit).
+ */
+export const OPERATION_CONTROLE_PAROLE = 'controle:parole';
+export const PROFIL_CONTROLE_PAROLE = 'controle_parole' as const;
+/** 0,008 $ par minute d'audio · en micro-dollars entiers. */
+export const TARIF_TRANSCRIPTION_MICROS_PAR_MINUTE = 8_000;
+/** Une prise plus longue n'est pas devisée (borne d'une publicité courte, `DUREE_RENDU_MAX_MS`). */
+export const DUREE_PRISE_CONTROLEE_MAX_MS = 90_000;
+
+/** Réserve d'une transcription · durée × tarif, arrondie au cent supérieur · `null` pour une durée illisible ou hors borne. */
+export function reserveControleParoleMicros(dureeMs: number): number | null {
+  if (!Number.isFinite(dureeMs) || dureeMs <= 0 || dureeMs > DUREE_PRISE_CONTROLEE_MAX_MS) return null;
+  const brut = Math.ceil((Math.ceil(dureeMs) * TARIF_TRANSCRIPTION_MICROS_PAR_MINUTE) / 60_000);
+  return Math.ceil(brut / 10_000) * 10_000;
+}
+
+/**
+ * Ajoute (ou non) la ligne du contrôle de la parole · une unité par prise
+ * PARLÉE devisée (`prises`, opérations `clip:<plan>` dont le plan a une
+ * réplique), au montant de la prise la plus longue. Sans prise parlée, ou
+ * quand le contrôle ne peut pas s'exécuter (`actif` faux), rien n'est ajouté.
+ */
+export function avecControleParole(
+  lignes: readonly LigneDevis[],
+  o: { actif: boolean; prises: ReadonlyArray<{ operation: string; dureeMs: number }> },
+): { lignes: LigneDevis[]; totalCredits: number; totalUsdMicros: number } {
+  const out = lignes.filter((l) => l.profil !== PROFIL_CONTROLE_PAROLE);
+  const reserves = o.prises.map((p) => reserveControleParoleMicros(p.dureeMs));
+  if (o.actif && o.prises.length > 0 && reserves.every((r): r is number => r !== null)) {
+    out.push({
+      operation: OPERATION_CONTROLE_PAROLE, nature: 'generation', profil: PROFIL_CONTROLE_PAROLE, unites: o.prises.length, credits: 0,
+      usdMicros: Math.max(...reserves), inclus: true, natureCout: 'borne', motifEstimation: null,
+    });
+  }
+  return {
+    lignes: out,
+    totalCredits: out.reduce((s, l) => s + l.credits * l.unites, 0),
+    totalUsdMicros: out.reduce((s, l) => s + l.usdMicros * l.unites, 0),
+  };
+}
+
+/** La ligne du contrôle de la parole APPROUVÉE (devis ou instantané de job) · `null` si absente ou illisible. */
+export function controleParoleApprouve(lignes: unknown): { unites: number; usdMicros: number; totalUsdMicros: number } | null {
+  if (!Array.isArray(lignes)) return null;
+  const l = (lignes as Array<Partial<LigneDevis> | null>).find((x) => x?.operation === OPERATION_CONTROLE_PAROLE && x?.profil === PROFIL_CONTROLE_PAROLE);
+  if (!l || !Number.isInteger(l.unites) || !Number.isInteger(l.usdMicros) || l.unites! <= 0 || l.usdMicros! <= 0) return null;
+  return { unites: l.unites!, usdMicros: l.usdMicros!, totalUsdMicros: l.unites! * l.usdMicros! };
+}
+
+/** Le libellé de la ligne · le prix est dit AVANT le clic. */
+export function libelleCaseControleParole(reserveParPriseUsdMicros: number): string {
+  return `Contrôle de la parole de la prise livrée · ${(Math.ceil(reserveParPriseUsdMicros / 10_000) / 100).toFixed(2).replace('.', ',')} $ au plus par prise, ajouté au devis · transcription mot à mot comparée à la réplique, sous-titres posés sur les mots dits`;
+}
+
 /** Libellé d'une ligne dans un devis · ce que la personne lit. */
 export function libelleLigneDevis(l: Pick<LigneDevis, 'operation' | 'profil' | 'unites'>): string {
   if (l.profil === PROFIL_CONTROLE_VISION) return `Contrôle visuel · ${l.unites} image${l.unites > 1 ? 's' : ''}`;
+  if (l.profil === PROFIL_CONTROLE_PAROLE) return `Contrôle de la parole · ${l.unites} prise${l.unites > 1 ? 's' : ''}`;
   if (l.profil === 'image_generation') return `Image · ${l.operation}`;
   if (l.profil === 'animation') return `Animation · ${l.operation}${l.unites > 1 ? ` · ${l.unites} s` : ''}`;
   if (l.profil === 'calcul') return `Calcul · ${l.operation}`;

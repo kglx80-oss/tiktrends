@@ -86,11 +86,21 @@ const fr = (n: number, d = 1) => n.toFixed(d).replace(/\.0+$/, '').replace('.', 
  * parle. Refus AVANT le devis : réplique qui ne tient pas dans la durée du
  * clip (`compterMots` / `MOTS_PAR_SECONDE_NARRATION`), guillemets, emplacement.
  */
+/**
+ * La voix native est-elle DEMANDÉE au clip (`audio`) ET RENDUE par son modèle
+ * dans cette langue (`modeleRendLaVoix`, la seule source du catalogue) ? La
+ * règle de `priseDuClip`, exportée pour que le contrôle de la parole la
+ * RÉUTILISE (jamais une copie).
+ */
+export function voixNativeDemandee(parametres: { audio?: unknown; modele?: string | null }, langue: string = LANGUE_PROJET): boolean {
+  return parametres.audio === true && modeleRendLaVoix(entreeCatalogueVideo(parametres.modele ?? null), langue);
+}
+
 export function priseDuClip<P extends { consigne: string; dureeS: number; audio?: unknown; modele?: string | null }>(parametres: P, p: PlanPrise, langue: string = LANGUE_PROJET):
   { ok: true; parametres: P } | { ok: false; code: 'INVALID_SCHEMA'; motif: string } {
   // Deux conditions · la voix native est DEMANDÉE au clip (`audio`), et le modèle la REND dans cette langue
   // (`modeleRendLaVoix`, la seule source du catalogue) · sinon le clip est muet et la consigne celle d'avant.
-  if (parametres.audio !== true || !modeleRendLaVoix(entreeCatalogueVideo(parametres.modele ?? null), langue) || !estPriseParlee(p)) return { ok: true, parametres };
+  if (!voixNativeDemandee(parametres, langue) || !estPriseParlee(p)) return { ok: true, parametres };
   const mots = compterMots(p.narration);
   const secondes = mots / MOTS_PAR_SECONDE_NARRATION;
   // Ce qui sera VU de la prise · le plus court du clip et du plan (au montage, le clip est coupé à la durée du

@@ -10,3 +10,4 @@ export * from './fal-file';
 export * from './choix';
 export * from './retouche';
 export * from './qualite';
+export * from './fal-transcription';

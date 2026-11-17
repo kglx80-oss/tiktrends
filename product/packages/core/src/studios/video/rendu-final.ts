@@ -13,7 +13,10 @@
  *    on ne sait pas encore : c'est dit comme tel ; après l'assemblage, la
  *    mesure du fichier (`sonDesSegments`) tranche, plan par plan
  *    (`nonInclusDuRendu`) ;
- *  · le texte écran et les sous-titres ne sont pas incrustés.
+ *  · le texte écran n'est pas incrusté ;
+ *  · les sous-titres ne sont incrustés que s'ils sont posés sur les mots
+ *    TRANSCRITS des prises et vus sur l'image produite (`nonInclusApresSousTitres`) ;
+ *    sinon ils restent dans la liste, avec la raison.
  * Chaque absence est listée dans `nonInclus`, affichée avant le clic.
  *
  * L'assemblage est un CALCUL (ffmpeg sur le serveur, aucun fournisseur payant) :
@@ -52,6 +55,9 @@ export interface PlanRenduFinal {
   textes: number[];
   sousTitres: boolean;
 }
+
+/** La ligne des sous-titres · dite tant qu'ils ne sont pas RÉELLEMENT brûlés dans la vidéo produite. */
+export const NON_INCLUS_SOUS_TITRES = 'Sous-titres · non incrustés.';
 
 export type ResultatPlanRendu =
   | { ok: true; plan: PlanRenduFinal }
@@ -130,11 +136,33 @@ export function nonInclusDuRendu(p: Pick<PlanRenduFinal, 'segments' | 'musique' 
     }
   }
   if (p.textes.length) out.push(`Texte écran · non incrusté (${liste(p.textes)}).`);
-  if (p.sousTitres && p.parles.length) out.push('Sous-titres · non incrustés.');
+  if (p.sousTitres && p.parles.length) out.push(NON_INCLUS_SOUS_TITRES);
   if (!p.musique) {
     out.push(!mesure
       ? 'Musique · aucune choisie, la bande son sera le son des prises, un silence si elles sont muettes.'
       : son!.some(Boolean) ? 'Musique · aucune choisie, la bande son est le son des prises.' : 'Musique · aucune choisie, bande son silencieuse.');
   }
   return out;
+}
+
+/**
+ * Constat de la passe des sous-titres, lu dans le FICHIER PRODUIT
+ * (`brulerSousTitresFfmpeg` : image extraite à l'instant de chaque carton
+ * contrôlé, texte présent dans la zone, absent hors carton), jamais un drapeau.
+ */
+export type ConstatSousTitres =
+  | { brules: true; cartons: number; cartonsVerifies: number }
+  | { brules: false; raison: string };
+
+/**
+ * « Sous-titres » sort de la liste « non inclus » seulement quand le constat
+ * dit qu'ils sont brûlés et qu'au moins un carton a été vu sur l'image ;
+ * sinon la ligne reste, avec la raison. Les autres lignes ne bougent pas.
+ */
+export function nonInclusApresSousTitres(nonInclus: readonly string[], constat: ConstatSousTitres | null): string[] {
+  const i = nonInclus.indexOf(NON_INCLUS_SOUS_TITRES);
+  if (i < 0) return [...nonInclus];
+  if (constat?.brules && constat.cartons > 0 && constat.cartonsVerifies > 0) return nonInclus.filter((_, k) => k !== i);
+  const raison = constat && !constat.brules ? constat.raison : 'passe des sous-titres non exécutée';
+  return nonInclus.map((l, k) => (k === i ? `Sous-titres · non incrustés (${raison}).` : l));
 }

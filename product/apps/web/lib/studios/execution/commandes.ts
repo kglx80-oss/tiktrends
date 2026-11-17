@@ -16,6 +16,7 @@ import { REFUS_DEPENSE_CLIENT, avecControleVision, controleVisionActif, exigence
 // Pub entière · prix catalogue du moteur envoyé, relecture ajoutée à la ligne du contrôle visuel.
 import { tarifPubEntiere, lignesAuTarifPubEntiere, controleCocheParDefaut, OPERATION_IMAGE } from '@tiktrends/core';
 import { borneControlePubMicros, CONTROLE_MODEL } from '@tiktrends/ai';
+import { avecControleParole, prisesParleesDuDevis } from '@tiktrends/core';
 import { adaptateurAnthropicGarde, modeleTexte } from '../prompts/adaptateur';
 import type { ContexteStudio } from '../garde';
 import { ajouterAudit } from '../audit';
@@ -248,10 +249,18 @@ export async function creerDevis(ctx: ContexteStudio, e: EntreeDevis, base: Base
         if (!t.ok) throw new Refus(erreurStudio('UNSUPPORTED_CAPABILITY', { traceId: ctx.traceId, targetIds: [OPERATION_IMAGE], message: `Pub entière indisponible · ${t.motif}.` }));
         lignesProduction = lignesAuTarifPubEntiere(lignesProduction, OPERATION_IMAGE, t);
       }
-      const v = avecControleVision(lignesProduction, {
+      const vision = avecControleVision(lignesProduction, {
         actif: controleVisionActif({ demande: e.controleVision, fournisseurVision: adaptateurAnthropicGarde() !== null, devisImage: exigenceImageDuDevis(l.lignes).concerne, parDefaut: controleCocheParDefaut({ regime: regimeDevis, pubEntiere: !!image.pubEntiere }) }),
         modele: modeleTexte(),
         ...(image.pubEntiere ? { supplementParImageMicros: borneControlePubMicros(CONTROLE_MODEL) } : {}),
+      });
+      // Contrôle de la parole · seulement une prise PARLÉE À L'IMAGE (voix native demandée au modèle qui
+      // la rend, lipsync avec réplique · `priseAControler`, règle de la prise réutilisée) : sa transcription
+      // est comparée à la réplique et pose les sous-titres. Kling ou voix off : aucune ligne, 0 $. Ligne
+      // chiffrée posée APRÈS le contrôle visuel (qui ne garde que les lignes de production), fal branché.
+      const v = avecControleParole(vision.lignes, {
+        actif: fournisseurAnimationBranche(process.env),
+        prises: prisesParleesDuDevis(courante.content as ContenuVersion, clips.parametres),
       });
 
       const [ip] = await tx.insert(schema.studioImpactPlans).values({

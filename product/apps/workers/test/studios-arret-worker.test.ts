@@ -8,8 +8,8 @@ import {
   refsDuJob, empreinteContenu, contenuVide, SCHEMA_VERSION_CONTENU, OPERATION_JOB_STUDIO,
   type SnapshotJob, type FournisseurStudio, type DemandeFournisseur,
 } from '@tiktrends/core';
-import { DELAI_SOUMISSION_FAL_MS } from '@tiktrends/integrations';
-import { demarrerBoucleStudio, arretPropreSurSignal, DELAI_ARRET_MAX_MS, ETAPE_INSECABLE_PIRE_MS, PHASES_ETAPE_INSECABLE } from '../src/studios/boucle';
+import { DELAI_SOUMISSION_FAL_MS, DELAI_TRANSCRIPTION_FAL_MS } from '@tiktrends/integrations';
+import { demarrerBoucleStudio, arretPropreSurSignal, DELAI_ARRET_MAX_MS, ETAPE_INSECABLE_PIRE_MS, PHASES_ETAPE_INSECABLE, PHASES_CONTROLE_PAROLE } from '../src/studios/boucle';
 import { DecodeurSharp } from '../src/studios/decodeur';
 import type { BaseStudio } from '../src/studios/types';
 import { FournisseurSimule, StockageSimule, DRAPEAU_SIMULE } from '../../../packages/integrations/src/studios-simule';
@@ -102,6 +102,22 @@ describe('arrêt demandé pendant un tour · le tour finit, aucun job orphelin',
     // Plus aucun tour ne part.
     await new Promise((r) => setTimeout(r, 50));
     expect((await job(second)).state).toBe('queued');
+  });
+
+  it('contrôle de la parole · jamais lancé quand l’arrêt est demandé pendant le tour', async () => {
+    let apres = 0;
+    const stockage = new StockageSimule({ drapeau: DRAPEAU_SIMULE, env: { NODE_ENV: 'test' } });
+    const b = demarrerBoucleStudio({ base, fournisseur: fournisseurRetenu().f, stockage, decodeur: new DecodeurSharp(), intervalleMs: 5, env: ENV, apresTour: async () => { apres += 1; } });
+    b.moteur.tour = async () => { b.moteur.demanderArret(); };
+    await new Promise((r) => setTimeout(r, 60));
+    await b.arreter();
+    expect(apres).toBe(0);
+  });
+
+  it('contrôle de la parole · une prise au pire (relecture, ffprobe, transcription, écriture) tient dans l’étape insécable', () => {
+    expect(PHASES_CONTROLE_PAROLE.map((p) => p.phase)).toEqual(['relecture de la prise', 'mesure ffprobe', 'transcription fal', 'écriture du journal']);
+    expect(PHASES_CONTROLE_PAROLE.find((p) => p.phase === 'transcription fal')!.ms).toBe(DELAI_TRANSCRIPTION_FAL_MS);
+    expect(PHASES_CONTROLE_PAROLE.reduce((t, p) => t + p.ms, 0)).toBeLessThanOrEqual(ETAPE_INSECABLE_PIRE_MS);
   });
 
   it('boucle au repos · l’arrêt rend la main sans attendre', async () => {

@@ -38,7 +38,7 @@
  */
 
 import { PLAN_IMAGE } from './image/parcours';
-import { OPERATION_CONTROLE_VISION } from './execution/tarifs';
+import { OPERATION_CONTROLE_PAROLE, OPERATION_CONTROLE_VISION } from './execution/tarifs';
 
 export const CAPACITES_STUDIOS = [
   'projets', 'editeur', 'textes', 'export', 'canvas', 'propositions', 'identites',
@@ -175,6 +175,8 @@ export function capacitesCoupees(capacites: readonly CapaciteStudio[], c: Contex
  *  · `identite:` (fiche générée) · génération d'images ;
  *  · `voix:` · voix ;
  *  · `controle:vision` · contrôle visuel ;
+ *  · `controle:parole` (transcription des prises parlées d'un clip) · vidéo,
+ *    la capacité de la prise qu'il contrôle (aucun interrupteur nouveau) ;
  *  · nœuds de calcul (composition, montage, export…) · rien.
  */
 export function capacitesDesOperations(operations: readonly unknown[]): CapaciteStudio[] {
@@ -182,6 +184,7 @@ export function capacitesDesOperations(operations: readonly unknown[]): Capacite
   for (const o of operations) {
     if (typeof o !== 'string') continue;
     if (o === OPERATION_CONTROLE_VISION) { out.add('controle_visuel'); continue; }
+    if (o === OPERATION_CONTROLE_PAROLE) { out.add('video'); continue; }
     const [prefixe, reste] = [o.split(':')[0], o.slice(o.indexOf(':') + 1)];
     if (prefixe === 'keyframe') out.add(reste === PLAN_IMAGE ? 'generation_image' : 'video');
     else if (prefixe === 'clip') out.add('video');

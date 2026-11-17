@@ -1,6 +1,6 @@
 import 'server-only';
 import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { createHash } from 'node:crypto';
 import { POLICES_EMBARQUEES } from '@tiktrends/core';
 import { lirePoliceTtf, type PoliceTtf } from './police-ttf';
@@ -43,4 +43,15 @@ export function policeRendu(fichier: string): PoliceTtf {
   const p = lirePoliceTtf(b);
   cache.set(fichier, p);
   return p;
+}
+
+/**
+ * Le DOSSIER des polices embarquées (`fontsdir` de la passe des sous-titres)
+ * · le premier emplacement qui contient `fichier` ; `null` s'il n'est nulle part.
+ */
+export function dossierPolicesEmbarquees(fichier: string): string | null {
+  for (const p of chemins(fichier)) {
+    try { readFileSync(p); return dirname(p); } catch { /* emplacement suivant */ }
+  }
+  return null;
 }

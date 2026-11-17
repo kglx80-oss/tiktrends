@@ -35,7 +35,7 @@ export function exigenceClipsDuDevis(lignes: ReadonlyArray<LigneDevis>): { conce
   for (const l of lignes) {
     const sid = planDeClip(l.operation);
     if (sid) plans.push(sid);
-    else if (l.profil !== 'calcul' && l.profil !== 'controle_visuel') horsClip.push(l.operation);
+    else if (l.profil !== 'calcul' && l.profil !== 'controle_visuel' && l.profil !== 'controle_parole') horsClip.push(l.operation);
   }
   return { concerne: plans.length > 0, plans, horsClip };
 }
@@ -76,14 +76,14 @@ async function parametres(ex: ExecStudio, ctx: ContexteStudio, p: Portee, conten
 export async function raccordClipsDevis(
   ex: ExecStudio, ctx: ContexteStudio,
   e: { projet: { id: string; workspaceId: string; brandId: string }; contenu: ContenuVersion; lignes: ReadonlyArray<LigneDevis> },
-): Promise<{ ok: true; empreinte: string | null; lignes: LigneDevis[] } | ErreurStudio> {
+): Promise<{ ok: true; empreinte: string | null; lignes: LigneDevis[]; parametres: ParametresClipSnapshot | null } | ErreurStudio> {
   // Au devis, le modèle des Studios en vigueur · il est ensuite FIGÉ dans la ligne du clip.
   const r = await parametres(ex, ctx, { workspaceId: e.projet.workspaceId, brandId: e.projet.brandId, projectId: e.projet.id }, e.contenu, e.lignes, '', modeleAnimationStudio(process.env));
   if (!r.ok) return r;
-  if (!r.parametres) return { ok: true, empreinte: null, lignes: [...e.lignes] };
+  if (!r.parametres) return { ok: true, empreinte: null, lignes: [...e.lignes], parametres: null };
   const t = lignesAvecTarifClip(e.lignes, r.parametres);
   if (!t.ok) return erreurStudio('UNSUPPORTED_CAPABILITY', { traceId: ctx.traceId, targetIds: [r.parametres.operation], message: `Clip sans tarif · ${t.motif}. Retire-le du devis.` });
-  return { ok: true, empreinte: empreinteParametresClip(r.parametres), lignes: t.lignes };
+  return { ok: true, empreinte: empreinteParametresClip(r.parametres), lignes: t.lignes, parametres: r.parametres };
 }
 
 /** À l'approbation · `studio_clip/2` relu des données SERVEUR de la version devisée, tarif revérifié · `null` hors clips. */
