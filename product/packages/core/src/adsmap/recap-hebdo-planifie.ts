@@ -275,6 +275,28 @@ export function refusDefinitifSmtp(e: { responseCode?: unknown; command?: unknow
 }
 
 /**
+ * Une erreur SMTP, telle qu'elle peut aller au journal · `code`, `responseCode`,
+ * `command` et l'identifiant (`qui`) que l'appelant a donné · JAMAIS le message
+ * brut. nodemailer y ajoute la réponse du serveur (`_formatError`,
+ * `err.message += ': ' + response`), qui porte souvent l'adresse
+ * (`550 5.1.1 <anne@…>: Recipient address rejected`) · `rejected` et
+ * `response` aussi. Chaque champ n'est écrit que s'il est un jeton court sans
+ * « @ » ni chevron · un champ inattendu est tu (« ? »), il ne fuit pas.
+ */
+export function resumeErreurSmtp(e: unknown, qui?: string): string {
+  const o = (e && typeof e === 'object' ? e : {}) as Record<string, unknown>;
+  const jeton = (v: unknown, motif: RegExp): string => {
+    const t = typeof v === 'number' || typeof v === 'string' ? String(v).trim() : '';
+    return motif.test(t) ? t : '?';
+  };
+  const code = jeton(o.code, /^[A-Z][A-Z0-9_]{0,31}$/);
+  const reponse = jeton(o.responseCode, /^\d{3}$/);
+  const commande = jeton(o.command, /^[A-Z][A-Z0-9 -]{0,31}$/);
+  const auteur = qui === undefined ? 'destinataire non journalisé' : jeton(qui, /^[\w-]{1,64}$/);
+  return `code=${code} · réponse=${reponse} · commande=${commande} · qui=${auteur}`;
+}
+
+/**
  * Le disjoncteur des abandons · un refus « définitif » qui frappe beaucoup de
  * monde n'est plus une boîte morte, c'est une cause commune (relais, quota,
  * politique du serveur) mal classée. On n'abandonne alors PERSONNE · le
@@ -316,13 +338,40 @@ export function abandonsNotesRecap(e: EtatVerrouRecap): number {
   return Object.values(e.servis).reduce((n, s) => n + s.abandons.length, 0);
 }
 
+/**
+ * Jusqu'à quand une relance sert encore la semaine · le verrou est rangé par
+ * semaine ISO lue à Paris (`cleVerrouRecap`). Relancé après lundi 00:00, un
+ * appel ouvre la semaine SUIVANTE · les courriels retenus de celle-ci ne
+ * partent plus jamais.
+ */
+export const RELANCE_MEME_SEMAINE_RECAP = 'la même semaine (avant lundi 00:00, heure de Paris)';
+
+/**
+ * La ligne « SMTP non configuré » du journal de la route · elle dit EXACTEMENT
+ * ce que ce passage a servi. Une marque en échec n'a pas reçu sa lettre · la
+ * ligne ne dit donc pas « lettres servies dans l'application » sans compter,
+ * elle donne les lettres servies, les marques en échec (que la tentative
+ * suivante reprend, `suiteRecap`) et les courriels non envoyés. Des comptes
+ * seulement · jamais une adresse ni un identifiant.
+ */
+export function ligneSansSmtpRecap(c: { lettresServies: number; marquesEnEchec: number; courrielsSautes: number }): string {
+  const echec = c.marquesEnEchec > 0 ? ` · ${c.marquesEnEchec} marque(s) en échec, lettre(s) NON servie(s) · la tentative suivante les reprend` : '';
+  return `SMTP non configuré (SMTP_URL) · ${c.lettresServies} lettre(s) servie(s) dans l’application${echec} · ${c.courrielsSautes} courriel(s) non envoyé(s) · verrou laissé interrompu pour un rattrapage`;
+}
+
 /** Ce que le worker fait de la réponse de la route. */
 export type SuiteRecap =
   | { action: 'fini' }
   | { action: 'sans_smtp' }
   | { action: 'reporter'; delaiMs: number; reports: number }
-  | { action: 'retenter' }
+  /** `note` · ce que la ligne de la retente doit dire en plus (le disjoncteur a aussi sauté). */
+  | { action: 'retenter'; note?: string }
   | { action: 'abandon'; raison: string; disjoncteur?: boolean };
+
+/** Le 503 `smtp_absent` · une configuration connue, pas une panne · une seule ligne, en avertissement (`passageRecap`). */
+export function sansSmtpRecap(issue: { status?: number; detail?: string }): boolean {
+  return issue.status === 503 && issue.detail === 'smtp_absent';
+}
 
 /**
  * La suite d'un déclenchement de `weekly-digest`.
@@ -334,8 +383,16 @@ export type SuiteRecap =
  *    retenter (chaque retente relirait toutes les marques pour rien) · une
  *    ligne au journal, pas d'ALERTE « non servi » (crier chaque lundi pour un
  *    état connu apprend à ignorer l'alerte) ;
- *  · disjoncteur déclenché · une cause commune côté SMTP · abandon immédiat,
- *    ALERTE précise (pas « non servi » · les lettres sont dans l'application) ;
+ *  · disjoncteur déclenché, AUCUNE marque en échec · une cause commune côté
+ *    SMTP · abandon immédiat, ALERTE précise (pas « non servi » · les lettres
+ *    sont dans l'application) ;
+ *  · disjoncteur ET marque en échec (`failedBrands`) · la MARQUE l'emporte ·
+ *    ses notifications ne sont pas servies, et seule une retente les sert.
+ *    Abandonner sur le disjoncteur les perdait, sous une ALERTE qui affirmait
+ *    « lettres servies dans l'application ». La retente dit le disjoncteur
+ *    dans sa ligne (`note`) sans crier · elle le réévalue : marque servie, le
+ *    disjoncteur reste seul et alerte ; marque toujours en échec à la
+ *    dernière tentative, l'ALERTE « non servi » le dit aussi ;
  *  · tout autre échec (500, délai dépassé, injoignable) · RETENTER (BullMQ,
  *    une tentative) tant qu'il en reste ;
  *  · plus rien · ABANDON, que le worker crie (la semaine n'est pas `fait`).
@@ -345,18 +402,23 @@ export function suiteRecap(
   c: { reports: number; tentative: number; tentativesMax: number },
 ): SuiteRecap {
   if (issue.ok) return { action: 'fini' };
-  if (issue.status === 503 && issue.detail === 'smtp_absent') return { action: 'sans_smtp' };
-  if (issue.corps?.disjoncteur === true) {
-    return { action: 'abandon', disjoncteur: true, raison: `disjoncteur des courriels · ${Number(issue.corps.refused) || 0} refus « définitif(s) » pour ${Number(issue.corps.sent) || 0} courriel(s) parti(s) cette semaine · cause commune probable (relais, quota, politique du serveur) · aucune adresse abandonnée, lettres servies dans l'application · vérifier la configuration SMTP puis relancer GET /api/cron/digest` };
+  if (sansSmtpRecap(issue)) return { action: 'sans_smtp' };
+  const marquesEnEchec = Number(issue.corps?.failedBrands) || 0;
+  const disjoncte = issue.corps?.disjoncteur === true
+    ? `${Number(issue.corps?.refused) || 0} refus « définitif(s) » pour ${Number(issue.corps?.sent) || 0} courriel(s) parti(s) cette semaine`
+    : null;
+  if (disjoncte && marquesEnEchec === 0) {
+    return { action: 'abandon', disjoncteur: true, raison: `disjoncteur des courriels · ${disjoncte} · cause commune probable (relais, quota, politique du serveur) · aucune adresse abandonnée, lettres servies dans l'application · vérifier la configuration SMTP puis relancer GET /api/cron/digest ${RELANCE_MEME_SEMAINE_RECAP}` };
   }
   if (issue.status === 409 && (issue.detail === 'en_cours' || issue.detail === 'verrou_perdu')) {
     return c.reports < REPORTS_EN_COURS_MAX
       ? { action: 'reporter', delaiMs: REPORT_EN_COURS_MS, reports: c.reports + 1 }
       : { action: 'abandon', raison: `un passage tient la semaine depuis ${REPORTS_EN_COURS_MAX} vérifications (${Math.round(REPORTS_EN_COURS_MAX * REPORT_EN_COURS_MS / 60_000)} min)` };
   }
+  const note = disjoncte ? `${marquesEnEchec} marque(s) en échec · disjoncteur des courriels aussi déclenché · ${disjoncte}` : undefined;
   return c.tentative < c.tentativesMax
-    ? { action: 'retenter' }
-    : { action: 'abandon', raison: `dernière tentative (${c.tentative}/${c.tentativesMax}) en échec · ${issue.detail ?? issue.status ?? 'inconnu'}` };
+    ? (note ? { action: 'retenter', note } : { action: 'retenter' })
+    : { action: 'abandon', raison: `dernière tentative (${c.tentative}/${c.tentativesMax}) en échec · ${issue.detail ?? issue.status ?? 'inconnu'}${note ? ` · ${note}` : ''}` };
 }
 
 /**

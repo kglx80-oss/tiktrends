@@ -68,7 +68,7 @@ vi.mock('@tiktrends/db', async (importOriginal) => {
 });
 
 import { db, schema, eq, and, sql } from '@tiktrends/db';
-import { avecCourrielRecap, avecMarquesRecap, avecNotificationRecap, cleVerrouRecap, etatInitialRecap, lireEtatRecap, SEUIL_ABANDON_RECAP_MS } from '@tiktrends/core';
+import { avecCourrielRecap, avecMarquesRecap, avecNotificationRecap, cleVerrouRecap, etatInitialRecap, lireEtatRecap, SEUIL_ABANDON_RECAP_MS, suiteRecap } from '@tiktrends/core';
 import { GET as cronRecap } from '../app/api/cron/digest/route';
 
 const ids = h.ids;
@@ -76,7 +76,7 @@ const LUNDI = new Date('2026-11-16T06:47:00Z');         // lundi 07:47 à Paris 
 const LUNDI_SUIVANT = new Date('2026-11-23T06:47:00Z'); // 2026-W48
 const lundi = (iso: string) => new Date(`${iso}T06:47:00Z`);
 
-type Reponse = { ok?: boolean; skipped?: string; week?: string; notified: number; mailed: number; error?: string; failedBrands?: number; failedMails?: number; abandoned?: number; disjoncteur?: boolean };
+type Reponse = { ok?: boolean; skipped?: string; week?: string; notified: number; mailed: number; error?: string; failedBrands?: number; failedMails?: number; abandoned?: number; disjoncteur?: boolean; refused?: number; sent?: number };
 
 const appel = () => cronRecap(new Request('http://localhost/api/cron/digest', { headers: { authorization: 'Bearer cron-de-test' } }));
 
@@ -101,7 +101,7 @@ async function verrou(instant: Date) {
 }
 
 /** Deux trouvailles du radar la veille de `instant` · la semaine de la marque mérite un récap. */
-async function trouvailles(instant: Date, tag: string, ws = ids.wsA, brand = ids.brandA): Promise<void> {
+async function trouvailles(instant: Date, tag: string, ws: string = ids.wsA, brand: string = ids.brandA): Promise<void> {
   const veille = new Date(instant.getTime() - 86_400_000);
   await db!.insert(schema.marketCreatives).values([1, 2].map((i) => ({
     workspaceId: ws, brandId: brand, platform: 'meta', externalId: `trouvaille-${tag}-${i}`, hookType: 'avant_apres', radarSignal: 'advertiser_scaling', reportedAt: veille,
@@ -509,3 +509,41 @@ describe('un 5xx qui frappe tout le monde n’est pas une boîte morte · la sem
   });
 });
 
+// En dernier, et la semaine la plus tardive · un espace C propre à ce cas n'entre dans la fenêtre d'aucun autre passage.
+describe('disjoncteur ET marque en échec dans le même passage · la marque l’emporte', () => {
+  it('la VRAIE réponse de la route · le worker retente, la reprise sert la marque en échec, puis le disjoncteur seul abandonne', async () => {
+    const instant = lundi('2027-03-15'); // 2027-W11
+    const c = { ws: crypto.randomUUID(), brand: crypto.randomUUID(), owner: crypto.randomUUID() };
+    await db!.insert(schema.workspaces).values({ id: c.ws, name: 'Studio Cèdre', plan: 'plus', onboardedAt: new Date() });
+    await db!.insert(schema.users).values({ id: c.owner, email: `${c.owner}@recap.test`, name: 'Clara' });
+    await db!.insert(schema.workspaceMembers).values({ workspaceId: c.ws, userId: c.owner, role: 'owner' });
+    await db!.insert(schema.brands).values({ id: c.brand, workspaceId: c.ws, name: 'Cèdre' });
+    await trouvailles(instant, 'w11');
+    await trouvailles(instant, 'w11b', ids.wsB, ids.brandB);
+    await trouvailles(instant, 'w11c', c.ws, c.brand);
+    const INCONNU = () => Object.assign(new Error('Can’t send mail - all recipients were rejected'), { responseCode: 550, command: 'RCPT TO', response: '550 5.1.1 <x>: Recipient address rejected: User unknown' });
+    const suite = (r: { status: number; corps: Reponse }, tentative: number) => suiteRecap({ ok: false, status: r.status, detail: r.corps.error, corps: r.corps as unknown as Record<string, unknown> }, { reports: 0, tentative, tentativesMax: 6 });
+
+    // Les trois destinataires de A et B refusés en 5.1.1 (l'effectif du disjoncteur), et la base refuse les notifications de C.
+    h.surEnvoi = async () => { throw INCONNU(); };
+    const espionE = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const espionW = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    let r: Awaited<ReturnType<typeof passage>>;
+    let reprise: Awaited<ReturnType<typeof passage>>;
+    try {
+      await refuserNotifications(c.ws);
+      try { r = await passage(instant); } finally { await accepterNotifications(); }
+      reprise = await passage(new Date(instant.getTime() + 60_000));
+    } finally { h.surEnvoi = null; espionE.mockRestore(); espionW.mockRestore(); }
+
+    expect(r.status).toBe(500);
+    expect(r.corps, 'préalable · le passage porte à la fois le disjoncteur et la marque en échec').toMatchObject({ error: 'digest_incomplet', failedBrands: 1, disjoncteur: true, refused: 3, sent: 0 });
+    const s = suite(r, 1);
+    expect(s.action, 'disjoncteur et marque en échec · le worker abandonne sans retenter, la lettre de la marque en échec est perdue').toBe('retenter');
+
+    // La retente · la marque C est servie, le disjoncteur reste seul · abandon immédiat, raison précise.
+    expect(await notificationsRecap(c.ws), 'la retente n’a pas servi la marque en échec').toBe(1);
+    expect(reprise.corps, 'la retente redouble ou oublie').toMatchObject({ error: 'digest_incomplet', failedBrands: 0, notified: 1, disjoncteur: true });
+    expect(suite(reprise, 2)).toMatchObject({ action: 'abandon', disjoncteur: true });
+  });
+});

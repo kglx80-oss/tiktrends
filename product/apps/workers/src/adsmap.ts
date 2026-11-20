@@ -23,8 +23,12 @@ export interface AdsMapTriggerResult { ok: boolean; status?: number; detail?: st
  * Appelle un endpoint cron protégé et rend compte · le SEUL point de contact
  * worker → web. Sans `CRON_SECRET`, on ne déclenche rien et on dit pourquoi ·
  * un succès silencieux laisserait un écran vide sans explication.
+ *
+ * `taire` · un refus que l'appelant journalise lui-même, au bon niveau (le
+ * 503 `smtp_absent` du récap, un avertissement de `passageRecap`) · sans lui,
+ * chaque lundi sans SMTP écrivait d'abord un `console.error` de plus.
  */
-async function triggerCron(path: string, tag: string, timeoutMs: number): Promise<AdsMapTriggerResult> {
+async function triggerCron(path: string, tag: string, timeoutMs: number, o: { taire?: (r: { status: number; detail: string }) => boolean } = {}): Promise<AdsMapTriggerResult> {
   const secret = process.env.CRON_SECRET;
   if (!secret) {
     console.warn(`[${tag}] CRON_SECRET absent · passage non déclenché.`);
@@ -38,8 +42,9 @@ async function triggerCron(path: string, tag: string, timeoutMs: number): Promis
     });
     const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
     if (!res.ok) {
-      console.error(`[${tag}] passage refusé`, res.status, body.error ?? '');
-      return { ok: false, status: res.status, detail: String(body.error ?? res.status), corps: body };
+      const detail = String(body.error ?? res.status);
+      if (!o.taire?.({ status: res.status, detail })) console.error(`[${tag}] passage refusé`, res.status, body.error ?? '');
+      return { ok: false, status: res.status, detail, corps: body };
     }
     console.log(`[${tag}] passage terminé`, JSON.stringify(body));
     return { ok: true, status: res.status, corps: body };
@@ -109,6 +114,6 @@ export function triggerVideosHistoriques(): Promise<AdsMapTriggerResult> {
  * Rend la réponse telle quelle · c'est `passageRecap` (`./recap`) qui décide
  * de retenter, de reporter ou d'alerter.
  */
-export function triggerDigest(): Promise<AdsMapTriggerResult> {
-  return triggerCron('/api/cron/digest', 'digest', DELAI_DECLENCHEUR_RECAP_MS);
+export function triggerDigest(o: { taire?: (r: { status: number; detail: string }) => boolean } = {}): Promise<AdsMapTriggerResult> {
+  return triggerCron('/api/cron/digest', 'digest', DELAI_DECLENCHEUR_RECAP_MS, o);
 }

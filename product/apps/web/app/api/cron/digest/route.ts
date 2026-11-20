@@ -4,7 +4,7 @@ import { and, eq, inArray, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
   abandonsNotesRecap, avecAbandonRecap, avecBattementRecap, avecCourrielRecap, courrielsNotesRecap, disjoncteurAbandons, avecMarquesRecap, avecNotificationRecap, cleVerrouRecap, decisionVerrouRecap,
-  dejaEcritRecap, dejaNotifieRecap, destinataireRecap, etatInitialRecap, finRecap, repriseRecap, semaineIso,
+  dejaEcritRecap, dejaNotifieRecap, destinataireRecap, etatInitialRecap, finRecap, ligneSansSmtpRecap, repriseRecap, semaineIso,
   type EtatVerrouRecap,
 } from '@tiktrends/core';
 import { weeklyDigests, digestText } from '../../../../lib/digest';
@@ -80,7 +80,9 @@ export const maxDuration = 300;
  * n'est plus retenté · sauf si le disjoncteur (`disjoncteurAbandons`) dit
  * qu'ils sont trop nombreux pour être des boîtes mortes : personne n'est alors
  * abandonné, la semaine reste `interrompu`, la réponse le dit
- * (`disjoncteur: true`) et le worker crie une ALERTE précise sans retenter. Le
+ * (`disjoncteur: true`) et le worker crie une ALERTE précise sans retenter ·
+ * sauf si une MARQUE est aussi en échec (`failedBrands`) : ses notifications
+ * ne sont pas servies, la marque l'emporte et le worker retente (`suiteRecap`). Le
  * cumul des abandons de la SEMAINE part dans la réponse (`abandoned`, reprises
  * comprises) · le worker ALERTE quand il n'est pas nul.
  *
@@ -259,7 +261,8 @@ export async function GET(req: Request) {
     }
     // Le cumul de la SEMAINE · un abandon noté par un passage en 500 n'échappe pas à l'alerte de la reprise en 200.
     const abandonnes = abandonsNotesRecap(etat);
-    if (courrielsSautes) console.warn('[cron:digest]', semaine, '· SMTP non configuré (SMTP_URL) · lettres servies dans l’application ·', courrielsSautes, 'courriel(s) non envoyé(s) · verrou laissé interrompu pour un rattrapage');
+    // Ce que ce passage a servi, compté · une marque en échec n'est pas dite servie (`ligneSansSmtpRecap`).
+    if (courrielsSautes) console.warn('[cron:digest]', semaine, '·', ligneSansSmtpRecap({ lettresServies, marquesEnEchec, courrielsSautes }));
     if (courrielsEnEchec) console.error('[cron:digest]', semaine, '·', courrielsEnEchec, 'courriel(s) attendu(s) non parti(s) · le passage reste interrompu, la tentative suivante les renverra');
     const echecs = marquesEnEchec + courrielsEnEchec + courrielsSautes;
     await ecrire(finRecap(etat, echecs, new Date()));
