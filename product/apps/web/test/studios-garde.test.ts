@@ -108,3 +108,22 @@ describe('SEC-09 · admin ou owner d’espace : aucune permission plateforme', (
     expect(manager.permissions.plateforme.has('prompt.publish')).toBe(false);
   });
 });
+
+describe('Suivi de #1117 · l’audit ne trace « equipe: » que pour un compte admissible', () => {
+  it('adresse de FOUNDER_EMAILS (Admin+ sans inscription ni droit) · tracée par son rôle d’espace, pas « equipe:adminplus »', () => {
+    const ctx = contexteDepuisSession(session(ids, 'ua', { role: 'owner', equipe: { role: 'adminplus', matrice: {}, plateformeAdmissible: false, inscritEquipe: false } }), [ids.brandA1], [], 't');
+    expect(ctx.roleEffectif).toBe('espace:owner');
+  });
+
+  it('accès total et gradé non admissibles · rôle d’espace seul', () => {
+    for (const role of ['adminplus', 'admin', 'manager'] as const) {
+      const ctx = contexteDepuisSession(session(ids, 'ua', { equipe: { role, matrice: {}, plateformeAdmissible: false, inscritEquipe: true } }), [ids.brandA1], [], 't');
+      expect(ctx.roleEffectif, role).toBe('espace:member');
+    }
+  });
+
+  it('admissible · rôle d’équipe puis rôle d’espace, inchangé', () => {
+    const ctx = contexteDepuisSession(session(ids, 'ua', { equipe: { role: 'admin', matrice: {}, plateformeAdmissible: true, inscritEquipe: true } }), [ids.brandA1], [], 't');
+    expect(ctx.roleEffectif).toBe('equipe:admin/espace:member');
+  });
+});

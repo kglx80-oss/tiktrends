@@ -20,6 +20,10 @@ import { isValidElement, type ReactElement } from 'react';
  *     lit le message qui lui dit quoi faire.
  *  4. Trois `canAccess` construits sur la session BRUTE (sans
  *     `effectiveAccess`) rendaient la face équipe à un compte non admissible.
+ *  5. Suivi de #1117 · le refus `?e=admissible` ne tombe jamais sur l'écran
+ *     complet (sa légende était inatteignable, retirée), et l'audit ne trace
+ *     « equipe: » que pour un compte admissible (une adresse de
+ *     `FOUNDER_EMAILS` était tracée « equipe:adminplus »).
  *
  * VRAI `getSession` sur un jeton signé (seul le cookie est apporté), base
  * réelle (pglite), VRAIES portes, pages et actions · on lit ce qui SORT ·
@@ -86,6 +90,8 @@ import SettingsPage from '../app/(spatial)/sp/settings/page';
 import ProfilPage from '../app/(spatial)/sp/profile/page';
 import TagsPage from '../app/(spatial)/sp/tags/page';
 import EquipePage from '../app/(spatial)/sp/admin/equipe/page';
+import { enregistrerStaffAction } from '../app/actions/equipe';
+import { creerProjet } from '../app/actions/studios/projets';
 import { grantCreditsAction, rechargeAllocationAction } from '../app/actions/credits';
 import { changePlanAction } from '../app/actions/billing';
 import { updatePlanConfigAction } from '../app/actions/platform';
@@ -330,6 +336,7 @@ describe('3 · /admin/equipe · un compte non admissible ne lit que son message'
       expect(html, 'le registre d’audit est lisible').not.toContain(ACTEUR_AUDIT);
       expect(html).not.toContain('data-membre');
       expect(html).not.toContain('—');
+      if (qui === 'gradeNon') expect(html, 'un gradé n’a jamais la liste de l’équipe · son message ne peut pas la dire fermée').not.toContain('liste de l’équipe');
     });
   }
 
@@ -384,5 +391,48 @@ describe('4 · formule Starter · un accès total non admissible n’a pas la fa
       await connecter('legitime');
       expect(props(await TagsPage()).sortie).toEqual(sortieTagging({ resultats: true }));
     });
+  });
+});
+
+/* ────────────── 5 · suivi de #1117 · ce que disent et tracent les non admissibles ────────────── */
+
+describe('5 · le refus « ?e=admissible » des actions de l’équipe ne tombe jamais sur la légende', () => {
+  // Seul émetteur · `exigerAccesTotal` (actions/equipe.ts) · accès total NON admissible. La page, elle,
+  // ne lit `?e=` que sur l'écran complet · le non admissible n'y lit que son message.
+  for (const [qui, message] of [['capte', MESSAGE_NON_ADMISSIBLE], ['env', MESSAGE_FONDATEUR_HORS_CODE]] as const) {
+    it(`${qui} · l’action refuse, la page de retour rend son message seul`, async () => {
+      await connecter(qui);
+      const retour = await redirection(() => enregistrerStaffAction(fd({ email: 'nouvelle@equipe.test', role: 'admin' })));
+      expect(retour).toBe('/admin/equipe?e=admissible');
+      const html = renderToStaticMarkup(avecSpatial(await EquipePage({ searchParams: Promise.resolve({ e: 'admissible' }) })));
+      expect(html, 'le non admissible lit l’écran complet (liste, légende) au lieu de son message').toContain('data-non-admissible');
+      expect(html).toContain(message);
+      expect(html).not.toContain('il ne peut pas modifier l’équipe');
+      expect(html).not.toContain('data-membre');
+    });
+  }
+});
+
+describe('5 · l’audit ne trace « equipe: » que pour un compte admissible (ligne réellement écrite)', () => {
+  const tracePar = async (qui: Qui) => {
+    await connecter(qui);
+    const c = await creerProjet({ brandId: ids.brand, kind: 'ads', title: `Projet ${qui}` });
+    expect(c.ok, `${qui} · création refusée`).toBe(true);
+    const lignes = await db!.select({ role: schema.studioAuditEvents.effectiveRole }).from(schema.studioAuditEvents)
+      .where(eq(schema.studioAuditEvents.targetId, (c as { projet: { id: string } }).projet.id));
+    expect(lignes.length, `${qui} · aucune ligne d’audit`).toBe(1);
+    return lignes[0]!.role;
+  };
+
+  it('adresse de FOUNDER_EMAILS · tracée par son rôle d’espace, jamais « equipe:adminplus »', async () => {
+    expect(await tracePar('env')).toBe('espace:owner');
+  });
+  it('accès total et gradé non admissibles · rôle d’espace seul', async () => {
+    expect(await tracePar('capte')).toBe('espace:owner');
+    expect(await tracePar('gradeNon')).toBe('espace:owner');
+  });
+  it('admissibles (Admin+, fondateur codé) · rôle d’équipe puis rôle d’espace, inchangé', async () => {
+    expect(await tracePar('legitime')).toBe('equipe:adminplus/espace:owner');
+    expect(await tracePar('code')).toBe('equipe:adminplus/espace:owner');
   });
 });

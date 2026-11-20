@@ -49,7 +49,7 @@ describe('admissibiliteMembre · ce que /admin/equipe montre par membre', () => 
     expect(a.statut).toBe('compte-posterieur');
     expect(a.admissible).toBe(false);
     expect(a.libelle).toBe('Non admissible');
-    expect(a.consigne).toBe(`Compte créé après son inscription · accès d’équipe (les rubriques de son rôle, sans verrou de formule) et liste de l’équipe fermés. ${CONSIGNE_REINSCRIPTION}`);
+    expect(a.consigne).toBe(`Compte créé après son inscription · accès d’équipe (les rubriques de son rôle, sans verrou de formule) fermé, la réinscription le lui rend. ${CONSIGNE_REINSCRIPTION}`);
   });
 
   it('rôle gradé, compte antérieur · admissible, sans consigne', () => {

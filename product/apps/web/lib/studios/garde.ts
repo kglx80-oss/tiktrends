@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
-  permissionsStudio, restreindrePlateforme, marquesAccessibles, aPermissionEspace, erreurStudio, estRoleEspace,
+  permissionsStudio, restreindrePlateforme, roleEffectifAudit, marquesAccessibles, aPermissionEspace, erreurStudio, estRoleEspace,
   type PermissionEspace, type PermissionsStudio, type RoleEspace, type ErreurStudio, type CapaciteStudio,
 } from '@tiktrends/core';
 import { getSession, type Session } from '../auth';
@@ -32,7 +32,7 @@ export interface ContexteStudio {
   workspaceId: string;
   roleEspace: RoleEspace;
   roleEquipe: string | null;
-  /** « espace:member » ou « equipe:admin/espace:owner » · tracé dans l'audit. */
+  /** « espace:member », ou « equipe:admin/espace:owner » pour un compte ADMISSIBLE (`roleEffectifAudit`) · tracé dans l'audit. */
   roleEffectif: string;
   permissions: PermissionsStudio;
   marquesDuWorkspace: string[];
@@ -75,7 +75,7 @@ export function contexteDepuisSession(
     workspaceId: s.workspaceId,
     roleEspace,
     roleEquipe,
-    roleEffectif: roleEquipe ? `equipe:${roleEquipe}/espace:${roleEspace}` : `espace:${roleEspace}`,
+    roleEffectif: roleEffectifAudit({ roleEspace, equipe: s.equipe }),
     permissions,
     marquesDuWorkspace: [...marquesDuWorkspace],
     restrictionsMarque: [...restrictionsMarque],
