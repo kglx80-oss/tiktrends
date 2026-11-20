@@ -301,7 +301,7 @@ export async function lireJourneesRetenues(brandId: string, portee: PorteeLectur
       if (adId && remplacees.has(adId)) continue;
       journees.push({ adId, debut: r.date, fin: r.date, mesures: mesuresDeLaLigne(r) });
       if (adId && !protocoleMeta.has(adId)) {
-        protocoleMeta.set(adId, { nomAnnonce: null, campagne: r.campagne, campagneId: r.campagneId, ensemble: r.ensemble, ensembleId: r.ensembleId, budgetJour: r.budget, cbo: false });
+        protocoleMeta.set(adId, { nomAnnonce: null, campagne: r.campagne, campagneId: r.campagneId, ensemble: r.ensemble, ensembleId: r.ensembleId, budgetJour: r.budget, cbo: null });
         cboInstance.set(adId, r.cbo ?? null);
       }
     }

@@ -237,7 +237,9 @@ async function syncBrand(
 
   const [daily, adsets] = await Promise.all([
     metaDailySync(brand.account, brand.token, { since, until: aujourdhui }),
-    // Ensembles illisibles (lecture incomplète comprise) · la mesure continue sans budget, comme avant, mais le DIT au journal.
+    // Ensembles illisibles (lecture incomplète comprise) · la mesure continue et le DIT au journal · aucun ensemble
+    // n'est alors « lu » · l'instance garde budget, statut et CBO connus (`ingest`), le contrôle du lot aussi
+    // (`protocoleMetaRetenu`) · rien de connu, le CBO est inconnu et le lot ne se compare pas (`checkProtocol`).
     metaAdsetsSync(brand.account, brand.token).catch((e) => {
       console.warn('[adsmap] ensembles non lus', brand.id, (e as Error).message);
       return [] as MetaAdsetInfo[];

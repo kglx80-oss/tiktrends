@@ -177,4 +177,15 @@ describe('synchro Adsmap · une lecture des ensembles Meta en échec ne fait rie
     expect((await lot()).codes).toContain('cbo');
     expect(relatifs(await verdicts())).toEqual(RELATIFS);
   });
+
+  it('lecture réussie qui ne rend PAS l’ensemble de meta-a, après un CBO connu · le CBO de meta-a tient, le lot reste relatif', async () => {
+    const cboPur = { budget: null, statut: 'ACTIVE', cbo: true };
+    meta.ensembles = ensembles(cboPur).filter((e) => e.id !== 's-meta-a');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try { await runAdsMapSyncForBrand(ids.brand); } finally { warn.mockRestore(); }
+    expect(meta.appelsEnsembles, 'témoin · la lecture des ensembles n’a pas réussi').toBeGreaterThan(0);
+    expect(await instances(), 'ensemble absent d’une lecture réussie · ce qu’on savait de meta-a a été effacé').toEqual({ 'meta-a': cboPur, 'meta-b': cboPur });
+    expect((await lot()).codes, 'ensemble absent d’une lecture réussie · le CBO connu de meta-a a été oublié').toContain('cbo');
+    expect(relatifs(await verdicts())).toEqual(RELATIFS);
+  });
 });

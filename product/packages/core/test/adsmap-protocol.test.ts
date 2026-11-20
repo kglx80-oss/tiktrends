@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { checkProtocol, summarizeProtocol, resolveCampaignName, type ProtocolAd, type ProtocolRules } from '../src/adsmap/protocol';
+import { checkProtocol, summarizeProtocol, resolveCampaignName, protocoleSeulementInconnu, type ProtocolAd, type ProtocolRules } from '../src/adsmap/protocol';
 
 /**
  * Le contrôle de protocole décide si les verdicts d'un lot valent quelque chose.
@@ -53,6 +53,40 @@ describe('CBO · la violation qui coûte le plus cher', () => {
   it('accepté quand la marque a choisi le CBO · on ne signale plus', () => {
     const c = checkProtocol(cbo, { ...rules, structure: 'cbo_tolerated' }, ctx);
     expect(c.violations.some((x) => x.code === 'cbo')).toBe(false);
+  });
+});
+
+describe('CBO INCONNU · ensembles non lus · le lot ne se compare pas', () => {
+  const RESUME = 'Ensembles Meta non lus · protocole inconnu, les verdicts de ce lot ne seront que relatifs jusqu’à la prochaine lecture.';
+
+  it('une annonce qui a dépensé, CBO inconnu (`null`) · lot NON comparable, résumé qui le dit', () => {
+    const c = checkProtocol([ad(1, { campaignBudgetOptimization: null }), ad(2, { campaignBudgetOptimization: false })], rules, ctx);
+    expect(c.compliant, 'CBO inconnu · le lot reste comparable').toBe(false);
+    const v = c.violations.find((x) => x.code === 'cbo_inconnu')!;
+    expect(v.adIds).toEqual(['ad1']);
+    expect(v.message).toMatch(/n'ont pas pu être lus chez Meta/);
+    expect(summarizeProtocol(c)).toBe(RESUME);
+    expect(protocoleSeulementInconnu(c.violations)).toBe(true);
+  });
+
+  it('`false` lu, ou non fourni (`undefined`) · rien d’inconnu, lot comparable', () => {
+    expect(checkProtocol([ad(1, { campaignBudgetOptimization: false }), ad(2)], rules, ctx).compliant).toBe(true);
+  });
+
+  it('inconnu SANS dépense · ne biaise rien, ne bloque pas (sa sous-diffusion est dite à part)', () => {
+    const c = checkProtocol([ad(1, { campaignBudgetOptimization: null, spend: 0 }), ad(2), ad(3)], rules, ctx);
+    expect(c.violations.some((x) => x.code === 'cbo_inconnu')).toBe(false);
+    expect(c.compliant).toBe(true);
+  });
+
+  it('CBO toléré par la marque · l’inconnu ne bloque pas non plus', () => {
+    expect(checkProtocol([ad(1, { campaignBudgetOptimization: null }), ad(2)], { ...rules, structure: 'cbo_tolerated' }, ctx).compliant).toBe(true);
+  });
+
+  it('CBO connu ET inconnu · le résumé dit le CBO, la structure est à corriger (pas seulement inconnu)', () => {
+    const c = checkProtocol([ad(1, { campaignBudgetOptimization: null }), ad(2, { campaignBudgetOptimization: true })], rules, ctx);
+    expect(summarizeProtocol(c)).toMatch(/piloté par la campagne/);
+    expect(protocoleSeulementInconnu(c.violations)).toBe(false);
   });
 });
 

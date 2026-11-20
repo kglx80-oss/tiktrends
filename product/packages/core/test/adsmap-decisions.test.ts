@@ -95,6 +95,13 @@ describe('lots', () => {
     expect(d[0]!.title).toContain('900 €');
   });
 
+  it('protocole seulement INCONNU (ensembles non lus) · l’action est de rétablir la lecture, pas de corriger la structure', () => {
+    const d = buildDecisions(input({ batches: [lot({ protocoleInconnu: true })] }));
+    expect(d[0]!.type).toBe('protocol_violation');
+    expect(d[0]!.action).toBe('Vérifie l’accès de la connexion Meta aux ensembles de publicités · la prochaine lecture réussie rétablit le contrôle du lot.');
+    expect(buildDecisions(input({ batches: [lot()] }))[0]!.action).toMatch(/Corrige la structure/);
+  });
+
   it('ne le signale plus une fois le lot analysé', () => {
     expect(buildDecisions(input({ batches: [lot({ status: 'analyzed' })] }))).toHaveLength(0);
   });

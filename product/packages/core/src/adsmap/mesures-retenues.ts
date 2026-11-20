@@ -146,9 +146,14 @@ export function marquesRetenues<E extends { debut: string; fin: string }>(
 
 /* ───────────────────────── protocole ───────────────────────── */
 
-export type ProtocoleAd = ProtocoleLigne & { nomAnnonce: string | null };
+/**
+ * Le protocole d'une ad · `cbo` à TROIS états · `true` / `false` lus (chez Meta ou
+ * dans un export), `null` · INCONNU (aucun ensemble lu, ni sur l'instance ni au
+ * relais du lot) · un CBO inconnu retire sa comparabilité au lot (`checkProtocol`).
+ */
+export type ProtocoleAd = Omit<ProtocoleLigne, 'cbo'> & { nomAnnonce: string | null; cbo: boolean | null };
 
-export const PROTOCOLE_INCONNU: ProtocoleAd = { nomAnnonce: null, campagne: null, campagneId: null, ensemble: null, ensembleId: null, budgetJour: null, cbo: false };
+export const PROTOCOLE_INCONNU: ProtocoleAd = { nomAnnonce: null, campagne: null, campagneId: null, ensemble: null, ensembleId: null, budgetJour: null, cbo: null };
 
 /**
  * Le protocole d'une ad · la connexion d'abord (elle suit l'ensemble tel qu'il
@@ -164,9 +169,11 @@ export function protocoleRetenu(meta: ProtocoleAd | null | undefined, csv: reado
  * Le CBO d'une ad synchronisée · celui que la synchro a écrit sur son instance
  * (`ad_instances.campaign_budget_optimization`, 0073) quand elle l'a lu ·
  * sinon (instance d'avant 0073, ou ensemble non lu) le RELAIS du contrôle du
- * lot (`protocol_check_json.cboMeta`, écrit avant que l'instance le porte).
+ * lot (`protocol_check_json.cboMeta`, écrit avant que l'instance le porte) ·
+ * sinon INCONNU (`null`). Le relais ne liste que les ads lues en CBO · en être
+ * absent ne prouve pas l'ABO, donc ne vaut pas `false`.
  */
-export const cboRetenu = (instance: boolean | null | undefined, relais: boolean): boolean => instance ?? relais;
+export const cboRetenu = (instance: boolean | null | undefined, relais: boolean): boolean | null => instance ?? (relais ? true : null);
 
 /**
  * Ce que la synchro vient de lire chez Meta pour une ad · l'annonce (campagne,
@@ -185,7 +192,10 @@ export interface ProtocoleLuMeta {
  * y en a, sinon le protocole stocké sur l'instance · le CBO par `cboRetenu`.
  *
  * Un ensemble NON LU ne fait rien oublier · le budget et le CBO restent ceux
- * qu'on connaissait (instance, relais du lot), seule l'annonce est rafraîchie.
+ * qu'on connaissait (instance, relais du lot), seule l'annonce est rafraîchie ·
+ * le budget stocké ne vaut que pour le MÊME ensemble (une ad passée dans un
+ * autre ensemble n'a plus ce budget · inconnu, `null`). Rien de connu · CBO
+ * inconnu (`null`), le lot ne se compare pas.
  * Le rendre « sans CBO, budget inconnu » ferait passer un lot en CBO pour
  * « Protocole respecté · comparables » (le contrôle ignore les budgets nuls) et
  * ouvrirait des `winner` absolus que le §6.1 interdit.
@@ -200,7 +210,10 @@ export function protocoleMetaRetenu(
 ): ProtocoleAd | undefined {
   if (lu?.ensemble) return { ...lu.annonce, ...lu.ensemble };
   const connu = cboRetenu(cbo.instance, cbo.relais);
-  if (lu) return { ...lu.annonce, budgetJour: stocke?.budgetJour ?? null, cbo: connu };
+  if (lu) {
+    const memeEnsemble = !!stocke && stocke.ensembleId === lu.annonce.ensembleId;
+    return { ...lu.annonce, budgetJour: memeEnsemble ? stocke.budgetJour : null, cbo: connu };
+  }
   return stocke ? { ...stocke, cbo: connu } : undefined;
 }
 

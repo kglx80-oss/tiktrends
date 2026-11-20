@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  retenirJournees, protocoleRetenu, protocoleMetaRetenu, adAMesurer, sourceDesEntrees, sommeRetenues, journeesReporting, importeesDans, mentionImportees,
+  retenirJournees, protocoleRetenu, protocoleMetaRetenu, cboRetenu, adAMesurer, sourceDesEntrees, sommeRetenues, journeesReporting, importeesDans, mentionImportees,
   dansFenetre, verdictsDesMesures, sousKpisResultats, kpisResultats, PROTOCOLE_INCONNU, DEFAULT_VERDICT_CONFIG,
   type EntreeMesure, type EntreeCsvRetenable, type JourneeMetaLue, type MesuresLigne, type ProtocoleAd,
 } from '../src';
@@ -15,7 +15,7 @@ import {
 const J = (k: number) => `2026-10-${String(1 + k).padStart(2, '0')}`;
 const jour = (spend: number, purchases: number, extra: Partial<MesuresLigne> = {}): MesuresLigne => ({ spend, impressions: 3000, linkClicks: 45, purchases, purchaseValue: purchases * 39, video3s: 900, clicks: 60, ...extra });
 const meta = (adId: string | null, k: number, m: MesuresLigne): JourneeMetaLue => ({ adId, debut: J(k), fin: J(k), mesures: m });
-const csv = (debut: string, fin: string, m: MesuresLigne, importeLe = '2026-10-10T00:00:00.000Z', proto: Partial<ProtocoleAd> = {}): EntreeCsvRetenable => ({
+const csv = (debut: string, fin: string, m: MesuresLigne, importeLe = '2026-10-10T00:00:00.000Z', proto: Partial<EntreeCsvRetenable['protocole']> = {}): EntreeCsvRetenable => ({
   debut, fin, mesures: m, nomAnnonce: 'Pub', importeLe,
   protocole: { campagne: '[ADSMAP] TEST Truefords B2', campagneId: null, ensemble: 'ES fichier', ensembleId: null, budgetJour: 45, cbo: false, ...proto },
 });
@@ -69,8 +69,9 @@ describe('protocoleRetenu · la connexion d’abord, sinon la ligne d’export l
     const p = protocoleRetenu(null, [csv(J(0), J(0), jour(1, 0), '2026-10-01T00:00:00Z', { ensemble: 'ancien' }), csv(J(1), J(1), jour(1, 0), '2026-10-09T00:00:00Z', { ensemble: 'récent' })]);
     expect([p.source, p.protocole.ensemble]).toEqual(['csv', 'récent']);
   });
-  it('rien · protocole inconnu, source nulle', () => {
+  it('rien · protocole inconnu, source nulle · CBO inconnu (`null`)', () => {
     expect(protocoleRetenu(undefined, [])).toEqual({ protocole: PROTOCOLE_INCONNU, source: null });
+    expect(PROTOCOLE_INCONNU.cbo).toBeNull();
   });
 });
 
@@ -81,15 +82,28 @@ describe('protocoleMetaRetenu · un ensemble NON LU ne fait rien oublier (budget
     expect(protocoleMetaRetenu({ annonce, ensemble: { budgetJour: null, cbo: true } }, stocke, { instance: false, relais: false }))
       .toEqual({ ...annonce, budgetJour: null, cbo: true });
   });
-  it('ensemble NON lu · l’annonce du jour, le budget et le CBO connus · jamais « sans CBO, budget inconnu »', () => {
-    expect(protocoleMetaRetenu({ annonce, ensemble: null }, stocke, { instance: true, relais: false }), 'ensemble non lu · le CBO ou le budget connus ont été oubliés')
-      .toEqual({ ...annonce, budgetJour: 45, cbo: true });
+  it('ensemble NON lu, MÊME ensemble que l’instance · l’annonce du jour, le budget et le CBO connus · jamais « sans CBO, budget inconnu »', () => {
+    expect(protocoleMetaRetenu({ annonce: { ...annonce, ensembleId: 'as-1' }, ensemble: null }, stocke, { instance: true, relais: false }), 'ensemble non lu · le CBO ou le budget connus ont été oubliés')
+      .toEqual({ ...annonce, ensembleId: 'as-1', budgetJour: 45, cbo: true });
+  });
+  it('ensemble NON lu, l’ad a CHANGÉ d’ensemble (as-1 stocké, as-2 du jour) · l’ancien budget ne vaut plus · budget inconnu, CBO connu', () => {
+    // Avant (#1111), ce cas gardait 45 · le budget d'as-1 était prêté à as-2. Corrigé · le budget n'appartient qu'à son ensemble.
+    expect(protocoleMetaRetenu({ annonce, ensemble: null }, stocke, { instance: true, relais: false }), 'ensemble changé · le budget de l’ancien ensemble a été prêté au nouveau')
+      .toEqual({ ...annonce, budgetJour: null, cbo: true });
   });
   it('ensemble NON lu, instance d’avant 0073 (CBO NULL) · le relais du lot', () => {
     expect(protocoleMetaRetenu({ annonce, ensemble: null }, stocke, { instance: null, relais: true })?.cbo).toBe(true);
   });
   it('ensemble NON lu, rien de stocké · budget inconnu, CBO du relais', () => {
     expect(protocoleMetaRetenu({ annonce, ensemble: null }, undefined, { instance: undefined, relais: true })).toEqual({ ...annonce, budgetJour: null, cbo: true });
+  });
+  it('ensemble NON lu, ni instance ni relais · CBO INCONNU (`null`), jamais `false`', () => {
+    expect(protocoleMetaRetenu({ annonce, ensemble: null }, undefined, { instance: undefined, relais: false })?.cbo, 'rien de connu · le CBO vaut « non » au lieu d’inconnu').toBeNull();
+    expect(protocoleMetaRetenu({ annonce, ensemble: null }, stocke, { instance: null, relais: false })?.cbo, 'instance d’avant 0073 sans relais · le CBO vaut « non » au lieu d’inconnu').toBeNull();
+    expect(protocoleMetaRetenu(undefined, stocke, { instance: null, relais: false })?.cbo).toBeNull();
+  });
+  it('cboRetenu · instance d’abord (lue, vraie ou fausse), puis le relais (CBO seulement), sinon inconnu', () => {
+    expect([cboRetenu(true, false), cboRetenu(false, true), cboRetenu(null, true), cboRetenu(null, false), cboRetenu(undefined, false)]).toEqual([true, false, true, null, null]);
   });
   it('rien de lu ce passage (import) · le protocole stocké, CBO de l’instance · rien du tout · aucun protocole Meta', () => {
     expect(protocoleMetaRetenu(undefined, stocke, { instance: true, relais: false })).toEqual({ ...stocke, cbo: true });

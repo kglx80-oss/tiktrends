@@ -40,7 +40,7 @@ export interface AdAMesurer {
   /** Les entrées RETENUES (journées Meta et entrées CSV après `retenirMesures`). */
   entrees: readonly EntreeMesure[];
   /** Ce que la dernière ligne dit du protocole · nom d'annonce, ensemble, campagne, budget. */
-  protocole: ProtocoleLigne & { nomAnnonce: string | null };
+  protocole: Omit<ProtocoleLigne, 'cbo'> & { nomAnnonce: string | null; /** `null` · inconnu · le lot ne se compare pas. */ cbo: boolean | null };
 }
 
 export interface VerdictMesure {
