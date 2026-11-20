@@ -27,7 +27,7 @@ describe('admissibiliteMembre · ce que /admin/equipe montre par membre', () => 
     expect(a.admissible).toBe(false);
     expect(a.libelle).toBe('Non admissible');
     expect(a.compte).toBe('compte créé le 10 oct. 2026');
-    expect(a.consigne).toBe(`Compte créé après son inscription · crédits illimités et Connaissances fermés. ${CONSIGNE_REINSCRIPTION}`);
+    expect(a.consigne).toBe(`Compte créé après son inscription · crédits illimités, Connaissances, accès d’équipe à toutes les fonctions et dépense de la plateforme fermés. ${CONSIGNE_REINSCRIPTION}`);
   });
 
   it('aucun compte (invité avant de s’inscrire) · non admissible, la consigne prévient pour la suite', () => {
@@ -82,7 +82,7 @@ describe('messageNonAdmissible · le membre concerné sait pourquoi', () => {
   it('accès total non admissible · le message dédié', () => {
     expect(messageNonAdmissible({ role: 'admin', plateformeAdmissible: false })).toBe(MESSAGE_NON_ADMISSIBLE);
     expect(messageNonAdmissible({ role: 'adminplus' })).toBe(MESSAGE_NON_ADMISSIBLE);
-    expect(MESSAGE_NON_ADMISSIBLE).toBe('Ton compte a été créé après ton inscription à l’équipe · tes crédits illimités et les Connaissances sont fermés. Fais « Mot de passe oublié » sur ton adresse et reconnecte-toi, puis demande à un fondateur de te réinscrire.');
+    expect(MESSAGE_NON_ADMISSIBLE).toBe('Ton compte a été créé après ton inscription à l’équipe · tes crédits illimités, les Connaissances et l’accès d’équipe à toutes les fonctions sont fermés, tu as la formule de ton espace. Fais « Mot de passe oublié » sur ton adresse et reconnecte-toi, puis demande à un fondateur de te réinscrire.');
   });
   it('fondateur venu de l’environnement, sans inscription dans l’équipe · message dédié, jamais « créé après ton inscription »', () => {
     expect(messageNonAdmissible({ role: 'adminplus', plateformeAdmissible: false, inscritEquipe: false })).toBe(MESSAGE_FONDATEUR_HORS_CODE);
