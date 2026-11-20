@@ -57,7 +57,7 @@ describe('CBO · la violation qui coûte le plus cher', () => {
 });
 
 describe('CBO INCONNU · ensembles non lus · le lot ne se compare pas', () => {
-  const RESUME = 'Ensembles Meta non lus · CBO inconnu, les verdicts de ce lot ne seront que relatifs tant qu’il n’est pas établi.';
+  const RESUME = 'CBO non établi · les verdicts de ce lot ne seront que relatifs tant qu’il ne l’est pas.';
 
   it('une annonce qui a dépensé, CBO inconnu (`null`) · lot NON comparable, résumé qui le dit', () => {
     const c = checkProtocol([ad(1, { campaignBudgetOptimization: null }), ad(2, { campaignBudgetOptimization: false })], rules, ctx);
@@ -68,6 +68,7 @@ describe('CBO INCONNU · ensembles non lus · le lot ne se compare pas', () => {
     expect(v.message, 'le message promet un rétablissement par la seule « prochaine lecture »').toMatch(/export Ads Manager/);
     expect(summarizeProtocol(c)).toBe(RESUME);
     expect(RESUME).not.toMatch(/prochaine lecture/);
+    expect(RESUME, 'le résumé dit « ensembles non lus » alors qu’une lecture réussie peut ne pas rendre un ensemble').not.toMatch(/non lus/);
     expect(protocoleSeulementInconnu(c.violations)).toBe(true);
   });
 

@@ -73,7 +73,8 @@ function journeesDans(entrees: readonly EntreeMesure[], fenetre?: { since?: stri
 }
 
 /**
- * Le CBO de chaque CAMPAGNE, tel que ses ads le disent · le CBO est une
+ * Le CBO de chaque CAMPAGNE, tel que ces ads le disent (celles d'un même lot ·
+ * `verdictsDesMesures`) · le CBO est une
  * propriété de la campagne (Meta le lit au budget de la campagne), donc une ad
  * dont le CBO est inconnu (ensemble non lu, ad terminée que la synchro ne relit
  * plus, ensemble archivé) prend celui d'une ad de la MÊME campagne qui le
@@ -125,9 +126,9 @@ export function verdictsDesMesures(
     });
   }
 
-  // 3 · Protocole, lot par lot · un CBO inconnu prend celui de sa campagne quand une ad de la marque le connaît.
-  const cboCampagne = cboParCampagne([...ads, ...(ctx.reperes ?? [])]);
-  const cboDe = (a: AdAMesurer) => a.protocole.cbo ?? (a.protocole.campagneId ? cboCampagne.get(a.protocole.campagneId) ?? null : null);
+  // 3 · Protocole, lot par lot · un CBO inconnu prend celui de sa campagne quand une ad DU MÊME LOT le connaît.
+  // Pas au-delà · une campagne lue en ABO il y a des semaines sur un lot clos a pu passer en CBO depuis · le
+  // silence vaut mieux qu'un « comparable » emprunté à un autre test.
   const lots = new Map<string, AdAMesurer[]>();
   for (const a of mesurees) if (a.lotId) lots.set(a.lotId, [...(lots.get(a.lotId) ?? []), a]);
   const comparable = new Map<string, boolean>();
@@ -135,6 +136,8 @@ export function verdictsDesMesures(
   const rang = new Map<string, number>();
   const protocoles: ResultatVerdictsMesures['protocoles'] = [];
   for (const [lotId, membres] of lots) {
+    const cboCampagne = cboParCampagne(membres);
+    const cboDe = (a: AdAMesurer) => a.protocole.cbo ?? (a.protocole.campagneId ? cboCampagne.get(a.protocole.campagneId) ?? null : null);
     const protoAds: ProtocolAd[] = membres.map((a) => ({
       adId: a.id,
       adName: a.protocole.nomAnnonce ?? '',

@@ -211,6 +211,6 @@ export function summarizeProtocol(check: ProtocolCheck): string {
   if (check.compliant) return 'Protocole respecté, avec des réserves mineures · les verdicts restent comparables.';
   const cbo = check.violations.find((v) => v.code === 'cbo');
   if (cbo) return 'Budget piloté par la campagne : les verdicts de ce lot ne seront que relatifs.';
-  if (protocoleSeulementInconnu(check.violations)) return 'Ensembles Meta non lus · CBO inconnu, les verdicts de ce lot ne seront que relatifs tant qu’il n’est pas établi.';
+  if (protocoleSeulementInconnu(check.violations)) return 'CBO non établi · les verdicts de ce lot ne seront que relatifs tant qu’il ne l’est pas.';
   return `${check.violations.length} écart(s) au protocole · les verdicts de ce lot ne sont pas comparables entre eux.`;
 }

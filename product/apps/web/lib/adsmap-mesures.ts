@@ -493,6 +493,8 @@ export async function recalculerVerdicts(
   const cboConnu = new Map(lots.map((l) => [l.id, cboDuLot(l.pc)]));
 
   const protocoles = new Map<string, { protocole: ProtocoleAd; source: 'meta' | 'csv' | null }>();
+  // Le CBO tel que la CONNEXION le sait (instance, ensemble lu, relais) · avant l'export · c'est lui seul que le relais garde.
+  const cboConnexion = new Map<string, boolean | null>();
   const protocoleDe = (a: AdDeLaMarque) => {
     let p = protocoles.get(a.id);
     if (!p) {
@@ -501,6 +503,7 @@ export async function recalculerVerdicts(
       const meta = protocoleMetaRetenu(o.protocoleFrais?.get(a.id), stocke, { instance: lu.cboInstance.get(a.id), relais });
       p = protocoleRetenu(meta, lu.csv.get(a.id));
       protocoles.set(a.id, p);
+      cboConnexion.set(a.id, meta?.cbo ?? null);
     }
     return p.protocole;
   };
@@ -515,7 +518,8 @@ export async function recalculerVerdicts(
         ...p.check, summary: p.resume, checkedAt: maintenant.toISOString(),
         source: sourceDesEntrees(membres.flatMap((a) => lu.parAd.get(a.id) ?? [])),
         // Le RELAIS (voir `cboDuLot`) · toujours écrit tant qu'une instance d'avant 0073 peut en dépendre · trié, ensemble stable quel que soit l'ordre de lecture des ads.
-        cboMeta: membres.filter((a) => protocoles.get(a.id)?.source === 'meta' && protocoles.get(a.id)!.protocole.cbo).map((a) => a.id).sort(),
+        // Le CBO de la CONNEXION seulement · un CBO dit par un export n'y entre pas (il deviendrait définitif, un export correctif n'y pourrait plus rien).
+        cboMeta: membres.filter((a) => protocoles.get(a.id)?.source === 'meta' && cboConnexion.get(a.id) === true).map((a) => a.id).sort(),
       },
     }).where(and(eq(schema.batches.id, p.lotId), eq(schema.batches.brandId, brand.id)));
   }
