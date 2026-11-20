@@ -104,6 +104,12 @@ describe('sans SMTP, la semaine n’est pas « servie »', () => {
     expect(r.corps).toMatchObject({ error: 'digest_incomplet', failedBrands: 1, notified: 2, skippedMails: 2 });
     expect(suiteRecap({ ok: false, status: r.status, detail: String(r.corps.error), corps: r.corps }, { reports: 0, tentative: 1, tentativesMax: 6 }).action, 'le worker ne retente pas la marque en échec').toBe('retenter');
     expect(journal.filter((x) => x.includes('@recap.test')), 'une adresse est écrite au journal').toEqual([]);
+    // La VRAIE ligne journalisée par la route · elle dit ce qui a été servi, pas « lettres servies » quand une marque a échoué.
+    const lignes = journal.filter((x) => x.includes('SMTP non configuré'));
+    expect(lignes, 'le passage en échec, puis la reprise · une ligne « SMTP non configuré » chacun').toHaveLength(2);
+    expect(lignes[0], 'une marque en échec sans SMTP est annoncée « lettres servies dans l’application »').toBe('[cron:digest] 2026-W48 · SMTP non configuré (SMTP_URL) · 1 lettre(s) servie(s) dans l’application · 1 marque(s) en échec, lettre(s) NON servie(s) · la tentative suivante les reprend · 2 courriel(s) non envoyé(s) · verrou laissé interrompu pour un rattrapage');
+    expect(lignes[1], 'la reprise ne dit pas les deux lettres servies').toBe('[cron:digest] 2026-W48 · SMTP non configuré (SMTP_URL) · 2 lettre(s) servie(s) dans l’application · 3 courriel(s) non envoyé(s) · verrou laissé interrompu pour un rattrapage');
+    expect(lignes.filter((x) => x.includes(ids.brand) || x.includes(ids.brandB) || x.includes(ids.ownerB)), 'un identifiant est écrit dans la ligne SMTP').toEqual([]);
     expect(reprise!.status, 'la reprise, marque réparée, reste sans SMTP').toBe(503);
     expect(reprise!.corps, 'la reprise ne sert pas la marque en échec, ou redouble la marque servie').toMatchObject({ error: 'smtp_absent', notified: 1, failedBrands: 0 });
     const nB = await db!.select({ id: schema.notifications.id }).from(schema.notifications).where(and(eq(schema.notifications.workspaceId, ids.wsB), eq(schema.notifications.type, 'digest')));

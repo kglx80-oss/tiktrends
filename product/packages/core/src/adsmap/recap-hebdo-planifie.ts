@@ -346,6 +346,19 @@ export function abandonsNotesRecap(e: EtatVerrouRecap): number {
  */
 export const RELANCE_MEME_SEMAINE_RECAP = 'la même semaine (avant lundi 00:00, heure de Paris)';
 
+/**
+ * La ligne « SMTP non configuré » du journal de la route · elle dit EXACTEMENT
+ * ce que ce passage a servi. Une marque en échec n'a pas reçu sa lettre · la
+ * ligne ne dit donc pas « lettres servies dans l'application » sans compter,
+ * elle donne les lettres servies, les marques en échec (que la tentative
+ * suivante reprend, `suiteRecap`) et les courriels non envoyés. Des comptes
+ * seulement · jamais une adresse ni un identifiant.
+ */
+export function ligneSansSmtpRecap(c: { lettresServies: number; marquesEnEchec: number; courrielsSautes: number }): string {
+  const echec = c.marquesEnEchec > 0 ? ` · ${c.marquesEnEchec} marque(s) en échec, lettre(s) NON servie(s) · la tentative suivante les reprend` : '';
+  return `SMTP non configuré (SMTP_URL) · ${c.lettresServies} lettre(s) servie(s) dans l’application${echec} · ${c.courrielsSautes} courriel(s) non envoyé(s) · verrou laissé interrompu pour un rattrapage`;
+}
+
 /** Ce que le worker fait de la réponse de la route. */
 export type SuiteRecap =
   | { action: 'fini' }

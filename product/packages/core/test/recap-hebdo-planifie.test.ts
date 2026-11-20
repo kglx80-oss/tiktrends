@@ -6,7 +6,7 @@ import {
   avecNotificationRecap, avecCourrielRecap, dejaNotifieRecap, dejaEcritRecap, finRecap,
   avecAbandonRecap, refusDefinitifSmtp, suiteRecap, REPORT_EN_COURS_MS, REPORTS_EN_COURS_MAX, DELAI_SMTP_MS,
   disjoncteurAbandons, courrielsNotesRecap, abandonsNotesRecap, DUREE_PASSAGE_MAX_MS, EFFECTIF_DISJONCTEUR,
-  resumeErreurSmtp,
+  resumeErreurSmtp, ligneSansSmtpRecap,
   type SuiteRecap,
 } from '../src/adsmap/recap-hebdo-planifie';
 
@@ -340,5 +340,16 @@ describe('une erreur SMTP au journal · jamais l’adresse, jamais le message br
   it('un champ inattendu qui porterait une adresse est tu · seuls des jetons sans « @ » passent', () => {
     const e = Object.assign(new Error('x'), { code: `E<${ADRESSE}>`, responseCode: `550 <${ADRESSE}>`, command: `RCPT TO:<${ADRESSE}>` });
     expect(resumeErreurSmtp(e, `qui <${ADRESSE}>`)).not.toContain('@');
+  });
+});
+
+describe('la ligne « SMTP non configuré » de la route · elle dit exactement ce qui a été servi', () => {
+  it('aucune marque en échec · les lettres servies et les courriels non envoyés', () => {
+    expect(ligneSansSmtpRecap({ lettresServies: 3, marquesEnEchec: 0, courrielsSautes: 5 }))
+      .toBe('SMTP non configuré (SMTP_URL) · 3 lettre(s) servie(s) dans l’application · 5 courriel(s) non envoyé(s) · verrou laissé interrompu pour un rattrapage');
+  });
+  it('une marque en échec · elle n’est PAS dite servie · la ligne dit combien, et que la tentative suivante la reprend', () => {
+    const l = ligneSansSmtpRecap({ lettresServies: 1, marquesEnEchec: 2, courrielsSautes: 2 });
+    expect(l, 'une marque en échec est annoncée « lettres servies »').toBe('SMTP non configuré (SMTP_URL) · 1 lettre(s) servie(s) dans l’application · 2 marque(s) en échec, lettre(s) NON servie(s) · la tentative suivante les reprend · 2 courriel(s) non envoyé(s) · verrou laissé interrompu pour un rattrapage');
   });
 });
