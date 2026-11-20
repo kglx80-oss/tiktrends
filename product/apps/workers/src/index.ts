@@ -4,7 +4,7 @@ import { startWorkers } from './worker';
 import { startIngestWorker } from './ingest';
 import { runDailySync } from './sync';
 import { triggerAdsMapSync, triggerAllocations, triggerBascule, triggerRadar, triggerTracker, triggerVideosHistoriques } from './adsmap';
-import { OPTIONS_RECAP, passageRecap } from './recap';
+import { OPTIONS_RECAP, alerteEchecRecap, passageRecap } from './recap';
 import { fixtures } from '@tiktrends/integrations';
 import { FUSEAU_RECAP_HEBDO, MOTIF_RECAP_HEBDO, MOTIF_REMONTEE_ADSMAP } from '@tiktrends/core';
 import { db, convertirUnite } from '@tiktrends/db';
@@ -24,7 +24,7 @@ function startCronWorker() {
     return { skipped: job.name };
   }, { connection });
   w.on('completed', (j) => console.log('[cron] completed', j.name));
-  w.on('failed', (j, err) => console.error('[cron] failed', j?.name, err));
+  w.on('failed', (j, err) => { console.error('[cron] failed', j?.name, err); alerteEchecRecap(j, err); });
   return w;
 }
 
@@ -42,11 +42,13 @@ async function main() {
   }
 
   const { studio } = startWorkers();
-  // Arrêt propre sur SIGTERM/SIGINT (recréation du conteneur à chaque commit) ·
-  // le worker Studios finit son tour avant la sortie (voir `boucle.ts`).
-  arretPropreSurSignal({ processus: process, arreter: async () => { await studio?.arreter(); }, sortir: (c) => process.exit(c) });
   startIngestWorker();
-  startCronWorker();
+  const cron = startCronWorker();
+  // Arrêt propre sur SIGTERM/SIGINT (recréation du conteneur à chaque commit) ·
+  // le worker Studios finit son tour avant la sortie (voir `boucle.ts`), le
+  // worker cron rend son job en cours au lieu de le laisser « stalled » ·
+  // deux blocages de suite font échouer un `weekly-digest` sans reprise.
+  arretPropreSurSignal({ processus: process, arreter: async () => { await Promise.all([studio?.arreter(), cron.close()]); }, sortir: (c) => process.exit(c) });
 
   // Synchro quotidienne des sources de données (Shopify + Meta) · 6h du matin.
   await queues.cron.add('daily-sync', {}, {

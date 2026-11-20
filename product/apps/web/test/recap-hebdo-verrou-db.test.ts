@@ -27,7 +27,6 @@ const h = vi.hoisted(() => {
     courriels: [] as Array<{ to?: unknown; subject?: unknown }>,
     essais: [] as string[],
     refuse: null as string | null,
-    transport: null as unknown,
     surEnvoi: null as null | ((m: { to?: unknown }) => Promise<void>),
     avantRequete: null as null | ((t: string) => Promise<void>),
     apresRequete: null as null | ((t: string) => Promise<void>),
@@ -38,7 +37,7 @@ const h = vi.hoisted(() => {
 
 vi.mock('nodemailer', () => ({
   default: {
-    createTransport: (o: unknown) => (h.transport = o, {
+    createTransport: () => ({
       sendMail: async (m: (typeof h.courriels)[number]) => {
         h.essais.push(String(m.to));
         if (h.surEnvoi) await h.surEnvoi(m);
@@ -69,7 +68,7 @@ vi.mock('@tiktrends/db', async (importOriginal) => {
 });
 
 import { db, schema, eq, and, sql } from '@tiktrends/db';
-import { avecCourrielRecap, avecMarquesRecap, avecNotificationRecap, cleVerrouRecap, etatInitialRecap, lireEtatRecap, DELAI_SMTP_MS, SEUIL_ABANDON_RECAP_MS } from '@tiktrends/core';
+import { avecCourrielRecap, avecMarquesRecap, avecNotificationRecap, cleVerrouRecap, etatInitialRecap, lireEtatRecap, SEUIL_ABANDON_RECAP_MS } from '@tiktrends/core';
 import { GET as cronRecap } from '../app/api/cron/digest/route';
 
 const ids = h.ids;
@@ -417,20 +416,20 @@ describe('un SMTP lent ou qui refuse · le passage bat, il ne passe pas pour mor
     expect(await notificationsRecap() - avant.n).toBe(2);
   });
 
-  it('un refus DÉFINITIF (550 sur le destinataire) · noté abandonné, journalisé, la semaine finit « fait », jamais renvoyé', async () => {
+  it('un refus DÉFINITIF (550 5.1.1 au RCPT, une boîte sur deux) · noté abandonné, journalisé, la semaine finit « fait », jamais renvoyé', async () => {
     const instant = lundi('2027-02-15'); // 2027-W07
     await trouvailles(instant, 'w07');
     const adresse = `${ids.admin}@recap.test`;
     const essaisAdmin = () => h.essais.filter((x) => x === adresse).length;
     const avant = { m: courrielsA(), e: essaisAdmin() };
     const avis: string[] = [];
-    h.surEnvoi = async (m) => { if (String(m.to) === adresse) throw Object.assign(new Error('550 5.1.1 boîte inconnue (test)'), { responseCode: 550, command: 'RCPT TO' }); };
+    h.surEnvoi = async (m) => { if (String(m.to) === adresse) throw Object.assign(new Error('Can’t send mail - all recipients were rejected'), { responseCode: 550, command: 'RCPT TO', response: '550 5.1.1 <x>: Recipient address rejected: User unknown' }); };
     const espionW = vi.spyOn(console, 'warn').mockImplementation((...a: unknown[]) => { avis.push(a.map(String).join(' ')); });
     const espionE = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     let r: Awaited<ReturnType<typeof passage>>;
     try { r = await passage(instant); } finally { espionW.mockRestore(); espionE.mockRestore(); }
     expect(r.status, 'un refus définitif garde la semaine « interrompu »').toBe(200);
-    expect(r.corps).toMatchObject({ ok: true, notified: 2, mailed: 1 });
+    expect(r.corps).toMatchObject({ ok: true, notified: 2, mailed: 1, abandoned: 1 });
     expect(avis.some((x) => x.includes('courriel abandonné')), 'l’abandon n’est pas journalisé').toBe(true);
     expect(lireEtatRecap(await verrou(instant))?.servis[ids.brandA]?.abandons).toEqual([ids.admin]);
     try { expect((await passage(instant)).corps.skipped).toBe('deja_passe'); } finally { h.surEnvoi = null; }
@@ -438,8 +437,46 @@ describe('un SMTP lent ou qui refuse · le passage bat, il ne passe pas pour mor
     expect(courrielsA() - avant.m).toBe(1);
   });
 
-  it('le transport SMTP a des délais explicites (connexion, accueil, inactivité)', () => {
-    expect(h.transport, 'le transport n’a pas reçu les délais').toMatchObject({ url: 'smtp://faux.exemple.test:25', connectionTimeout: DELAI_SMTP_MS, greetingTimeout: DELAI_SMTP_MS, socketTimeout: DELAI_SMTP_MS });
+  // Les délais SMTP sont lus sur le VRAI transport, sans mock · `mailer-delais.test.ts`.
+});
+
+describe('un 5xx qui frappe tout le monde n’est pas une boîte morte · la semaine ne passe pas « fait » en silence', () => {
+  const RELAIS = Object.assign(new Error('Can’t send mail - all recipients were rejected'), { responseCode: 554, command: 'RCPT TO', response: '554 5.7.1 <x>: Relay access denied' });
+  const INCONNU = () => Object.assign(new Error('Can’t send mail - all recipients were rejected'), { responseCode: 550, command: 'RCPT TO', response: '550 5.1.1 <x>: Recipient address rejected: User unknown' });
+
+  it('TOUS les destinataires refusés en 5.1.1 · le disjoncteur n’abandonne personne, 500, erreur au journal, la relance les sert', async () => {
+    const instant = lundi('2027-02-22'); // 2027-W08
+    await trouvailles(instant, 'w08');
+    const avant = { m: courrielsA(), e: h.essais.length };
+    const erreurs: string[] = [];
+    h.surEnvoi = async () => { throw INCONNU(); };
+    const espionE = vi.spyOn(console, 'error').mockImplementation((...a: unknown[]) => { erreurs.push(a.map(String).join(' ')); });
+    const espionW = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    let r: Awaited<ReturnType<typeof passage>>;
+    try { r = await passage(instant); } finally { h.surEnvoi = null; espionE.mockRestore(); espionW.mockRestore(); }
+    expect(r.status, 'tous les courriels refusés · la semaine passe « fait »').toBe(500);
+    expect(r.corps).toMatchObject({ error: 'digest_incomplet', mailed: 0, abandoned: 0, failedMails: 2 });
+    expect(lireEtatRecap(await verrou(instant))?.servis[ids.brandA]?.abandons ?? [], 'le disjoncteur a laissé noter les abandons').toEqual([]);
+    expect(lireEtatRecap(await verrou(instant))?.etat).toBe('interrompu');
+    expect(erreurs.some((x) => x.includes('disjoncteur')), 'le disjoncteur ne le dit pas au journal').toBe(true);
+    const relance = await passage(instant);
+    expect(relance.corps, 'la relance n’a pas servi les courriels retenus par le disjoncteur').toMatchObject({ ok: true, mailed: 2, abandoned: 0 });
+    expect(courrielsA() - avant.m).toBe(2);
+  });
+
+  it('relais refusé au RCPT (554 5.7.1) pour UN destinataire, l’autre parti · passager, rien d’abandonné, 500', async () => {
+    const instant = lundi('2027-03-01'); // 2027-W09
+    await trouvailles(instant, 'w09');
+    const adresse = `${ids.admin}@recap.test`;
+    h.surEnvoi = async (m) => { if (String(m.to) === adresse) throw RELAIS; };
+    const espionE = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const espionW = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    let r: Awaited<ReturnType<typeof passage>>;
+    try { r = await passage(instant); } finally { h.surEnvoi = null; espionE.mockRestore(); espionW.mockRestore(); }
+    expect(r.status, 'un relais refusé est classé définitif · la semaine passe « fait » sans ce courriel').toBe(500);
+    expect(r.corps).toMatchObject({ mailed: 1, abandoned: 0, failedMails: 1 });
+    expect(lireEtatRecap(await verrou(instant))?.servis[ids.brandA]?.abandons ?? []).toEqual([]);
+    expect((await passage(instant)).corps, 'la relance ne renvoie pas le courriel refusé par le relais').toMatchObject({ ok: true, mailed: 1 });
   });
 });
 

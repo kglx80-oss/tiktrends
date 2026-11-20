@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
-  avecAbandonRecap, avecBattementRecap, avecCourrielRecap, avecMarquesRecap, avecNotificationRecap, cleVerrouRecap, decisionVerrouRecap,
+  abandonsNotesRecap, avecAbandonRecap, avecBattementRecap, avecCourrielRecap, courrielsNotesRecap, disjoncteurAbandons, avecMarquesRecap, avecNotificationRecap, cleVerrouRecap, decisionVerrouRecap,
   dejaEcritRecap, dejaNotifieRecap, destinataireRecap, etatInitialRecap, finRecap, repriseRecap, semaineIso,
   type EtatVerrouRecap,
 } from '@tiktrends/core';
@@ -13,7 +13,16 @@ import { sendMail } from '../../../../lib/mailer';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-/** Aucun appel modèle · seulement des comptes et des envois. */
+/**
+ * Aucun appel modèle · seulement des comptes et des envois.
+ *
+ * `maxDuration` est SANS EFFET ici · l'application tourne en Next.js autonome
+ * (`Dockerfile.web`, sortie `standalone`), qui ne coupe pas une route trop
+ * longue. Quand le worker abandonne son appel (délai du déclencheur, 5 min),
+ * le passage CONTINUE côté web · c'est pour cela que le verrou bat, et qu'un
+ * appel suivant voit un 409 `en_cours` plutôt qu'une semaine libre. Gardé pour
+ * un hébergement qui l'appliquerait.
+ */
 export const maxDuration = 300;
 
 /**
@@ -66,8 +75,16 @@ export const maxDuration = 300;
  * externe · si l'envoi échoue, la lettre est quand même dans l'application, et
  * l'échec ne fait pas perdre le passage des autres marques. Un refus passager
  * laisse le passage `interrompu` (500) · la tentative suivante ne renvoie que
- * ce courriel. Un refus DÉFINITIF (5xx sur le destinataire ou le contenu,
- * `refusDefinitifSmtp`) est noté abandonné, journalisé, et n'est plus retenté.
+ * ce courriel. Un refus DÉFINITIF (5xx au RCPT, code étendu 5.1.x,
+ * `refusDefinitifSmtp`) est noté abandonné en FIN de passage, journalisé, et
+ * n'est plus retenté · sauf si le disjoncteur (`disjoncteurAbandons`) dit
+ * qu'ils sont trop nombreux pour être des boîtes mortes : personne n'est alors
+ * abandonné, la semaine reste `interrompu`. Le nombre d'abandons part dans la
+ * réponse (`abandoned`) · le worker ALERTE quand il n'est pas nul.
+ *
+ * Sans SMTP configuré, chaque courriel est SAUTÉ · ce n'est pas une semaine
+ * servie. Les sautés ne sont pas notés, le passage finit `interrompu` (500)
+ * avec une erreur unique dans le journal · le worker retente puis alerte.
  */
 
 /** Le verrou est passé à un autre passage · on s'arrête sans rien écrire. */
@@ -140,7 +157,10 @@ export async function GET(req: Request) {
 
     let marquesEnEchec = 0;
     let courrielsEnEchec = 0;
+    let courrielsSautes = 0;
     let lettresServies = 0;
+    /** Refus définitifs de ce passage · notés à la fin, si le disjoncteur le permet. */
+    const abandonsEnAttente: Array<{ marque: string; utilisateur: string }> = [];
 
     for (const l of lettres.filter((x) => retenues.has(x.brandId))) {
       try {
@@ -192,9 +212,12 @@ export async function GET(req: Request) {
             await ecrire(avecCourrielRecap(etat, l.brandId, u.id, new Date()));
             envoyees++;
           } else if (r.definitif) {
-            await ecrire(avecAbandonRecap(etat, l.brandId, u.id, new Date()));
-            console.warn('[cron:digest]', semaine, '· courriel abandonné (refus définitif) · marque', l.brandId, '· destinataire', u.id);
-          } else if (!r.skipped) {
+            abandonsEnAttente.push({ marque: l.brandId, utilisateur: u.id });
+            await battre();
+          } else if (r.skipped) {
+            // SMTP non configuré · rien n'est parti, rien n'est noté.
+            courrielsSautes++;
+          } else {
             // Refus passager · pas noté, la tentative suivante le renverra. Le passage bat · un SMTP lent n'est pas un passage mort.
             await battre();
             courrielsEnEchec++;
@@ -208,14 +231,31 @@ export async function GET(req: Request) {
       }
     }
 
-    if (courrielsEnEchec) console.error('[cron:digest]', semaine, '·', courrielsEnEchec, 'courriel(s) attendu(s) non parti(s) · le passage reste interrompu, la tentative suivante les renverra');
-    const echecs = marquesEnEchec + courrielsEnEchec;
-    await ecrire(finRecap(etat, echecs, new Date()));
-    console.log('[cron:digest]', semaine, '·', lettresServies, 'lettre(s) ·', notifiees, 'notification(s) ·', envoyees, 'courriel(s)', echecs ? `· ${marquesEnEchec} marque(s) et ${courrielsEnEchec} courriel(s) en échec` : '');
-    if (echecs) {
-      return NextResponse.json({ error: 'digest_incomplet', week: semaine, notified: notifiees, mailed: envoyees, failedBrands: marquesEnEchec, failedMails: courrielsEnEchec }, { status: 500 });
+    // Les refus définitifs · notés seulement s'ils restent l'exception.
+    let abandonnes = 0;
+    if (abandonsEnAttente.length) {
+      const envoyesTotal = courrielsNotesRecap(etat);
+      const abandonsTotal = abandonsNotesRecap(etat) + abandonsEnAttente.length;
+      if (disjoncteurAbandons({ envoyes: envoyesTotal, abandons: abandonsTotal })) {
+        courrielsEnEchec += abandonsEnAttente.length;
+        console.error('[cron:digest]', semaine, '· disjoncteur ·', abandonsTotal, 'refus « définitif(s) » pour', envoyesTotal, 'courriel(s) parti(s) · cause commune probable (relais, quota, politique du serveur) · personne n’est abandonné, la semaine reste interrompue');
+      } else {
+        let suite = etat;
+        for (const a of abandonsEnAttente) suite = avecAbandonRecap(suite, a.marque, a.utilisateur, new Date());
+        await ecrire(suite);
+        abandonnes = abandonsEnAttente.length;
+        for (const a of abandonsEnAttente) console.warn('[cron:digest]', semaine, '· courriel abandonné (refus définitif) · marque', a.marque, '· destinataire', a.utilisateur);
+      }
     }
-    return NextResponse.json({ ok: true, week: semaine, brands: lettresServies, notified: notifiees, mailed: envoyees });
+    if (courrielsSautes) console.error('[cron:digest]', semaine, '·', courrielsSautes, 'courriel(s) SAUTÉ(S) · SMTP non configuré (SMTP_URL) · la semaine reste interrompue');
+    if (courrielsEnEchec) console.error('[cron:digest]', semaine, '·', courrielsEnEchec, 'courriel(s) attendu(s) non parti(s) · le passage reste interrompu, la tentative suivante les renverra');
+    const echecs = marquesEnEchec + courrielsEnEchec + courrielsSautes;
+    await ecrire(finRecap(etat, echecs, new Date()));
+    console.log('[cron:digest]', semaine, '·', lettresServies, 'lettre(s) ·', notifiees, 'notification(s) ·', envoyees, 'courriel(s)', echecs ? `· ${marquesEnEchec} marque(s), ${courrielsEnEchec} courriel(s) en échec, ${courrielsSautes} sauté(s)` : '');
+    if (echecs) {
+      return NextResponse.json({ error: 'digest_incomplet', week: semaine, notified: notifiees, mailed: envoyees, abandoned: abandonnes, failedBrands: marquesEnEchec, failedMails: courrielsEnEchec, skippedMails: courrielsSautes }, { status: 500 });
+    }
+    return NextResponse.json({ ok: true, week: semaine, brands: lettresServies, notified: notifiees, mailed: envoyees, abandoned: abandonnes });
   } catch (e) {
     if (e instanceof VerrouPerdu) {
       console.error('[cron:digest]', semaine, '· verrou repris par un autre passage · arrêt sans rien écrire');

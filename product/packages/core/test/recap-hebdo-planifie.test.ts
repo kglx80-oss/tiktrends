@@ -5,6 +5,7 @@ import {
   etatInitialRecap, lireEtatRecap, decisionVerrouRecap, repriseRecap, avecMarquesRecap,
   avecNotificationRecap, avecCourrielRecap, dejaNotifieRecap, dejaEcritRecap, finRecap,
   avecAbandonRecap, refusDefinitifSmtp, suiteRecap, REPORT_EN_COURS_MS, REPORTS_EN_COURS_MAX, DELAI_SMTP_MS,
+  disjoncteurAbandons, courrielsNotesRecap, abandonsNotesRecap, DUREE_PASSAGE_MAX_MS,
   type SuiteRecap,
 } from '../src/adsmap/recap-hebdo-planifie';
 
@@ -143,14 +144,39 @@ describe('le verrou de la semaine · reprendre ce qui manque, ne jamais doubler'
 });
 
 describe('un courriel refusé définitivement · noté abandonné, plus retenté', () => {
-  it('5xx sur le destinataire ou le contenu · définitif ; ailleurs ou 4xx · passager', () => {
-    expect(refusDefinitifSmtp({ responseCode: 550, command: 'RCPT TO' })).toBe(true);
-    expect(refusDefinitifSmtp({ responseCode: 552, command: 'DATA' })).toBe(true);
-    expect(refusDefinitifSmtp({ responseCode: 535, command: 'AUTH PLAIN' }), 'une authentification refusée est une configuration fausse').toBe(false);
-    expect(refusDefinitifSmtp({ responseCode: 550, command: 'MAIL FROM' })).toBe(false);
-    expect(refusDefinitifSmtp({ responseCode: 451, command: 'RCPT TO' })).toBe(false);
-    expect(refusDefinitifSmtp({})).toBe(false);
-    expect(refusDefinitifSmtp(null)).toBe(false);
+  it('définitif · SEULEMENT un 5xx au RCPT avec un code étendu 5.1.x (l’adresse elle-même)', () => {
+    expect(refusDefinitifSmtp({ responseCode: 550, command: 'RCPT TO', response: '550 5.1.1 <x@y>: Recipient address rejected: User unknown' })).toBe(true);
+    expect(refusDefinitifSmtp({ responseCode: 550, command: 'RCPT TO', response: '550-5.1.1 The email account that you tried to reach does not exist.' })).toBe(true);
+    expect(refusDefinitifSmtp({ responseCode: 556, command: 'RCPT TO', response: '556 5.1.10 Recipient address has null MX' })).toBe(true);
+  });
+  it('passager · tout 5xx qui ne parle pas de l’adresse (il frappe en général tout le monde)', () => {
+    const CAS: Array<[unknown, string]> = [
+      [{ responseCode: 554, command: 'RCPT TO', response: '554 5.7.1 <x@y>: Relay access denied' }, 'relais non authentifié'],
+      [{ responseCode: 550, command: 'RCPT TO', response: '550 5.2.2 Mailbox full / quota exceeded' }, 'quota'],
+      [{ responseCode: 550, command: 'RCPT TO', response: '550 Requested action not taken' }, 'sans code étendu'],
+      [{ responseCode: 554, command: 'DATA', response: '554 Message rejected: Email address is not verified.' }, 'relais après DATA (SES)'],
+      [{ responseCode: 552, command: 'DATA', response: '552 5.3.4 Message size exceeds fixed limit' }, 'contenu refusé'],
+      [{ responseCode: 550, command: 'DATA', response: '550 5.1.1 User unknown' }, 'même un 5.1.1 hors RCPT'],
+      [{ responseCode: 535, command: 'AUTH PLAIN', response: '535 5.7.8 Authentication failed' }, 'authentification'],
+      [{ responseCode: 451, command: 'RCPT TO', response: '451 4.1.1 Try again later' }, '4xx'],
+      [{}, 'vide'], [null, 'nul'],
+    ];
+    for (const [e, pourquoi] of CAS) expect(refusDefinitifSmtp(e as never), pourquoi).toBe(false);
+  });
+  it('le disjoncteur · au moins un abandon et aucun envoi, ou plus d’abandons que d’envois ⇒ personne n’est abandonné', () => {
+    expect(disjoncteurAbandons({ envoyes: 0, abandons: 1 }), 'un refus sans aucun envoi réussi').toBe(true);
+    expect(disjoncteurAbandons({ envoyes: 3, abandons: 4 }), 'la majorité des décisions').toBe(true);
+    expect(disjoncteurAbandons({ envoyes: 1, abandons: 1 }), 'à égalité · un espace de deux personnes, une boîte morte').toBe(false);
+    expect(disjoncteurAbandons({ envoyes: 2, abandons: 5 }), 'tout le monde ou presque').toBe(true);
+    expect(disjoncteurAbandons({ envoyes: 3, abandons: 1 }), 'une boîte morte parmi des envois qui passent').toBe(false);
+    expect(disjoncteurAbandons({ envoyes: 0, abandons: 0 })).toBe(false);
+  });
+  it('les comptes notés se cumulent sur toutes les marques', () => {
+    let e = etatInitialRecap('j', new Date(0));
+    e = avecCourrielRecap(avecCourrielRecap(e, 'm1', 'u1', new Date(0)), 'm2', 'u2', new Date(0));
+    e = avecAbandonRecap(e, 'm2', 'u3', new Date(0));
+    expect(courrielsNotesRecap(e)).toBe(2);
+    expect(abandonsNotesRecap(e)).toBe(1);
   });
   it('un abandon compte comme écrit · la reprise ne le renvoie pas', () => {
     const e = avecAbandonRecap(etatInitialRecap('j', new Date(0)), 'm', 'u', new Date(0));
@@ -160,8 +186,8 @@ describe('un courriel refusé définitivement · noté abandonné, plus retenté
 });
 
 describe('le délai SMTP · un passage vivant ne passe jamais pour mort', () => {
-  it('le pire envoi (connexion + accueil + inactivité) reste très en deçà du seuil d’abandon', () => {
-    expect(3 * DELAI_SMTP_MS * 5, 'un envoi au pire, avec un facteur 5, dépasse le seuil d’abandon').toBeLessThan(SEUIL_ABANDON_RECAP_MS);
+  it('un serveur muet coupe l’envoi (connexion + accueil + un silence) très en deçà du seuil d’abandon', () => {
+    expect(3 * DELAI_SMTP_MS * 5, 'une attente muette, avec un facteur 5, dépasse le seuil d’abandon').toBeLessThan(SEUIL_ABANDON_RECAP_MS);
   });
 });
 
@@ -171,12 +197,14 @@ describe('le délai SMTP · un passage vivant ne passe jamais pour mort', () => 
  * par minute, pour un passage long qui finit, qui meurt, ou qui finit
  * interrompu. La semaine doit finir `fait` · jamais perdue en silence.
  */
-type Fin = { type: 'fait' | 'interrompu' | 'mort'; a: number }; // minutes après T0
-function calendrier(fin: Fin, suite: typeof suiteRecap = suiteRecap): 'fait' | 'perdu' {
+type Fin = { type: 'fait' | 'interrompu' | 'mort'; a: number; duree?: number }; // minutes après T0
+/** `fait` · servie ; `alerte` · abandonnée en le criant ; `silence` · perdue sans un mot (interdit). */
+function calendrier(fin: Fin, suite: typeof suiteRecap = suiteRecap): 'fait' | 'alerte' | 'silence' {
   const MIN = 60_000;
   const T0 = Date.parse('2026-11-16T06:47:00Z');
   const fetchMs = DELAI_DECLENCHEUR_RECAP_MS;
-  const REPRISE_MS = 3 * MIN; // une reprise ne sert que ce qui manque
+  // Une reprise RELIT toutes les marques · elle dure la lecture du premier passage (sa durée totale, au pire).
+  const REPRISE_MS = (fin.duree ?? fin.a) * MIN;
   // Passes successives · la première a la fin donnée, les reprises finissent « fait ».
   let passe = { debut: 0, fin: fin.a * MIN, type: fin.type as Fin['type'] };
   let verrou = false;
@@ -205,12 +233,12 @@ function calendrier(fin: Fin, suite: typeof suiteRecap = suiteRecap): 'fait' | '
       } else { te = t + fetchMs; issue = { ok: false, detail: 'The operation was aborted due to timeout' }; }
     }
     const s: SuiteRecap = suite(issue, { reports, tentative, tentativesMax: TENTATIVES_RECAP });
-    if (s.action === 'fini') return etatA(te)?.etat === 'fait' ? 'fait' : 'perdu';
-    if (s.action === 'abandon') return 'perdu';
+    if (s.action === 'fini') return etatA(te)?.etat === 'fait' ? 'fait' : 'silence';
+    if (s.action === 'abandon') return 'alerte';
     if (s.action === 'reporter') { reports = s.reports; t = te + s.delaiMs; }
     else { t = te + ATTENTE_RECAP_MS * 2 ** (tentative - 1); tentative++; }
   }
-  return 'perdu';
+  return 'silence';
 }
 
 describe('le calendrier d’un passage long · la semaine finit servie', () => {
@@ -222,18 +250,32 @@ describe('le calendrier d’un passage long · la semaine finit servie', () => {
     expect(suiteRecap({ ok: false, status: 500 }, { reports: 0, tentative: 5, tentativesMax: 6 }).action).toBe('retenter');
   });
 
-  const DUREES = [3, 10, 17, 30, 50, 60, 90];
+  const MAX = DUREE_PASSAGE_MAX_MS / 60_000;
+  const DUREES = [3, 10, 17, 30, 50, MAX];
   for (const L of DUREES) {
-    it(`passage de ${L} min · fini, interrompu, ou mort à n’importe quelle minute · la semaine finit « fait »`, () => {
+    it(`passage de ${L} min (reprise aussi longue) · fini, interrompu, ou mort à n’importe quelle minute · la semaine finit « fait »`, () => {
       expect(calendrier({ type: 'fait', a: L }), `fini à ${L} min`).toBe('fait');
       expect(calendrier({ type: 'interrompu', a: L }), `interrompu à ${L} min`).toBe('fait');
-      for (let d = 1; d <= L; d++) expect(calendrier({ type: 'mort', a: d }), `passage de ${L} min mort à ${d} min · semaine perdue`).toBe('fait');
+      for (let d = 1; d <= L; d++) expect(calendrier({ type: 'mort', a: d, duree: L }), `passage de ${L} min mort à ${d} min (reprise de ${L} min) · semaine non servie`).toBe('fait');
     });
   }
 
+  it('au-delà de la durée servie · jamais de silence · la semaine est servie ou le worker ALERTE', () => {
+    for (const L of [90, 120, 240]) {
+      for (const f of [{ type: 'fait' as const, a: L }, { type: 'interrompu' as const, a: L }, { type: 'mort' as const, a: L - 1, duree: L }]) {
+        expect(calendrier(f), `${f.type} à ${f.a} min · semaine perdue sans alerte`).not.toBe('silence');
+      }
+    }
+    expect(calendrier({ type: 'mort', a: 239, duree: 240 }), 'témoin · un passage de 4 h dépasse la patience et alerte').toBe('alerte');
+  });
+
   it('témoin · si un 409 consommait une tentative (ancien comportement), un passage long perdait la semaine', () => {
     const ancien: typeof suiteRecap = (issue, c) => (issue.ok ? { action: 'fini' } : c.tentative < c.tentativesMax ? { action: 'retenter' } : { action: 'abandon', raison: 'x' });
-    const perdues = DUREES.flatMap((L) => [calendrier({ type: 'interrompu', a: L }, ancien), calendrier({ type: 'mort', a: L }, ancien)]).filter((x) => x === 'perdu');
+    const perdues = DUREES.flatMap((L) => [calendrier({ type: 'interrompu', a: L }, ancien), calendrier({ type: 'mort', a: L, duree: L }, ancien)]).filter((x) => x !== 'fait');
     expect(perdues.length, 'la simulation ne voit pas le défaut qu’elle prétend garder').toBeGreaterThan(0);
+  });
+
+  it('les reports sont dérivés du pire calendrier servi', () => {
+    expect(REPORTS_EN_COURS_MAX * REPORT_EN_COURS_MS).toBeGreaterThanOrEqual(2 * DUREE_PASSAGE_MAX_MS + SEUIL_ABANDON_RECAP_MS + REPORT_EN_COURS_MS);
   });
 });

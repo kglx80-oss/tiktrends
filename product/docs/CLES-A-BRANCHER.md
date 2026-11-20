@@ -176,12 +176,16 @@ mais la lettre partirait à l'heure de celui des deux qui arrive le premier.
 
 Un passage en échec répond 500 et le worker le retente (6 tentatives, attente
 exponentielle depuis 1 min) · la reprise ne sert que ce qui manque. Un passage
-encore en cours (409) est revérifié toutes les 16 min, au plus 8 fois, sans
+encore en cours (409) est revérifié toutes les 16 min, au plus 10 fois, sans
 consommer de tentative. Un passage tué par un redéploiement est repris une fois
-son verrou muet depuis 15 min. Un courriel refusé définitivement (5xx sur le
-destinataire) est noté abandonné, une ligne dans le journal web. Si la semaine
-reste non servie, le journal du worker l'écrit en clair :
-`[digest] ALERTE · récap hebdomadaire NON SERVI cette semaine`.
+son verrou muet depuis 15 min. Un courriel refusé définitivement (5xx au RCPT
+avec un code 5.1.x · boîte inexistante) est noté abandonné, une ligne dans le
+journal web · mais si ces refus dépassent les envois réussis, personne n'est
+abandonné (cause commune probable : relais, quota) et la semaine reste
+interrompue. **Sans `SMTP_URL`**, les courriels sont sautés et la semaine
+reste interrompue (une erreur par passage dans le journal web). Si la semaine
+reste non servie, ou si des courriels ont été abandonnés, le journal du worker
+l'écrit en clair : `[digest] ALERTE · récap hebdomadaire …`.
 
 Il ne dépense **rien** : la lettre est calculée à partir de comptes, jamais
 rédigée par un modèle. Et il n'envoie pas de lettre aux marques dont la semaine

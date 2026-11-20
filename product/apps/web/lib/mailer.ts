@@ -1,5 +1,7 @@
 import 'server-only';
 import nodemailer from 'nodemailer';
+import SMTPTransport from 'nodemailer/lib/smtp-transport';
+import SMTPPool from 'nodemailer/lib/smtp-pool';
 import { DELAI_SMTP_MS, refusDefinitifSmtp } from '@tiktrends/core';
 
 /**
@@ -12,15 +14,29 @@ import { DELAI_SMTP_MS, refusDefinitifSmtp } from '@tiktrends/core';
  */
 let transport: nodemailer.Transporter | null | undefined;
 
+/**
+ * Le transport SMTP · avec des délais EXPLICITES (`DELAI_SMTP_MS` · connexion,
+ * accueil, inactivité). Les défauts de nodemailer (2 min, 30 s, 10 min)
+ * laissaient un envoi muet plus longtemps que le seuil d'abandon du récap
+ * hebdomadaire.
+ *
+ * Pas `createTransport({ url, …délais })` · nodemailer 9.0.5
+ * (`lib/nodemailer.js:31-37`) ne lit alors QUE l'URL (`parseConnectionUrl`)
+ * et jette le reste · les délais n'arrivaient jamais au transport. Les
+ * transports eux-mêmes (`smtp-transport`, `smtp-pool`) fusionnent l'URL et les
+ * options · on les construit donc directement. `?pool=true` dans l'URL garde
+ * le transport en réserve de connexions, comme avant.
+ */
+export function creerTransport(url: string): nodemailer.Transporter {
+  const delais = { connectionTimeout: DELAI_SMTP_MS, greetingTimeout: DELAI_SMTP_MS, socketTimeout: DELAI_SMTP_MS };
+  const enReserve = /[?&]pool=(true|1)(&|$)/i.test(url);
+  return nodemailer.createTransport(enReserve ? new SMTPPool({ url, ...delais, pool: true }) : new SMTPTransport({ url, ...delais }));
+}
+
 function getTransport(): nodemailer.Transporter | null {
   if (transport !== undefined) return transport;
   const url = process.env.SMTP_URL;
-  // Délais explicites (`DELAI_SMTP_MS`) · les défauts de nodemailer (connexion
-  // 2 min, accueil 30 s, inactivité 10 min) laissaient un envoi muet plus
-  // longtemps que le seuil d'abandon du récap hebdomadaire.
-  transport = url
-    ? nodemailer.createTransport({ url, connectionTimeout: DELAI_SMTP_MS, greetingTimeout: DELAI_SMTP_MS, socketTimeout: DELAI_SMTP_MS } as Parameters<typeof nodemailer.createTransport>[0])
-    : null;
+  transport = url ? creerTransport(url) : null;
   return transport;
 }
 
@@ -42,6 +58,6 @@ export async function sendMail(opts: { to: string | { name: string; address: str
   } catch (e) {
     console.error('[mail:error]', (e as Error).message);
     // Refus définitif (5xx sur le destinataire ou le contenu) · réessayer n'y changera rien.
-    return { ok: false, error: (e as Error).message, definitif: refusDefinitifSmtp(e as { responseCode?: unknown; command?: unknown }) };
+    return { ok: false, error: (e as Error).message, definitif: refusDefinitifSmtp(e as { responseCode?: unknown; command?: unknown; response?: unknown }) };
   }
 }

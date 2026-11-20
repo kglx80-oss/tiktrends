@@ -71,24 +71,38 @@ export const TENTATIVES_RECAP = 6;
 export const ATTENTE_RECAP_MS = 60_000;
 
 /**
+ * La durée d'un passage COMPLET qu'on s'engage à servir · un passage de 500
+ * marques est estimé à 17-50 min (relecture de #1112 : ~6 lectures par marque
+ * plus les envois) · 60 min laissent 20 % sur l'estimation haute. Une reprise
+ * relit TOUTES les marques (`weeklyDigests`) avant de servir ce qui manque ·
+ * elle dure donc autant que la lecture du premier passage, pas 3 minutes.
+ */
+export const DUREE_PASSAGE_MAX_MS = 60 * 60_000;
+
+/**
  * Un 409 `en_cours` n'est PAS un échec · un passage vivant travaille. Le
  * worker ne consomme alors aucune tentative · il reprogramme une vérification
  * différée de `REPORT_EN_COURS_MS` (au-delà du seuil d'abandon · si le passage
- * meurt entre-temps, la vérification suivante le trouve reprenable), au plus
- * `REPORTS_EN_COURS_MAX` fois. 8 × 16 min = 2 h 08 de patience · un passage de
- * 500 marques est estimé à 17-50 min (relecture de #1112) · plus du double.
+ * meurt entre-temps, la vérification suivante le trouve reprenable). Le nombre
+ * de reports est DÉRIVÉ du pire calendrier servi : un premier passage de
+ * `DUREE_PASSAGE_MAX_MS` qui meurt à la fin, le seuil d'abandon, une reprise
+ * aussi longue, une période de vérification · (2 × 60 + 15 + 16) / 16 ⇒ 10.
+ * Éprouvé par la simulation du calendrier (`recap-hebdo-planifie.test.ts`).
  * Au-delà, le worker ALERTE au lieu de se taire.
  */
 export const REPORT_EN_COURS_MS = SEUIL_ABANDON_RECAP_MS + 60_000;
-export const REPORTS_EN_COURS_MAX = 8;
+export const REPORTS_EN_COURS_MAX = Math.ceil((2 * DUREE_PASSAGE_MAX_MS + SEUIL_ABANDON_RECAP_MS + REPORT_EN_COURS_MS) / REPORT_EN_COURS_MS);
 
 /**
- * Délai SMTP explicite (connexion, accueil, inactivité) · les défauts de
- * nodemailer (2 min, 30 s, 10 min) laissaient un envoi muet plus longtemps que
- * le seuil d'abandon · un passage VIVANT passait pour mort, une tentative le
- * reprenait, et les deux écrivaient au même destinataire. Un envoi au pire
- * (3 × 30 s) reste ainsi très en deçà du seuil · et le passage bat AVANT
- * chaque envoi.
+ * Délai SMTP explicite · connexion, accueil, et chaque SILENCE du serveur
+ * (inactivité). Les défauts de nodemailer (2 min, 30 s, 10 min) laissaient un
+ * envoi muet plus longtemps que le seuil d'abandon · un passage VIVANT passait
+ * pour mort, une tentative le reprenait, et les deux écrivaient au même
+ * destinataire. Avec 30 s, un serveur injoignable ou muet coupe l'envoi en
+ * moins de 90 s (connexion, puis accueil, puis un silence). Un serveur qui
+ * répond au compte-gouttes peut faire durer un envoi au-delà · chaque silence
+ * reste borné, pas la durée totale. C'est le battement AVANT chaque envoi qui
+ * garde le passage vivant, ce délai borne seulement l'attente muette.
  */
 export const DELAI_SMTP_MS = 30_000;
 
@@ -243,16 +257,48 @@ export function avecBattementRecap(e: EtatVerrouRecap, maintenant: Date): EtatVe
 }
 
 /**
- * Un refus SMTP DÉFINITIF pour CE destinataire · réponse 5xx à `RCPT TO` (la
- * boîte n'existe pas, refusée) ou à `DATA` (contenu refusé). Un 5xx ailleurs
- * (`AUTH`, `MAIL FROM`) dit que la CONFIGURATION est fausse · tous les
- * courriels échoueraient, on n'abandonne personne, la semaine reste
- * `interrompu`. Un 4xx ou une coupure réseau sont passagers.
+ * Un refus SMTP DÉFINITIF pour CE destinataire · et seulement lui : réponse
+ * 5xx à `RCPT TO` portant un code étendu 5.1.x (RFC 3463 · adresse de
+ * destination · 5.1.1 boîte inexistante, 5.1.10 domaine nul…). Tout le reste
+ * est PASSAGER, `DATA` compris · un 5xx qui ne parle pas de l'adresse frappe
+ * en général tout le monde (`554 5.7.1 Relay access denied` au RCPT, quota
+ * en 550 5.2.x, « address not verified » d'un relais après `DATA`, filtre de
+ * contenu) · l'abandonner ferait taire la semaine entière.
  */
-export function refusDefinitifSmtp(e: { responseCode?: unknown; command?: unknown } | null | undefined): boolean {
+export function refusDefinitifSmtp(e: { responseCode?: unknown; command?: unknown; response?: unknown } | null | undefined): boolean {
   const code = Number(e?.responseCode);
   const commande = String(e?.command ?? '').toUpperCase();
-  return code >= 500 && code < 600 && (commande.startsWith('RCPT') || commande === 'DATA');
+  const reponse = String(e?.response ?? '');
+  return code >= 500 && code < 600 && commande.startsWith('RCPT') && /^\d{3}[ -]5\.1\.\d{1,3}\b/.test(reponse.trim());
+}
+
+/**
+ * Le disjoncteur des abandons · un refus « définitif » qui frappe beaucoup de
+ * monde n'est plus une boîte morte, c'est une cause commune (relais, quota,
+ * politique du serveur) mal classée. On n'abandonne alors PERSONNE · le
+ * passage finit `interrompu` et le worker finit par alerter.
+ *
+ * Seuil DÉRIVÉ, pas posé : les destinataires sont des propriétaires et
+ * administrateurs qui se sont inscrits avec cette adresse · une boîte morte
+ * parmi eux est l'exception. Quand les refus « définitifs » DÉPASSENT les
+ * envois réussis (la majorité des décisions), la cause commune est plus
+ * probable que la coïncidence · et sans aucun envoi réussi, il n'y a même pas
+ * de référence pour dire que le serveur fonctionne. Strictement · à égalité
+ * (un espace de deux personnes, une boîte morte), la boîte morte est notée,
+ * sinon cet espace resterait `interrompu` chaque semaine pour une seule
+ * adresse.
+ */
+export function disjoncteurAbandons(c: { envoyes: number; abandons: number }): boolean {
+  return c.abandons >= 1 && (c.envoyes === 0 || c.abandons > c.envoyes);
+}
+
+/** Courriels notés partis, toutes reprises confondues. */
+export function courrielsNotesRecap(e: EtatVerrouRecap): number {
+  return Object.values(e.servis).reduce((n, s) => n + s.courriels.length, 0);
+}
+/** Courriels notés abandonnés, toutes reprises confondues. */
+export function abandonsNotesRecap(e: EtatVerrouRecap): number {
+  return Object.values(e.servis).reduce((n, s) => n + s.abandons.length, 0);
 }
 
 /** Ce que le worker fait de la réponse de la route. */
