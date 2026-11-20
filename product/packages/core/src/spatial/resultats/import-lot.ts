@@ -2,7 +2,7 @@ import { CHEMIN_IMPORT_RESULTATS } from '../../parcours-boucle';
 import type { SeuilMinimumMoteur } from '../../adsmap/verdict';
 import { PRESENTATION_ETAT_LOT, etatLotSpatial, type ContexteLots, type EtatLotSpatial, type FaitsVerdictVariante } from './lots';
 import {
-  diagnosticFinPrevue, finPrevueAccueil, finPrevuePassee, lienImportLot, sourcesImportLot,
+  diagnosticFinPrevue, finPrevueAccueil, finPrevuePassee, lienImportLot, phraseMesuresArretees, sourcesImportLot,
   type FinPrevueAccueil, type LotImport, type VarianteFinPrevue,
 } from './fin-prevue';
 import { jourCourt } from '../accueil/temps';
@@ -30,7 +30,7 @@ export interface LotListeImport {
   but: string | null;
   statut: string;
   lanceLe: string | null;
-  /** `adsmap_batches.planned_end_at` (ISO) · `null` sans fin prévue (aucun écran ne l'écrit aujourd'hui · la fenêtre du moteur prend le relais). */
+  /** `adsmap_batches.planned_end_at` (ISO) · posée au lancement (`launchBatchAction` · `finPrevueAuLancement`) · `null` pour un lot lancé avant, ou importé · la fenêtre du moteur prend alors le relais. */
   finPrevue: string | null;
   ads: ReadonlyArray<VarianteListeImport>;
 }
@@ -48,13 +48,14 @@ const ETATS_EN_MESURE: ReadonlySet<EtatLotSpatial> = new Set<EtatLotSpatial>(['d
  * en préparation, prêt, historique importé, à arbitrer ni conclu), une source
  * existe (une variante diffusée sur Meta · `sourcesImportLot`), ET la cause
  * mesurée est une mesure (`diagnosticFinPrevue` · aucune mesure reçue, des
- * variantes sans mesure, ou sous le minimum du moteur de la MARQUE) · « chaque
- * variante a ses mesures » et le silence n'attendent rien.
+ * mesures arrêtées avant la fin de la fenêtre, des variantes sans mesure, ou
+ * sous le minimum du moteur de la MARQUE) · « chaque variante a ses mesures »
+ * et le silence n'attendent rien.
  */
 export function lotAttendDesMesures(l: FaitsLotEnMesure, ctx: ContexteLots, seuil: SeuilMinimumMoteur): boolean {
   if (!ETATS_EN_MESURE.has(etatLotSpatial(l, ctx))) return false;
   if (!sourcesImportLot(l.ads).ok) return false;
-  const d = diagnosticFinPrevue(l.ads, seuil);
+  const d = diagnosticFinPrevue(l.ads, seuil, { ...ctx, lanceLe: l.lanceLe });
   return !!d && d.cas !== 'autre';
 }
 
@@ -70,8 +71,9 @@ export function lotAttendDesMesures(l: FaitsLotEnMesure, ctx: ContexteLots, seui
  * `null` · le lot n'attend rien. Aucun seuil nouveau · la fin prévue, la
  * fenêtre et le minimum du moteur sont ceux qui existent.
  *
- * Sans fin prévue (aujourd'hui, toujours · aucun écran n'écrit
- * `planned_end_at`), on ne devine pas la durée du protocole · le lot reste
+ * Sans fin prévue (un lot lancé avant que le lancement ne l'écrive · le
+ * lancement la pose désormais à la fin de la fenêtre du moteur,
+ * `finPrevueAuLancement`), on ne devine pas la durée du protocole · le lot reste
  * « en cours » (silence plutôt que bruit) jusqu'à ce que la fenêtre du moteur
  * s'écoule · il passe alors « Mesures à importer », donc « manquantes ». Rien
  * n'est perdu · seulement plus tôt dit. Sans date de lancement, la fenêtre ne
@@ -111,11 +113,15 @@ export function mesuresDuLot(l: FaitsLotAImporter & { numero: number }, ctx: Con
   const jour = (iso: string) => jourCourt(iso.slice(0, 10));
   const n = l.numero;
   if (cas === 'manquantes') {
+    // La cause la plus précise d'abord · des mesures arrêtées avant la fin de la fenêtre (`mesureArretee`).
+    const d = diagnosticFinPrevue(l.ads, seuil, { ...ctx, lanceLe: l.lanceLe });
     return {
       cas,
-      texte: finPrevuePassee(l.finPrevue, ctx.maintenant)
-        ? `Mesures manquantes · la fin prévue du lot #${n} (le ${jour(l.finPrevue!)}) est passée.`
-        : `Mesures manquantes · la fenêtre du moteur du lot #${n} (${ctx.fenetreJours} jours) est écoulée.`,
+      texte: d?.cas === 'arretees'
+        ? `Mesures manquantes · lot #${n} · ${phraseMesuresArretees(d)}.`
+        : finPrevuePassee(l.finPrevue, ctx.maintenant)
+          ? `Mesures manquantes · la fin prévue du lot #${n} (le ${jour(l.finPrevue!)}) est passée.`
+          : `Mesures manquantes · la fenêtre du moteur du lot #${n} (${ctx.fenetreJours} jours) est écoulée.`,
     };
   }
   if (l.finPrevue) return { cas, texte: `Mesures en cours · le lot #${n} est en diffusion jusqu’au ${jour(l.finPrevue)} · sous le minimum du moteur d’ici là, c’est normal.` };

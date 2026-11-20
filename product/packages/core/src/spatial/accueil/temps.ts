@@ -30,10 +30,14 @@ export function jourCourt(jour: string): string {
   return `${d.getUTCDate()} ${MOIS_COURTS[d.getUTCMonth()]}`;
 }
 
+/** Un formateur par fuseau · en construire un coûte bien plus que l'appeler (l'état d'un lot lit le jour de chaque verdict). */
+const FORMATEURS_JOUR = new Map<string, Intl.DateTimeFormat>();
+
 /** Le jour de calendrier à Paris · `YYYY-MM-DD`. */
 export function jourParis(maintenant: Date, fuseau = 'Europe/Paris'): string {
-  const p = new Intl.DateTimeFormat('en-CA', { timeZone: fuseau, year: 'numeric', month: '2-digit', day: '2-digit' }).format(maintenant);
-  return p;
+  let f = FORMATEURS_JOUR.get(fuseau);
+  if (!f) FORMATEURS_JOUR.set(fuseau, (f = new Intl.DateTimeFormat('en-CA', { timeZone: fuseau, year: 'numeric', month: '2-digit', day: '2-digit' })));
+  return f.format(maintenant);
 }
 
 /**

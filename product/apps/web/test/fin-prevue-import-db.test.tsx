@@ -193,7 +193,9 @@ describe('fin prévue passée sans mesure · « Importer les mesures du lot #n �
     comme('uo', NEVA());
     const avant = await traces();
     const a = await accueil();
-    expect(a.sous, 'le libellé de #1080 a changé').toBe(phraseFinPrevuePassee([{ numero: 1 }, { numero: 3 }]));
+    // n1 · non arbitré, fin prévue passée · dit · n3 · entièrement arbitré, resté `testing` · il n'attend plus rien, jamais dit (`LotAccueil.conclu`).
+    expect(a.sous, 'le libellé de #1080 a changé, ou un lot entièrement arbitré y est nommé').toBe(phraseFinPrevuePassee([{ numero: 1 }]));
+    expect(a.sous, 'un lot entièrement arbitré est dit « fin prévue passée »').not.toMatch(/#3/);
     expect(a.diagnostic, 'le cas mesuré n’est pas dit').toBe('Lot #1 · aucune mesure reçue depuis le lancement');
     expect(a.bouton, 'le libellé n’a pas son geste').toBe('Importer les mesures du lot #1');
     expect(a.href, 'le geste ne mène pas à l’import sur ce lot').toBe(`/adsmap/import?lot=${L.n1}`);

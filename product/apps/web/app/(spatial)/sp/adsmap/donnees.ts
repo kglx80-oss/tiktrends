@@ -4,7 +4,7 @@ import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
   DEFAULT_VERDICT_CONFIG, conclusionLot, manquesAvantTest, etatLotSpatial, presentationLot, referenceConclusion, lireOrigineHypothese, lireProvenanceJarvis, lireProvenanceCommentaire, lireProvenanceNote, sommeRetenues,
-  compteAConclure, compteAImporter,
+  compteAConclure, compteAImporter, idsLotsConclus,
   type EstimationHypothese, type OrigineHypotheseLibre, type ProvenanceJarvis, type ProvenanceCommentaire, type ProvenanceNote, type VerdictConfig, type VerdictValue, type FaitsAdSpatial, type FaitsLotSpatial, type ContexteLots, type AgregatMesures,
   type FaitsHypotheseAd, type CompteAConclure, type FaitsVerdictSpatial, type SeuilMinimumMoteur, type VarianteFinPrevue,
   type CompteAImporter, type FaitsLotAImporter,
@@ -112,9 +112,11 @@ export interface DonneesLots {
 const LIMITE_ADS_LOTS = 2000;
 const adsDeLaMarque = (workspaceId: string, brandId: string) => and(eq(schema.ads.workspaceId, workspaceId), eq(schema.personas.brandId, brandId));
 const ORDRE_ADS_LOTS = [asc(schema.ads.variantCode), asc(schema.ads.id)] as const;
-const verdictLu = (v: { status: string | null; computed: string | null }): Pick<FaitsVerdictSpatial, 'statut' | 'calcule'> => ({
+/** Le verdict tel que l'état d'un lot le lit · sa valeur, son statut, et l'instant de son dernier calcul (`computed_at` · une mesure arrêtée avant la fin de la fenêtre, `mesureArretee`). */
+const verdictLu = (v: { status: string | null; computed: string | null; computedAt: Date | null }): Pick<FaitsVerdictSpatial, 'statut' | 'calcule' | 'calculeLe'> => ({
   calcule: (v.computed ?? null) as VerdictValue | null,
   statut: v.status === 'validated' ? 'validated' : 'computed',
+  calculeLe: v.computedAt ? v.computedAt.toISOString() : null,
 });
 
 /** Tous les lots de la marque, leurs variantes et leurs verdicts · en deux requêtes. */
@@ -133,7 +135,7 @@ export async function chargerLots(workspaceId: string, brandId: string, maintena
       thumb: schema.creatives.thumbUrl, storage: schema.creatives.storageUrl,
       v: {
         computed: schema.verdicts.computed, validated: schema.verdicts.validated, status: schema.verdicts.status,
-        comparable: schema.verdicts.comparable, agg: schema.verdicts.metricsAgg, adId: schema.verdicts.adId,
+        comparable: schema.verdicts.comparable, agg: schema.verdicts.metricsAgg, adId: schema.verdicts.adId, computedAt: schema.verdicts.computedAt,
       },
     })
       .from(schema.ads)
@@ -244,7 +246,7 @@ export async function chargerFaitsRail(workspaceId: string, brandId: string, mai
   const [lignes, lots, [vc]] = await Promise.all([
     db.select({
       lot: schema.ads.batchId, statut: schema.ads.status, plateforme: schema.ads.platform,
-      adId: schema.verdicts.adId, status: schema.verdicts.status, computed: schema.verdicts.computed,
+      adId: schema.verdicts.adId, status: schema.verdicts.status, computed: schema.verdicts.computed, computedAt: schema.verdicts.computedAt,
       depense: sql<string | null>`(${schema.verdicts.metricsAgg}->'spend')::text`, impressions: sql<string | null>`(${schema.verdicts.metricsAgg}->'impressions')::text`,
     })
       .from(schema.ads)
@@ -266,7 +268,7 @@ export async function chargerFaitsRail(workspaceId: string, brandId: string, mai
     if (!r.lot) continue;
     const v = {
       statut: r.statut, plateforme: r.plateforme,
-      verdict: r.adId ? { ...verdictLu({ status: r.status, computed: r.computed }), depense: num(jsonLu(r.depense)), impressions: num(jsonLu(r.impressions)) } : null,
+      verdict: r.adId ? { ...verdictLu({ status: r.status, computed: r.computed, computedAt: r.computedAt as Date | null }), depense: num(jsonLu(r.depense)), impressions: num(jsonLu(r.impressions)) } : null,
     };
     const du = parLot.get(r.lot);
     if (du) du.push(v); else parLot.set(r.lot, [v]);
@@ -327,6 +329,17 @@ export function faitsRailPartages(workspaceId: string, brandId: string, maintena
   return (partage.faits ??= chargerFaitsRail(workspaceId, brandId, maintenant));
 }
 
+/**
+ * Ce que l'Accueil lit des états des lots · LE compte « à conclure »
+ * (`compteAConclure`) ET les lots conclus (`idsLotsConclus` · toutes leurs
+ * variantes arbitrées, écartés de « En diffusion » et de « fin prévue
+ * passée ») · tirés de LA même lecture (`faitsRailPartages`).
+ */
+export async function lireEtatsAccueil(workspaceId: string, brandId: string, maintenant = new Date()): Promise<{ aConclure: CompteAConclure; conclus: Set<string> }> {
+  const f = await faitsRailPartages(workspaceId, brandId, maintenant);
+  return { aConclure: compteAConclure(f.lots, f.ctx), conclus: idsLotsConclus(f.lots, f.ctx) };
+}
+
 /** LE compte « à conclure » de la marque · la pastille du rail et l'Accueil le lisent ici (règle `compteAConclure`, inchangée). */
 export async function compterAConclure(workspaceId: string, brandId: string, maintenant = new Date(), partage?: PartageRail): Promise<CompteAConclure> {
   const f = await faitsRailPartages(workspaceId, brandId, maintenant, partage);
@@ -347,10 +360,10 @@ export async function compterAImporter(workspaceId: string, brandId: string, mai
  * le lot de la marque · LECTURE SEULE, une seule ligne par variante. L'Accueil
  * ne l'appelle que pour le plus ancien lot à fin prévue passée.
  */
-export async function chargerVariantesFinPrevue(workspaceId: string, brandId: string, lotId: string): Promise<{ variantes: VarianteFinPrevue[]; seuil: SeuilMinimumMoteur }> {
-  if (!db) return { variantes: [], seuil: DEFAULT_VERDICT_CONFIG };
+export async function chargerVariantesFinPrevue(workspaceId: string, brandId: string, lotId: string): Promise<{ variantes: VarianteFinPrevue[]; seuil: SeuilMinimumMoteur; fenetreJours: number }> {
+  if (!db) return { variantes: [], seuil: DEFAULT_VERDICT_CONFIG, fenetreJours: DEFAULT_VERDICT_CONFIG.evaluationWindowDays };
   const [lignes, [vc]] = await Promise.all([
-    db.select({ statut: schema.ads.status, plateforme: schema.ads.platform, adId: schema.verdicts.adId, computed: schema.verdicts.computed, agg: schema.verdicts.metricsAgg })
+    db.select({ statut: schema.ads.status, plateforme: schema.ads.platform, adId: schema.verdicts.adId, computed: schema.verdicts.computed, status: schema.verdicts.status, computedAt: schema.verdicts.computedAt, agg: schema.verdicts.metricsAgg })
       .from(schema.ads)
       .innerJoin(schema.batches, and(eq(schema.batches.id, schema.ads.batchId), eq(schema.batches.brandId, brandId)))
       .innerJoin(schema.concepts, eq(schema.ads.conceptId, schema.concepts.id))
@@ -369,10 +382,11 @@ export async function chargerVariantesFinPrevue(workspaceId: string, brandId: st
       const agg = (r.agg ?? {}) as Record<string, unknown>;
       return {
         statut: r.statut, plateforme: r.plateforme,
-        verdict: r.adId ? { calcule: (r.computed ?? null) as VerdictValue | null, impressions: num(agg.impressions), depense: num(agg.spend) } : null,
+        verdict: r.adId ? { ...verdictLu({ status: r.status, computed: r.computed, computedAt: r.computedAt as Date | null }), impressions: num(agg.impressions), depense: num(agg.spend) } : null,
       };
     }),
     seuil: config,
+    fenetreJours: config.evaluationWindowDays,
   };
 }
 

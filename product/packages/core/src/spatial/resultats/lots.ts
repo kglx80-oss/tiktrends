@@ -2,6 +2,7 @@ import { estLotImporte } from '../../adsmap/lot-nature';
 import { verdictEffectif, type VerdictValue } from '../../adsmap/types';
 import { LIBELLE_VERDICT } from '../../adsmap/verdict-libelle';
 import { RAISON_IMPORT_FERME, lienImportLot } from './fin-prevue';
+import { joursEntiersDepuis, mesureArretee } from './mesure-arretee';
 
 /**
  * Spatial · Résultats · les LOTS de test, lus sur leurs faits réels.
@@ -23,6 +24,9 @@ import { RAISON_IMPORT_FERME, lienImportLot } from './fin-prevue';
  *  · sa fenêtre d'évaluation est écoulée (jours entiers depuis le lancement ≥
  *    fenêtre de la marque · même calcul que `lib/decisions`) ;
  *  · chaque variante a un verdict calculé (sinon il manque des mesures) ;
+ *  · aucun verdict calculé ne s'est arrêté avant la fin de la fenêtre
+ *    (`mesureArretee` · un verdict daté d'avant le jour où la fenêtre se ferme
+ *    n'a pas tout lu · il manque des mesures, même s'il est tranché) ;
  *  · au moins une attend son arbitrage avec un verdict TRANCHÉ (ni non
  *    concluant, ni sous-diffusé · ceux-là ne disent rien à retenir).
  * Le silence est une conclusion valable · un lot dont toutes les variantes
@@ -36,6 +40,8 @@ export interface FaitsVerdictSpatial {
   /** Verdict arbitré · `null` tant que personne n'a tranché. */
   retenu: VerdictValue | null;
   statut: 'computed' | 'validated';
+  /** `adsmap_verdicts.computed_at` (ISO) · le dernier passage du moteur · absent ou `null` (non lu) · jamais une mesure arrêtée (`mesureArretee`). */
+  calculeLe?: string | null;
   comparable: boolean;
   /** Pourquoi ce verdict, la phrase du moteur (`metricsAgg.reason`). */
   raison: string | null;
@@ -82,14 +88,6 @@ export type EtatLotSpatial =
 const NON_CONCLUANTS: ReadonlySet<VerdictValue> = new Set<VerdictValue>(['inconclusive', 'insufficient_delivery']);
 const JOUR = 86_400_000;
 
-/** Jours ENTIERS écoulés depuis le lancement · `null` sans date lisible (même calcul que `lib/decisions`). */
-export function joursEntiersDepuis(lanceLe: string | null, maintenant: Date): number | null {
-  if (!lanceLe) return null;
-  const t = Date.parse(lanceLe);
-  if (!Number.isFinite(t)) return null;
-  return Math.max(0, Math.floor((maintenant.getTime() - t) / JOUR));
-}
-
 export interface ContexteLots {
   maintenant: Date;
   /** Fenêtre d'évaluation de la marque (`VerdictConfig.evaluationWindowDays`). */
@@ -113,9 +111,9 @@ export interface FaitsEtatLot {
   lanceLe: string | null;
   ads: ReadonlyArray<FaitsVerdictVariante>;
 }
-/** Une variante, vue par l'état de son lot · seulement son verdict (statut et valeur calculée). */
+/** Une variante, vue par l'état de son lot · seulement son verdict (statut, valeur calculée, instant du calcul). */
 export interface FaitsVerdictVariante {
-  verdict: Pick<FaitsVerdictSpatial, 'statut' | 'calcule'> | null;
+  verdict: Pick<FaitsVerdictSpatial, 'statut' | 'calcule' | 'calculeLe'> | null;
 }
 
 /** La variante attend-elle son arbitrage (verdict calculé, personne n'a tranché) ? */
@@ -132,7 +130,8 @@ export function etatLotSpatial(l: FaitsEtatLot, c: ContexteLots): EtatLotSpatial
   const jours = joursEntiersDepuis(l.lanceLe, c.maintenant);
   // Sans date de lancement lisible, on ne suppose jamais la fenêtre écoulée.
   if (jours === null || jours < c.fenetreJours) return 'diffusion';
-  if (ads.length === 0 || ads.some((a) => !a.verdict || (a.verdict.statut === 'computed' && !a.verdict.calcule))) return 'a_importer';
+  const fenetre = { ...c, lanceLe: l.lanceLe };
+  if (ads.length === 0 || ads.some((a) => !a.verdict || (a.verdict.statut === 'computed' && !a.verdict.calcule) || mesureArretee(a.verdict, fenetre))) return 'a_importer';
   const enAttente = ads.filter(attendArbitrage);
   if (enAttente.some((a) => !NON_CONCLUANTS.has(a.verdict!.calcule!))) return 'a_conclure';
   return enAttente.length ? 'non_concluant' : 'conclu';

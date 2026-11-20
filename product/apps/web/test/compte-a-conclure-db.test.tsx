@@ -226,7 +226,9 @@ describe('un seul compte « à conclure » · rail, Accueil, liste · membre ET 
     expect(lots, 'le lot « non concluant » #5, sans fin prévue, n’est pas compté').toContain(L.n5);
     for (const k of ['n1', 'n2', 'n3', 'n6', 'n7']) expect(lots, `${k} compté sans verdict à arbitrer`).not.toContain(L[k]);
     // La fin prévue passée sans verdict à arbitrer · dite à part, son libellé à elle, jamais « à conclure ».
-    expect(a.diffusion, 'la fin prévue passée n’est pas dite, ou pas sous son libellé').toContain('Lots #3 et #7 · fin prévue passée, aucun verdict à arbitrer');
+    // n7 · entièrement arbitré, resté `testing` · il n'attend plus rien · jamais « fin prévue passée » (`LotAccueil.conclu`).
+    expect(a.diffusion, 'la fin prévue passée n’est pas dite, ou pas sous son libellé').toContain('Lot #3 · fin prévue passée, aucun verdict à arbitrer');
+    expect(a.diffusion, 'un lot entièrement arbitré est dit « fin prévue passée »').not.toMatch(/#7/);
     expect(a.texte, 'un lot sans verdict à arbitrer est appelé « à conclure »').not.toMatch(/Lots? #[37] à conclure|conclure le lot #[37]|Lots #[0-9 et#]*[37][0-9 et#]* · des verdicts/i);
   });
 });

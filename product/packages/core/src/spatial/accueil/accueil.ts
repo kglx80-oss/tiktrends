@@ -111,6 +111,12 @@ export interface LotAccueil {
   variantes: number;
   /** Le média réel d'une variante (créa ou asset) · `null` sans média. */
   vignette: string | null;
+  /**
+   * Toutes ses variantes arbitrées (`idsLotsConclus` · état `conclu`) · le lot
+   * reste `testing` en base · il n'est ni « En diffusion » ni « fin prévue
+   * passée ». `false` quand les états n'ont pas pu être lus (rien n'est caché).
+   */
+  conclu: boolean;
 }
 
 const temps = (iso: string | null) => (iso ? Date.parse(iso) : NaN);
@@ -125,12 +131,14 @@ const temps = (iso: string | null) => (iso ? Date.parse(iso) : NaN);
  * qu'on ne peut pas conclure (aucun verdict n'attend · mesures pas encore
  * remontées, fenêtre du moteur pas écoulée). Il n'entre jamais dans le compte
  * « à conclure ». Sans fin prévue, jamais · on ne devine pas la durée d'un
- * protocole. Le plus ancien d'abord.
+ * protocole. Un lot CONCLU (toutes ses variantes arbitrées, `conclu`) jamais ·
+ * il n'attend plus rien, même resté `testing` · depuis que le lancement écrit
+ * la fin prévue, il s'y allumerait pour toujours. Le plus ancien d'abord.
  */
 export function lotsFinPrevuePassee(lots: readonly LotAccueil[], maintenant: Date, aConclure: CompteAConclure | null): LotAccueil[] {
   const comptes = new Set((aConclure?.lots ?? []).map((l) => l.id));
   return lots
-    .filter((l) => l.statut === 'testing' && !comptes.has(l.id) && finPrevuePassee(l.finPrevue, maintenant))
+    .filter((l) => l.statut === 'testing' && !l.conclu && !comptes.has(l.id) && finPrevuePassee(l.finPrevue, maintenant))
     .sort((a, b) => temps(a.finPrevue) - temps(b.finPrevue));
 }
 
@@ -347,7 +355,8 @@ export function etapesBoucleAccueil(p: {
   const idsAConclure = new Set(compte.lots.map((l) => l.id));
   // Les lots comptés, avec leurs faits datés (vignette) quand l'Accueil les a lus · l'ordre de la liste.
   const aConclure = compte.lots.map((c) => p.lots.find((l) => l.id === c.id)).filter((l): l is LotAccueil => !!l);
-  const enDiff = p.lots.filter((l) => l.statut === 'testing' && !idsAConclure.has(l.id));
+  // Un lot conclu (toutes ses variantes arbitrées) n'est plus en diffusion, même resté `testing`.
+  const enDiff = p.lots.filter((l) => l.statut === 'testing' && !l.conclu && !idsAConclure.has(l.id));
   const finPassee = lotsFinPrevuePassee(p.lots, p.maintenant, compte);
 
   const sansH = tests - avecH;
