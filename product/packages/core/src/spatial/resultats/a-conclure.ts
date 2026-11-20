@@ -64,13 +64,16 @@ export function compteAConclure(lots: ReadonlyArray<FaitsEtatLot & { id: string;
 }
 
 /**
- * Les lots CONCLUS · toutes leurs variantes arbitrées (`etatLotSpatial` ·
- * `conclu`, la règle de l'état, aucune copie) · un tel lot reste `testing` en
- * base (aucun écran ne le passe `analyzed`) · l'Accueil l'écarte de « En
- * diffusion » et de « fin prévue passée » (`LotAccueil.conclu`).
+ * Les lots CONCLUS · toutes leurs variantes LUES arbitrées (`etatLotSpatial` ·
+ * `conclu`, la règle de l'état, aucune copie) · et COMBIEN de variantes la
+ * lecture a vues pour chacun. Un tel lot reste `testing` en base (aucun écran
+ * ne le passe `analyzed`) · l'Accueil l'écarte de « En diffusion » et de « fin
+ * prévue passée » (`LotAccueil.conclu`) · seulement si la lecture l'a vu en
+ * entier (`lotConcluAccueil`) · la lecture des lots est bornée
+ * (`LIMITE_ADS_LOTS`), une variante coupée n'est pas une variante arbitrée.
  */
-export function idsLotsConclus(lots: ReadonlyArray<FaitsEtatLot & { id: string }>, c: ContexteLots): Set<string> {
-  return new Set(lots.filter((l) => etatLotSpatial(l, c) === 'conclu').map((l) => l.id));
+export function lotsConclusLus(lots: ReadonlyArray<FaitsEtatLot & { id: string }>, c: ContexteLots): Map<string, number> {
+  return new Map(lots.filter((l) => etatLotSpatial(l, c) === 'conclu').map((l) => [l.id, l.ads.length]));
 }
 
 /** Le paramètre d'adresse qui ouvre « Lots de test » sur un filtre (`?filtre=conclure`). */

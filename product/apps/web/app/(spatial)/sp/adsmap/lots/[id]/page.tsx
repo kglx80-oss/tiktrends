@@ -6,7 +6,7 @@ import {
   entreesLectureOffres, lectureOffres, libelleAttributionOffre, regleLectureOffres, SANS_OFFRE_TEST,
   apprentissagesDepuisReponse, lireGesteConclusion, REFUS_GESTE_JARVIS, gestesPersonaLot, choixIterationSpatial,
   accesHypothese, gestesLectureGroupe, noteDepartLectureOffre, gagnanteArbitree, gestesClavierLot,
-  importFicheLot,
+  importFicheLot, reserveFenetreIncomplete, TITRE_FENETRE_INCOMPLETE,
 } from '@tiktrends/core';
 import { gagnantesDuLot, gestesGagnantesLot } from '@tiktrends/core';
 import { roleAtLeast } from '../../../../../../lib/rbac';
@@ -97,6 +97,8 @@ export default async function LotSpatial({ params, searchParams }: { params: Pro
   const clavier = gestesClavierLot({ etat: pres.etat, ads: l.ads, gagnante: syn.gagnante ?? null, planIds, depuisGagnante: gagnantes });
   // « Mesures à importer » · l'import EXISTANT ouvert sur CE lot, sous SA garde (`import`) · fermé, sa raison.
   const importer = importFicheLot({ etat: pres.etat, lot: l, variantes: l.ads, seuil: d.config, acces: { refus: g.refusImport }, fenetre: { ...d.ctx, lanceLe: l.lanceLe } });
+  // Un lot qu'on arbitre au-delà de la borne de relecture, mesures arrêtées avant la fin de la fenêtre · l'arbitre le lit, et l'import de CE lot (sous sa garde).
+  const fenetreIncomplete = reserveFenetreIncomplete({ etat: pres.etat, lot: l, variantes: l.ads, seuil: d.config, fenetre: { ...d.ctx, lanceLe: l.lanceLe }, acces: { refus: g.refusImport } });
 
   let actions: PropsActionsLot | null = null;
   if (g.admin && (pres.etat === 'composition' || pres.etat === 'pret')) {
@@ -165,6 +167,7 @@ export default async function LotSpatial({ params, searchParams }: { params: Pro
       actions={<>
         <RaccourcisLot conclure={clavier.conclure} iterer={clavier.iterer} />
         {importer && <ImporterMesuresLot lotId={l.id} f={importer} />}
+        {fenetreIncomplete && <ImporterMesuresLot lotId={l.id} f={fenetreIncomplete} fenetreIncomplete={{ titre: TITRE_FENETRE_INCOMPLETE }} />}
         {actions && <ActionsLot {...actions} />}
         <DupliquerLot lotId={l.id} numero={l.numero} variantes={l.ads.length} raison={g.admin ? null : 'Dupliquer un lot est réservé aux admins de l’espace, comme en créer un.'} />
       </>}

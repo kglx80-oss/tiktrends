@@ -40,7 +40,7 @@ export interface FaitsVerdictSpatial {
   /** Verdict arbitré · `null` tant que personne n'a tranché. */
   retenu: VerdictValue | null;
   statut: 'computed' | 'validated';
-  /** `adsmap_verdicts.computed_at` (ISO) · le dernier passage du moteur · absent ou `null` (non lu) · jamais une mesure arrêtée (`mesureArretee`). */
+  /** `adsmap_verdicts.computed_at` (ISO) · le dernier passage du moteur · absent ou `null` (non lu) · jamais une mesure arrêtée (`mesureArretee`, `mesureArreteeConstatee`). */
   calculeLe?: string | null;
   comparable: boolean;
   /** Pourquoi ce verdict, la phrase du moteur (`metricsAgg.reason`). */

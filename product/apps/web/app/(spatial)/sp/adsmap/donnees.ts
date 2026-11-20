@@ -4,7 +4,7 @@ import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
   DEFAULT_VERDICT_CONFIG, conclusionLot, manquesAvantTest, etatLotSpatial, presentationLot, referenceConclusion, lireOrigineHypothese, lireProvenanceJarvis, lireProvenanceCommentaire, lireProvenanceNote, sommeRetenues,
-  compteAConclure, compteAImporter, idsLotsConclus,
+  compteAConclure, compteAImporter, lotsConclusLus,
   type EstimationHypothese, type OrigineHypotheseLibre, type ProvenanceJarvis, type ProvenanceCommentaire, type ProvenanceNote, type VerdictConfig, type VerdictValue, type FaitsAdSpatial, type FaitsLotSpatial, type ContexteLots, type AgregatMesures,
   type FaitsHypotheseAd, type CompteAConclure, type FaitsVerdictSpatial, type SeuilMinimumMoteur, type VarianteFinPrevue,
   type CompteAImporter, type FaitsLotAImporter,
@@ -112,7 +112,7 @@ export interface DonneesLots {
 const LIMITE_ADS_LOTS = 2000;
 const adsDeLaMarque = (workspaceId: string, brandId: string) => and(eq(schema.ads.workspaceId, workspaceId), eq(schema.personas.brandId, brandId));
 const ORDRE_ADS_LOTS = [asc(schema.ads.variantCode), asc(schema.ads.id)] as const;
-/** Le verdict tel que l'état d'un lot le lit · sa valeur, son statut, et l'instant de son dernier calcul (`computed_at` · une mesure arrêtée avant la fin de la fenêtre, `mesureArretee`). */
+/** Le verdict tel que l'état d'un lot le lit · sa valeur, son statut, et l'instant de son dernier calcul (`computed_at` · une mesure arrêtée avant la fin de la fenêtre · l'état, `mesureArretee` · la phrase, `mesuresArretees` → `mesureArreteeConstatee`). */
 const verdictLu = (v: { status: string | null; computed: string | null; computedAt: Date | null }): Pick<FaitsVerdictSpatial, 'statut' | 'calcule' | 'calculeLe'> => ({
   calcule: (v.computed ?? null) as VerdictValue | null,
   statut: v.status === 'validated' ? 'validated' : 'computed',
@@ -331,13 +331,15 @@ export function faitsRailPartages(workspaceId: string, brandId: string, maintena
 
 /**
  * Ce que l'Accueil lit des états des lots · LE compte « à conclure »
- * (`compteAConclure`) ET les lots conclus (`idsLotsConclus` · toutes leurs
- * variantes arbitrées, écartés de « En diffusion » et de « fin prévue
- * passée ») · tirés de LA même lecture (`faitsRailPartages`).
+ * (`compteAConclure`) ET les lots conclus avec le nombre de variantes LUES de
+ * chacun (`lotsConclusLus` · toutes leurs variantes lues arbitrées · l'Accueil
+ * ne les écarte de « En diffusion » et de « fin prévue passée » que lus en
+ * entier, `lotConcluAccueil` · la lecture est bornée, `LIMITE_ADS_LOTS`) ·
+ * tirés de LA même lecture (`faitsRailPartages`).
  */
-export async function lireEtatsAccueil(workspaceId: string, brandId: string, maintenant = new Date()): Promise<{ aConclure: CompteAConclure; conclus: Set<string> }> {
+export async function lireEtatsAccueil(workspaceId: string, brandId: string, maintenant = new Date()): Promise<{ aConclure: CompteAConclure; conclus: ReadonlyMap<string, number> }> {
   const f = await faitsRailPartages(workspaceId, brandId, maintenant);
-  return { aConclure: compteAConclure(f.lots, f.ctx), conclus: idsLotsConclus(f.lots, f.ctx) };
+  return { aConclure: compteAConclure(f.lots, f.ctx), conclus: lotsConclusLus(f.lots, f.ctx) };
 }
 
 /** LE compte « à conclure » de la marque · la pastille du rail et l'Accueil le lisent ici (règle `compteAConclure`, inchangée). */

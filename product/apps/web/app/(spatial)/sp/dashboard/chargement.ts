@@ -8,7 +8,7 @@ import {
   periodeReporting, raccourcisAccueil, salutationAccueil, sourcesJarvisAccueil, sousTitreReporting,
   surtitreSpatialAccueil, syntheseReporting, titreJarvisAccueil,
   SUGGESTIONS_ASSISTANT_ACCUEIL, costFor, noteAccesAccueil, prixQuestionAssistant, refusAssistant, resoudreAccueil,
-  DEFAULT_VERDICT_CONFIG, ecartAuLot, importeesDans, journeesReporting, mentionImportees, finPrevueAccueil, lotsFinPrevuePassee,
+  DEFAULT_VERDICT_CONFIG, ecartAuLot, importeesDans, journeesReporting, mentionImportees, finPrevueAccueil, lotConcluAccueil, lotsFinPrevuePassee,
   type JourneeMesuree, type LotAccueil, type SignalIteration, type VerdictConfig,
 } from '@tiktrends/core';
 import type { Session } from '../../../../lib/auth';
@@ -131,8 +131,9 @@ export async function chargerAccueilSpatial(s: Session, params: Record<string, s
     adsmapOuvert ? lire('lots à conclure', () => lireEtatsAccueil(s.workspaceId, marque!.id, maintenant)) : Promise.resolve(null),
   ]);
   const aConclure = etats?.aConclure ?? null;
-  // Un lot conclu reste `testing` en base · ni « En diffusion » ni « fin prévue passée » · états illisibles, rien n'est caché.
-  const lots: LotAccueil[] | null = lotsLus ? lotsLus.map((l) => ({ ...l, conclu: etats?.conclus.has(l.id) ?? false })) : null;
+  // Un lot conclu reste `testing` en base · ni « En diffusion » ni « fin prévue passée » · lu en entier seulement
+  // (`lotConcluAccueil` · la lecture des états est bornée) · états illisibles ou partiels, rien n'est caché.
+  const lots: LotAccueil[] | null = lotsLus ? lotsLus.map((l) => ({ ...l, conclu: lotConcluAccueil(l, etats?.conclus) })) : null;
 
   /* ── Reporting Meta ─────────────────────────────────────────────────── */
   let reporting: EtatReporting | null = null;

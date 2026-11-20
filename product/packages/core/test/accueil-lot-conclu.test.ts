@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  compteAConclure, etapesBoucleAccueil, etatLotSpatial, finPrevueAuLancement, idsLotsConclus, lotsFinPrevuePassee, phraseFinPrevuePassee,
+  compteAConclure, etapesBoucleAccueil, etatLotSpatial, finPrevueAuLancement, lotConcluAccueil, lotsConclusLus, lotsFinPrevuePassee, phraseFinPrevuePassee,
   type FaitsAdSpatial, type FaitsLotSpatial, type FaitsVerdictSpatial, type LotAccueil, type VerdictValue,
 } from '../src';
 
@@ -34,17 +34,17 @@ const FAITS = [
   faits('sans-mesure', 2, [ad('v1', null), ad('v2', null)]),
   faits('a-conclure', 1, [ad('v1', verdict('winner')), ad('v2', verdict('loser'))]),
 ];
-const conclus = idsLotsConclus(FAITS, A_J8);
+const conclus = lotsConclusLus(FAITS, A_J8);
 const LOTS: LotAccueil[] = FAITS.map((l) => ({
-  id: l.id, numero: l.numero, statut: 'testing', but: null, lanceLe: l.lanceLe, finPrevue: FIN, variantes: l.ads.length, vignette: null, conclu: conclus.has(l.id),
+  id: l.id, numero: l.numero, statut: 'testing', but: null, lanceLe: l.lanceLe, finPrevue: FIN, variantes: l.ads.length, vignette: null, conclu: lotConcluAccueil({ id: l.id, variantes: l.ads.length }, conclus),
 }));
 const COMPTE = compteAConclure(FAITS, A_J8);
 const COMPTES = { tests: 6, avecHypothese: 6, aArbitrer: 2, arbitres: 2, apprentissages: 2 };
 
 describe('l’Accueil · un lot entièrement arbitré n’est plus « en diffusion »', () => {
-  it('préalable · l’état réel des lots · la règle `idsLotsConclus` est celle de l’état', () => {
+  it('préalable · l’état réel des lots · la règle `lotsConclusLus` est celle de l’état', () => {
     expect(FAITS.map((l) => etatLotSpatial(l, A_J8))).toEqual(['conclu', 'a_importer', 'a_conclure']);
-    expect([...conclus]).toEqual(['arbitre']);
+    expect([...conclus.keys()]).toEqual(['arbitre']);
     expect(COMPTE.lots.map((l) => l.id)).toEqual(['a-conclure']);
   });
 

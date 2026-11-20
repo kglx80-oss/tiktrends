@@ -112,11 +112,28 @@ export interface LotAccueil {
   /** Le média réel d'une variante (créa ou asset) · `null` sans média. */
   vignette: string | null;
   /**
-   * Toutes ses variantes arbitrées (`idsLotsConclus` · état `conclu`) · le lot
-   * reste `testing` en base · il n'est ni « En diffusion » ni « fin prévue
-   * passée ». `false` quand les états n'ont pas pu être lus (rien n'est caché).
+   * Toutes ses variantes arbitrées (`lotConcluAccueil` · état `conclu`, lu en
+   * entier) · le lot reste `testing` en base · il n'est ni « En diffusion » ni
+   * « fin prévue passée ». `false` quand les états n'ont pas pu être lus, ou
+   * pas en entier (rien n'est caché).
    */
   conclu: boolean;
+}
+
+/**
+ * Le lot est-il CONCLU pour l'Accueil · la lecture des états le dit conclu
+ * (`lotsConclusLus`) ET elle a vu exactement autant de variantes que l'Accueil
+ * en compte (`variantes`, un `count` en base, sans borne). La lecture des
+ * états est bornée (`LIMITE_ADS_LOTS`, 2 000 variantes par marque, ordre par
+ * code) · au-delà, les derniers codes d'un lot sont coupés · un lot dont
+ * toutes les variantes LUES sont arbitrées mais dont une variante non arbitrée
+ * a été coupée sortait conclu, et disparaissait de l'Accueil sans trace.
+ * Lecture partielle, illisible ou absente · `false` · rien n'est caché.
+ */
+export function lotConcluAccueil(l: Pick<LotAccueil, 'id' | 'variantes'>, conclus: ReadonlyMap<string, number> | null | undefined): boolean {
+  const lues = conclus?.get(l.id);
+  // `lotsConclusLus` ne retient que l'état `conclu`, qui exige au moins une variante lue · aucun zéro à départager.
+  return lues !== undefined && lues === l.variantes;
 }
 
 const temps = (iso: string | null) => (iso ? Date.parse(iso) : NaN);
