@@ -31,6 +31,8 @@ vi.hoisted(() => {
   h.ids = { wsA: u(), wsB: u(), brandA1: u(), brandA2: u(), brandB1: u(), ua: u(), uv: u(), ur: u(), ub: u() };
 });
 
+// « Codé seul » · le fondateur du test est inscrit dans la liste CODÉE (`FOUNDER_EMAILS` n'ouvre plus rien).
+vi.mock('../lib/founder', async (importOriginal) => (await import('./helpers/fondateurs-codes-de-test')).fondateursCodesDeTest(await importOriginal<typeof import('../lib/founder')>(), ['ua@studios.test']));
 vi.mock('@tiktrends/db', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@tiktrends/db')>();
   const { pgMemoire } = await import('./helpers/pg-memoire');
@@ -134,8 +136,6 @@ beforeAll(async () => {
   mock = await demarrerMockFournisseur(() => 'Réponse simulée du faux fournisseur.');
   process.env.ANTHROPIC_API_KEY = 'cle-factice-locale';
   process.env.ANTHROPIC_BASE_URL = mock.url;
-  // La porte Admin+ RÉELLE (`porteAdmin` · admin de l'espace ET fondateur) · `ua` est fondatrice par l'environnement.
-  process.env.FOUNDER_EMAILS = 'ua@studios.test';
   await semer(db, schema, ids);
   await db.update(schema.workspaces).set({ plan: 'plus', onboardedAt: new Date() }).where(eq(schema.workspaces.id, ids.wsA));
   await db.update(schema.workspaceMembers).set({ role: 'owner' }).where(eq(schema.workspaceMembers.userId, ids.ua));

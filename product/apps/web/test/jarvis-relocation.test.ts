@@ -122,7 +122,7 @@ describe('les gardes d’accès survivent au déménagement · rien n’est éla
   it('la page Sources garde ses portes (offre Plus, fondateur)', () => {
     expect(sources).toContain('voitMemoire');
     expect(sources).toContain('fondateur');
-    expect(sources).toContain('isFounder');
+    expect(sources).toContain('aPouvoirsFondateur');
   });
 
   it('chaque section relocalisée porte SA propre garde d’offre (adsmap) et ne rend rien sinon', () => {

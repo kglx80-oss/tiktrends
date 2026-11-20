@@ -330,7 +330,7 @@ describe('SEC-01 / SEC-02 · hors portée, NOT_FOUND neutre et sans fuite', () =
   });
 
   it('membre d’équipe invité en lecteur (studio ouvert par la matrice) · lit, mais ne crée ni n’exporte', async () => {
-    etat.session = session(ids, 'uv', { equipe: { role: 'membre', matrice: { membre: ['studio'] } } as never });
+    etat.session = session(ids, 'uv', { equipe: { role: 'membre', matrice: { membre: ['studio'] }, plateformeAdmissible: true } as never });
     const avant = await compte();
     expect((await lireProjetDetail({ projectId: projetSaisie })).ok).toBe(true);
     expect(await creerProjetDepuisSources({ sources: [{ type: 'sauvegarde', id: SAUV.a2 }], brandId: ids.brandA2, cleClic: 'clic-lecteur-02' })).toMatchObject({ ok: false, code: 'FORBIDDEN' });

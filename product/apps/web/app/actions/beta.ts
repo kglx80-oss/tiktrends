@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 import { eq, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../lib/auth';
-import { isFounder } from '../../lib/founder';
+import { aPouvoirsFondateur } from '../../lib/founder';
 import { convertirUniteEspace } from '../../lib/credits';
 
 const norm = (v: FormDataEntryValue | null) => (typeof v === 'string' ? v.trim() : '');
@@ -17,7 +17,7 @@ type Kind = 'normal' | 'beta' | 'staff';
 export async function grantTestPackAction(formData: FormData): Promise<void> {
   const s = await getSession();
   if (!s || !db) redirect('/login');
-  if (!isFounder(s.user.email)) redirect('/console?e=forbidden');
+  if (!aPouvoirsFondateur(s.user.email)) redirect('/console?e=forbidden');
 
   const workspaceId = norm(formData.get('workspaceId'));
   const credits = Math.max(0, Math.min(1_000_000, parseInt(norm(formData.get('credits')) || '0', 10) || 0));
@@ -46,7 +46,7 @@ export async function grantTestPackAction(formData: FormData): Promise<void> {
 export async function revokeTrialAction(formData: FormData): Promise<void> {
   const s = await getSession();
   if (!s || !db) redirect('/login');
-  if (!isFounder(s.user.email)) redirect('/console?e=forbidden');
+  if (!aPouvoirsFondateur(s.user.email)) redirect('/console?e=forbidden');
   const workspaceId = norm(formData.get('workspaceId'));
   if (!workspaceId) redirect('/console?e=badinput');
   await convertirUniteEspace(workspaceId); // la ligne de journal est dans la nouvelle unité

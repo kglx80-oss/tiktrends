@@ -14,7 +14,7 @@ vi.mock('../lib/auth', () => ({ getSession: async () => ({ workspaceId: 'w', wor
 vi.mock('@tiktrends/db', () => ({ db: null, schema: {} }));
 vi.mock('../lib/rbac', async (orig) => ({ ...(await orig<typeof import('../lib/rbac')>()), canAccess: () => true }));
 vi.mock('../lib/access', () => ({ effectiveAccess: () => ({}) }));
-vi.mock('../lib/founder', () => ({ isFounder: () => etat.fondateur }));
+vi.mock('../lib/founder', () => ({ aPouvoirsFondateur: () => etat.fondateur }));
 vi.mock('../lib/brands', () => ({ getActiveBrand: async () => ({ id: 'b1', name: 'Neva' }) }));
 vi.mock('../lib/jarvis-memory', () => ({ jarvisMeasuredMemory: async () => '', jarvisStats: async () => null }));
 vi.mock('../lib/jarvis-state', () => ({ STATE_LABEL: {}, jarvisSnapshot: async () => ({ layers: [], liveCount: 0, dataCount: 0, summary: '' }) }));

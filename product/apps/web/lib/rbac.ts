@@ -118,7 +118,7 @@ export const FEATURES: Feature[] = [
   { key: 'billing',   label: 'Abonnement & factures', href: '/billing', icon: 'card', group: 'account', section: 'Espace', minRole: 'admin', minPlan: 'starter' },
   { key: 'settings',  label: 'Réglages',     href: '/settings',    icon: 'gear',   group: 'account', section: 'Espace', minRole: 'admin',  minPlan: 'starter' },
   // Note : Console + Crédits/marges (coûts réels API) sont réservés à la plateforme
-  // (ADMIN+ · isFounder), pas exposés dans le menu client. Voir les écrans Spatial de l'Admin (`app/(spatial)/sp/admin`).
+  // (ADMIN+ · `aPouvoirsFondateur`, liste codée), pas exposés dans le menu client. Voir les écrans Spatial de l'Admin (`app/(spatial)/sp/admin`).
 ];
 
 /**
@@ -144,7 +144,19 @@ export function rubriqueDeFeature(key: string): string | null {
  * Les deux ne se mélangent pas : quand `equipe` est là, c'est lui qui décide, et
  * la formule ne s'applique plus (l'équipe n'est pas facturée).
  */
-export interface Access { role: Role; plan: Plan; equipe?: { role: RolePlateforme; matrice: MatriceDroits } }
+export interface Access { role: Role; plan: Plan; equipe?: FaceEquipe }
+
+declare const FACE_EQUIPE: unique symbol;
+/**
+ * La face « équipe » d'un accès · posée par `effectiveAccess` SEUL, sous
+ * `privilegesEquipe` (noyau · admissibilité exigée). La marque de type la rend
+ * inconstructible ailleurs · une session brute (`s.equipe`, `EquipeSession`)
+ * n'est pas assignable ici, donc `canAccess({ …, equipe: s.equipe }, f)` ne
+ * compile pas. Sur main c05b74a0, trois écrans le faisaient (fiche marque,
+ * réglages, tagging) · un compte non admissible y retrouvait la face équipe,
+ * sans verrou de formule.
+ */
+export type FaceEquipe = { readonly role: RolePlateforme; readonly matrice: MatriceDroits; readonly [FACE_EQUIPE]: true };
 export type NavItem = Feature & { locked: boolean; isSub: boolean };
 
 /** La feature est-elle VISIBLE ? Client · rôle d'espace. Équipe · matrice des rubriques. */

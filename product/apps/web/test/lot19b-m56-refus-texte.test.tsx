@@ -24,7 +24,7 @@ import { TEXTE_REFUS_JARVIS } from '../lib/jarvis-acces';
 const base = (o: Record<string, unknown>) => ({ user: { id: 'u', email: 'x@synth.test', name: null }, workspaceId: 'w', workspaceName: 'W', ...o });
 const CAS: Array<[string, Record<string, unknown>, 'plan' | 'role']> = [
   ['membre Starter', { role: 'member', plan: 'starter', equipe: null }, 'plan'],
-  ['membre d’équipe freelance', { role: 'member', plan: 'business', equipe: { role: 'freelance', matrice: {} } }, 'role'],
+  ['membre d’équipe freelance', { role: 'member', plan: 'business', equipe: { role: 'freelance', matrice: {}, plateformeAdmissible: true } }, 'role'],
   ['client_viewer', { role: 'client_viewer', plan: 'business', equipe: null }, 'role'],
 ];
 const texte = (html: string) => html.replace(/<[^>]+>/g, ' ').replace(/&#x27;|&#39;/g, "'").replace(/\s+/g, ' ');

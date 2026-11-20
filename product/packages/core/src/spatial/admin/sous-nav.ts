@@ -5,12 +5,13 @@
  * la page refuserait n'est pas proposée. Les pages gardent leurs propres
  * refus · cette règle ne protège rien, elle évite de montrer une porte fermée.
  *
- *  · `tour` · la porte commune (`porteAdmin`) · fondateur ET admin de l'espace ;
+ *  · `tour` · la porte commune (`porteAdmin`) · fondateur CODÉ ET admin de l'espace ;
  *  · `promptRead` · `gardePlateforme('prompt.read')` · Bibliothèque IA,
  *    Registre IA, Modèles IA ;
  *  · `providerConfigure` · `gardePlateforme('provider.configure')` · Interrupteurs ;
  *  · `connaissances` · `peutGererConnaissances(équipe)` · accès total ET admissible ;
- *  · `equipe` · un rôle d'équipe à accès total (Rôles & droits).
+ *  · `equipe` · l'écran complet de Rôles & droits (`vueEquipeAdmin` · accès
+ *    total ADMISSIBLE).
  */
 export interface DroitsSousNavAdmin {
   tour: boolean;

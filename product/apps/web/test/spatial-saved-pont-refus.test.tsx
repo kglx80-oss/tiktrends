@@ -19,7 +19,7 @@ const ids = vi.hoisted(() => {
   const { randomUUID } = require('node:crypto') as typeof import('node:crypto');
   return { ws: randomUUID(), marque: randomUUID(), user: randomUUID(), dehors: randomUUID() };
 });
-type EquipeTest = { role: 'membre'; matrice: Record<string, never> } | null;
+type EquipeTest = { role: 'membre'; matrice: Record<string, never>; plateformeAdmissible?: boolean } | null;
 const session = vi.hoisted(() => ({ plan: 'starter' as string, role: 'member' as string, marque: true, equipe: null as EquipeTest }));
 
 vi.mock('@tiktrends/db', async (importOriginal) => {
@@ -77,7 +77,7 @@ describe('Sauvegardes (Spatial) · pont Résultats fermé · la raison réelle �
   });
 
   it('rôle (équipe « membre », Adsmap hors de ses rubriques) · « réservé aux rôles… »', async () => {
-    session.plan = 'business'; session.equipe = { role: 'membre', matrice: {} };
+    session.plan = 'business'; session.equipe = { role: 'membre', matrice: {}, plateformeAdmissible: true };
     const h = await page();
     expect(nCartes(h)).toBe(2);
     expect(refus(h)).toEqual(['Préparer un test dans Résultats · réservé aux rôles qui ont accès à Adsmap.', 'Préparer un test dans Résultats · réservé aux rôles qui ont accès à Adsmap.']);

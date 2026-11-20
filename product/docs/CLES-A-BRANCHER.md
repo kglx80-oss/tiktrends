@@ -101,13 +101,22 @@ HIGGSFIELD_MODEL=              # optionnel
 
 ## 2 bis. ADMIN+ — vue plateforme (fondateur)
 
-```
-FOUNDER_EMAILS=kguilbaux@agence-glx.fr
-```
+**`FOUNDER_EMAILS` n'ouvre plus rien** (décision du propriétaire, « Codé seul »,
+suivi de #1115). Les pouvoirs fondateur (Tour de contrôle, dépenses IA, barème
+des crédits, formules et dons de crédits, bêta, stockage, diagnostic Stripe,
+exploitation de Jarvis, crédits illimités) sont réservés aux fondateurs
+**inscrits dans le code** (`apps/web/lib/founder.ts`, liste `FONDATEURS`,
+règle `pouvoirFondateur` du noyau). Raison · aucun e-mail n'est vérifié à la
+création d'un compte : quiconque créait le premier le compte d'une adresse de
+la variable recevait tous ces pouvoirs.
 
-Débloque la **vue plateforme** dans ADMIN+ (MRR, churn, tous les espaces).
-Sans cette variable, personne ne voit les données globales (sécurité multi-tenant).
-Plusieurs fondateurs : séparer par des virgules.
+La variable est encore lue, **sans pouvoir** · un compte dont l'adresse y
+figure lit, sur `/admin/equipe`, pourquoi il n'a rien et comment rejoindre
+l'équipe. Elle peut rester vide.
+
+Pour ajouter un fondateur : l'inscrire dans `FONDATEURS` (un déploiement
+suffit). Pour un membre de l'équipe sans pouvoirs fondateur : l'inscrire dans
+`/admin/equipe` (Admin+ ou Admin) une fois son compte créé.
 
 ## 3. Bibliothèque pub — Trendtrack (déjà branché)
 

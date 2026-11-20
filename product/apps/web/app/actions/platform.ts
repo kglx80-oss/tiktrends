@@ -3,7 +3,7 @@
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { getSession } from '../../lib/auth';
-import { isFounder } from '../../lib/founder';
+import { aPouvoirsFondateur } from '../../lib/founder';
 import { getPlanConfig, setPlanConfig } from '../../lib/settings';
 import type { Plan } from '../../lib/rbac';
 
@@ -17,7 +17,7 @@ const num = (v: FormDataEntryValue | null) => {
 export async function updatePlanConfigAction(formData: FormData): Promise<void> {
   const s = await getSession();
   if (!s) redirect('/login');
-  if (!isFounder(s.user.email)) redirect('/console?e=forbidden');
+  if (!aPouvoirsFondateur(s.user.email)) redirect('/console?e=forbidden');
 
   const current = await getPlanConfig();
   const prices = { ...current.prices };

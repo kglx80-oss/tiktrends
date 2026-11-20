@@ -18,7 +18,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 vi.mock('next/navigation', () => ({ redirect: (u: string) => { throw new Error('redirect ' + u); }, usePathname: () => '/admin/plans' }));
 vi.mock('../lib/auth', () => ({ getSession: async () => ({ workspaceId: 'w', workspaceName: 'Espace démo', role: 'owner', plan: 'business', user: { id: 'u', email: 'fondateur@exemple.invalid', name: 'K' } }), signupOpen: () => true }));
 vi.mock('@tiktrends/db', () => ({ db: null, schema: {} }));
-vi.mock('../lib/founder', () => ({ isFounder: () => true }));
+vi.mock('../lib/founder', () => ({ aPouvoirsFondateur: () => true }));
 vi.mock('../lib/credits', () => ({ unlimitedCredits: () => true }));
 vi.mock('../lib/settings', () => ({ getPlanConfig: async () => ({ prices: { starter: 0, core: 49, plus: 149, business: 399 }, credits: { starter: 300, core: 2000, plus: 6000, business: 20000 } }) }));
 vi.mock('../app/actions/billing', () => ({ changePlanAction: async () => {} }));

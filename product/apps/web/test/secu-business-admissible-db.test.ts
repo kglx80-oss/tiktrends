@@ -81,7 +81,7 @@ beforeAll(async () => {
     { id: ids.fondateur, email: EMAIL.fondateur, createdAt: jour(10) },
     // Fondateur de l'ENVIRONNEMENT (`FOUNDER_EMAILS`), sans ligne d'équipe · non admissible depuis #1106.
     { id: ids.env, email: EMAIL.env, createdAt: jour(10) },
-    // Rôle GRADÉ, compte postérieur · l'admissibilité ne lui a jamais rien ouvert.
+    // Rôle GRADÉ, compte postérieur · non admissible · depuis « Fermer aussi », face client.
     { id: ids.grade, email: EMAIL.grade, createdAt: jour(10) },
     { id: ids.client, email: EMAIL.client, createdAt: jour(1) },
   ]);
@@ -181,14 +181,14 @@ describe('Fondateur de l’environnement sans inscription (non admissible depuis
   });
 });
 
-describe('Rôle gradé (Manager), compte postérieur · inchangé', () => {
-  it('formule de l’espace, la face équipe lève le verrou de « Résultats » (sa matrice l’ouvre), dépense non visible', async () => {
+describe('Rôle gradé (Manager), compte postérieur · même sort que le compte captant (« Fermer aussi »)', () => {
+  it('formule de l’espace, plus de face équipe · « Résultats » verrouillé, dépense non visible', async () => {
     const s = await connecter(ids.grade);
     expect(s.equipe).toMatchObject({ role: 'manager', plateformeAdmissible: false });
     expect(effectiveAccess(s).plan).toBe('core');
-    expect(effectiveAccess(s).equipe?.role).toBe('manager');
-    expect(resultatsAuRail(s)).toBe(false);
-    expect((await gardeResultats()).ok).toBe(true);
+    expect(effectiveAccess(s).equipe, 'un rôle gradé non admissible garde la face équipe').toBeUndefined();
+    expect(resultatsAuRail(s)).toBe(true);
+    expect(await gardeResultats()).toEqual({ ok: false, raison: 'plan' });
     expect(personnelPlateforme(s)).toBe(false);
   });
 });
