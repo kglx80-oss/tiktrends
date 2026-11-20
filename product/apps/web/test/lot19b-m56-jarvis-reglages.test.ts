@@ -101,7 +101,7 @@ const ACTIONS: Array<[string, () => Promise<{ error?: string }>]> = [
 const REFUSES: Array<[string, () => unknown, string, string]> = [
   ['admin d’un espace Starter', () => base(ids.wsS, { role: 'admin', plan: 'starter', equipe: null }), ids.bS, TEXTE_REFUS_JARVIS.plan],
   ['owner d’un espace Starter', () => base(ids.wsS, { role: 'owner', plan: 'starter', equipe: null }), ids.bS, TEXTE_REFUS_JARVIS.plan],
-  ['membre d’équipe freelance, owner de son espace Business', () => base(ids.wsB, { role: 'owner', plan: 'business', equipe: { role: 'freelance', matrice: {} } }), ids.bB, TEXTE_REFUS_JARVIS.role],
+  ['membre d’équipe freelance, owner de son espace Business', () => base(ids.wsB, { role: 'owner', plan: 'business', equipe: { role: 'freelance', matrice: {}, plateformeAdmissible: true } }), ids.bB, TEXTE_REFUS_JARVIS.role],
 ];
 
 describe('refus · feature `jarvis` · zéro effet', () => {

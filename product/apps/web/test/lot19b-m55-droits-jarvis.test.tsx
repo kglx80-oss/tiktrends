@@ -102,11 +102,11 @@ const SECRETS = ['TITRE_PLATEFORME_55', 'TEXTE_PLATEFORME_55', 'TITRE_ESPACE_55'
 const base = (o: Record<string, unknown>) => ({ user: { id: ids.user, email: 'membre@client.test', name: null }, workspaceId: ids.ws, workspaceName: 'Démo', ...o });
 const REFUSES: Array<[string, () => unknown]> = [
   ['membre d’un espace Starter', () => base({ role: 'member', plan: 'starter', equipe: null })],
-  ['membre d’équipe freelance (offre Business)', () => base({ role: 'member', plan: 'business', equipe: { role: 'freelance', matrice: {} } })],
+  ['membre d’équipe freelance (offre Business)', () => base({ role: 'member', plan: 'business', equipe: { role: 'freelance', matrice: {}, plateformeAdmissible: true } })],
   ['client_viewer (offre Business)', () => base({ role: 'client_viewer', plan: 'business', equipe: null })],
   // Sans élargissement · la matrice ouvre Jarvis au rôle d'équipe « membre »,
   // mais le rôle d'ESPACE reste lecture seule · refusé comme avant.
-  ['client_viewer membre d’équipe « membre » (rubrique Jarvis)', () => base({ role: 'client_viewer', plan: 'business', equipe: { role: 'membre', matrice: {} } })],
+  ['client_viewer membre d’équipe « membre » (rubrique Jarvis)', () => base({ role: 'client_viewer', plan: 'business', equipe: { role: 'membre', matrice: {}, plateformeAdmissible: true } })],
 ];
 const AUTORISES: Array<[string, () => unknown]> = [
   ['fondateur (espace Starter)', () => base({ role: 'owner', plan: 'starter', user: { id: ids.user, email: 'kguilbaux@agence-glx.fr', name: null }, equipe: { role: 'adminplus', matrice: {} } })],

@@ -1,5 +1,5 @@
 import type { AdmissibiliteMembre } from '@tiktrends/core';
-import { Ic, Lien, Vue } from '../../communs';
+import { EnTete, Ic, Lien, Vue } from '../../communs';
 import { Pill, TeteAdmin, Vide, type BandeauAdmin } from './base';
 import { GererMembre, InviterMembre, MatriceDroitsSpatiale, type CaseDroit } from './droits-client';
 
@@ -22,11 +22,6 @@ export interface PropsDroits {
   verrouille: boolean;
   rolesInvitation: ReadonlyArray<{ cle: string; libelle: string }> | null;
   equipe: ReadonlyArray<{ email: string; initiales: string; role: string; total: boolean; depuis: string; cleRole?: string; moi?: boolean; admissibilite?: AdmissibiliteMembre }>;
-  /**
-   * SEC-10 · le message dédié au compte de la session quand il a l'accès total
-   * sans être admissible (`messageNonAdmissible`) · `null` sinon.
-   */
-  nonAdmissible?: string | null;
   /** Les gestes par membre (rôle, retrait) · absent en lecture seule. */
   gestion?: boolean;
   audit: ReadonlyArray<{ id: string; initiales: string; acteur: string; texte: string; quand: string }>;
@@ -34,13 +29,24 @@ export interface PropsDroits {
   journal?: string | null;
 }
 
+/**
+ * « Rôles & droits » pour un compte d'équipe NON admissible (`vueEquipeAdmin`
+ * → `message`) · son message, rien d'autre · ni bandeau de la plateforme, ni
+ * sous-navigation du Tour, ni matrice, ni liste de l'équipe, ni audit.
+ */
+export function DroitsNonAdmissible({ message }: { message: string }) {
+  return (
+    <Vue>
+      <EnTete titre="Rôles & droits" sous="Équipe plateforme" />
+      <section className="tile" role="status" data-non-admissible="" style={{ borderLeft: '3px solid var(--bad)', fontSize: '13.5px', lineHeight: 1.5 }}>{message}</section>
+    </Vue>
+  );
+}
+
 export function Droits(p: PropsDroits) {
   return (
     <Vue>
       <TeteAdmin titre="Rôles & droits" sous="droits" actif="/admin/equipe" bandeau={p.bandeau} />
-      {p.nonAdmissible && (
-        <section className="tile" role="status" data-non-admissible="" style={{ borderLeft: '3px solid var(--bad)', fontSize: '13.5px', lineHeight: 1.5 }}>{p.nonAdmissible}</section>
-      )}
       <section className="tile">
         <div className="sech"><h2>Matrice des droits</h2><span className="faint" style={{ fontSize: '12.5px' }}>{p.legende}</span></div>
         <MatriceDroitsSpatiale roles={p.roles} lignes={p.lignes} verrouille={p.verrouille} />

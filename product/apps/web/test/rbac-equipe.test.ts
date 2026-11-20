@@ -3,6 +3,7 @@ import { CLES_RUBRIQUES, type MatriceDroits } from '@tiktrends/core';
 import {
   FEATURES, canAccess, denyReason, railNav, rubriqueDeFeature, type Access,
 } from '../lib/rbac';
+import { faceEquipeTest } from './helpers/face-equipe';
 
 /**
  * L'accès à double face · CLIENT (rôle d'espace + formule) OU ÉQUIPE (rôle
@@ -33,8 +34,8 @@ describe('rbac · le client est INCHANGÉ (equipe absent)', () => {
 
 describe('rbac · l’équipe interne (equipe présent)', () => {
   const matriceVide: MatriceDroits = {};
-  const membre: Access = { role: 'client_viewer', plan: 'starter', equipe: { role: 'membre', matrice: matriceVide } };
-  const adminEquipe: Access = { role: 'client_viewer', plan: 'starter', equipe: { role: 'admin', matrice: matriceVide } };
+  const membre: Access = { role: 'client_viewer', plan: 'starter', equipe: faceEquipeTest('membre', matriceVide) };
+  const adminEquipe: Access = { role: 'client_viewer', plan: 'starter', equipe: faceEquipeTest('admin', matriceVide) };
 
   it('un rôle matriciel voit ses rubriques, pas les autres · sans jamais de verrou formule', () => {
     // Membre (défaut) voit Studio, pas Adsmap · et jamais « verrouillé par la formule ».
@@ -50,7 +51,7 @@ describe('rbac · l’équipe interne (equipe présent)', () => {
   });
 
   it('la matrice éditable ouvre une rubrique par défaut fermée', () => {
-    const membreAvecAdsmap: Access = { role: 'client_viewer', plan: 'starter', equipe: { role: 'membre', matrice: { membre: ['studio', 'adsmap'] } } };
+    const membreAvecAdsmap: Access = { role: 'client_viewer', plan: 'starter', equipe: faceEquipeTest('membre', { membre: ['studio', 'adsmap'] }) };
     expect(canAccess(membreAvecAdsmap, feat('adsmap'))).toBe(true);
   });
 });

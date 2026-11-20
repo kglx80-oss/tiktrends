@@ -9,12 +9,21 @@ import { Ic, Lien } from '../../communs';
  * phrase le dit, aucun bouton. Arrive par `actions`, sous la fiche, avec les
  * autres gestes réels · rien n'est écrit ici.
  */
-export function ImporterMesuresLot({ lotId, f }: { lotId: string; f: FinPrevueAccueil }) {
+export function ImporterMesuresLot({ lotId, f, fenetreIncomplete }: {
+  lotId: string;
+  f: FinPrevueAccueil;
+  /**
+   * La fiche d'un lot qu'on ARBITRE, mesures arrêtées (`reserveFenetreIncomplete`) · le même geste, sous
+   * son propre titre (le lot n'est pas « Mesures à importer ») · `data-fenetre-incomplete` au lieu de `data-import-lot`.
+   */
+  fenetreIncomplete?: { titre: string };
+}) {
   const g = f.geste;
   if (!f.texte && !g) return null;
+  const marque = fenetreIncomplete ? { 'data-fenetre-incomplete': lotId } : { 'data-import-lot': lotId };
   return (
-    <section className="tile sec" aria-label="Importer les mesures du lot" data-import-lot={lotId}>
-      <h2>Mesures à importer</h2>
+    <section className="tile sec" aria-label={fenetreIncomplete ? fenetreIncomplete.titre : 'Importer les mesures du lot'} {...marque}>
+      <h2>{fenetreIncomplete ? fenetreIncomplete.titre : 'Mesures à importer'}</h2>
       {f.texte && <p className="muted" data-diagnostic="" style={{ fontSize: '12.5px', marginTop: 4 }}>{f.texte}</p>}
       {g?.etat === 'ouvert' && (
         <div className="foot2" style={{ marginTop: 12 }}>

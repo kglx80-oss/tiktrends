@@ -42,8 +42,22 @@ import type { ContexteLots } from './lots';
  * suivante (ou un export s'importe), le verdict est recalculé, l'état
  * d'avant revient s'il était juste. Au-delà, la connexion ne peut plus
  * ramener ces jours · « Mesures à importer » deviendrait une impasse
- * permanente (le lot ne s'arbitre plus, `lotArbitrable`) · la règle se tait
- * et le lot retrouve l'état de ses verdicts, l'arbitrage reste possible.
+ * permanente (le lot ne s'arbitre plus, `lotArbitrable`) · la règle de l'ÉTAT
+ * (`mesureArretee`) se tait et le lot retrouve l'état de ses verdicts,
+ * l'arbitrage reste possible. Le CONSTAT, lui, n'a pas de borne
+ * (`mesureArreteeConstatee`) · la phrase (`diagnosticFinPrevue` · l'Accueil,
+ * l'import, la fiche, `reserveFenetreIncomplete`) dit toujours « mesures
+ * arrêtées » · l'arbitre sait qu'il tranche sur une fenêtre incomplète.
+ *
+ * Ce que le constat NE sait PAS · il lit la fenêtre COURANTE de la marque
+ * (`ContexteLots.fenetreJours`), aucune fenêtre n'est figée au lancement ·
+ * une marque qui relève sa fenêtre après coup (7 → 14 jours) voit d'anciens
+ * lots, mesurés en entier sur 7 jours, dits rétroactivement « mesures
+ * arrêtées » (« Fenêtre incomplète » sur la fiche d'un lot arbitrable,
+ * `reserveFenetreIncomplete`). De même, un protocole volontairement plus
+ * court que la fenêtre (variantes arrêtées à J5 sur une fenêtre de 7, que la
+ * synchro ne recalcule plus, ou un dernier export importé à J5) la déclenche
+ * aussi · le constat ne distingue pas un arrêt voulu d'un arrêt subi.
  *
  * Un lot ANCIEN jamais arbitré n'est pas touché pour autant · tant que la
  * synchro tourne, chaque variante diffusée ou en pause d'un lot dont une
@@ -109,20 +123,20 @@ export function jourDuCalcul(v: VerdictDate | null | undefined): string | null {
 }
 
 /**
- * La mesure de cette variante s'est-elle arrêtée avant la fin de la fenêtre ·
- * la fenêtre est écoulée (même calcul que l'état du lot), le verdict est
- * calculé, pas arbitré, daté, et son jour de calcul précède le jour où la
- * fenêtre se ferme, et la synchro peut encore relire le lot (lancé il y a
- * moins de `FENETRE_SYNCHRO_JOURS` jours · la borne, plus haut). Sans verdict ·
+ * Le CONSTAT · la mesure de cette variante s'est-elle arrêtée avant la fin de
+ * la fenêtre · la fenêtre est écoulée (même calcul que l'état du lot), le
+ * verdict est calculé, pas arbitré, daté, et son jour de calcul précède le
+ * jour où la fenêtre se ferme. SANS la borne de relecture · ce que la phrase
+ * dit (`mesuresArretees` → `diagnosticFinPrevue`), à tout âge. Sans verdict ·
  * ce n'est pas une mesure ARRÊTÉE (elle n'a jamais commencé · l'état du lot le
  * dit déjà).
  */
-export function mesureArretee(v: VerdictDate | null | undefined, f: FenetreDuLot): boolean {
+export function mesureArreteeConstatee(v: VerdictDate | null | undefined, f: FenetreDuLot): boolean {
   if (!v || v.statut !== 'computed' || !v.calcule || !v.calculeLe) return false;
   const t = Date.parse(v.calculeLe);
   if (!Number.isFinite(t)) return false;
   const jours = joursEntiersDepuis(f.lanceLe, f.maintenant);
-  if (jours === null || jours < f.fenetreJours || jours >= FENETRE_SYNCHRO_JOURS) return false;
+  if (jours === null || jours < f.fenetreJours) return false;
   // Sans lire le calendrier (un formateur de fuseau coûte · mesuré, le compte « à importer » sur chaque
   // sous-ensemble de son corpus passait de 1,9 s à 66 s) · l'heure d'été ne décale l'heure de Paris que
   // d'une heure · un écart ≥ (fenêtre + 1) × 24 h depuis le lancement tombe forcément un jour de Paris ≥
@@ -136,8 +150,20 @@ export function mesureArretee(v: VerdictDate | null | undefined, f: FenetreDuLot
   return !!fin && !!le && le < fin;
 }
 
-/** Les variantes dont la mesure s'est arrêtée · leur nombre et le jour du DERNIER calcul parmi elles (`null` sans aucune). */
+/**
+ * L'ÉTAT · la mesure arrêtée compte comme une mesure MANQUANTE
+ * (`etatLotSpatial` · « Mesures à importer ») · le constat
+ * (`mesureArreteeConstatee`), tant que la synchro peut encore relire le lot
+ * (lancé il y a moins de `FENETRE_SYNCHRO_JOURS` jours · la borne, plus haut).
+ * Au-delà, le lot s'arbitre · la phrase, elle, le dit toujours.
+ */
+export function mesureArretee(v: VerdictDate | null | undefined, f: FenetreDuLot): boolean {
+  const jours = joursEntiersDepuis(f.lanceLe, f.maintenant);
+  return jours !== null && jours < FENETRE_SYNCHRO_JOURS && mesureArreteeConstatee(v, f);
+}
+
+/** Les variantes dont la mesure s'est arrêtée (le CONSTAT, sans borne · la phrase) · leur nombre et le jour du DERNIER calcul parmi elles (`null` sans aucune). */
 export function mesuresArretees(verdicts: ReadonlyArray<VerdictDate | null | undefined>, f: FenetreDuLot): { variantes: number; le: string } | null {
-  const jours = verdicts.filter((v) => mesureArretee(v, f)).map((v) => jourDuCalcul(v)!).sort();
+  const jours = verdicts.filter((v) => mesureArreteeConstatee(v, f)).map((v) => jourDuCalcul(v)!).sort();
   return jours.length ? { variantes: jours.length, le: jours.at(-1)! } : null;
 }

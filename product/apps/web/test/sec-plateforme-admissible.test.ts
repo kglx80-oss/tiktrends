@@ -31,7 +31,7 @@ vi.mock('@tiktrends/db', async (importOriginal) => {
 import { db, schema } from '@tiktrends/db';
 import { permissionsStudio, restreindrePlateforme, PERMISSIONS_PLATEFORME, messageNonAdmissible, MESSAGE_NON_ADMISSIBLE, MESSAGE_FONDATEUR_HORS_CODE } from '@tiktrends/core';
 import { equipeDeSession } from '../lib/equipe-plateforme';
-import { estFondateurCode, isFounder } from '../lib/founder';
+import { aPouvoirsFondateur, estFondateurCode, estFondateurEnvironnement } from '../lib/founder';
 
 /** Un fondateur de la liste codée du dépôt (lib/founder.ts · FONDATEURS). */
 const FONDATEUR_CODE = 'kguilbaux@agence-glx.fr';
@@ -102,7 +102,9 @@ describe('SEC-10 · estFondateurCode · liste codée seule, sans FOUNDER_EMAILS'
   it('fondateur codé · oui (casse et espaces ignorés) ; fondateur par variable d’environnement · non', () => {
     expect(estFondateurCode(FONDATEUR_CODE)).toBe(true);
     expect(estFondateurCode('  KGuilbaux@Agence-GLX.fr ')).toBe(true);
-    expect(isFounder(ENV_FONDATEUR), 'la variable d’environnement fait toujours un fondateur').toBe(true);
+    expect(estFondateurEnvironnement(ENV_FONDATEUR), 'la variable d’environnement est lue (message dédié)').toBe(true);
+    expect(aPouvoirsFondateur(ENV_FONDATEUR), 'la variable d’environnement n’ouvre plus aucun pouvoir fondateur (« Codé seul »)').toBe(false);
+    expect(aPouvoirsFondateur(FONDATEUR_CODE)).toBe(true);
     expect(estFondateurCode(ENV_FONDATEUR), 'un fondateur par variable d’environnement n’est pas de la liste codée').toBe(false);
     expect(estFondateurCode(null)).toBe(false);
   });

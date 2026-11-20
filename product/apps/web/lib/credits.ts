@@ -2,7 +2,7 @@ import 'server-only';
 import { and, eq, gte } from 'drizzle-orm';
 import { convertirUnite, db, schema, setDebitPoches, setRemboursementPoches } from '@tiktrends/db';
 import { allouerPoches, type PlanAllocation } from '@tiktrends/core';
-import { isFounder } from './founder';
+import { aPouvoirsFondateur } from './founder';
 
 /**
  * Registre en mémoire des comptes d'ÉQUIPE à accès total (adminplus/admin) qui
@@ -26,13 +26,14 @@ export function noterCreditsStaff(email: string | null | undefined, illimite: bo
 }
 
 /**
- * Crédits illimités · fondateurs (codés en dur / FOUNDER_EMAILS) ET membres de
- * l'équipe à accès total (adminplus/admin, inscrits par getSession).
+ * Crédits illimités · fondateurs de la liste CODÉE (jamais `FOUNDER_EMAILS`,
+ * « Codé seul ») ET membres de l'équipe à accès total ADMISSIBLES
+ * (adminplus/admin, inscrits par getSession).
  * Quand vrai : on ne vérifie pas le solde et on ne débite pas.
  * (Les espaces clients restent soumis au barème normal.)
  */
 export function unlimitedCredits(email?: string | null): boolean {
-  if (isFounder(email)) return true;
+  if (aPouvoirsFondateur(email)) return true;
   const e = email?.trim().toLowerCase();
   return !!e && EMAILS_STAFF_ILLIMITE.has(e);
 }
