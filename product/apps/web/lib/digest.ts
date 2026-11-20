@@ -184,16 +184,19 @@ export async function brandFacts(
  *
  * Une marque dont la semaine ne mérite pas de lettre n'en produit pas · c'est
  * la règle du noyau, appliquée ici sans exception.
+ *
+ * La LISTE des marques n'a pas de repli · elle ÉCHOUE pour de vrai. Une panne
+ * passagère rendue en liste vide ressemblait à une semaine sans rien à dire ·
+ * le cron posait « fait » sur sa semaine et plus aucune relance ne servait.
+ * Seuls les faits d'une marque gardent leur repli (`sansCasse`, plus haut) ·
+ * un compteur manquant retire une phrase, pas la lettre.
  */
 export async function weeklyDigests(now = new Date()): Promise<BrandDigest[]> {
   if (!db) return [];
   const depuis = new Date(now.getTime() - SEMAINE_MS);
 
-  const marques = await sansCasse(
-    db.select({ id: schema.brands.id, name: schema.brands.name, workspaceId: schema.brands.workspaceId })
-      .from(schema.brands).limit(500),
-    [] as Array<{ id: string; name: string; workspaceId: string }>,
-  );
+  const marques = await db.select({ id: schema.brands.id, name: schema.brands.name, workspaceId: schema.brands.workspaceId })
+    .from(schema.brands).limit(500);
 
   const out: BrandDigest[] = [];
   for (const b of marques) {

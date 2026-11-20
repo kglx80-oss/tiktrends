@@ -13,6 +13,8 @@
  * appel qui peut durer plusieurs minutes.
  */
 
+import { DELAI_DECLENCHEUR_RECAP_MS } from '@tiktrends/core';
+
 const INTERNAL = 'http://web:3000';
 
 export interface AdsMapTriggerResult { ok: boolean; status?: number; detail?: string }
@@ -102,10 +104,16 @@ export function triggerVideosHistoriques(): Promise<AdsMapTriggerResult> {
  * chose. Aucun appel modèle (le récap est calculé, jamais rédigé) · rien de
  * facturé, seulement des comptes et des envois. La route existait et était
  * protégée · rien ne la déclenchait, donc ni la cloche ni « Quoi de neuf » ne
- * recevaient de récap. Un passage par semaine ISO (verrou `digest:<semaine>`
- * côté route) · une relance ou une crontab restée sur la machine ne double rien.
- * 5 minutes · la durée maximale de la route (`maxDuration`).
+ * recevaient de récap.
+ *
+ * Contrairement aux autres déclencheurs, un échec LÈVE · BullMQ retente alors
+ * (`TENTATIVES_RECAP`, attente exponentielle) au lieu de classer la tâche
+ * « terminée » sur un passage raté. Retenter ne double rien · la route tient un
+ * verrou par semaine ISO qui note chaque destinataire servi, et reprend
+ * seulement ce qui manque (409 `en_cours` tant qu'un passage vivant travaille).
  */
-export function triggerDigest(): Promise<AdsMapTriggerResult> {
-  return triggerCron('/api/cron/digest', 'digest', 5 * 60_000);
+export async function triggerDigest(): Promise<AdsMapTriggerResult> {
+  const r = await triggerCron('/api/cron/digest', 'digest', DELAI_DECLENCHEUR_RECAP_MS);
+  if (!r.ok) throw new Error(`récap hebdomadaire non servi · ${r.detail ?? r.status ?? 'inconnu'}`);
+  return r;
 }

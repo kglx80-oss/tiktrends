@@ -31,8 +31,9 @@ import { join } from 'node:path';
  */
 const EXEMPTIONS: Readonly<Record<string, string>> = {};
 
-type Ajout = { file: string; nom: string; opts?: { repeat?: { pattern?: string; tz?: string } } };
+type Ajout = { file: string; nom: string; opts?: { repeat?: { pattern?: string; tz?: string }; attempts?: number; backoff?: { type?: string; delay?: number } } };
 const h = vi.hoisted(() => ({
+  statut: 200,
   ajouts: [] as Ajout[],
   handlers: new Map<string, (job: { name: string }) => Promise<unknown>>(),
   appels: [] as string[],
@@ -56,7 +57,7 @@ vi.mock('../src/ingest', () => ({ startIngestWorker: () => undefined }));
 vi.mock('../src/sync', () => ({ runDailySync: async () => ({ synchro: 'locale' }) }));
 vi.mock('../src/studios/boucle', () => ({ arretPropreSurSignal: () => undefined }));
 
-import { FUSEAU_RECAP_HEBDO, MOTIF_RECAP_HEBDO } from '@tiktrends/core';
+import { ATTENTE_RECAP_MS, FUSEAU_RECAP_HEBDO, MOTIF_RECAP_HEBDO, TENTATIVES_RECAP } from '@tiktrends/core';
 
 const DOSSIER_CRON = join(process.cwd(), '..', 'web', 'app', 'api', 'cron');
 /** Les routes cron SUR DISQUE · un dossier `<nom>` qui porte un `route.ts`. */
@@ -73,7 +74,7 @@ beforeAll(async () => {
   vi.stubEnv('INTERNAL_APP_URL', 'http://web.test:3000');
   vi.stubGlobal('fetch', async (url: string | URL) => {
     h.appels.push(new URL(String(url)).pathname);
-    return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { 'content-type': 'application/json' } });
+    return new Response(JSON.stringify(h.statut === 200 ? { ok: true } : { error: 'en_cours' }), { status: h.statut, headers: { 'content-type': 'application/json' } });
   });
   vi.spyOn(console, 'log').mockImplementation((...a: unknown[]) => { h.logs.push(a.map(String).join(' ')); });
   vi.spyOn(process, 'exit').mockImplementation(((c?: number) => { throw new Error(`process.exit(${c}) · le point d’entrée a échoué`); }) as never);
@@ -125,5 +126,16 @@ describe('chaque route cron est déclenchée par une tâche planifiée du worker
     expect(digest, 'weekly-digest n’est pas planifié').toBeDefined();
     expect(digest!.opts?.repeat).toMatchObject({ pattern: MOTIF_RECAP_HEBDO, tz: FUSEAU_RECAP_HEBDO });
     expect(atteintes.get('weekly-digest')).toEqual(['/api/cron/digest']);
+  });
+
+  it('weekly-digest · un passage refusé LÈVE, et BullMQ le retente un nombre borné de fois', async () => {
+    const digest = h.ajouts.find((a) => a.file === 'cron' && a.nom === 'weekly-digest');
+    expect(digest!.opts, 'weekly-digest sans tentatives bornées · un passage raté n’est jamais retenté').toMatchObject({ attempts: TENTATIVES_RECAP, backoff: { type: 'exponential', delay: ATTENTE_RECAP_MS } });
+    const handler = h.handlers.get('cron')!;
+    h.statut = 409;
+    try {
+      await expect(handler({ name: 'weekly-digest' }), 'un récap refusé (409, 500) est classé « terminé » · BullMQ ne le retentera pas').rejects.toThrow(/récap hebdomadaire non servi/);
+    } finally { h.statut = 200; }
+    await expect(handler({ name: 'weekly-digest' })).resolves.toMatchObject({ ok: true });
   });
 });

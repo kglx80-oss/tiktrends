@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import {
-  semaineIso, cleVerrouRecap, verrouRecapALiberer, MOTIF_RECAP_HEBDO, FUSEAU_RECAP_HEBDO,
+  semaineIso, cleVerrouRecap, MOTIF_RECAP_HEBDO, FUSEAU_RECAP_HEBDO,
+  SEUIL_ABANDON_RECAP_MS, DELAI_DECLENCHEUR_RECAP_MS, TENTATIVES_RECAP, ATTENTE_RECAP_MS,
+  etatInitialRecap, lireEtatRecap, decisionVerrouRecap, repriseRecap, avecMarquesRecap,
+  avecNotificationRecap, avecCourrielRecap, dejaNotifieRecap, dejaEcritRecap, finRecap,
 } from '../src/adsmap/recap-hebdo-planifie';
 
 /**
@@ -69,13 +72,70 @@ describe('le moment du passage', () => {
   });
 });
 
-describe('un passage interrompu ne rend le verrou que si rien n’est parti', () => {
-  it('rien de parti · le verrou est rendu, la semaine peut repasser', () => {
-    expect(verrouRecapALiberer({ notifiees: 0, envoyees: 0 })).toBe(true);
+describe('le verrou de la semaine · reprendre ce qui manque, ne jamais doubler', () => {
+  const T0 = new Date('2026-11-16T06:47:00Z');
+  const apres = (ms: number) => new Date(T0.getTime() + ms);
+  const enCours = () => etatInitialRecap('j1', T0);
+
+  it('semaine faite · déjà passé', () => {
+    expect(decisionVerrouRecap(finRecap(enCours(), 0, T0), apres(60_000))).toEqual({ action: 'deja_passe' });
   });
-  it('une notification ou un courriel parti · le verrou reste', () => {
-    expect(verrouRecapALiberer({ notifiees: 1, envoyees: 0 })).toBe(false);
-    expect(verrouRecapALiberer({ notifiees: 0, envoyees: 1 })).toBe(false);
-    expect(verrouRecapALiberer({ notifiees: 3, envoyees: 2 })).toBe(false);
+
+  it('un passage qui bat encore · en cours, on ne le double pas', () => {
+    expect(decisionVerrouRecap(enCours(), apres(SEUIL_ABANDON_RECAP_MS))).toEqual({ action: 'en_cours' });
+  });
+
+  it('un passage muet au-delà du seuil (tué par un redéploiement) · repris, pas « déjà passé »', () => {
+    const d = decisionVerrouRecap(enCours(), apres(SEUIL_ABANDON_RECAP_MS + 1));
+    expect(d.action).toBe('reprendre');
+  });
+
+  it('le seuil se compte depuis le dernier BATTEMENT, pas depuis le début', () => {
+    const vivant = avecNotificationRecap(enCours(), 'm1', 'u1', apres(SEUIL_ABANDON_RECAP_MS));
+    expect(decisionVerrouRecap(vivant, apres(SEUIL_ABANDON_RECAP_MS + 60_000)).action).toBe('en_cours');
+  });
+
+  it('un passage interrompu (erreur) · repris tout de suite', () => {
+    expect(decisionVerrouRecap(finRecap(enCours(), 1, T0), apres(1_000)).action).toBe('reprendre');
+  });
+
+  it('une valeur illisible · reprise sans progression, sauf si elle dit « fait »', () => {
+    expect(decisionVerrouRecap({ etat: 'en_cours', debut: 'x' }, T0)).toEqual({ action: 'reprendre', precedent: null });
+    expect(decisionVerrouRecap({ etat: 'fait' }, T0)).toEqual({ action: 'deja_passe' });
+    expect(decisionVerrouRecap(null, T0)).toEqual({ action: 'reprendre', precedent: null });
+  });
+
+  it('la reprise garde la progression et la fenêtre, change de jeton', () => {
+    let e = avecMarquesRecap(enCours(), ['m1', 'm2'], T0);
+    e = avecNotificationRecap(e, 'm1', 'u1', T0);
+    e = avecCourrielRecap(e, 'm1', 'u1', T0);
+    const r = repriseRecap(lireEtatRecap(JSON.parse(JSON.stringify(e))), 'j2', apres(SEUIL_ABANDON_RECAP_MS + 1));
+    expect(r).toMatchObject({ etat: 'en_cours', jeton: 'j2', debut: T0.toISOString(), reprises: 1, marques: ['m1', 'm2'] });
+    expect(dejaNotifieRecap(r, 'm1', 'u1')).toBe(true);
+    expect(dejaEcritRecap(r, 'm1', 'u1')).toBe(true);
+    expect(dejaNotifieRecap(r, 'm2', 'u1'), 'la marque 2 n’était pas servie').toBe(false);
+    expect(dejaEcritRecap(r, 'm1', 'u2')).toBe(false);
+  });
+
+  it('noter deux fois le même destinataire ne change rien', () => {
+    const e = avecNotificationRecap(enCours(), 'm1', 'u1', T0);
+    expect(avecNotificationRecap(e, 'm1', 'u1', apres(1))).toBe(e);
+  });
+
+  it('la fin · « fait » seulement sans échec', () => {
+    expect(finRecap(enCours(), 0, T0).etat).toBe('fait');
+    expect(finRecap(enCours(), 2, T0).etat).toBe('interrompu');
+  });
+
+  it('le seuil d’abandon dépasse le délai du déclencheur · un passage vivant n’est pas repris', () => {
+    expect(SEUIL_ABANDON_RECAP_MS).toBeGreaterThan(DELAI_DECLENCHEUR_RECAP_MS);
+  });
+
+  it('les tentatives BullMQ couvrent le seuil d’abandon · un passage tué est repris le même lundi', () => {
+    // BullMQ · attente exponentielle `delay × 2^(n-1)` avant la n-ième relance.
+    let cumul = 0;
+    for (let n = 1; n < TENTATIVES_RECAP; n++) cumul += ATTENTE_RECAP_MS * 2 ** (n - 1);
+    expect(cumul, 'les relances s’arrêtent avant que le verrou d’un passage tué devienne reprenable').toBeGreaterThan(SEUIL_ABANDON_RECAP_MS + DELAI_DECLENCHEUR_RECAP_MS);
+    expect(cumul, 'les relances débordent sur la journée').toBeLessThan(2 * 3_600_000);
   });
 });

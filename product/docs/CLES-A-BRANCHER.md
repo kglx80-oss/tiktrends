@@ -165,11 +165,18 @@ Le tableau des intégrations ne montre que **présent / absent**, jamais la vale
 
 ## Récapitulatif hebdomadaire
 
-`/api/cron/digest` · une fois par semaine, le lundi matin.
+`/api/cron/digest` · une fois par semaine, le lundi à 07:47 heure de Paris.
 
-```
-0 7 * * 1  curl -fsS -H "Authorization: Bearer $CRON_SECRET" https://app.tiktrends.co/api/cron/digest
-```
+**Le worker le planifie lui-même** (tâche `weekly-digest`, motif et fuseau dans
+`packages/core/src/adsmap/recap-hebdo-planifie.ts`) · aucune crontab à poser.
+S'il en reste une sur la machine qui tape cette route (`crontab -l`,
+`/etc/cron.d/`), **la retirer** : elle ne doublerait rien (verrou
+`digest:<semaine ISO>` dans `app_settings`, qui note chaque destinataire servi),
+mais la lettre partirait à l'heure de celui des deux qui arrive le premier.
+
+Un passage en échec répond 500 et le worker le retente (6 tentatives, attente
+exponentielle depuis 1 min) · la reprise ne sert que ce qui manque. Un passage
+tué par un redéploiement est repris une fois son verrou muet depuis 15 min.
 
 Il ne dépense **rien** : la lettre est calculée à partir de comptes, jamais
 rédigée par un modèle. Et il n'envoie pas de lettre aux marques dont la semaine

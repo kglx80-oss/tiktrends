@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server';
-import { eq, inArray } from 'drizzle-orm';
+import { randomUUID } from 'node:crypto';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { cleVerrouRecap, destinataireRecap, semaineIso, verrouRecapALiberer } from '@tiktrends/core';
+import {
+  avecCourrielRecap, avecMarquesRecap, avecNotificationRecap, cleVerrouRecap, decisionVerrouRecap,
+  dejaEcritRecap, dejaNotifieRecap, destinataireRecap, etatInitialRecap, finRecap, repriseRecap, semaineIso,
+  type EtatVerrouRecap,
+} from '@tiktrends/core';
 import { weeklyDigests, digestText } from '../../../../lib/digest';
-import { createNotification } from '../../../../lib/notifications';
 import { digestEmail } from '../../../../lib/emails';
 import { sendMail } from '../../../../lib/mailer';
 
@@ -15,19 +19,29 @@ export const maxDuration = 300;
 /**
  * Le récapitulatif hebdomadaire · un passage par semaine.
  *
- * Appelée le lundi matin par le worker (`weekly-digest`, motif et fuseau au
- * noyau · `MOTIF_RECAP_HEBDO`) :
+ * Appelée le lundi matin par le worker (`weekly-digest`, motif, fuseau et
+ * tentatives au noyau · `MOTIF_RECAP_HEBDO`) :
  *   Authorization: Bearer $CRON_SECRET
  *
- * ── Une semaine, un passage ──────────────────────────────────────────────────
+ * ── Une semaine, un passage, qui reprend où il s'est arrêté ──────────────────
  *
  * Le premier appel d'une semaine ISO (lue à Paris) pose le verrou
  * `digest:<semaine>` dans `app_settings` (clé primaire, `onConflictDoNothing` ·
- * atomique, deux appels simultanés ne le prennent pas tous les deux). Tout
- * appel suivant de la même semaine · une crontab restée sur la machine, une
- * relance à la main, un redémarrage du worker · ne renvoie rien : ni
- * notification ni courriel. Un passage qui échoue avant d'avoir rien envoyé
- * rend le verrou (`verrouRecapALiberer`) ; après, il le garde.
+ * atomique). Le verrou porte la PROGRESSION (`EtatVerrouRecap`) · les marques
+ * retenues, et par marque qui a reçu la notification et le courriel. Chaque
+ * notification s'écrit DANS LA MÊME TRANSACTION que sa ligne de progression ·
+ * l'une sans l'autre est impossible. Chaque écriture est conditionnée au jeton
+ * du passage · un passage qui a perdu le verrou s'arrête sans rien écrire.
+ *
+ * Un appel suivant de la semaine :
+ *  · semaine `fait` · 200 `deja_passe`, rien de renvoyé ;
+ *  · un passage vivant · 409 `en_cours` (le worker retentera) ;
+ *  · un passage mort (tué par un redéploiement, muet depuis
+ *    `SEUIL_ABANDON_RECAP_MS`) ou `interrompu` · REPRISE, seulement ce qui
+ *    n'est pas noté servi.
+ *
+ * Seule fenêtre de doublon restante · un courriel parti, le processus tué
+ * avant d'avoir noté l'envoi. Aucune base ne rend un envoi SMTP transactionnel.
  *
  * ── Ce qu'il ne fait pas ─────────────────────────────────────────────────────
  *
@@ -43,94 +57,152 @@ export const maxDuration = 300;
  *
  * Elle est gratuite et ne peut pas rebondir. Le courriel dépend d'un service
  * externe · si l'envoi échoue, la lettre est quand même dans l'application, et
- * l'échec ne fait pas perdre le passage des autres marques.
+ * l'échec ne fait pas perdre le passage des autres marques. Le passage finit
+ * alors `interrompu` (500), et la tentative suivante ne renvoie que ce courriel.
  */
+
+/** Le verrou est passé à un autre passage · on s'arrête sans rien écrire. */
+class VerrouPerdu extends Error { constructor() { super('verrou_perdu'); } }
+
 export async function GET(req: Request) {
   const secret = process.env.CRON_SECRET;
   if (!secret) return NextResponse.json({ error: 'cron_disabled' }, { status: 503 });
   const auth = req.headers.get('authorization') || '';
   if (auth !== `Bearer ${secret}`) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   if (!db) return NextResponse.json({ error: 'no_db' }, { status: 503 });
+  const base = db;
 
   const maintenant = new Date();
   const semaine = semaineIso(maintenant);
   const cle = cleVerrouRecap(maintenant);
-  let verrouPris = false;
+  const jeton = randomUUID();
+  const A = schema.appSettings;
+  const aMoi = and(eq(A.key, cle), sql`${A.value}->>'jeton' = ${jeton}`);
+  let etat: EtatVerrouRecap | null = null;
   let notifiees = 0;
   let envoyees = 0;
 
+  /** Réécrit le verrou · seulement s'il est encore à ce passage. */
+  const ecrire = async (e: EtatVerrouRecap) => {
+    const r = await base.update(A).set({ value: e, updatedAt: new Date() }).where(aMoi).returning({ key: A.key });
+    if (!r.length) throw new VerrouPerdu();
+    etat = e;
+  };
+
   try {
-    const pris = await db.insert(schema.appSettings)
-      .values({ key: cle, value: { etat: 'en_cours', debut: maintenant.toISOString() } })
-      .onConflictDoNothing()
-      .returning({ key: schema.appSettings.key });
-    if (!pris.length) {
-      console.log('[cron:digest]', semaine, '· déjà passé cette semaine · rien de renvoyé');
-      return NextResponse.json({ ok: true, skipped: 'deja_passe', week: semaine, brands: 0, notified: 0, mailed: 0 });
+    // ── Prendre le verrou, ou le reprendre ──────────────────────────────────
+    const neuf = etatInitialRecap(jeton, maintenant);
+    const pris = await base.insert(A).values({ key: cle, value: neuf }).onConflictDoNothing().returning({ key: A.key });
+    if (pris.length) {
+      etat = neuf;
+    } else {
+      const [l] = await base.select({ value: A.value }).from(A).where(eq(A.key, cle));
+      const d = decisionVerrouRecap(l?.value, maintenant);
+      if (d.action === 'deja_passe') {
+        console.log('[cron:digest]', semaine, '· déjà passé cette semaine · rien de renvoyé');
+        return NextResponse.json({ ok: true, skipped: 'deja_passe', week: semaine, brands: 0, notified: 0, mailed: 0 });
+      }
+      if (d.action === 'en_cours') {
+        console.warn('[cron:digest]', semaine, '· un autre passage est en cours · rien de fait');
+        return NextResponse.json({ error: 'en_cours', week: semaine }, { status: 409 });
+      }
+      const repris = repriseRecap(d.precedent, jeton, maintenant);
+      const ancien = d.precedent?.jeton;
+      const r = await base.update(A).set({ value: repris, updatedAt: new Date() })
+        .where(ancien ? and(eq(A.key, cle), sql`${A.value}->>'jeton' = ${ancien}`) : eq(A.key, cle))
+        .returning({ key: A.key });
+      if (!r.length) return NextResponse.json({ error: 'en_cours', week: semaine }, { status: 409 });
+      etat = repris;
+      console.warn('[cron:digest]', semaine, '· reprise d’un passage', d.precedent?.etat ?? 'illisible', '· reprise n°', repris.reprises);
     }
-    verrouPris = true;
 
-    const lettres = await weeklyDigests(maintenant);
+    // ── Les lettres · la fenêtre du PREMIER passage, la liste figée ─────────
+    const lettres = await weeklyDigests(new Date(etat.debut));
+    if (etat.marques === null) await ecrire(avecMarquesRecap(etat, lettres.map((l) => l.brandId), new Date()));
+    const retenues = new Set(etat.marques ?? []);
+    const disparues = [...retenues].filter((id) => !lettres.some((l) => l.brandId === id));
+    if (disparues.length) console.warn('[cron:digest]', semaine, '·', disparues.length, 'marque(s) retenue(s) au premier passage sans lettre à la reprise');
 
-    for (const l of lettres) {
-      // Les destinataires · propriétaires et administrateurs de l'espace, ceux
-      // qui peuvent agir sur le geste conseillé · la règle que la cloche relit
-      // (`destinataireRecap`, une seule).
-      const membres = await db.select({ userId: schema.workspaceMembers.userId, role: schema.workspaceMembers.role })
-        .from(schema.workspaceMembers)
-        .where(eq(schema.workspaceMembers.workspaceId, l.workspaceId))
-        .catch(() => []);
-      const cibles = membres.filter((m) => destinataireRecap(m.role));
-      if (!cibles.length) continue;
+    let marquesEnEchec = 0;
+    let courrielsEnEchec = 0;
+    let lettresServies = 0;
 
-      for (const m of cibles) {
-        await createNotification({
-          workspaceId: l.workspaceId, userId: m.userId, type: 'digest',
-          title: l.digest.headline,
-          body: digestText(l.digest),
-          href: l.digest.action?.href ?? '/dashboard',
+    for (const l of lettres.filter((x) => retenues.has(x.brandId))) {
+      try {
+        // Les destinataires · propriétaires et administrateurs de l'espace, ceux
+        // qui peuvent agir sur le geste conseillé · la règle que la cloche relit
+        // (`destinataireRecap`, une seule). Une lecture en panne ÉCHOUE · une
+        // liste vide passerait pour « personne à prévenir ».
+        const membres = await base.select({ userId: schema.workspaceMembers.userId, role: schema.workspaceMembers.role })
+          .from(schema.workspaceMembers)
+          .where(eq(schema.workspaceMembers.workspaceId, l.workspaceId));
+        const cibles = membres.filter((m) => destinataireRecap(m.role));
+        if (!cibles.length) { lettresServies++; continue; }
+
+        for (const m of cibles) {
+          if (dejaNotifieRecap(etat, l.brandId, m.userId)) continue;
+          const suite = avecNotificationRecap(etat, l.brandId, m.userId, new Date());
+          // La notification et sa progression · ensemble ou pas du tout.
+          await base.transaction(async (tx) => {
+            await tx.insert(schema.notifications).values({
+              workspaceId: l.workspaceId, userId: m.userId, type: 'digest',
+              title: l.digest.headline,
+              body: digestText(l.digest),
+              href: l.digest.action?.href ?? '/dashboard',
+            });
+            const r = await tx.update(A).set({ value: suite, updatedAt: new Date() }).where(aMoi).returning({ key: A.key });
+            if (!r.length) throw new VerrouPerdu();
+          });
+          etat = suite;
+          notifiees++;
+        }
+
+        const users = await base.select({ id: schema.users.id, email: schema.users.email })
+          .from(schema.users)
+          .where(inArray(schema.users.id, cibles.map((c) => c.userId)));
+
+        const mail = digestEmail({
+          brandName: l.facts.brandName,
+          headline: l.digest.headline,
+          lines: l.digest.lines,
+          action: l.digest.action,
         });
-        notifiees++;
-      }
-
-      const users = await db.select({ id: schema.users.id, email: schema.users.email })
-        .from(schema.users)
-        .where(inArray(schema.users.id, cibles.map((c) => c.userId)))
-        .catch(() => []);
-
-      const mail = digestEmail({
-        brandName: l.facts.brandName,
-        headline: l.digest.headline,
-        lines: l.digest.lines,
-        action: l.digest.action,
-      });
-      for (const u of users) {
-        if (!u.email) continue;
-        const r = await sendMail({ to: u.email, subject: mail.subject, html: mail.html, text: mail.text });
-        if (r.ok) envoyees++;
+        for (const u of users) {
+          if (!u.email || dejaEcritRecap(etat, l.brandId, u.id)) continue;
+          const r = await sendMail({ to: u.email, subject: mail.subject, html: mail.html, text: mail.text });
+          if (r.ok) {
+            await ecrire(avecCourrielRecap(etat, l.brandId, u.id, new Date()));
+            envoyees++;
+          } else if (!r.skipped) {
+            // Refusé par le service d'envoi · pas noté, la tentative suivante le renverra.
+            courrielsEnEchec++;
+          }
+        }
+        lettresServies++;
+      } catch (e) {
+        if (e instanceof VerrouPerdu) throw e;
+        marquesEnEchec++;
+        console.error('[cron:digest]', semaine, '· marque', l.brandId, 'en échec ·', (e as Error).message);
       }
     }
 
-    await db.update(schema.appSettings)
-      .set({ value: { etat: 'fait', debut: maintenant.toISOString(), fin: new Date().toISOString(), brands: lettres.length, notified: notifiees, mailed: envoyees }, updatedAt: new Date() })
-      .where(eq(schema.appSettings.key, cle))
-      .catch(() => undefined);
-    console.log('[cron:digest]', semaine, '·', lettres.length, 'lettre(s) ·', notifiees, 'notification(s) ·', envoyees, 'courriel(s)');
-    return NextResponse.json({ ok: true, week: semaine, brands: lettres.length, notified: notifiees, mailed: envoyees });
+    if (courrielsEnEchec) console.error('[cron:digest]', semaine, '·', courrielsEnEchec, 'courriel(s) attendu(s) non parti(s) · le passage reste interrompu, la tentative suivante les renverra');
+    const echecs = marquesEnEchec + courrielsEnEchec;
+    await ecrire(finRecap(etat, echecs, new Date()));
+    console.log('[cron:digest]', semaine, '·', lettresServies, 'lettre(s) ·', notifiees, 'notification(s) ·', envoyees, 'courriel(s)', echecs ? `· ${marquesEnEchec} marque(s) et ${courrielsEnEchec} courriel(s) en échec` : '');
+    if (echecs) {
+      return NextResponse.json({ error: 'digest_incomplet', week: semaine, notified: notifiees, mailed: envoyees, failedBrands: marquesEnEchec, failedMails: courrielsEnEchec }, { status: 500 });
+    }
+    return NextResponse.json({ ok: true, week: semaine, brands: lettresServies, notified: notifiees, mailed: envoyees });
   } catch (e) {
-    console.error('[cron:digest]', (e as Error).message);
-    if (verrouPris) {
-      // Rien de parti · la semaine peut repasser. Sinon le verrou reste, et dit
-      // où le passage s'est arrêté.
-      if (verrouRecapALiberer({ notifiees, envoyees })) {
-        await db.delete(schema.appSettings).where(eq(schema.appSettings.key, cle)).catch(() => undefined);
-      } else {
-        await db.update(schema.appSettings)
-          .set({ value: { etat: 'interrompu', debut: maintenant.toISOString(), notified: notifiees, mailed: envoyees }, updatedAt: new Date() })
-          .where(eq(schema.appSettings.key, cle))
-          .catch(() => undefined);
-      }
+    if (e instanceof VerrouPerdu) {
+      console.error('[cron:digest]', semaine, '· verrou repris par un autre passage · arrêt sans rien écrire');
+      return NextResponse.json({ error: 'verrou_perdu', week: semaine, notified: notifiees, mailed: envoyees }, { status: 409 });
     }
-    return NextResponse.json({ error: 'digest_failed' }, { status: 500 });
+    console.error('[cron:digest]', semaine, (e as Error).message);
+    // Le passage dit qu'il s'est arrêté · la tentative suivante reprend tout de suite.
+    const tenu: EtatVerrouRecap | null = etat;
+    if (tenu) await base.update(A).set({ value: finRecap(tenu, 1, new Date()), updatedAt: new Date() }).where(aMoi).catch(() => undefined);
+    return NextResponse.json({ error: 'digest_failed', week: semaine, notified: notifiees, mailed: envoyees }, { status: 500 });
   }
 }

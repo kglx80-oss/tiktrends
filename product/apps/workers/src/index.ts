@@ -5,7 +5,7 @@ import { startIngestWorker } from './ingest';
 import { runDailySync } from './sync';
 import { triggerAdsMapSync, triggerAllocations, triggerBascule, triggerDigest, triggerRadar, triggerTracker, triggerVideosHistoriques } from './adsmap';
 import { fixtures } from '@tiktrends/integrations';
-import { FUSEAU_RECAP_HEBDO, MOTIF_RECAP_HEBDO, MOTIF_REMONTEE_ADSMAP } from '@tiktrends/core';
+import { ATTENTE_RECAP_MS, FUSEAU_RECAP_HEBDO, MOTIF_RECAP_HEBDO, MOTIF_REMONTEE_ADSMAP, TENTATIVES_RECAP } from '@tiktrends/core';
 import { db, convertirUnite } from '@tiktrends/db';
 import { arretPropreSurSignal } from './studios/boucle';
 
@@ -102,10 +102,12 @@ async function main() {
   // dans un fuseau · « lundi matin » n'a de sens qu'à Paris, et l'heure d'été
   // déplacerait sinon la lettre d'une heure). Après le radar de la nuit, avant
   // la journée · justification au noyau (`MOTIF_RECAP_HEBDO`). La route pose un
-  // verrou par semaine ISO · un second appel de la semaine ne renvoie rien.
+  // verrou par semaine ISO qui note chaque destinataire servi · un échec est
+  // retenté (le déclencheur lève), la reprise ne double rien.
   await queues.cron.add('weekly-digest', {}, {
     repeat: { pattern: MOTIF_RECAP_HEBDO, tz: FUSEAU_RECAP_HEBDO },
     jobId: 'weekly-digest',
+    attempts: TENTATIVES_RECAP, backoff: { type: 'exponential', delay: ATTENTE_RECAP_MS },
     removeOnComplete: 20, removeOnFail: 20,
   });
 
