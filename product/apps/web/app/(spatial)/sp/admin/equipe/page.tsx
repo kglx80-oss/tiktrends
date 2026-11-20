@@ -14,9 +14,15 @@ import { droitsSousNavAdmin } from '../../../../../lib/onglets-reglages';
 export const dynamic = 'force-dynamic';
 
 const OK: Record<string, string> = { staff: 'Membre enregistré.', retire: 'Membre retiré.', matrice: 'Droits enregistrés.' };
+/**
+ * Les refus des actions, lus sur l'écran COMPLET seul. Le refus
+ * `?e=admissible` (`exigerAccesTotal`, accès total NON admissible) n'a pas de
+ * légende · il ne tombe jamais sur cet écran (`vueEquipeAdmin` complet ⇔
+ * `peutEcrireEquipe`, éprouvé dans le noyau), son lecteur n'y lit que son
+ * message (`DroitsNonAdmissible`).
+ */
 const ERR: Record<string, string> = {
   email: 'E-mail invalide.', role: 'Rôle inconnu.', soi: 'Tu ne peux pas te retirer ni te rétrograder toi-même.',
-  admissible: 'Ton compte a été créé après son inscription dans l’équipe : il ne peut pas modifier l’équipe. Un fondateur doit te réinscrire.',
 };
 
 /**

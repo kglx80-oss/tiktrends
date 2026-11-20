@@ -326,6 +326,23 @@ export function peutEcrireEquipe(equipe: { role: string; plateformeAdmissible?: 
   return !!equipe && accesTotalDuRole(equipe.role) && equipe.plateformeAdmissible === true;
 }
 
+/**
+ * Le rôle effectif TRACÉ dans l'audit des studios (`studio_audit_events.effective_role`).
+ *
+ * « equipe:<rôle>/espace:<rôle> » seulement pour un compte d'équipe
+ * ADMISSIBLE (`plateformeAdmissible === true` · fondateur codé, ou compte
+ * antérieur à son inscription), sinon « espace:<rôle> ». Sur main 139e2e61,
+ * le préfixe suivait le rôle seul · une adresse de `FOUNDER_EMAILS` (Admin+
+ * sans inscription, aucun droit) était tracée « equipe:adminplus », comme un
+ * capteur d'e-mail staff · le registre lui prêtait des droits qu'il n'a pas.
+ */
+export function roleEffectifAudit(p: {
+  roleEspace: string;
+  equipe: { role: string; plateformeAdmissible?: boolean } | null | undefined;
+}): string {
+  return p.equipe?.plateformeAdmissible === true ? `equipe:${p.equipe.role}/espace:${p.roleEspace}` : `espace:${p.roleEspace}`;
+}
+
 /** Retire toute permission de portée plateforme si le compte n'est pas admissible. */
 export function restreindrePlateforme(p: PermissionsStudio, admissible: boolean): PermissionsStudio {
   return admissible ? p : { espace: p.espace, plateforme: new Set() };

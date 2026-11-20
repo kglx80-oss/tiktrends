@@ -110,7 +110,8 @@ describe('I2 · /admin/equipe · admissibilité et date du compte, par membre', 
     expect(texte(MEMBRE.dev)).toContain('Non admissible');
     expect(texte(MEMBRE.dev)).not.toContain('sans effet pour ce rôle');
     const consigne = ligne(MEMBRE.dev)?.querySelector('[data-consigne]')?.textContent ?? '(aucune consigne)';
-    expect(consigne).toContain('accès d’équipe (les rubriques de son rôle, sans verrou de formule) et liste de l’équipe fermés');
+    expect(consigne).toContain('accès d’équipe (les rubriques de son rôle, sans verrou de formule) fermé, la réinscription le lui rend');
+    expect(consigne, 'un gradé n’a jamais la liste de l’équipe · la consigne ne peut pas la dire fermée').not.toContain('liste de l’équipe');
     expect(consigne).toContain('retire-la puis réinscris-la');
   });
 

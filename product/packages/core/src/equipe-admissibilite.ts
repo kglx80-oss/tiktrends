@@ -55,9 +55,14 @@ export const CONSIGNE_REINSCRIPTION =
 export const MESSAGE_NON_ADMISSIBLE =
   'Ton compte a été créé après ton inscription à l’équipe · tes crédits illimités, la formule Business, l’accès d’équipe à toutes les fonctions, les Connaissances, la dépense de la plateforme et la liste de l’équipe sont fermés, tu as le rôle et la formule de ton espace. Fais « Mot de passe oublié » sur ton adresse et reconnecte-toi, puis demande à un fondateur de te réinscrire.';
 
-/** Ce que lit le membre concerné · rôle GRADÉ (Manager…), non admissible. */
+/**
+ * Ce que lit le membre concerné · rôle GRADÉ (Manager…), non admissible. Il
+ * ne perd QUE sa face équipe (`privilegesEquipe.faceEquipe`) · la liste de
+ * l'équipe, il ne l'a jamais eue, même admissible (`vueEquipeAdmin` le
+ * renvoie). La réinscription lui rend cette face, rien d'autre.
+ */
 export const MESSAGE_GRADE_NON_ADMISSIBLE =
-  'Ton compte a été créé après ton inscription à l’équipe · ton accès d’équipe (les rubriques de ton rôle, sans verrou de formule) et la liste de l’équipe sont fermés, tu as le rôle et la formule de ton espace. Fais « Mot de passe oublié » sur ton adresse et reconnecte-toi, puis demande à un fondateur de te réinscrire.';
+  'Ton compte a été créé après ton inscription à l’équipe · ton accès d’équipe (les rubriques de ton rôle, sans verrou de formule) est fermé, tu as le rôle et la formule de ton espace. Fais « Mot de passe oublié » sur ton adresse et reconnecte-toi, puis demande à un fondateur de te réinscrire · la réinscription te rend cet accès d’équipe.';
 
 /**
  * Adresse de la liste des fondateurs de l'ENVIRONNEMENT (`FOUNDER_EMAILS`),
@@ -96,7 +101,9 @@ function dateLisible(d: Date | string | null | undefined): Date | null {
  * (`equipeDeSession` → `plateformeAdmissible`, aucune vérification d'e-mail).
  * La consigne est donnée à TOUT rôle non admissible · depuis « Fermer
  * aussi », un rôle gradé non admissible perd sa face équipe
- * (`privilegesEquipe`) · il se réinscrit comme un Admin.
+ * (`privilegesEquipe`) · il se réinscrit comme un Admin. Ce qu'elle dit
+ * fermé est ce qu'un admissible du même rôle a · rien de plus (un gradé
+ * n'a jamais la liste de l'équipe).
  */
 export function admissibiliteMembre(f: {
   role: string;
@@ -113,7 +120,7 @@ export function admissibiliteMembre(f: {
   const statut: StatutAdmissibilite = cree ? 'compte-posterieur' : 'sans-compte';
   const ferme = estAccesTotal(f.role)
     ? 'crédits illimités, formule Business, accès d’équipe à toutes les fonctions, Connaissances, dépense de la plateforme et liste de l’équipe fermés.'
-    : 'accès d’équipe (les rubriques de son rôle, sans verrou de formule) et liste de l’équipe fermés.';
+    : 'accès d’équipe (les rubriques de son rôle, sans verrou de formule) fermé, la réinscription le lui rend.';
   const pourquoi = cree
     ? `Compte créé après son inscription · ${ferme}`
     : 'Pas encore de compte · le compte qu’il créera sera postérieur, donc non admissible. Attends que son compte existe.';
