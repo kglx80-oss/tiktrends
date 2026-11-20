@@ -9,8 +9,9 @@ import { unlimitedCredits, noterCreditsStaff } from '../lib/credits';
  * On éprouve le RÉSULTAT des trois pièces câblées, sans base :
  *  - `equipeDepuisLignes` (façonnage pur : filet fondateur, accès total = matrice
  *    vide, rôle gradé = matrice portée, inconnu = null) ;
- *  - `effectiveAccess` (equipe présent → `Access.equipe` posé ; accès total →
- *    formule forcée business ; client inchangé) ;
+ *  - `effectiveAccess` (equipe présent → `Access.equipe` posé ; accès total
+ *    admissible → formule forcée business ; non admissible → face client ;
+ *    client inchangé) ;
  *  - le registre de crédits auto-cicatrisant (inscription / retrait).
  *
  * Un fondateur codé en dur du dépôt · voir lib/founder (FONDATEURS).
@@ -49,13 +50,21 @@ describe('effectiveAccess · equipe prime, client inchangé', () => {
     expect(a.plan).toBe('core');
   });
 
-  it('équipe à accès total → Access.equipe posé + formule forcée business', () => {
+  it('équipe à accès total ADMISSIBLE → Access.equipe posé + formule forcée business', () => {
     const a = effectiveAccess({
       role: 'client_viewer', plan: 'starter', user: { email: AUTRE },
-      equipe: { role: 'admin', matrice: {} },
+      equipe: { role: 'admin', matrice: {}, plateformeAdmissible: true },
     });
-    expect(a.equipe).toEqual({ role: 'admin', matrice: {} });
+    expect(a.equipe).toEqual({ role: 'admin', matrice: {}, plateformeAdmissible: true });
     expect(a.plan).toBe('business');
+  });
+
+  it('équipe à accès total NON admissible → face client · formule de l’espace, pas d’Access.equipe', () => {
+    const a = effectiveAccess({
+      role: 'client_viewer', plan: 'starter', user: { email: AUTRE },
+      equipe: { role: 'admin', matrice: {}, plateformeAdmissible: false },
+    });
+    expect(a).toEqual({ role: 'client_viewer', plan: 'starter' });
   });
 
   it('équipe gradée (non fondateur) → Access.equipe posé, formule de l’espace conservée', () => {

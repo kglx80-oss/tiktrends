@@ -167,8 +167,10 @@ describe('portée · personne hors du projet ne peut importer dedans', () => {
     etat.session = session(ids, 'uv');
     expect(await actions.importerPhotoProduit({ projectId, baseVersionId: versionId, productId: pr.id, dataUri: png() })).toMatchObject({ ok: false, code: 'FORBIDDEN' });
     // Lecteur d'espace vu par l'équipe plateforme · il LIT l'écran produit (studio.read)
-    // mais n'a pas studio.propose : seul le garde de l'action l'arrête.
-    etat.session = session(ids, 'uv', { equipe: { role: 'admin', matrice: {}, plateformeAdmissible: false } } as never);
+    // mais n'a pas studio.propose : seul le garde de l'action l'arrête. Admin ADMISSIBLE ·
+    // un admin non admissible n'a plus la face équipe (`privilegesEquipe`) et, lecteur
+    // d'un espace, ne lit plus le studio du tout (secu-business-admissible-db).
+    etat.session = session(ids, 'uv', { equipe: { role: 'admin', matrice: {}, plateformeAdmissible: true } } as never);
     expect((await actions.lireProduitProjet({ projectId })).ok, 'le sujet devrait pouvoir lire').toBe(true);
     expect(await actions.importerPhotoProduit({ projectId, baseVersionId: versionId, productId: pr.id, dataUri: png() }), 'un rôle en lecture seule a importé une photo').toMatchObject({ ok: false, code: 'FORBIDDEN' });
     expect(delta(avant, await compter(db))).toEqual({});

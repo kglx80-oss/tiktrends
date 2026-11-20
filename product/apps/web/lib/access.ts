@@ -1,6 +1,6 @@
 import 'server-only';
-import { accesTotal } from '@tiktrends/core';
-import { isFounder } from './founder';
+import { privilegesEquipe } from '@tiktrends/core';
+import { estFondateurCode } from './founder';
 import type { EquipeSession } from './equipe-plateforme';
 import type { Access, Plan, Role } from './rbac';
 
@@ -15,19 +15,23 @@ import type { Access, Plan, Role } from './rbac';
  * Le RÔLE, lui, n'est pas relevé : un fondateur invité en lecture seule chez un
  * client reste en lecture seule.
  *
- * ── L'équipe interne prime ───────────────────────────────────────────────────
- * Quand la session porte un rôle d'équipe (`equipe`), c'est LUI qui décide
- * l'accès (rubriques, sans verrou de formule · voir rbac). On force alors la
- * formule à `business` pour les accès totaux (adminplus/admin) afin que tout
- * lecteur direct de `.plan` (barre de crédits, facturation) reste cohérent avec
- * « voit tout ». Un rôle gradé garde la formule de son espace : sa face « équipe »
- * ignore de toute façon la formule.
+ * ── L'équipe interne prime, si elle y a droit ────────────────────────────────
+ * La règle est celle du noyau (`privilegesEquipe`) :
+ *  · formule forcée à `business` · fondateur de la liste CODÉE, ou accès total
+ *    (adminplus/admin) ADMISSIBLE · afin que tout lecteur direct de `.plan`
+ *    (barre de crédits, facturation) reste cohérent avec « voit tout » ;
+ *  · face « équipe » (`Access.equipe` · rubriques par la matrice, sans verrou
+ *    de formule, voir rbac) · même exigence pour l'accès total ; un rôle gradé
+ *    la garde comme avant, avec la formule de son espace.
+ * Un compte d'accès total NON admissible (e-mail staff capté, compte créé
+ * après son inscription) retombe sur la face client · rôle et formule réels de
+ * son espace, aucun privilège d'équipe.
  */
 export function effectiveAccess(
   s: { role: Role; plan: Plan; user: { email: string }; equipe?: EquipeSession | null },
 ): Access {
   const equipe = s.equipe ?? undefined;
-  const total = equipe ? accesTotal(equipe.role) : false;
-  const plan: Plan = total || isFounder(s.user.email) ? 'business' : s.plan;
-  return equipe ? { role: s.role, plan, equipe } : { role: s.role, plan };
+  const p = privilegesEquipe({ fondateurCode: estFondateurCode(s.user.email), equipe });
+  const plan: Plan = p.formuleBusiness ? 'business' : s.plan;
+  return equipe && p.faceEquipe ? { role: s.role, plan, equipe } : { role: s.role, plan };
 }

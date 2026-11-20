@@ -14,3 +14,4 @@ export * from './raccourcis-test';
 export * from './a-conclure';
 export * from './fin-prevue';
 export * from './import-lot';
+export * from './mesure-arretee';

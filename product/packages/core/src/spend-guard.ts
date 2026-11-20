@@ -25,19 +25,21 @@
  * Pur : ni base, ni réseau, ni horloge.
  */
 
-import { accesTotal, type RolePlateforme } from './equipe-plateforme';
+import { privilegesEquipe } from './studios/securite';
 
 /* ============ Qui voit le plafond ============ */
 
 /**
  * Le plafond est un garde-fou INTERNE et GLOBAL · ce qu'il dit (« X $ engagés
  * sur Y $ ») est la dépense IA de toute la plateforme. Seul le personnel de la
- * plateforme le lit : un fondateur, ou un membre de l'équipe à accès total
- * (adminplus, admin). Un client, même admin de son espace sur Plus, ne voit ni
- * montant ni plafond (audit crédits du 29/10, surfaces 22 et 30).
+ * plateforme le lit : un fondateur de la liste codée, ou un membre de l'équipe
+ * à accès total ADMISSIBLE (`privilegesEquipe`, la règle de `effectiveAccess`).
+ * Un client, même admin de son espace sur Plus, ne voit ni montant ni plafond
+ * (audit crédits du 29/10, surfaces 22 et 30) ; un compte d'accès total non
+ * admissible non plus (e-mail staff capté).
  */
-export function voitDepensePlateforme(p: { fondateur: boolean; roleEquipe?: RolePlateforme | null }): boolean {
-  return p.fondateur || (!!p.roleEquipe && accesTotal(p.roleEquipe));
+export function voitDepensePlateforme(p: { fondateurCode: boolean; equipe: { role: string; plateformeAdmissible?: boolean } | null | undefined }): boolean {
+  return privilegesEquipe(p).depensePlateforme;
 }
 
 /** Ce que lit un client quand le plafond refuse · honnête, sans montant ni plafond. */

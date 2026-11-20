@@ -63,6 +63,16 @@ export function compteAConclure(lots: ReadonlyArray<FaitsEtatLot & { id: string;
   return { n: s.length, lots: s.map((l) => ({ id: l.id, numero: l.numero })) };
 }
 
+/**
+ * Les lots CONCLUS · toutes leurs variantes arbitrées (`etatLotSpatial` ·
+ * `conclu`, la règle de l'état, aucune copie) · un tel lot reste `testing` en
+ * base (aucun écran ne le passe `analyzed`) · l'Accueil l'écarte de « En
+ * diffusion » et de « fin prévue passée » (`LotAccueil.conclu`).
+ */
+export function idsLotsConclus(lots: ReadonlyArray<FaitsEtatLot & { id: string }>, c: ContexteLots): Set<string> {
+  return new Set(lots.filter((l) => etatLotSpatial(l, c) === 'conclu').map((l) => l.id));
+}
+
 /** Le paramètre d'adresse qui ouvre « Lots de test » sur un filtre (`?filtre=conclure`). */
 export const PARAM_FILTRE_LOTS = 'filtre';
 
