@@ -80,7 +80,9 @@ export const maxDuration = 300;
  * n'est plus retenté · sauf si le disjoncteur (`disjoncteurAbandons`) dit
  * qu'ils sont trop nombreux pour être des boîtes mortes : personne n'est alors
  * abandonné, la semaine reste `interrompu`, la réponse le dit
- * (`disjoncteur: true`) et le worker crie une ALERTE précise sans retenter. Le
+ * (`disjoncteur: true`) et le worker crie une ALERTE précise sans retenter ·
+ * sauf si une MARQUE est aussi en échec (`failedBrands`) : ses notifications
+ * ne sont pas servies, la marque l'emporte et le worker retente (`suiteRecap`). Le
  * cumul des abandons de la SEMAINE part dans la réponse (`abandoned`, reprises
  * comprises) · le worker ALERTE quand il n'est pas nul.
  *

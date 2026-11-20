@@ -1,7 +1,7 @@
 import 'server-only';
 import nodemailer from 'nodemailer';
 import { parseConnectionUrl } from 'nodemailer/lib/shared';
-import { DELAI_SMTP_MS, refusDefinitifSmtp } from '@tiktrends/core';
+import { DELAI_SMTP_MS, refusDefinitifSmtp, resumeErreurSmtp } from '@tiktrends/core';
 
 /**
  * Envoi d'e-mails transactionnels via SMTP (SMTP_URL).
@@ -66,8 +66,13 @@ export async function sendMail(opts: { to: string | { name: string; address: str
     await t.sendMail({ from: FROM(), to: opts.to, subject: opts.subject, html: opts.html, text: opts.text });
     return { ok: true };
   } catch (e) {
-    console.error('[mail:error]', (e as Error).message);
+    // Jamais `e.message` · nodemailer y ajoute la réponse du serveur, qui porte
+    // souvent l'adresse (`550 5.1.1 <x@y>`). Code, code de réponse, commande et
+    // `qui` seulement (`resumeErreurSmtp`) · au journal comme dans ce qui est
+    // rendu à l'appelant, qui pourrait le journaliser à son tour.
+    const resume = resumeErreurSmtp(e, opts.qui);
+    console.error(`[mail:error] ${resume}`);
     // Refus définitif (5xx sur le destinataire ou le contenu) · réessayer n'y changera rien.
-    return { ok: false, error: (e as Error).message, definitif: refusDefinitifSmtp(e as { responseCode?: unknown; command?: unknown; response?: unknown }) };
+    return { ok: false, error: resume, definitif: refusDefinitifSmtp(e as { responseCode?: unknown; command?: unknown; response?: unknown }) };
   }
 }

@@ -6,6 +6,7 @@ import {
   avecNotificationRecap, avecCourrielRecap, dejaNotifieRecap, dejaEcritRecap, finRecap,
   avecAbandonRecap, refusDefinitifSmtp, suiteRecap, REPORT_EN_COURS_MS, REPORTS_EN_COURS_MAX, DELAI_SMTP_MS,
   disjoncteurAbandons, courrielsNotesRecap, abandonsNotesRecap, DUREE_PASSAGE_MAX_MS, EFFECTIF_DISJONCTEUR,
+  resumeErreurSmtp,
   type SuiteRecap,
 } from '../src/adsmap/recap-hebdo-planifie';
 
@@ -271,6 +272,22 @@ describe('le calendrier d’un passage long · la semaine finit servie', () => {
     const s = suiteRecap({ ok: false, status: 500, detail: 'digest_incomplet', corps: { disjoncteur: true, refused: 4, sent: 0 } }, { reports: 0, tentative: 1, tentativesMax: 6 });
     expect(s).toMatchObject({ action: 'abandon', disjoncteur: true });
     expect(s.action === 'abandon' && s.raison).toMatch(/disjoncteur des courriels · 4 refus/);
+    expect(s.action === 'abandon' && s.raison, 'le disjoncteur ne dit pas jusqu’à quand la relance sert encore la semaine').toContain('relancer GET /api/cron/digest la même semaine (avant lundi 00:00, heure de Paris)');
+  });
+
+  it('disjoncteur ET marque en échec dans le même passage · la marque l’emporte · RETENTER, le disjoncteur dit dans la ligne, jamais « lettres servies »', () => {
+    const corps = { error: 'digest_incomplet', disjoncteur: true, refused: 4, sent: 0, failedBrands: 1 };
+    const s = suiteRecap({ ok: false, status: 500, detail: 'digest_incomplet', corps }, { reports: 0, tentative: 1, tentativesMax: 6 });
+    expect(s.action, 'une marque en échec avec le disjoncteur · abandon sans retente, ses notifications perdues').toBe('retenter');
+    expect(s.action === 'retenter' && s.note, 'le disjoncteur déclenché disparaît du journal de la retente').toMatch(/disjoncteur des courriels aussi déclenché · 4 refus « définitif\(s\) » pour 0 courriel\(s\) parti\(s\)/);
+    expect(s.action === 'retenter' && s.note).not.toMatch(/lettres servies/);
+    const fin = suiteRecap({ ok: false, status: 500, detail: 'digest_incomplet', corps }, { reports: 0, tentative: 6, tentativesMax: 6 });
+    expect(fin.action).toBe('abandon');
+    expect(fin.action === 'abandon' && fin.disjoncteur, 'la dernière tentative d’une marque en échec est annoncée comme un simple disjoncteur').toBeUndefined();
+    expect(fin.action === 'abandon' && fin.raison, 'la dernière tentative tait le disjoncteur').toMatch(/dernière tentative \(6\/6\) en échec · digest_incomplet · 1 marque\(s\) en échec · disjoncteur des courriels aussi déclenché · 4 refus/);
+    expect(fin.action === 'abandon' && fin.raison).not.toMatch(/lettres servies/);
+    // Témoin · sans marque en échec, le disjoncteur seul reste un abandon immédiat.
+    expect(suiteRecap({ ok: false, status: 500, detail: 'digest_incomplet', corps: { ...corps, failedBrands: 0 } }, { reports: 0, tentative: 1, tentativesMax: 6 })).toMatchObject({ action: 'abandon', disjoncteur: true });
   });
 
   const MAX = DUREE_PASSAGE_MAX_MS / 60_000;
@@ -300,5 +317,28 @@ describe('le calendrier d’un passage long · la semaine finit servie', () => {
 
   it('les reports sont dérivés du pire calendrier servi', () => {
     expect(REPORTS_EN_COURS_MAX * REPORT_EN_COURS_MS).toBeGreaterThanOrEqual(2 * DUREE_PASSAGE_MAX_MS + SEUIL_ABANDON_RECAP_MS + REPORT_EN_COURS_MS);
+  });
+});
+
+describe('une erreur SMTP au journal · jamais l’adresse, jamais le message brut', () => {
+  const ADRESSE = 'anne.martin@exemple.test';
+  const erreur = () => Object.assign(new Error(`Can't send mail - all recipients were rejected: 550 5.1.1 <${ADRESSE}>: Recipient address rejected`), {
+    code: 'EENVELOPE', responseCode: 550, command: 'RCPT TO', response: `550 5.1.1 <${ADRESSE}>: Recipient address rejected`, rejected: [ADRESSE],
+  });
+
+  it('code, code de réponse, commande et l’identifiant donné par l’appelant · rien d’autre', () => {
+    const r = resumeErreurSmtp(erreur(), 'u-123');
+    expect(r).toBe('code=EENVELOPE · réponse=550 · commande=RCPT TO · qui=u-123');
+    expect(r).not.toContain(ADRESSE);
+    expect(r).not.toContain('@');
+  });
+
+  it('sans identifiant · « destinataire non journalisé » ; champs absents · « ? »', () => {
+    expect(resumeErreurSmtp(new Error(`boîte <${ADRESSE}> injoignable`))).toBe('code=? · réponse=? · commande=? · qui=destinataire non journalisé');
+  });
+
+  it('un champ inattendu qui porterait une adresse est tu · seuls des jetons sans « @ » passent', () => {
+    const e = Object.assign(new Error('x'), { code: `E<${ADRESSE}>`, responseCode: `550 <${ADRESSE}>`, command: `RCPT TO:<${ADRESSE}>` });
+    expect(resumeErreurSmtp(e, `qui <${ADRESSE}>`)).not.toContain('@');
   });
 });

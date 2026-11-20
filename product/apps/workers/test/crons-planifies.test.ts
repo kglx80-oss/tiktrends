@@ -205,14 +205,42 @@ describe('chaque route cron est déclenchée par une tâche planifiée du worker
       expect(alertes(), 'une tentative intermédiaire (ou une autre tâche) crie au récap perdu').toHaveLength(0);
     });
 
-    it('SMTP absent (503 smtp_absent) · ne lève pas, aucune ALERTE « non servi », une seule ligne', async () => {
+    it('SMTP absent (503 smtp_absent) · ne lève pas, aucune ALERTE « non servi », une seule ligne de TOUT le journal, en avertissement', async () => {
       h.corpsErreur = { error: 'smtp_absent', notified: 2, skippedMails: 2 };
       h.avis = [];
+      h.logs = [];
       try {
         await avec(503, async () => {
           await expect(handler()({ name: 'weekly-digest', attemptsMade: 0, opts: { attempts: TENTATIVES_RECAP } }), 'un SMTP absent lève · BullMQ retenterait chaque lundi pour un état connu').resolves.toMatchObject({ sansSmtp: true });
-          expect(h.erreurs.filter((e) => e.includes('ALERTE')), 'un SMTP absent crie une ALERTE · le bruit apprend à l’ignorer').toEqual([]);
-          expect(h.avis.filter((e) => e.includes('SMTP non configuré')), 'une ligne, une seule').toHaveLength(1);
+          // TOUTES les lignes · erreurs, avertissements et journal ordinaire.
+          expect(h.erreurs, 'un SMTP absent écrit une erreur · une configuration connue passe pour une panne').toEqual([]);
+          expect(h.logs, 'un SMTP absent écrit une ligne de plus au journal').toEqual([]);
+          expect(h.avis, 'une ligne, une seule, en avertissement').toHaveLength(1);
+          expect(h.avis[0]).toContain('SMTP non configuré');
+          expect(h.avis[0], 'l’avertissement ne dit pas jusqu’à quand la relance sert la semaine').toContain('la même semaine (avant lundi 00:00, heure de Paris)');
+        });
+      } finally { h.corpsErreur = null; }
+    });
+
+    it('témoin · un autre refus (500) reste une ERREUR au journal du déclencheur', async () => {
+      h.corpsErreur = { error: 'digest_incomplet', failedBrands: 1 };
+      try {
+        await avec(500, async () => {
+          await handler()({ name: 'weekly-digest', attemptsMade: 0, opts: { attempts: TENTATIVES_RECAP } }).catch(() => undefined);
+          expect(h.erreurs.some((e) => e.includes('[digest] passage refusé 500 digest_incomplet')), 'un vrai refus n’est plus journalisé en erreur').toBe(true);
+        });
+      } finally { h.corpsErreur = null; }
+    });
+
+    it('disjoncteur ET marque en échec · la marque l’emporte · LÈVE (BullMQ retente), aucune ALERTE « lettres servies »', async () => {
+      h.corpsErreur = { error: 'digest_incomplet', disjoncteur: true, refused: 4, sent: 0, failedBrands: 1 };
+      h.avis = [];
+      try {
+        await avec(500, async () => {
+          await expect(handler()({ name: 'weekly-digest', attemptsMade: 0, opts: { attempts: TENTATIVES_RECAP } }), 'une marque en échec n’est pas retentée parce que le disjoncteur a aussi sauté, ou le message levé tait le disjoncteur')
+            .rejects.toThrow(/récap hebdomadaire non servi · digest_incomplet · 1 marque\(s\) en échec · disjoncteur des courriels aussi déclenché · 4 refus/);
+          expect(h.erreurs.filter((e) => e.includes('ALERTE')), 'une retente crie une ALERTE').toEqual([]);
+          expect([...h.erreurs, ...h.avis].some((e) => e.includes('lettres servies')), 'une marque en échec est annoncée « lettres servies dans l’application »').toBe(false);
         });
       } finally { h.corpsErreur = null; }
     });
@@ -224,6 +252,7 @@ describe('chaque route cron est déclenchée par une tâche planifiée du worker
           await expect(handler()({ name: 'weekly-digest', attemptsMade: 0, opts: { attempts: TENTATIVES_RECAP } }), 'un disjoncteur déclenché se retente').resolves.toMatchObject({ disjoncteur: true });
           expect(h.erreurs.some((e) => e.includes('ALERTE · disjoncteur des courriels · 4 refus')), 'le disjoncteur n’alerte pas précisément').toBe(true);
           expect(h.erreurs.some((e) => e.includes('NON SERVI')), 'un disjoncteur est annoncé « non servi »').toBe(false);
+          expect(h.erreurs.some((e) => e.includes('ALERTE · disjoncteur') && e.includes('la même semaine (avant lundi 00:00, heure de Paris)')), 'l’ALERTE du disjoncteur ne dit pas jusqu’à quand relancer').toBe(true);
         });
       } finally { h.corpsErreur = null; }
     });

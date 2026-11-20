@@ -1,4 +1,4 @@
-import { ATTENTE_RECAP_MS, TENTATIVES_RECAP, cleVerrouRecap, suiteRecap } from '@tiktrends/core';
+import { ATTENTE_RECAP_MS, RELANCE_MEME_SEMAINE_RECAP, TENTATIVES_RECAP, cleVerrouRecap, sansSmtpRecap, suiteRecap } from '@tiktrends/core';
 import { queues } from './queue';
 import { triggerDigest } from './adsmap';
 
@@ -39,16 +39,21 @@ export function alerteEchecRecap(job: JobRecap | undefined, err: Error | undefin
  *  · 409 `en_cours` · un passage vivant tient la semaine · on REPORTE une
  *    vérification (job différé, données `reports`) au lieu de lever · aucune
  *    tentative n'est consommée, et le nombre de reports est borné ;
- *  · SMTP absent (503 `smtp_absent`) · une ligne, ni retente ni ALERTE · les
- *    lettres sont servies dans l'application, l'état est connu ;
- *  · disjoncteur des courriels · ALERTE précise, sans retente (la cause est
- *    côté SMTP, retenter ne ferait que redemander au relais) ;
- *  · autre échec · on LÈVE, BullMQ retente (attente exponentielle) ;
+ *  · SMTP absent (503 `smtp_absent`) · UNE ligne de tout le journal, en
+ *    avertissement · ni retente ni ALERTE · les lettres sont servies dans
+ *    l'application, l'état est connu. Le déclencheur se tait sur ce refus
+ *    (`taire`), sinon il écrivait d'abord un `console.error` ;
+ *  · disjoncteur des courriels, aucune marque en échec · ALERTE précise, sans
+ *    retente (la cause est côté SMTP, retenter ne ferait que redemander au
+ *    relais) ;
+ *  · autre échec · on LÈVE, BullMQ retente (attente exponentielle) · une
+ *    marque en échec l'emporte sur le disjoncteur, et le message levé le dit
+ *    (le worker l'écrit, `[cron] failed`) ;
  *  · plus rien à tenter · ALERTE explicite · la semaine n'est pas servie, et
  *    ce journal est le seul endroit qui le dit.
  */
 export async function passageRecap(job: JobRecap): Promise<unknown> {
-  const r = await triggerDigest();
+  const r = await triggerDigest({ taire: sansSmtpRecap });
   const s = suiteRecap(r, {
     reports: Number(job.data?.reports) || 0,
     tentative: (job.attemptsMade ?? 0) + 1,
@@ -63,7 +68,7 @@ export async function passageRecap(job: JobRecap): Promise<unknown> {
     return r;
   }
   if (s.action === 'sans_smtp') {
-    console.warn(`[digest] SMTP non configuré · lettres servies dans l’application (${Number(r.corps?.notified) || 0} notification(s)) · courriels non envoyés · poser SMTP_URL puis relancer GET /api/cron/digest la même semaine pour les envoyer`);
+    console.warn(`[digest] SMTP non configuré · lettres servies dans l’application (${Number(r.corps?.notified) || 0} notification(s)) · courriels non envoyés · poser SMTP_URL puis relancer GET /api/cron/digest ${RELANCE_MEME_SEMAINE_RECAP} pour les envoyer`);
     return { sansSmtp: true };
   }
   if (s.action === 'reporter') {
@@ -71,7 +76,7 @@ export async function passageRecap(job: JobRecap): Promise<unknown> {
     console.warn(`[digest] un passage tient la semaine · vérification reportée de ${Math.round(s.delaiMs / 60_000)} min (report ${s.reports})`);
     return { reporte: s.reports };
   }
-  if (s.action === 'retenter') throw new Error(`récap hebdomadaire non servi · ${r.detail ?? r.status ?? 'inconnu'}`);
+  if (s.action === 'retenter') throw new Error(`récap hebdomadaire non servi · ${r.detail ?? r.status ?? 'inconnu'}${s.note ? ` · ${s.note}` : ''}`);
   if (s.disjoncteur) {
     console.error(`[digest] ALERTE · ${s.raison}`);
     return { abandon: s.raison, disjoncteur: true };
