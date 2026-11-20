@@ -6,7 +6,7 @@ import {
   entreesLectureOffres, lectureOffres, libelleAttributionOffre, regleLectureOffres, SANS_OFFRE_TEST,
   apprentissagesDepuisReponse, lireGesteConclusion, REFUS_GESTE_JARVIS, gestesPersonaLot, choixIterationSpatial,
   accesHypothese, gestesLectureGroupe, noteDepartLectureOffre, gagnanteArbitree, gestesClavierLot,
-  importFicheLot,
+  importFicheLot, reserveFenetreIncomplete,
 } from '@tiktrends/core';
 import { gagnantesDuLot, gestesGagnantesLot } from '@tiktrends/core';
 import { roleAtLeast } from '../../../../../../lib/rbac';
@@ -97,6 +97,8 @@ export default async function LotSpatial({ params, searchParams }: { params: Pro
   const clavier = gestesClavierLot({ etat: pres.etat, ads: l.ads, gagnante: syn.gagnante ?? null, planIds, depuisGagnante: gagnantes });
   // « Mesures à importer » · l'import EXISTANT ouvert sur CE lot, sous SA garde (`import`) · fermé, sa raison.
   const importer = importFicheLot({ etat: pres.etat, lot: l, variantes: l.ads, seuil: d.config, acces: { refus: g.refusImport }, fenetre: { ...d.ctx, lanceLe: l.lanceLe } });
+  // Un lot qu'on arbitre au-delà de la borne de relecture, mesures arrêtées avant la fin de la fenêtre · l'arbitre le lit.
+  const fenetreIncomplete = reserveFenetreIncomplete({ etat: pres.etat, variantes: l.ads, seuil: d.config, fenetre: { ...d.ctx, lanceLe: l.lanceLe } });
 
   let actions: PropsActionsLot | null = null;
   if (g.admin && (pres.etat === 'composition' || pres.etat === 'pret')) {
@@ -168,7 +170,7 @@ export default async function LotSpatial({ params, searchParams }: { params: Pro
         {actions && <ActionsLot {...actions} />}
         <DupliquerLot lotId={l.id} numero={l.numero} variantes={l.ads.length} raison={g.admin ? null : 'Dupliquer un lot est réservé aux admins de l’espace, comme en créer un.'} />
       </>}
-      reserves={[LIBELLE_NATURE_LOT[natureLot({ status: l.statut, launchedAt: l.lanceLe })].phrase, l.protocole?.resume ?? null].filter((x): x is string => !!x)}
+      reserves={[fenetreIncomplete, LIBELLE_NATURE_LOT[natureLot({ status: l.statut, launchedAt: l.lanceLe })].phrase, l.protocole?.resume ?? null].filter((x): x is string => !!x)}
       fiches={l.ads.map((a) => {
         const v = verdictAffiche(a.verdict);
         return { href: lienFicheTest(a.id), libelle: `${a.variante} · ${a.concept}`, detail: `${libelleStatutTest(a.statut)} · ${v ? LIBELLE_VERDICT[v].court : 'pas de verdict'}`, ...(gagnantes[a.id] ? { gagnante: gagnantes[a.id] } : {}) };

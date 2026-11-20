@@ -1,10 +1,11 @@
 import { CHEMIN_IMPORT_RESULTATS } from '../../parcours-boucle';
 import type { SeuilMinimumMoteur } from '../../adsmap/verdict';
-import { PRESENTATION_ETAT_LOT, etatLotSpatial, type ContexteLots, type EtatLotSpatial, type FaitsVerdictVariante } from './lots';
+import { PRESENTATION_ETAT_LOT, etatLotSpatial, lotArbitrable, type ContexteLots, type EtatLotSpatial, type FaitsVerdictVariante } from './lots';
 import {
   diagnosticFinPrevue, finPrevueAccueil, finPrevuePassee, lienImportLot, phraseMesuresArretees, sourcesImportLot,
   type FinPrevueAccueil, type LotImport, type VarianteFinPrevue,
 } from './fin-prevue';
+import type { FenetreDuLot } from './mesure-arretee';
 import { jourCourt } from '../accueil/temps';
 
 /**
@@ -290,4 +291,21 @@ export function phraseSansMesureApres(lot: Pick<LotImport, 'numero' | 'variantes
  */
 export function importFicheLot(p: Parameters<typeof finPrevueAccueil>[0] & { etat: EtatLotSpatial }): FinPrevueAccueil | null {
   return p.etat === 'a_importer' ? finPrevueAccueil(p) : null;
+}
+
+/**
+ * La fiche d'un lot qu'on ARBITRE (`lotArbitrable` · à conclure, non
+ * concluant) dont les mesures se sont arrêtées avant la fin de la fenêtre ·
+ * la réserve que l'arbitre lit. Ce cas n'existe qu'au-delà de la borne de
+ * relecture (`FENETRE_SYNCHRO_JOURS` · en deçà, le lot est « Mesures à
+ * importer » et la fiche porte déjà l'import et son diagnostic,
+ * `importFicheLot`) · l'état redevient arbitrable (voulu · sinon une impasse),
+ * mais l'arbitre tranche sur une fenêtre incomplète · on le lui dit, avec le
+ * constat du diagnostic (`diagnosticFinPrevue`, cas `arretees`, sans borne).
+ * `null` sinon.
+ */
+export function reserveFenetreIncomplete(p: { etat: EtatLotSpatial; variantes: readonly VarianteFinPrevue[]; seuil: SeuilMinimumMoteur; fenetre: FenetreDuLot }): string | null {
+  if (!lotArbitrable(p.etat)) return null;
+  const d = diagnosticFinPrevue(p.variantes, p.seuil, p.fenetre);
+  return d?.cas === 'arretees' ? `Fenêtre incomplète · ${phraseMesuresArretees(d)} · la synchro ne relit plus ces jours, tu arbitres sur ce qui a été mesuré.` : null;
 }
