@@ -8,7 +8,7 @@ import { logAndTranslate } from '../../lib/error-log';
 import { getSession } from '../../lib/auth';
 import { roleAtLeast } from '../../lib/rbac';
 import { GUARD } from '../../lib/guard-error';
-import { isFounder } from '../../lib/founder';
+import { aPouvoirsFondateur } from '../../lib/founder';
 import { referencesObjetEnBase } from '../../lib/references-objet';
 
 function appOrigins(): string[] {
@@ -23,7 +23,7 @@ function appOrigins(): string[] {
 export async function configureBucketAction(): Promise<{ ok?: true; steps?: Array<{ label: string; ok: boolean; detail: string }>; error?: string }> {
   const s = await getSession();
   if (!s) return { error: GUARD.session() };
-  if (!roleAtLeast(s.role, 'admin') || !isFounder(s.user.email)) return { error: GUARD.role({ needRole: 'admin' }) };
+  if (!roleAtLeast(s.role, 'admin') || !aPouvoirsFondateur(s.user.email)) return { error: GUARD.role({ needRole: 'admin' }) };
   const cfg = storageFromEnv();
   if (!cfg) return { error: 'Clés S3 absentes du serveur (.env.deploy).' };
 
@@ -42,7 +42,7 @@ export async function configureBucketAction(): Promise<{ ok?: true; steps?: Arra
 export async function testStorageAction(): Promise<Partial<Awaited<ReturnType<typeof storagePrivateSelfTest>>>> {
   const s = await getSession();
   if (!s) return { error: GUARD.session() };
-  if (!roleAtLeast(s.role, 'admin') || !isFounder(s.user.email)) return { error: GUARD.role({ needRole: 'admin' }) };
+  if (!roleAtLeast(s.role, 'admin') || !aPouvoirsFondateur(s.user.email)) return { error: GUARD.role({ needRole: 'admin' }) };
   const cfg = storageFromEnv();
   if (!cfg) return { error: 'Clés S3 absentes du serveur (.env.deploy).' };
   const r = await storagePrivateSelfTest(cfg);

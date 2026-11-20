@@ -1,7 +1,7 @@
 import 'server-only';
 import { getSession, type Session } from './auth';
 import { roleAtLeast } from './rbac';
-import { isFounder } from './founder';
+import { aPouvoirsFondateur } from './founder';
 
 /**
  * La porte de `/admin/depenses` · UNE règle pour la page (lecture) et pour le
@@ -17,6 +17,6 @@ export async function porteDepenses(): Promise<PorteDepenses> {
   const s = await getSession();
   if (!s) return { ok: false, vers: '/login' };
   if (!roleAtLeast(s.role, 'admin')) return { ok: false, vers: '/dashboard' };
-  if (!isFounder(s.user.email)) return { ok: false, vers: '/admin' };
+  if (!aPouvoirsFondateur(s.user.email)) return { ok: false, vers: '/admin' };
   return { ok: true, session: s };
 }

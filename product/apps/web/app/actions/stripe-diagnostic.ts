@@ -1,7 +1,7 @@
 'use server';
 
 import { getSession } from '../../lib/auth';
-import { isFounder } from '../../lib/founder';
+import { aPouvoirsFondateur } from '../../lib/founder';
 import { getStripe, priceIdFor } from '../../lib/stripe';
 import { PLAN_PRICE, PLAN_LABEL, type Plan } from '../../lib/rbac';
 import { personnelPlateforme } from '../../lib/personnel-plateforme';
@@ -41,7 +41,7 @@ const eur = (cents: number) => (cents / 100).toLocaleString('fr-FR', { minimumFr
 
 export async function runStripeDiagnosticAction(): Promise<StripeDiagnostic> {
   const s = await getSession();
-  if (!s || !isFounder(s.user.email)) return { mode: 'inconnu', checks: [], error: 'Réservé au fondateur.' };
+  if (!s || !aPouvoirsFondateur(s.user.email)) return { mode: 'inconnu', checks: [], error: 'Réservé au fondateur.' };
 
   const stripe = getStripe();
   const key = process.env.STRIPE_SECRET_KEY || '';

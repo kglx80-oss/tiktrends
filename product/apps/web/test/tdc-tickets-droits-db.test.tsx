@@ -31,7 +31,8 @@ import { join, relative } from 'node:path';
  *  · qui a le droit · tout s'affiche EXACTEMENT comme sur main (capture prise
  *    sur main 51507ba, champs stables) ;
  *  · le MÊME cookie, après un changement EN BASE (rôle d'espace retiré,
- *    retirée de l'espace, époque dépassée, retirée de `FOUNDER_EMAILS`) ·
+ *    retirée de l'espace, époque dépassée) · une adresse de `FOUNDER_EMAILS`
+ *    n'ouvre plus le Tour, posée ou retirée (« Codé seul ») ·
  *    refusé à la requête suivante, avant toute lecture, sans citer aucune
  *    donnée (`SECRET_…` absent) ;
  *  · l'équipe plateforme · un Admin d'équipe non fondateur n'a jamais ouvert
@@ -82,7 +83,7 @@ import { SignJWT } from 'jose';
 import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../lib/auth';
-import { estFondateurCode, founderEmails } from '../lib/founder';
+import { fondateursCodes } from '../lib/founder';
 import { avecSpatial } from './spatial/fournisseur';
 import { replyTicketAction, setTicketStatusAction } from '../app/actions/support';
 import { exporterTourAction } from '../app/actions/tour-controle';
@@ -92,7 +93,7 @@ vi.setConfig({ testTimeout: 120_000, hookTimeout: 300_000 });
 
 const ids = h.ids;
 /** Le premier fondateur de la liste CODÉE (lu, jamais recopié ici). */
-const FONDATEUR = founderEmails().find((e) => estFondateurCode(e))!;
+const FONDATEUR = fondateursCodes()[0]!;
 const EQUIPE = 'equipe-admin@tdc.test';
 const VIA_ENV = 'fondatrice-env@tdc.test';
 const SECRETS = /SECRET_/;
@@ -265,10 +266,10 @@ describe('Tour de contrôle · tickets · qui a le droit voit exactement ce qu�
     }
   });
 
-  it('fondateur par l’environnement (`FOUNDER_EMAILS`) administrateur de son espace · même réception que le fondateur codé', async () => {
+  it('fondateur par l’environnement (`FOUNDER_EMAILS`) administrateur de son espace · refusé, sans rien citer (« Codé seul »)', async () => {
     vi.stubEnv('FOUNDER_EMAILS', VIA_ENV);
     await connecter(ids.uV);
-    expect((await ticketsRecus()).map((t) => [t.id, t.bloque === null])).toEqual([[ids.tE, true], [ids.tB, false]]);
+    await toutRefuse('redirect:/dashboard');
   });
 });
 
@@ -289,20 +290,19 @@ describe('Tour de contrôle · tickets · un droit retiré est relu à la requê
     try { await toutRefuse('redirect:/login'); } finally { await db!.update(schema.users).set({ sessionEpoch: 0 }).where(eq(schema.users.id, ids.uF)); }
   });
 
-  it('retirée de `FOUNDER_EMAILS` · le même cookie est refusé dès la lecture suivante', async () => {
+  it('`FOUNDER_EMAILS` posé ou retiré · le même cookie est refusé dans les deux cas (la variable n’ouvre rien)', async () => {
     vi.stubEnv('FOUNDER_EMAILS', VIA_ENV);
     await connecter(ids.uV);
-    expect((await ticketsRecus()).length).toBe(2);
+    await toutRefuse('redirect:/dashboard');
     vi.stubEnv('FOUNDER_EMAILS', '');
     await toutRefuse('redirect:/dashboard');
   });
 
   it('retirée de l’espace (appartenance supprimée, plus aucun espace) · plus de session, connexion demandée', async () => {
-    vi.stubEnv('FOUNDER_EMAILS', VIA_ENV);
-    await connecter(ids.uV);
+    await connecter(ids.uF);
     expect((await ticketsRecus()).length).toBe(2);
-    await db!.delete(schema.workspaceMembers).where(and(eq(schema.workspaceMembers.workspaceId, ids.wsE), eq(schema.workspaceMembers.userId, ids.uV)));
-    try { await toutRefuse('redirect:/login'); } finally { await db!.insert(schema.workspaceMembers).values({ workspaceId: ids.wsE, userId: ids.uV, role: 'admin' }); }
+    await db!.delete(schema.workspaceMembers).where(membreF());
+    try { await toutRefuse('redirect:/login'); } finally { await db!.insert(schema.workspaceMembers).values({ workspaceId: ids.wsE, userId: ids.uF, role: 'owner' }); }
   });
 });
 

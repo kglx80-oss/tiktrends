@@ -6,10 +6,11 @@ import { describe, expect, it } from 'vitest';
  * règle `sectionsCompteOuvertes` (lib/rbac) reste lue par la coquille Spatial.
  */
 import { sectionsCompteOuvertes, accountSections as sections } from '../lib/rbac';
+import { faceEquipeTest } from './helpers/face-equipe';
 describe('Menu de compte · la section Espace suit la garde réelle des pages (lot 12)', () => {
   const hrefs = (g: ReturnType<typeof sections>) => g.flatMap((x) => x.items.map((i) => i.href));
   it('équipe plateforme « manager » avec un rôle d’espace membre · plus de Marques/Membres/Utilisation qui renvoient à l’accueil', () => {
-    const a = { role: 'member' as const, plan: 'business' as const, equipe: { role: 'manager' as const, matrice: {} } };
+    const a = { role: 'member' as const, plan: 'business' as const, equipe: faceEquipeTest('manager') };
     expect(hrefs(sections(a)), 'cas non reproduit · la matrice ne montre plus ces entrées').toContain('/brands');
     const h = hrefs(sectionsCompteOuvertes(a));
     for (const p of ['/brands', '/team', '/usage']) expect(h, p).not.toContain(p);

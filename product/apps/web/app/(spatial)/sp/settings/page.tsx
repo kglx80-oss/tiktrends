@@ -6,8 +6,9 @@ import { DESCRIPTIF_FORMULES, formuleDeReference, FUSEAU_ACCUEIL, ORDRE_FORMULES
 import { storageConfigured } from '@tiktrends/integrations';
 import { getSession } from '../../../../lib/auth';
 import { canAccess, FEATURES, PLAN_CREDITS, PLAN_LABEL, roleAtLeast, type Plan } from '../../../../lib/rbac';
+import { effectiveAccess } from '../../../../lib/access';
 import { getActiveBrand } from '../../../../lib/brands';
-import { isFounder } from '../../../../lib/founder';
+import { aPouvoirsFondateur } from '../../../../lib/founder';
 import { saveWorkspaceNameAction } from '../../../actions/admin';
 import { configureBucketAction, embeddedImagesStatusAction, migrateEmbeddedImagesAction, testStorageAction } from '../../../actions/storage';
 import { Espace } from '../../../../spatial/vues/reglages/Espace';
@@ -36,7 +37,7 @@ export default async function EspaceSpatial() {
   }
   const studio = FEATURES.find((f) => f.key === 'studio')!;
   // Gestes de l'écran V5 `/settings` (vague 2) · même garde admin (posée plus haut).
-  const operateur = isFounder(s.user.email);
+  const operateur = aPouvoirsFondateur(s.user.email);
   const stockageActif = storageConfigured();
 
   return (
@@ -60,7 +61,7 @@ export default async function EspaceSpatial() {
         },
       }}
       theme={preferenceDepuisCookie((await cookies()).get(THEME_COOKIE)?.value)}
-      video={canAccess({ role: s.role, plan: s.plan, equipe: s.equipe ?? undefined }, studio) ? lienNouveauProjet({ type: 'video' }) : null}
+      video={canAccess(effectiveAccess(s), studio) ? lienNouveauProjet({ type: 'video' }) : null}
     />
   );
 }

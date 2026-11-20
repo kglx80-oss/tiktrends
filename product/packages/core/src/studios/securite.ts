@@ -281,10 +281,10 @@ export function suiviFalDepuisJob(jobId: string, queueUrlConfig?: string | null)
  *    créé après a pu être créé par n'importe qui. Date manquante ou illisible →
  *    refus.
  *
- * Ailleurs · le rôle d'équipe et la matrice restent lus comme avant (rail,
- * lecture de `/admin/equipe`) ; l'écriture de l'équipe, `/admin/connaissances`
- * et les crédits illimités exigent aussi l'admissibilité
- * (`peutEcrireEquipe`, `peutGererConnaissances`, `accesTotalAdmissible`).
+ * Ailleurs · l'écriture et la lecture de l'équipe, `/admin/connaissances`,
+ * les crédits illimités et la face équipe exigent aussi l'admissibilité
+ * (`peutEcrireEquipe`, `vueEquipeAdmin`, `peutGererConnaissances`,
+ * `accesTotalAdmissible`, `privilegesEquipe`).
  * Pour rendre admissible un membre légitime dont le compte est postérieur,
  * l'accès total le retire puis le réinscrit dans `/admin/equipe` (la nouvelle
  * entrée est alors postérieure au compte).
@@ -380,10 +380,14 @@ export function accesTotalAdmissible(equipe: { role: string; plateformeAdmissibl
  * utilisait toutes les fonctions Business et lisait la dépense de la
  * plateforme.
  *
- * `faceEquipe` · même exigence pour l'accès total (un compte non admissible
- * retombe sur la face CLIENT · rôle et formule réels de son espace) ; un rôle
- * GRADÉ la garde comme avant, admissible ou non (sa matrice décide, sans
- * formule) · l'admissibilité ne lui a jamais rien ouvert (`admissibiliteMembre`).
+ * `faceEquipe` · exige l'admissibilité pour TOUT rôle d'équipe (ou le
+ * fondateur codé) · décision du propriétaire (« Fermer aussi », suivi de
+ * #1115). Sur main c05b74a0, un rôle GRADÉ la gardait admissible ou non · un
+ * tiers qui créait le premier le compte d'un e-mail préinscrit en Manager
+ * lisait les rubriques de sa matrice sans aucun verrou de formule. Un compte
+ * non admissible, quel que soit son rôle, retombe sur la face CLIENT · rôle et
+ * formule réels de son espace. Un gradé légitime dont le compte est postérieur
+ * se fait réinscrire, comme un Admin (`admissibiliteMembre`).
  */
 export interface PrivilegesEquipe {
   formuleBusiness: boolean;
@@ -397,8 +401,34 @@ export function privilegesEquipe(p: {
   equipe: { role: string; plateformeAdmissible?: boolean } | null | undefined;
 }): PrivilegesEquipe {
   const total = p.fondateurCode || accesTotalAdmissible(p.equipe);
-  const grade = !!p.equipe && !(ROLES_ACCES_TOTAL as readonly string[]).includes(p.equipe.role);
-  return { formuleBusiness: total, depensePlateforme: total, faceEquipe: !!p.equipe && (total || grade) };
+  const admissible = p.fondateurCode || p.equipe?.plateformeAdmissible === true;
+  return { formuleBusiness: total, depensePlateforme: total, faceEquipe: !!p.equipe && admissible };
+}
+
+/**
+ * Les pouvoirs FONDATEUR · décision du propriétaire (« Codé seul », suivi de
+ * #1115) · réservés aux fondateurs de la liste CODÉE (`estFondateurCode`,
+ * `lib/founder.ts`). Ce sont · le Tour de contrôle et ses gestes (`porteAdmin`,
+ * exports, incidents, tickets), la dépense IA réelle et sa réconciliation
+ * (`porteDepenses`), le barème « Crédits & marges », les leviers sans paiement
+ * (accorder des crédits, recharger l'allocation, changer de formule, régler
+ * les tarifs, crédits de test, fin d'essai), le stockage et le diagnostic
+ * Stripe, l'exploitation de Jarvis (serveur, dépense, réglages maison), et
+ * les crédits illimités de fondateur.
+ *
+ * Un fondateur de l'ENVIRONNEMENT (`FOUNDER_EMAILS`) n'en reçoit AUCUN · sur
+ * main c05b74a0, `isFounder` l'incluait · une adresse de la variable sans
+ * compte pouvait être créée par n'importe qui (inscription libre, aucun
+ * e-mail vérifié), qui s'accordait des crédits, passait son espace en
+ * Business sans paiement et lisait le Tour de contrôle. La variable ne sert
+ * plus qu'à dire à ce compte pourquoi il n'a rien (`messageNonAdmissible`).
+ */
+export function pouvoirFondateur(f: {
+  fondateurCode: boolean;
+  /** Lu pour être écrit · n'ouvre rien. */
+  fondateurEnvironnement: boolean;
+}): boolean {
+  return f.fondateurCode === true;
 }
 
 /* ────────────────────────────────────────────────────────────────────────── */

@@ -99,11 +99,11 @@ export function ongletsReglages(menuCompte: ReadonlySet<string>, chemin: string)
 
 /** Ce que le serveur a lu, avec les contrôles des pages eux-mêmes. */
 export interface DroitsAdministration {
-  /** `roleAtLeast(role, 'admin') && isFounder(email)` · garde de `/admin`, `/console`, `/credits`… */
+  /** `roleAtLeast(role, 'admin') && aPouvoirsFondateur(email)` (liste codée seule) · garde de `/admin`, `/console`, `/credits`… */
   fondateur: boolean;
   /** `roleAtLeast(role, 'admin')` · garde des pages « Espace » (Réglages, Abonnement). */
   adminEspace: boolean;
-  /** `equipe && accesTotal(equipe.role)` · garde de `/admin/equipe` et `/admin/connaissances`. */
+  /** `vueEquipeAdmin(equipe) === 'complete'` · garde de `/admin/equipe` ; `peutGererConnaissances` · celle de `/admin/connaissances`. */
   accesTotalEquipe: boolean;
   /** Permission plateforme (`gardePlateforme`) · accès total ET compte admissible. */
   plateforme: boolean;

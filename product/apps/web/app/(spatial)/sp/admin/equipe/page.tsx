@@ -3,11 +3,11 @@ import { desc, eq, inArray, isNull, like, or } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
   CLES_RUBRIQUES, LIBELLE_ROLE_PLATEFORME, ROLES_MATRICIELS, ROLES_PLATEFORME, RUBRIQUES_PLATEFORME, accesTotal, adminDateCourte, adminIlYa,
-  admissibiliteMembre, caseDroit, initialesAvatar, messageNonAdmissible, peutEcrireEquipe, rubriquesApresBascule, texteAudit, type MatriceDroits, type RolePlateforme,
+  admissibiliteMembre, caseDroit, initialesAvatar, messageNonAdmissible, rubriquesApresBascule, texteAudit, vueEquipeAdmin, type MatriceDroits, type RolePlateforme,
 } from '@tiktrends/core';
 import { getSession } from '../../../../../lib/auth';
 import { estFondateurCode } from '../../../../../lib/founder';
-import { Droits } from '../../../../../spatial/vues/admin/Droits';
+import { Droits, DroitsNonAdmissible } from '../../../../../spatial/vues/admin/Droits';
 import { bandeauSeul } from '../donnees';
 import { droitsSousNavAdmin } from '../../../../../lib/onglets-reglages';
 
@@ -20,18 +20,23 @@ const ERR: Record<string, string> = {
 };
 
 /**
- * « Rôles & droits » · porte de `/admin/equipe` (V5) · le rôle d'ÉQUIPE à accès
- * total (adminplus/admin), pas « fondateur » · un admin ajouté ici gère l'équipe
- * à son tour, comme dans l'écran V5. Les écritures (matrice, ajout, changement
- * de rôle, retrait) passent par les actions de l'équipe, qui reposent la garde
- * et l'admissibilité (SEC-10).
+ * « Rôles & droits » · porte de `/admin/equipe` (V5) · la règle du noyau
+ * `vueEquipeAdmin` · le rôle d'ÉQUIPE à accès total ADMISSIBLE (adminplus/admin,
+ * fondateur codé compris), pas « fondateur » · un admin ajouté ici gère
+ * l'équipe à son tour, comme dans l'écran V5. Un compte d'équipe NON
+ * admissible (quel que soit son rôle) ne lit QUE son message · ni la liste
+ * (e-mails préinscrits sans compte, qu'il pourrait capter à leur tour), ni
+ * l'audit, ni le bandeau de la plateforme · rien n'est lu en base pour lui.
+ * Les écritures (matrice, ajout, changement de rôle, retrait) passent par les
+ * actions de l'équipe, qui reposent la garde et l'admissibilité (SEC-10).
  */
 export default async function DroitsSpatial({ searchParams }: { searchParams: Promise<{ ok?: string; e?: string }> }) {
   const s = await getSession();
   if (!s) redirect('/login');
-  if (!s.equipe || !accesTotal(s.equipe.role)) redirect('/dashboard');
+  const vue = vueEquipeAdmin(s.equipe);
+  if (vue === 'refus') redirect('/dashboard');
+  if (vue === 'message') return <DroitsNonAdmissible message={messageNonAdmissible(s.equipe)!} />;
   const { ok, e } = await searchParams;
-  const peutEcrire = peutEcrireEquipe(s.equipe, (r) => accesTotal(r as RolePlateforme));
 
   const [b, staffRows, rightsRows, auditRows] = await Promise.all([
     bandeauSeul(),
@@ -44,9 +49,7 @@ export default async function DroitsSpatial({ searchParams }: { searchParams: Pr
   ]);
   // SEC-10 · la date de création du compte de chaque membre, pour dire s'il est
   // admissible · même lecture que `equipeDeSession` (e-mail stocké en minuscules).
-  // Seulement pour qui peut écrire l'équipe · un compte non admissible, en
-  // lecture seule, ne voit ni les dates de compte ni le statut des autres.
-  const emails = peutEcrire ? staffRows.map((r) => r.email) : [];
+  const emails = staffRows.map((r) => r.email);
   const comptes = db && emails.length
     ? await db.select({ email: schema.users.email, createdAt: schema.users.createdAt }).from(schema.users).where(inArray(schema.users.email, emails))
     : [];
@@ -59,11 +62,9 @@ export default async function DroitsSpatial({ searchParams }: { searchParams: Pr
   return (
     <Droits
       bandeau={b}
-      legende={(ok && OK[ok]) || (e && ERR[e]) || (peutEcrire
-        ? 'Clique une case pour ouvrir ou fermer la rubrique · enregistré aussitôt. Admin+ et Admin voient tout.'
-        : 'Lecture seule · ton compte n’est pas admissible à modifier l’équipe (créé après son inscription).')}
+      legende={(ok && OK[ok]) || (e && ERR[e]) || 'Clique une case pour ouvrir ou fermer la rubrique · enregistré aussitôt. Admin+ et Admin voient tout.'}
       roles={ROLES_MATRICIELS.map((r) => LIBELLE_ROLE_PLATEFORME[r])}
-      verrouille={!peutEcrire}
+      verrouille={false}
       lignes={RUBRIQUES_PLATEFORME.filter((r) => CLES_RUBRIQUES.includes(r.key)).map((rub) => ({
         rubrique: rub.label,
         cases: ROLES_MATRICIELS.map((role) => {
@@ -71,17 +72,16 @@ export default async function DroitsSpatial({ searchParams }: { searchParams: Pr
           return { role, niveau: c.niveau, libelle: c.libelle, aria: `${rub.label} · ${LIBELLE_ROLE_PLATEFORME[role]} : ${c.libelle}`, apres: rubriquesApresBascule(role, rub.key, matrice) };
         }),
       }))}
-      rolesInvitation={peutEcrire ? ROLES_PLATEFORME.map((r) => ({ cle: r, libelle: LIBELLE_ROLE_PLATEFORME[r] })) : null}
+      rolesInvitation={ROLES_PLATEFORME.map((r) => ({ cle: r, libelle: LIBELLE_ROLE_PLATEFORME[r] }))}
       equipe={staffRows
         .map((r) => ({ email: r.email, role: r.role as RolePlateforme, depuis: r.createdAt as Date }))
         .sort((a, c) => rang(a.role) - rang(c.role) || a.email.localeCompare(c.email))
         .map((m) => ({
           email: m.email, initiales: initialesAvatar('', m.email), role: LIBELLE_ROLE_PLATEFORME[m.role], total: accesTotal(m.role), depuis: `depuis le ${adminDateCourte(m.depuis)}`,
           cleRole: m.role, moi: m.email.trim().toLowerCase() === s.user.email.trim().toLowerCase(),
-          admissibilite: peutEcrire ? admissibiliteMembre({ role: m.role, fondateurCode: estFondateurCode(m.email), compteCreeLe: compteDe.get(m.email) ?? null, staffInscritLe: m.depuis }) : undefined,
+          admissibilite: admissibiliteMembre({ role: m.role, fondateurCode: estFondateurCode(m.email), compteCreeLe: compteDe.get(m.email) ?? null, staffInscritLe: m.depuis }),
         }))}
-      nonAdmissible={messageNonAdmissible(s.equipe)}
-      gestion={peutEcrire}
+      gestion
       journal={droitsSousNavAdmin(s).tour ? '/admin/audit' : null}
       audit={auditRows.map((a) => {
         const acteur = a.nom || a.email || (a.role.startsWith('script:') ? 'Script' : 'Équipe');

@@ -6,7 +6,7 @@ import { getSession } from '../../../../../lib/auth';
 import { canAccess, FEATURES } from '../../../../../lib/rbac';
 import { refusJarvis, TEXTE_REFUS_JARVIS } from '../../../../../lib/jarvis-acces';
 import { effectiveAccess } from '../../../../../lib/access';
-import { isFounder } from '../../../../../lib/founder';
+import { aPouvoirsFondateur } from '../../../../../lib/founder';
 import { getActiveBrand } from '../../../../../lib/brands';
 import { jarvisStats, jarvisMeasuredMemory } from '../../../../../lib/jarvis-memory';
 import { jarvisSnapshot, STATE_LABEL } from '../../../../../lib/jarvis-state';
@@ -24,7 +24,7 @@ const RESULTATS = FEATURES.find((f) => f.key === 'adsmap')!;
  * « Sources de Jarvis » (Spatial) · mêmes gardes et mêmes lectures que l'écran
  * V5 `/jarvis/sources` : la feature `jarvis` AVANT toute lecture ; la mémoire
  * mesurée derrière l'offre (`adsmap`) ; l'exploitation (serveur, dépense) et les
- * réglages maison derrière `isFounder`. Le contexte de marque est celui que lit
+ * réglages maison derrière `aPouvoirsFondateur`. Le contexte de marque est celui que lit
  * la conversation (`chatThreadAction`, portée espace + marque + personne).
  * Consulter n'écrit rien.
  */
@@ -34,7 +34,7 @@ export default async function SourcesJarvisSpatial() {
   const refus = refusJarvis(s);
   if (refus) return <RefusJarvis raison={TEXTE_REFUS_JARVIS[refus]} plan={refus === 'plan'} proprietaire={s.role === 'owner'} />;
 
-  const fondateur = isFounder(s.user.email);
+  const fondateur = aPouvoirsFondateur(s.user.email);
   const voitMemoire = canAccess(effectiveAccess(s), RESULTATS);
   const brand = await getActiveBrand(s.workspaceId);
   if (!brand) return <SourcesJarvis marque={null} couches={[]} memoire={null} contexte={null} testsMesures={0} fondateur={null} />;

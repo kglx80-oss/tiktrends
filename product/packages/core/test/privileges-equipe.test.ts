@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { privilegesEquipe, accesTotalAdmissible } from '../src/studios/securite';
+import { privilegesEquipe, accesTotalAdmissible, pouvoirFondateur } from '../src/studios/securite';
 import { voitDepensePlateforme } from '../src/spend-guard';
 import { ROLES_PLATEFORME, accesTotal } from '../src/equipe-plateforme';
 
@@ -34,10 +34,16 @@ describe('privilegesEquipe · accès total ADMISSIBLE ou fondateur codé, rien d
     expect(privilegesEquipe({ fondateurCode: true, equipe: null })).toEqual({ formuleBusiness: true, depensePlateforme: true, faceEquipe: false });
   });
 
-  it('rôle gradé · face équipe comme avant, admissible ou non · ni Business ni dépense', () => {
+  it('rôle gradé ADMISSIBLE · face équipe · ni Business ni dépense', () => {
     for (const role of ROLES_PLATEFORME.filter((r) => !accesTotal(r))) {
       expect(privilegesEquipe({ fondateurCode: false, equipe: { role, plateformeAdmissible: true } }), role).toEqual(GRADE);
-      expect(privilegesEquipe({ fondateurCode: false, equipe: { role, plateformeAdmissible: false } }), role).toEqual(GRADE);
+    }
+  });
+
+  it('rôle gradé NON admissible · rien (« Fermer aussi » · face client, comme l’accès total)', () => {
+    for (const role of ROLES_PLATEFORME.filter((r) => !accesTotal(r))) {
+      expect(privilegesEquipe({ fondateurCode: false, equipe: { role, plateformeAdmissible: false } }), role).toEqual(RIEN);
+      expect(privilegesEquipe({ fondateurCode: false, equipe: { role } }), `${role} · admissibilité absente = non admissible`).toEqual(RIEN);
     }
   });
 
@@ -53,5 +59,14 @@ describe('privilegesEquipe · accès total ADMISSIBLE ou fondateur codé, rien d
       expect(p.formuleBusiness, `${role}/${plateformeAdmissible}`).toBe(accesTotalAdmissible(equipe));
       expect(voitDepensePlateforme({ fondateurCode: false, equipe }), `${role}/${plateformeAdmissible}`).toBe(p.depensePlateforme);
     }
+  });
+});
+
+describe('pouvoirFondateur · « Codé seul »', () => {
+  it('la liste codée ouvre · `FOUNDER_EMAILS` seul n’ouvre rien', () => {
+    expect(pouvoirFondateur({ fondateurCode: true, fondateurEnvironnement: false })).toBe(true);
+    expect(pouvoirFondateur({ fondateurCode: true, fondateurEnvironnement: true })).toBe(true);
+    expect(pouvoirFondateur({ fondateurCode: false, fondateurEnvironnement: true }), 'une adresse de FOUNDER_EMAILS reçoit les pouvoirs fondateur').toBe(false);
+    expect(pouvoirFondateur({ fondateurCode: false, fondateurEnvironnement: false })).toBe(false);
   });
 });

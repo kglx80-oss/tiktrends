@@ -5,7 +5,7 @@ import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../lib/auth';
 import { allouerFormule } from '../../lib/credits';
-import { isFounder } from '../../lib/founder';
+import { aPouvoirsFondateur } from '../../lib/founder';
 import { PLAN_CREDITS, type Plan } from '../../lib/rbac';
 
 const PLANS: Plan[] = ['starter', 'core', 'plus', 'business'];
@@ -25,7 +25,7 @@ export async function changePlanAction(formData: FormData): Promise<void> {
   // Page d'origine : le pilotage vit dans ADMIN+, mais l'action reste appelable
   // depuis /billing tant qu'un fondateur y passe.
   const home = formData.get('back') === 'admin' ? '/admin/plans' : '/billing';
-  if (!isFounder(s.user.email)) redirect(`${home}?e=forbidden`);
+  if (!aPouvoirsFondateur(s.user.email)) redirect(`${home}?e=forbidden`);
   const plan = String(formData.get('plan') || '') as Plan;
   if (!PLANS.includes(plan)) redirect(`${home}?e=plan`);
   if (plan === s.plan) redirect(`${home}?ok=same`);

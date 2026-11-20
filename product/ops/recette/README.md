@@ -102,7 +102,7 @@ Liste EXACTE :
 | --- | --- | --- | --- |
 | `POSTGRES_PASSWORD` | oui | Mot de passe de la base de recette (hexadécimal, il entre dans une URL). | Généré sur place par `openssl rand -hex 24` (§4.1), jamais affiché. |
 | `AUTH_SECRET` | oui | Signature des sessions du web de recette. | Généré sur place par `openssl rand -hex 32` (§4.1). |
-| `FOUNDER_EMAILS` | non | Ton e-mail, pour l'accès ADMIN (approbation du budget du pas 2) si ton compte n'est pas déjà dans la liste codée. | Ton adresse. |
+| `FOUNDER_EMAILS` | non | N'ouvre plus aucun accès (« Codé seul ») · l'accès ADMIN (approbation du budget du pas 2) exige un compte de la liste codée des fondateurs (`apps/web/lib/founder.ts`). Laisse-la vide. | Rien à obtenir. |
 | `ANTHROPIC_GEN_MODEL` | non | Surcharge du modèle texte. Change le devis : relis-le. | Seulement si tu veux un autre modèle. |
 | `FAL_IMAGE_MODEL`, `FAL_IMAGE_MODEL_EDIT`, `FAL_QUEUE_URL` | non | Surcharges du fournisseur d'images. | Idem. |
 

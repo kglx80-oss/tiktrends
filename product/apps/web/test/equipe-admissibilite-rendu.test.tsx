@@ -12,7 +12,8 @@ import type { IdsStudios, SessionTest } from './studios-semis';
  *    compte (ou « aucun compte »), et, quand il ne l'est pas, la consigne de
  *    réinscription · vérifier HORS du produit qu'il détient l'adresse ;
  *  · I3 · le membre concerné (accès total, non admissible) lit pourquoi il a
- *    perdu crédits illimités et Connaissances, et quoi demander.
+ *    perdu crédits illimités et Connaissances, et quoi demander · et rien
+ *    d'autre (ni la liste de l'équipe, ni l'audit).
  */
 
 const h = vi.hoisted(() => ({ ids: null as unknown as IdsStudios, session: null as SessionTest | null }));
@@ -104,10 +105,13 @@ describe('I2 · /admin/equipe · admissibilité et date du compte, par membre', 
     expect(consigne).toContain('« Mot de passe oublié »');
   });
 
-  it('rôle gradé non admissible · dit, sans consigne (rien ne s’ouvre pour ce rôle)', async () => {
+  it('rôle gradé non admissible · dit, avec la consigne (« Fermer aussi » · il a perdu sa face équipe)', async () => {
     await monter('ua');
-    expect(texte(MEMBRE.dev)).toContain('Non admissible · sans effet pour ce rôle');
-    expect(ligne(MEMBRE.dev)?.querySelector('[data-consigne]')).toBeNull();
+    expect(texte(MEMBRE.dev)).toContain('Non admissible');
+    expect(texte(MEMBRE.dev)).not.toContain('sans effet pour ce rôle');
+    const consigne = ligne(MEMBRE.dev)?.querySelector('[data-consigne]')?.textContent ?? '(aucune consigne)';
+    expect(consigne).toContain('accès d’équipe (les rubriques de son rôle, sans verrou de formule) et liste de l’équipe fermés');
+    expect(consigne).toContain('retire-la puis réinscris-la');
   });
 
   it('M3 · le statut affiché de CHAQUE membre est celui que la session lui donne (equipeDeSession, mêmes faits en base)', async () => {
@@ -138,9 +142,10 @@ describe('I3 · le membre concerné sait pourquoi', () => {
     expect(MESSAGE_NON_ADMISSIBLE).toContain('Fais « Mot de passe oublié » sur ton adresse et reconnecte-toi, puis demande à un fondateur de te réinscrire');
   });
 
-  it('M1 · compte non admissible en lecture seule · ni statut ni date de compte des autres membres', async () => {
+  it('M1 · compte non admissible · ni la liste de l’équipe, ni statut, ni date de compte des autres membres', async () => {
     await monter('uv');
-    expect(hote.querySelectorAll('[data-membre]').length, 'la liste des membres reste visible').toBeGreaterThanOrEqual(4);
+    expect(hote.querySelectorAll('[data-membre]').length, 'la liste des membres (e-mails préinscrits) est montrée à un compte non admissible').toBe(0);
+    expect(hote.textContent).not.toContain(MEMBRE.invite);
     expect(hote.querySelectorAll('[data-admissibilite]').length, 'statut d’admissibilité montré à un compte non admissible').toBe(0);
     expect(hote.textContent).not.toContain('compte créé le');
     expect(hote.textContent).not.toContain('aucun compte');

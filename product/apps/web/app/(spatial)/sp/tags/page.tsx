@@ -24,7 +24,7 @@ export default async function TaggingSpatial() {
   const s = await getSession();
   if (!s) redirect('/login');
   const Resultats = FEATURES.find((f) => f.key === 'adsmap')!;
-  const resultats = canAccess({ role: s.role, plan: s.plan, equipe: s.equipe ?? undefined }, Resultats);
+  const resultats = canAccess(effectiveAccess(s), Resultats);
   const Veille = FEATURES.find((f) => f.key === 'inspo')!;
   const roleVeille = denyReason(effectiveAccess(s), Veille) !== 'role';
   let tags = null;

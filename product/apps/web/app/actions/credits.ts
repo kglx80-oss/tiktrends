@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 import { eq, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../lib/auth';
-import { isFounder } from '../../lib/founder';
+import { aPouvoirsFondateur } from '../../lib/founder';
 import { PLAN_CREDITS, type Plan } from '../../lib/rbac';
 import { convertirUniteEspace } from '../../lib/credits';
 
@@ -30,7 +30,7 @@ export async function grantCreditsAction(formData: FormData): Promise<void> {
   const s = await getSession();
   if (!s || !db) redirect('/login');
   const home = formData.get('back') === 'admin' ? '/admin/plans' : '/credits';
-  if (!isFounder(s.user.email)) redirect(`${home}?e=forbidden`);
+  if (!aPouvoirsFondateur(s.user.email)) redirect(`${home}?e=forbidden`);
   const amount = parseInt(norm(formData.get('amount')), 10);
   const reason = norm(formData.get('reason')) || 'Ajustement manuel';
   if (!Number.isFinite(amount) || amount === 0) redirect(`${home}?e=amount`);
@@ -43,7 +43,7 @@ export async function rechargeAllocationAction(formData: FormData): Promise<void
   const s = await getSession();
   if (!s || !db) redirect('/login');
   const home = formData.get('back') === 'admin' ? '/admin/plans' : '/credits';
-  if (!isFounder(s.user.email)) redirect(`${home}?e=forbidden`);
+  if (!aPouvoirsFondateur(s.user.email)) redirect(`${home}?e=forbidden`);
   const alloc = PLAN_CREDITS[s.plan as Plan] ?? 0;
   const [w] = await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
   const delta = alloc - (w?.c ?? 0);

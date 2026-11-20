@@ -69,7 +69,7 @@ describe('SEC-03 · un lecteur ne crée ni ne modifie rien, même en appelant l�
   });
 
   it('un membre d’équipe invité en lecteur ne génère pas, même si la matrice ouvre le studio', () => {
-    const ctx = contexteDepuisSession(session(ids, 'uv', { equipe: { role: 'membre', matrice: { membre: ['studio'] } } }), [ids.brandA1], [], 't');
+    const ctx = contexteDepuisSession(session(ids, 'uv', { equipe: { role: 'membre', matrice: { membre: ['studio'] }, plateformeAdmissible: true } }), [ids.brandA1], [], 't');
     expect(ctx.permissions.espace.has('studio.read')).toBe(true);
     expect(ctx.permissions.espace.has('studio.generate')).toBe(false);
   });
