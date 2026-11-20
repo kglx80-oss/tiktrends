@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  retenirJournees, protocoleRetenu, adAMesurer, sourceDesEntrees, sommeRetenues, journeesReporting, importeesDans, mentionImportees,
+  retenirJournees, protocoleRetenu, protocoleMetaRetenu, adAMesurer, sourceDesEntrees, sommeRetenues, journeesReporting, importeesDans, mentionImportees,
   dansFenetre, verdictsDesMesures, sousKpisResultats, kpisResultats, PROTOCOLE_INCONNU, DEFAULT_VERDICT_CONFIG,
   type EntreeMesure, type EntreeCsvRetenable, type JourneeMetaLue, type MesuresLigne, type ProtocoleAd,
 } from '../src';
@@ -71,6 +71,29 @@ describe('protocoleRetenu · la connexion d’abord, sinon la ligne d’export l
   });
   it('rien · protocole inconnu, source nulle', () => {
     expect(protocoleRetenu(undefined, [])).toEqual({ protocole: PROTOCOLE_INCONNU, source: null });
+  });
+});
+
+describe('protocoleMetaRetenu · un ensemble NON LU ne fait rien oublier (budget, CBO)', () => {
+  const annonce = { nomAnnonce: 'Pub v1', campagne: 'C du jour', campagneId: 'c2', ensemble: 'ES du jour', ensembleId: 'as-2' };
+  const stocke: ProtocoleAd = { nomAnnonce: null, campagne: 'C', campagneId: 'c1', ensemble: 'ES', ensembleId: 'as-1', budgetJour: 45, cbo: false };
+  it('ensemble lu · ce qui vient d’être lu l’emporte, budget nul et CBO compris', () => {
+    expect(protocoleMetaRetenu({ annonce, ensemble: { budgetJour: null, cbo: true } }, stocke, { instance: false, relais: false }))
+      .toEqual({ ...annonce, budgetJour: null, cbo: true });
+  });
+  it('ensemble NON lu · l’annonce du jour, le budget et le CBO connus · jamais « sans CBO, budget inconnu »', () => {
+    expect(protocoleMetaRetenu({ annonce, ensemble: null }, stocke, { instance: true, relais: false }), 'ensemble non lu · le CBO ou le budget connus ont été oubliés')
+      .toEqual({ ...annonce, budgetJour: 45, cbo: true });
+  });
+  it('ensemble NON lu, instance d’avant 0073 (CBO NULL) · le relais du lot', () => {
+    expect(protocoleMetaRetenu({ annonce, ensemble: null }, stocke, { instance: null, relais: true })?.cbo).toBe(true);
+  });
+  it('ensemble NON lu, rien de stocké · budget inconnu, CBO du relais', () => {
+    expect(protocoleMetaRetenu({ annonce, ensemble: null }, undefined, { instance: undefined, relais: true })).toEqual({ ...annonce, budgetJour: null, cbo: true });
+  });
+  it('rien de lu ce passage (import) · le protocole stocké, CBO de l’instance · rien du tout · aucun protocole Meta', () => {
+    expect(protocoleMetaRetenu(undefined, stocke, { instance: true, relais: false })).toEqual({ ...stocke, cbo: true });
+    expect(protocoleMetaRetenu(undefined, undefined, { instance: undefined, relais: false })).toBeUndefined();
   });
 });
 
