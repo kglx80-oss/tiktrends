@@ -179,13 +179,24 @@ exponentielle depuis 1 min) · la reprise ne sert que ce qui manque. Un passage
 encore en cours (409) est revérifié toutes les 16 min, au plus 10 fois, sans
 consommer de tentative. Un passage tué par un redéploiement est repris une fois
 son verrou muet depuis 15 min. Un courriel refusé définitivement (5xx au RCPT
-avec un code 5.1.x · boîte inexistante) est noté abandonné, une ligne dans le
-journal web · mais si ces refus dépassent les envois réussis, personne n'est
-abandonné (cause commune probable : relais, quota) et la semaine reste
-interrompue. **Sans `SMTP_URL`**, les courriels sont sautés et la semaine
-reste interrompue (une erreur par passage dans le journal web). Si la semaine
-reste non servie, ou si des courriels ont été abandonnés, le journal du worker
-l'écrit en clair : `[digest] ALERTE · récap hebdomadaire …`.
+avec un code du destinataire 5.1.1/2/3/6/10 · boîte inexistante) est noté
+abandonné, une ligne dans le journal web, et le worker écrit une ALERTE
+« abandonnés ». Si au moins 3 de ces refus dépassent les envois réussis,
+personne n'est abandonné (cause commune probable : relais, quota) · la semaine
+reste interrompue et le worker écrit `[digest] ALERTE · disjoncteur des
+courriels …` sans retenter.
+
+**Sans `SMTP_URL`** (classée « plus tard » plus haut) · les notifications de
+l'application partent, aucun courriel n'est tenté, la route répond 503
+`smtp_absent` et le worker écrit UNE ligne `[digest] SMTP non configuré ·
+lettres servies dans l'application · courriels non envoyés`, sans retente ni
+ALERTE. Une fois `SMTP_URL` posée (et le conteneur web redémarré), un appel à
+la main la même semaine envoie les courriels sans redoubler les notifications.
+
+Si la semaine reste non servie, le journal du worker l'écrit en clair :
+`[digest] ALERTE · récap hebdomadaire NON SERVI …` (ou `NON CONFIRMÉ` si le
+job a été perdu · vérifier alors le verrou `digest:<semaine>` dans
+`app_settings`).
 
 Il ne dépense **rien** : la lettre est calculée à partir de comptes, jamais
 rédigée par un modèle. Et il n'envoie pas de lettre aux marques dont la semaine

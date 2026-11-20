@@ -1,7 +1,6 @@
 import 'server-only';
 import nodemailer from 'nodemailer';
-import SMTPTransport from 'nodemailer/lib/smtp-transport';
-import SMTPPool from 'nodemailer/lib/smtp-pool';
+import { parseConnectionUrl } from 'nodemailer/lib/shared';
 import { DELAI_SMTP_MS, refusDefinitifSmtp } from '@tiktrends/core';
 
 /**
@@ -21,16 +20,16 @@ let transport: nodemailer.Transporter | null | undefined;
  * hebdomadaire.
  *
  * Pas `createTransport({ url, …délais })` · nodemailer 9.0.5
- * (`lib/nodemailer.js:31-37`) ne lit alors QUE l'URL (`parseConnectionUrl`)
- * et jette le reste · les délais n'arrivaient jamais au transport. Les
- * transports eux-mêmes (`smtp-transport`, `smtp-pool`) fusionnent l'URL et les
- * options · on les construit donc directement. `?pool=true` dans l'URL garde
- * le transport en réserve de connexions, comme avant.
+ * (`lib/nodemailer.js:31-37`) ne lit alors QUE l'URL et jette le reste · les
+ * délais n'arrivaient jamais au transport. On lit l'URL nous-mêmes, avec le
+ * MÊME analyseur (`parseConnectionUrl`), et on passe un objet SANS `url` ·
+ * `createTransport` le prend alors tel quel : il choisit le transport comme
+ * avant (`pool=…` ⇒ réserve de connexions) et le `Mailer` garde les options de
+ * l'URL (proxy, tls.*), ce que la construction directe d'un transport perdait.
  */
 export function creerTransport(url: string): nodemailer.Transporter {
   const delais = { connectionTimeout: DELAI_SMTP_MS, greetingTimeout: DELAI_SMTP_MS, socketTimeout: DELAI_SMTP_MS };
-  const enReserve = /[?&]pool=(true|1)(&|$)/i.test(url);
-  return nodemailer.createTransport(enReserve ? new SMTPPool({ url, ...delais, pool: true }) : new SMTPTransport({ url, ...delais }));
+  return nodemailer.createTransport({ ...parseConnectionUrl(url), ...delais } as Parameters<typeof nodemailer.createTransport>[0]);
 }
 
 function getTransport(): nodemailer.Transporter | null {
@@ -40,16 +39,27 @@ function getTransport(): nodemailer.Transporter | null {
   return transport;
 }
 
+/** Le transport que `sendMail` utilise réellement (mis en cache) · `null` sans `SMTP_URL`. */
+export function transportCourant(): nodemailer.Transporter | null {
+  return getTransport();
+}
+
+/** SMTP configuré ? · sans `SMTP_URL`, `sendMail` saute chaque envoi. */
+export function smtpConfigure(): boolean {
+  return getTransport() !== null;
+}
+
 export function appUrl(): string {
   return (process.env.APP_URL || 'https://app.tiktrends.co').replace(/\/$/, '');
 }
 
 const FROM = () => process.env.MAIL_FROM || 'TikTrends <no-reply@tiktrends.co>';
 
-export async function sendMail(opts: { to: string | { name: string; address: string }; subject: string; html: string; text?: string }): Promise<{ ok: boolean; skipped?: boolean; error?: string; definitif?: boolean }> {
+export async function sendMail(opts: { to: string | { name: string; address: string }; subject: string; html: string; text?: string; qui?: string }): Promise<{ ok: boolean; skipped?: boolean; error?: string; definitif?: boolean }> {
   const t = getTransport();
   if (!t) {
-    console.log(`[mail:skip] (SMTP non configuré) « ${opts.subject} » → ${typeof opts.to === 'string' ? opts.to : opts.to.address}`);
+    // Jamais l'adresse au journal · l'identifiant de l'utilisateur quand l'appelant le donne.
+    console.log(`[mail:skip] (SMTP non configuré) « ${opts.subject} » → ${opts.qui ?? 'destinataire non journalisé'}`);
     return { ok: false, skipped: true };
   }
   try {

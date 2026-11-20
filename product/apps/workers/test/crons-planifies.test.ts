@@ -38,6 +38,8 @@ const h = vi.hoisted(() => ({
   handlers: new Map<string, (job: { name: string; data?: unknown; attemptsMade?: number; opts?: { attempts?: number } }) => Promise<unknown>>(),
   erreurs: [] as string[],
   corps: { ok: true } as Record<string, unknown>,
+  corpsErreur: null as Record<string, unknown> | null,
+  avis: [] as string[],
   evenements: new Map<string, (...a: unknown[]) => void>(),
   fermes: [] as string[],
   arreter: null as null | (() => Promise<void>),
@@ -53,7 +55,7 @@ vi.mock('bullmq', () => ({
   Worker: class {
     constructor(private n: string, p: (job: { name: string; data?: unknown; attemptsMade?: number; opts?: { attempts?: number } }) => Promise<unknown>) { h.handlers.set(n, p); }
     on(ev: string, cb: (...a: unknown[]) => void) { h.evenements.set(`${this.n}:${ev}`, cb); return this; }
-    close() { h.fermes.push(this.n); return Promise.resolve(); }
+    close(force?: boolean) { h.fermes.push(`${this.n}:${force === true ? 'force' : 'attend'}`); return Promise.resolve(); }
   },
 }));
 vi.mock('ioredis', () => ({ default: class {} }));
@@ -80,11 +82,11 @@ beforeAll(async () => {
   vi.stubEnv('INTERNAL_APP_URL', 'http://web.test:3000');
   vi.stubGlobal('fetch', async (url: string | URL) => {
     h.appels.push(new URL(String(url)).pathname);
-    const corps = h.statut === 200 ? h.corps : h.statut === 409 ? { error: 'en_cours' } : { error: 'digest_incomplet' };
+    const corps = h.statut === 200 ? h.corps : h.corpsErreur ?? (h.statut === 409 ? { error: 'en_cours' } : { error: 'digest_incomplet' });
     return new Response(JSON.stringify(corps), { status: h.statut, headers: { 'content-type': 'application/json' } });
   });
   vi.spyOn(console, 'log').mockImplementation((...a: unknown[]) => { h.logs.push(a.map(String).join(' ')); });
-  vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+  vi.spyOn(console, 'warn').mockImplementation((...a: unknown[]) => { h.avis.push(a.map(String).join(' ')); });
   vi.spyOn(console, 'error').mockImplementation((...a: unknown[]) => { h.erreurs.push(a.map(String).join(' ')); });
   vi.spyOn(process, 'exit').mockImplementation(((c?: number) => { throw new Error(`process.exit(${c}) · le point d’entrée a échoué`); }) as never);
 
@@ -141,7 +143,7 @@ describe('chaque route cron est déclenchée par une tâche planifiée du worker
     expect(h.arreter, 'le point d’entrée n’enregistre pas d’arrêt propre').not.toBeNull();
     h.fermes = [];
     await h.arreter!();
-    expect(h.fermes, 'l’arrêt propre ne ferme pas le worker cron').toContain('cron');
+    expect(h.fermes, 'l’arrêt propre ne ferme pas le worker cron SANS attendre son job (un passage du récap dépasse la borne d’arrêt)').toContain('cron:force');
   });
 
   it('weekly-digest · tentatives bornées, attente exponentielle', () => {
@@ -190,7 +192,7 @@ describe('chaque route cron est déclenchée par une tâche planifiée du worker
     it('job en échec DÉFINITIF hors de passageRecap (bloqué par des redémarrages, dernière tentative) · ALERTE ; tentative intermédiaire · rien', () => {
       const echec = h.evenements.get('cron:failed');
       expect(echec, 'le worker cron n’écoute pas ses échecs').toBeDefined();
-      const alertes = () => h.erreurs.filter((e) => e.includes('ALERTE · récap hebdomadaire NON SERVI'));
+      const alertes = () => h.erreurs.filter((e) => e.includes('ALERTE · récap hebdomadaire NON CONFIRMÉ') && /vérifier le verrou digest:\d{4}-W\d{2}/.test(e));
       h.erreurs = [];
       echec!({ name: 'weekly-digest', attemptsMade: 1, opts: { attempts: TENTATIVES_RECAP } }, new Error('job stalled more than allowable limit'));
       expect(alertes(), 'un weekly-digest bloqué deux fois échoue sans alerte').toHaveLength(1);
@@ -201,6 +203,29 @@ describe('chaque route cron est déclenchée par une tâche planifiée du worker
       echec!({ name: 'weekly-digest', attemptsMade: 2, opts: { attempts: TENTATIVES_RECAP } }, new Error('récap hebdomadaire non servi · 500'));
       echec!({ name: 'tracker-scan', attemptsMade: 1, opts: { attempts: 1 } }, new Error('boum'));
       expect(alertes(), 'une tentative intermédiaire (ou une autre tâche) crie au récap perdu').toHaveLength(0);
+    });
+
+    it('SMTP absent (503 smtp_absent) · ne lève pas, aucune ALERTE « non servi », une seule ligne', async () => {
+      h.corpsErreur = { error: 'smtp_absent', notified: 2, skippedMails: 2 };
+      h.avis = [];
+      try {
+        await avec(503, async () => {
+          await expect(handler()({ name: 'weekly-digest', attemptsMade: 0, opts: { attempts: TENTATIVES_RECAP } }), 'un SMTP absent lève · BullMQ retenterait chaque lundi pour un état connu').resolves.toMatchObject({ sansSmtp: true });
+          expect(h.erreurs.filter((e) => e.includes('ALERTE')), 'un SMTP absent crie une ALERTE · le bruit apprend à l’ignorer').toEqual([]);
+          expect(h.avis.filter((e) => e.includes('SMTP non configuré')), 'une ligne, une seule').toHaveLength(1);
+        });
+      } finally { h.corpsErreur = null; }
+    });
+
+    it('disjoncteur des courriels · ALERTE précise sans retente (pas « non servi »)', async () => {
+      h.corpsErreur = { error: 'digest_incomplet', disjoncteur: true, refused: 4, sent: 0 };
+      try {
+        await avec(500, async () => {
+          await expect(handler()({ name: 'weekly-digest', attemptsMade: 0, opts: { attempts: TENTATIVES_RECAP } }), 'un disjoncteur déclenché se retente').resolves.toMatchObject({ disjoncteur: true });
+          expect(h.erreurs.some((e) => e.includes('ALERTE · disjoncteur des courriels · 4 refus')), 'le disjoncteur n’alerte pas précisément').toBe(true);
+          expect(h.erreurs.some((e) => e.includes('NON SERVI')), 'un disjoncteur est annoncé « non servi »').toBe(false);
+        });
+      } finally { h.corpsErreur = null; }
     });
 
     it('409 après le dernier report · ALERTE, plus de report', async () => {

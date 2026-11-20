@@ -9,7 +9,7 @@ import {
 } from '@tiktrends/core';
 import { weeklyDigests, digestText } from '../../../../lib/digest';
 import { digestEmail } from '../../../../lib/emails';
-import { sendMail } from '../../../../lib/mailer';
+import { sendMail, smtpConfigure } from '../../../../lib/mailer';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -79,12 +79,19 @@ export const maxDuration = 300;
  * `refusDefinitifSmtp`) est noté abandonné en FIN de passage, journalisé, et
  * n'est plus retenté · sauf si le disjoncteur (`disjoncteurAbandons`) dit
  * qu'ils sont trop nombreux pour être des boîtes mortes : personne n'est alors
- * abandonné, la semaine reste `interrompu`. Le nombre d'abandons part dans la
- * réponse (`abandoned`) · le worker ALERTE quand il n'est pas nul.
+ * abandonné, la semaine reste `interrompu`, la réponse le dit
+ * (`disjoncteur: true`) et le worker crie une ALERTE précise sans retenter. Le
+ * cumul des abandons de la SEMAINE part dans la réponse (`abandoned`, reprises
+ * comprises) · le worker ALERTE quand il n'est pas nul.
  *
- * Sans SMTP configuré, chaque courriel est SAUTÉ · ce n'est pas une semaine
- * servie. Les sautés ne sont pas notés, le passage finit `interrompu` (500)
- * avec une erreur unique dans le journal · le worker retente puis alerte.
+ * Sans SMTP configuré (`SMTP_URL`), c'est une CONFIGURATION, pas une panne ·
+ * les notifications sont servies, aucun courriel n'est tenté (`sendMail`
+ * n'est pas appelé, aucune adresse au journal), une seule ligne dans le
+ * journal, et la route répond 503 `smtp_absent`. Le verrou reste `interrompu`
+ * · une fois `SMTP_URL` posée, un appel à la main la même semaine envoie les
+ * courriels, sans redoubler les notifications. Le worker ne retente pas et ne
+ * crie pas « non servi » · un bruit chaque lundi apprendrait à ignorer
+ * l'alerte.
  */
 
 /** Le verrou est passé à un autre passage · on s'arrête sans rien écrire. */
@@ -158,6 +165,7 @@ export async function GET(req: Request) {
     let marquesEnEchec = 0;
     let courrielsEnEchec = 0;
     let courrielsSautes = 0;
+    const smtp = smtpConfigure();
     let lettresServies = 0;
     /** Refus définitifs de ce passage · notés à la fin, si le disjoncteur le permet. */
     const abandonsEnAttente: Array<{ marque: string; utilisateur: string }> = [];
@@ -204,10 +212,12 @@ export async function GET(req: Request) {
         });
         for (const u of users) {
           if (!u.email || dejaEcritRecap(etat, l.brandId, u.id)) continue;
+          // Sans SMTP · rien n'est tenté, rien n'est noté (le rattrapage les enverra).
+          if (!smtp) { courrielsSautes++; continue; }
           // AVANT l'envoi · battre ET vérifier le jeton. Un passage repris ne doit
           // pas écrire au destinataire que la reprise va servir.
           await battre();
-          const r = await sendMail({ to: u.email, subject: mail.subject, html: mail.html, text: mail.text });
+          const r = await sendMail({ to: u.email, subject: mail.subject, html: mail.html, text: mail.text, qui: u.id });
           if (r.ok) {
             await ecrire(avecCourrielRecap(etat, l.brandId, u.id, new Date()));
             envoyees++;
@@ -232,28 +242,33 @@ export async function GET(req: Request) {
     }
 
     // Les refus définitifs · notés seulement s'ils restent l'exception.
-    let abandonnes = 0;
+    let disjoncte: { refused: number; sent: number } | null = null;
     if (abandonsEnAttente.length) {
       const envoyesTotal = courrielsNotesRecap(etat);
       const abandonsTotal = abandonsNotesRecap(etat) + abandonsEnAttente.length;
       if (disjoncteurAbandons({ envoyes: envoyesTotal, abandons: abandonsTotal })) {
         courrielsEnEchec += abandonsEnAttente.length;
+        disjoncte = { refused: abandonsTotal, sent: envoyesTotal };
         console.error('[cron:digest]', semaine, '· disjoncteur ·', abandonsTotal, 'refus « définitif(s) » pour', envoyesTotal, 'courriel(s) parti(s) · cause commune probable (relais, quota, politique du serveur) · personne n’est abandonné, la semaine reste interrompue');
       } else {
         let suite = etat;
         for (const a of abandonsEnAttente) suite = avecAbandonRecap(suite, a.marque, a.utilisateur, new Date());
         await ecrire(suite);
-        abandonnes = abandonsEnAttente.length;
         for (const a of abandonsEnAttente) console.warn('[cron:digest]', semaine, '· courriel abandonné (refus définitif) · marque', a.marque, '· destinataire', a.utilisateur);
       }
     }
-    if (courrielsSautes) console.error('[cron:digest]', semaine, '·', courrielsSautes, 'courriel(s) SAUTÉ(S) · SMTP non configuré (SMTP_URL) · la semaine reste interrompue');
+    // Le cumul de la SEMAINE · un abandon noté par un passage en 500 n'échappe pas à l'alerte de la reprise en 200.
+    const abandonnes = abandonsNotesRecap(etat);
+    if (courrielsSautes) console.warn('[cron:digest]', semaine, '· SMTP non configuré (SMTP_URL) · lettres servies dans l’application ·', courrielsSautes, 'courriel(s) non envoyé(s) · verrou laissé interrompu pour un rattrapage');
     if (courrielsEnEchec) console.error('[cron:digest]', semaine, '·', courrielsEnEchec, 'courriel(s) attendu(s) non parti(s) · le passage reste interrompu, la tentative suivante les renverra');
     const echecs = marquesEnEchec + courrielsEnEchec + courrielsSautes;
     await ecrire(finRecap(etat, echecs, new Date()));
     console.log('[cron:digest]', semaine, '·', lettresServies, 'lettre(s) ·', notifiees, 'notification(s) ·', envoyees, 'courriel(s)', echecs ? `· ${marquesEnEchec} marque(s), ${courrielsEnEchec} courriel(s) en échec, ${courrielsSautes} sauté(s)` : '');
+    const bilan = { week: semaine, notified: notifiees, mailed: envoyees, abandoned: abandonnes, failedBrands: marquesEnEchec, failedMails: courrielsEnEchec, skippedMails: courrielsSautes };
+    // Une marque en échec se retente (500) · même sans SMTP, ses notifications en dépendent.
+    if (!marquesEnEchec && courrielsSautes) return NextResponse.json({ error: 'smtp_absent', ...bilan }, { status: 503 });
     if (echecs) {
-      return NextResponse.json({ error: 'digest_incomplet', week: semaine, notified: notifiees, mailed: envoyees, abandoned: abandonnes, failedBrands: marquesEnEchec, failedMails: courrielsEnEchec, skippedMails: courrielsSautes }, { status: 500 });
+      return NextResponse.json({ error: 'digest_incomplet', ...bilan, ...(disjoncte ? { disjoncteur: true, ...disjoncte } : {}) }, { status: 500 });
     }
     return NextResponse.json({ ok: true, week: semaine, brands: lettresServies, notified: notifiees, mailed: envoyees, abandoned: abandonnes });
   } catch (e) {

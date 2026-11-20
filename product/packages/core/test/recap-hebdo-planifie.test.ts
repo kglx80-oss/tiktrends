@@ -5,7 +5,7 @@ import {
   etatInitialRecap, lireEtatRecap, decisionVerrouRecap, repriseRecap, avecMarquesRecap,
   avecNotificationRecap, avecCourrielRecap, dejaNotifieRecap, dejaEcritRecap, finRecap,
   avecAbandonRecap, refusDefinitifSmtp, suiteRecap, REPORT_EN_COURS_MS, REPORTS_EN_COURS_MAX, DELAI_SMTP_MS,
-  disjoncteurAbandons, courrielsNotesRecap, abandonsNotesRecap, DUREE_PASSAGE_MAX_MS,
+  disjoncteurAbandons, courrielsNotesRecap, abandonsNotesRecap, DUREE_PASSAGE_MAX_MS, EFFECTIF_DISJONCTEUR,
   type SuiteRecap,
 } from '../src/adsmap/recap-hebdo-planifie';
 
@@ -148,6 +148,9 @@ describe('un courriel refusé définitivement · noté abandonné, plus retenté
     expect(refusDefinitifSmtp({ responseCode: 550, command: 'RCPT TO', response: '550 5.1.1 <x@y>: Recipient address rejected: User unknown' })).toBe(true);
     expect(refusDefinitifSmtp({ responseCode: 550, command: 'RCPT TO', response: '550-5.1.1 The email account that you tried to reach does not exist.' })).toBe(true);
     expect(refusDefinitifSmtp({ responseCode: 556, command: 'RCPT TO', response: '556 5.1.10 Recipient address has null MX' })).toBe(true);
+    expect(refusDefinitifSmtp({ responseCode: 550, command: 'RCPT TO', response: '550 5.1.2 Host unknown' })).toBe(true);
+    expect(refusDefinitifSmtp({ responseCode: 553, command: 'RCPT TO', response: '553 5.1.3 Bad destination mailbox address syntax' })).toBe(true);
+    expect(refusDefinitifSmtp({ responseCode: 551, command: 'RCPT TO', response: '551 5.1.6 User has moved' })).toBe(true);
   });
   it('passager · tout 5xx qui ne parle pas de l’adresse (il frappe en général tout le monde)', () => {
     const CAS: Array<[unknown, string]> = [
@@ -157,18 +160,27 @@ describe('un courriel refusé définitivement · noté abandonné, plus retenté
       [{ responseCode: 554, command: 'DATA', response: '554 Message rejected: Email address is not verified.' }, 'relais après DATA (SES)'],
       [{ responseCode: 552, command: 'DATA', response: '552 5.3.4 Message size exceeds fixed limit' }, 'contenu refusé'],
       [{ responseCode: 550, command: 'DATA', response: '550 5.1.1 User unknown' }, 'même un 5.1.1 hors RCPT'],
+      [{ responseCode: 550, command: 'RCPT TO', response: '550 5.1.0 <s@x>: Sender address rejected: User unknown in local recipient table' }, 'Postfix · l’expéditeur refusé au RCPT (5.1.0)'],
+      [{ responseCode: 553, command: 'RCPT TO', response: '553 5.1.7 The sender address is invalid' }, 'expéditeur mal formé (5.1.7)'],
+      [{ responseCode: 553, command: 'RCPT TO', response: '553 5.1.8 <s@x>: Sender address rejected: Domain not found' }, 'domaine de l’expéditeur introuvable (5.1.8)'],
+      [{ responseCode: 550, command: 'RCPT TO', response: '550 5.1.12 Unknown status' }, 'un 5.1.x hors liste'],
       [{ responseCode: 535, command: 'AUTH PLAIN', response: '535 5.7.8 Authentication failed' }, 'authentification'],
       [{ responseCode: 451, command: 'RCPT TO', response: '451 4.1.1 Try again later' }, '4xx'],
       [{}, 'vide'], [null, 'nul'],
     ];
     for (const [e, pourquoi] of CAS) expect(refusDefinitifSmtp(e as never), pourquoi).toBe(false);
   });
-  it('le disjoncteur · au moins un abandon et aucun envoi, ou plus d’abandons que d’envois ⇒ personne n’est abandonné', () => {
-    expect(disjoncteurAbandons({ envoyes: 0, abandons: 1 }), 'un refus sans aucun envoi réussi').toBe(true);
-    expect(disjoncteurAbandons({ envoyes: 3, abandons: 4 }), 'la majorité des décisions').toBe(true);
-    expect(disjoncteurAbandons({ envoyes: 1, abandons: 1 }), 'à égalité · un espace de deux personnes, une boîte morte').toBe(false);
+  it('le disjoncteur · au moins EFFECTIF_DISJONCTEUR refus, et aucun envoi ou plus de refus que d’envois ⇒ personne n’est abandonné', () => {
+    const N = EFFECTIF_DISJONCTEUR;
+    expect(N, 'un effectif minimum').toBeGreaterThanOrEqual(2);
+    expect(disjoncteurAbandons({ envoyes: 0, abandons: 1 }), 'une seule adresse fausse, rien d’autre · elle ne fait pas parler le groupe').toBe(false);
+    expect(disjoncteurAbandons({ envoyes: 0, abandons: N - 1 }), 'sous l’effectif minimum').toBe(false);
+    expect(disjoncteurAbandons({ envoyes: 0, abandons: N }), 'l’effectif atteint, aucun envoi').toBe(true);
+    expect(disjoncteurAbandons({ envoyes: N, abandons: N + 1 }), 'la majorité des décisions').toBe(true);
+    expect(disjoncteurAbandons({ envoyes: N, abandons: N }), 'à égalité').toBe(false);
+    expect(disjoncteurAbandons({ envoyes: 1, abandons: 1 }), 'un espace de deux personnes, une boîte morte').toBe(false);
     expect(disjoncteurAbandons({ envoyes: 2, abandons: 5 }), 'tout le monde ou presque').toBe(true);
-    expect(disjoncteurAbandons({ envoyes: 3, abandons: 1 }), 'une boîte morte parmi des envois qui passent').toBe(false);
+    expect(disjoncteurAbandons({ envoyes: 10, abandons: N }), 'quelques boîtes mortes parmi des envois qui passent').toBe(false);
     expect(disjoncteurAbandons({ envoyes: 0, abandons: 0 })).toBe(false);
   });
   it('les comptes notés se cumulent sur toutes les marques', () => {
@@ -248,6 +260,17 @@ describe('le calendrier d’un passage long · la semaine finit servie', () => {
     expect(suiteRecap({ ok: false, status: 409, detail: 'en_cours' }, { reports: REPORTS_EN_COURS_MAX, tentative: 1, tentativesMax: 6 }).action).toBe('abandon');
     expect(suiteRecap({ ok: false, status: 500 }, { reports: 0, tentative: 6, tentativesMax: 6 }).action).toBe('abandon');
     expect(suiteRecap({ ok: false, status: 500 }, { reports: 0, tentative: 5, tentativesMax: 6 }).action).toBe('retenter');
+  });
+
+  it('SMTP absent · ni retente ni abandon crié · une configuration, pas une panne', () => {
+    expect(suiteRecap({ ok: false, status: 503, detail: 'smtp_absent' }, { reports: 0, tentative: 1, tentativesMax: 6 })).toEqual({ action: 'sans_smtp' });
+    expect(suiteRecap({ ok: false, status: 503, detail: 'cron_disabled' }, { reports: 0, tentative: 1, tentativesMax: 6 }).action, 'un autre 503 se retente').toBe('retenter');
+  });
+
+  it('disjoncteur déclenché · abandon IMMÉDIAT, raison précise (pas « non servi »)', () => {
+    const s = suiteRecap({ ok: false, status: 500, detail: 'digest_incomplet', corps: { disjoncteur: true, refused: 4, sent: 0 } }, { reports: 0, tentative: 1, tentativesMax: 6 });
+    expect(s).toMatchObject({ action: 'abandon', disjoncteur: true });
+    expect(s.action === 'abandon' && s.raison).toMatch(/disjoncteur des courriels · 4 refus/);
   });
 
   const MAX = DUREE_PASSAGE_MAX_MS / 60_000;

@@ -258,18 +258,20 @@ export function avecBattementRecap(e: EtatVerrouRecap, maintenant: Date): EtatVe
 
 /**
  * Un refus SMTP DÉFINITIF pour CE destinataire · et seulement lui : réponse
- * 5xx à `RCPT TO` portant un code étendu 5.1.x (RFC 3463 · adresse de
- * destination · 5.1.1 boîte inexistante, 5.1.10 domaine nul…). Tout le reste
- * est PASSAGER, `DATA` compris · un 5xx qui ne parle pas de l'adresse frappe
- * en général tout le monde (`554 5.7.1 Relay access denied` au RCPT, quota
- * en 550 5.2.x, « address not verified » d'un relais après `DATA`, filtre de
- * contenu) · l'abandonner ferait taire la semaine entière.
+ * 5xx à `RCPT TO` portant un code étendu qui désigne l'adresse du DESTINATAIRE
+ * (RFC 3463) · 5.1.1 boîte inexistante, 5.1.2 domaine inexistant, 5.1.3
+ * adresse mal formée, 5.1.6 boîte déplacée, 5.1.10 domaine nul (RFC 7505).
+ * Les autres 5.1.x parlent de l'EXPÉDITEUR, même renvoyés au RCPT par Postfix
+ * (5.1.0 « Sender address rejected », 5.1.7, 5.1.8) · ils frappent tout le
+ * monde. Tout le reste est PASSAGER, `DATA` compris · `554 5.7.1 Relay access
+ * denied` au RCPT, quota en 550 5.2.x, « address not verified » d'un relais
+ * après `DATA`, filtre de contenu · l'abandonner ferait taire la semaine.
  */
 export function refusDefinitifSmtp(e: { responseCode?: unknown; command?: unknown; response?: unknown } | null | undefined): boolean {
   const code = Number(e?.responseCode);
   const commande = String(e?.command ?? '').toUpperCase();
   const reponse = String(e?.response ?? '');
-  return code >= 500 && code < 600 && commande.startsWith('RCPT') && /^\d{3}[ -]5\.1\.\d{1,3}\b/.test(reponse.trim());
+  return code >= 500 && code < 600 && commande.startsWith('RCPT') && /^\d{3}[ -]5\.1\.(1|2|3|6|10)\b/.test(reponse.trim());
 }
 
 /**
@@ -287,9 +289,22 @@ export function refusDefinitifSmtp(e: { responseCode?: unknown; command?: unknow
  * (un espace de deux personnes, une boîte morte), la boîte morte est notée,
  * sinon cet espace resterait `interrompu` chaque semaine pour une seule
  * adresse.
+ *
+ * Et seulement à partir de `EFFECTIF_DISJONCTEUR` refus · la doctrine du dépôt
+ * (un groupe n'a le droit de parler qu'avec un effectif minimum). Les comptes
+ * sont ceux de TOUTE l'installation · avant le lancement, une installation
+ * compte une poignée de destinataires, dont souvent des comptes de test
+ * (`@example.com`, 556 5.1.10) ou une adresse mal saisie. Un ou deux refus
+ * concordants s'expliquent par une ou deux mauvaises adresses · les traiter en
+ * cause commune laisserait la semaine `interrompu` chaque lundi, sans recours
+ * autre que corriger l'adresse. Trois boîtes mortes en même temps, plus
+ * nombreuses que les envois réussis, sont moins plausibles qu'un relais ou un
+ * quota. Une erreur dans l'autre sens est rattrapée · sous le seuil, les
+ * abandons sont notés ET le worker crie « abandonnés » (ALERTE).
  */
+export const EFFECTIF_DISJONCTEUR = 3;
 export function disjoncteurAbandons(c: { envoyes: number; abandons: number }): boolean {
-  return c.abandons >= 1 && (c.envoyes === 0 || c.abandons > c.envoyes);
+  return c.abandons >= EFFECTIF_DISJONCTEUR && (c.envoyes === 0 || c.abandons > c.envoyes);
 }
 
 /** Courriels notés partis, toutes reprises confondues. */
@@ -304,24 +319,36 @@ export function abandonsNotesRecap(e: EtatVerrouRecap): number {
 /** Ce que le worker fait de la réponse de la route. */
 export type SuiteRecap =
   | { action: 'fini' }
+  | { action: 'sans_smtp' }
   | { action: 'reporter'; delaiMs: number; reports: number }
   | { action: 'retenter' }
-  | { action: 'abandon'; raison: string };
+  | { action: 'abandon'; raison: string; disjoncteur?: boolean };
 
 /**
  * La suite d'un déclenchement de `weekly-digest`.
  *  · servi (ou déjà servi) · fini ;
  *  · 409 `en_cours` / `verrou_perdu` · un passage vivant tient la semaine ·
  *    REPORTER sans consommer de tentative, au plus `REPORTS_EN_COURS_MAX` fois ;
+ *  · 503 `smtp_absent` · une CONFIGURATION, pas une panne · les lettres sont
+ *    servies dans l'application, les courriels ne peuvent pas partir. Rien à
+ *    retenter (chaque retente relirait toutes les marques pour rien) · une
+ *    ligne au journal, pas d'ALERTE « non servi » (crier chaque lundi pour un
+ *    état connu apprend à ignorer l'alerte) ;
+ *  · disjoncteur déclenché · une cause commune côté SMTP · abandon immédiat,
+ *    ALERTE précise (pas « non servi » · les lettres sont dans l'application) ;
  *  · tout autre échec (500, délai dépassé, injoignable) · RETENTER (BullMQ,
  *    une tentative) tant qu'il en reste ;
  *  · plus rien · ABANDON, que le worker crie (la semaine n'est pas `fait`).
  */
 export function suiteRecap(
-  issue: { ok: boolean; status?: number; detail?: string },
+  issue: { ok: boolean; status?: number; detail?: string; corps?: Record<string, unknown> },
   c: { reports: number; tentative: number; tentativesMax: number },
 ): SuiteRecap {
   if (issue.ok) return { action: 'fini' };
+  if (issue.status === 503 && issue.detail === 'smtp_absent') return { action: 'sans_smtp' };
+  if (issue.corps?.disjoncteur === true) {
+    return { action: 'abandon', disjoncteur: true, raison: `disjoncteur des courriels · ${Number(issue.corps.refused) || 0} refus « définitif(s) » pour ${Number(issue.corps.sent) || 0} courriel(s) parti(s) cette semaine · cause commune probable (relais, quota, politique du serveur) · aucune adresse abandonnée, lettres servies dans l'application · vérifier la configuration SMTP puis relancer GET /api/cron/digest` };
+  }
   if (issue.status === 409 && (issue.detail === 'en_cours' || issue.detail === 'verrou_perdu')) {
     return c.reports < REPORTS_EN_COURS_MAX
       ? { action: 'reporter', delaiMs: REPORT_EN_COURS_MS, reports: c.reports + 1 }

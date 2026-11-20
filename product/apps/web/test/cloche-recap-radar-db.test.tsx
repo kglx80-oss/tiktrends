@@ -74,8 +74,8 @@ vi.mock('next/headers', () => ({
 }));
 vi.mock('next/cache', () => ({ revalidatePath: () => {}, revalidateTag: () => {}, unstable_noStore: () => {} }));
 vi.mock('../lib/spend-guard', () => ({ spendStatus: async () => ({ spentUsd: 0, capUsd: 10, summary: '', blocked: false }) }));
-// Un envoi RÉUSSI simulé · sans SMTP (« sauté »), le récap finit interrompu (500) et ne compte pas la semaine servie.
-vi.mock('../lib/mailer', async (importOriginal) => ({ ...(await importOriginal<typeof import('../lib/mailer')>()), sendMail: async () => ({ ok: true }) }));
+// Un SMTP configuré et un envoi RÉUSSI simulés · sans SMTP, le récap répond 503 `smtp_absent` et laisse la semaine interrompue.
+vi.mock('../lib/mailer', async (importOriginal) => ({ ...(await importOriginal<typeof import('../lib/mailer')>()), smtpConfigure: () => true, sendMail: async () => ({ ok: true }) }));
 vi.mock('../app/actions/assistant', () => ({ askAssistant: async () => ({}) }));
 
 import { db, schema, eq, and } from '@tiktrends/db';

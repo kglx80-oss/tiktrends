@@ -76,7 +76,7 @@ const LUNDI = new Date('2026-11-16T06:47:00Z');         // lundi 07:47 à Paris 
 const LUNDI_SUIVANT = new Date('2026-11-23T06:47:00Z'); // 2026-W48
 const lundi = (iso: string) => new Date(`${iso}T06:47:00Z`);
 
-type Reponse = { ok?: boolean; skipped?: string; week?: string; notified: number; mailed: number; error?: string; failedBrands?: number; failedMails?: number };
+type Reponse = { ok?: boolean; skipped?: string; week?: string; notified: number; mailed: number; error?: string; failedBrands?: number; failedMails?: number; abandoned?: number; disjoncteur?: boolean };
 
 const appel = () => cronRecap(new Request('http://localhost/api/cron/digest', { headers: { authorization: 'Bearer cron-de-test' } }));
 
@@ -444,10 +444,11 @@ describe('un 5xx qui frappe tout le monde n’est pas une boîte morte · la sem
   const RELAIS = Object.assign(new Error('Can’t send mail - all recipients were rejected'), { responseCode: 554, command: 'RCPT TO', response: '554 5.7.1 <x>: Relay access denied' });
   const INCONNU = () => Object.assign(new Error('Can’t send mail - all recipients were rejected'), { responseCode: 550, command: 'RCPT TO', response: '550 5.1.1 <x>: Recipient address rejected: User unknown' });
 
-  it('TOUS les destinataires refusés en 5.1.1 · le disjoncteur n’abandonne personne, 500, erreur au journal, la relance les sert', async () => {
+  it('TOUS les destinataires refusés en 5.1.1 (3, l’effectif minimum) · le disjoncteur n’abandonne personne, 500 `disjoncteur`, la relance les sert', async () => {
     const instant = lundi('2027-02-22'); // 2027-W08
     await trouvailles(instant, 'w08');
-    const avant = { m: courrielsA(), e: h.essais.length };
+    await trouvailles(instant, 'w08b', ids.wsB, ids.brandB);
+    const avant = { m: courrielsA(), b: courrielsB(), e: h.essais.length };
     const erreurs: string[] = [];
     h.surEnvoi = async () => { throw INCONNU(); };
     const espionE = vi.spyOn(console, 'error').mockImplementation((...a: unknown[]) => { erreurs.push(a.map(String).join(' ')); });
@@ -455,13 +456,41 @@ describe('un 5xx qui frappe tout le monde n’est pas une boîte morte · la sem
     let r: Awaited<ReturnType<typeof passage>>;
     try { r = await passage(instant); } finally { h.surEnvoi = null; espionE.mockRestore(); espionW.mockRestore(); }
     expect(r.status, 'tous les courriels refusés · la semaine passe « fait »').toBe(500);
-    expect(r.corps).toMatchObject({ error: 'digest_incomplet', mailed: 0, abandoned: 0, failedMails: 2 });
+    expect(r.corps).toMatchObject({ error: 'digest_incomplet', mailed: 0, abandoned: 0, failedMails: 3, disjoncteur: true, refused: 3, sent: 0 });
     expect(lireEtatRecap(await verrou(instant))?.servis[ids.brandA]?.abandons ?? [], 'le disjoncteur a laissé noter les abandons').toEqual([]);
     expect(lireEtatRecap(await verrou(instant))?.etat).toBe('interrompu');
     expect(erreurs.some((x) => x.includes('disjoncteur')), 'le disjoncteur ne le dit pas au journal').toBe(true);
     const relance = await passage(instant);
-    expect(relance.corps, 'la relance n’a pas servi les courriels retenus par le disjoncteur').toMatchObject({ ok: true, mailed: 2, abandoned: 0 });
+    expect(relance.corps, 'la relance n’a pas servi les courriels retenus par le disjoncteur').toMatchObject({ ok: true, mailed: 3, abandoned: 0 });
     expect(courrielsA() - avant.m).toBe(2);
+    expect(courrielsB() - avant.b).toBe(1);
+  });
+
+  it('une seule adresse fausse, rien d’autre de parti (sous l’effectif minimum) · notée abandonnée ; puis 500 → 200 · le cumul de la semaine part dans la réponse', async () => {
+    const instant = lundi('2027-03-08'); // 2027-W10
+    await trouvailles(instant, 'w10');
+    const admin = `${ids.admin}@recap.test`;
+    const owner = `${ids.owner}@recap.test`;
+    let ownerEnPanne = true;
+    h.surEnvoi = async (m) => {
+      if (String(m.to) === admin) throw INCONNU();
+      if (String(m.to) === owner && ownerEnPanne) throw Object.assign(new Error('421 4.3.2 service indisponible (test)'), { responseCode: 421, command: 'RCPT TO', response: '421 4.3.2 Service not available' });
+    };
+    const espionE = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const espionW = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    let r1: Awaited<ReturnType<typeof passage>>;
+    let r2: Awaited<ReturnType<typeof passage>>;
+    try {
+      r1 = await passage(instant);
+      ownerEnPanne = false;
+      r2 = await passage(instant);
+    } finally { h.surEnvoi = null; espionE.mockRestore(); espionW.mockRestore(); }
+    expect(r1.status).toBe(500);
+    expect(r1.corps, '{0 envoi, 1 abandon} · le disjoncteur parle sous l’effectif minimum').toMatchObject({ mailed: 0, abandoned: 1, failedMails: 1 });
+    expect(r1.corps.disjoncteur).toBeUndefined();
+    expect(lireEtatRecap(await verrou(instant))?.servis[ids.brandA]?.abandons).toEqual([ids.admin]);
+    expect(r2.status).toBe(200);
+    expect(r2.corps, 'la reprise en 200 tait l’abandon noté par le passage en 500 · aucune ALERTE ne partirait').toMatchObject({ ok: true, mailed: 1, abandoned: 1 });
   });
 
   it('relais refusé au RCPT (554 5.7.1) pour UN destinataire, l’autre parti · passager, rien d’abandonné, 500', async () => {

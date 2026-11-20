@@ -46,9 +46,11 @@ async function main() {
   const cron = startCronWorker();
   // Arrêt propre sur SIGTERM/SIGINT (recréation du conteneur à chaque commit) ·
   // le worker Studios finit son tour avant la sortie (voir `boucle.ts`), le
-  // worker cron rend son job en cours au lieu de le laisser « stalled » ·
-  // deux blocages de suite font échouer un `weekly-digest` sans reprise.
-  arretPropreSurSignal({ processus: process, arreter: async () => { await Promise.all([studio?.arreter(), cron.close()]); }, sortir: (c) => process.exit(c) });
+  // worker cron ferme SANS attendre son job en cours (`close(true)`) · un
+  // passage du récap peut durer bien plus que la borne d'arrêt, et le
+  // reprendre ne double rien (verrou de la semaine). Le job abandonné est remis
+  // en attente par BullMQ et relancé au redémarrage.
+  arretPropreSurSignal({ processus: process, arreter: async () => { await Promise.all([studio?.arreter(), cron.close(true)]); }, sortir: (c) => process.exit(c) });
 
   // Synchro quotidienne des sources de données (Shopify + Meta) · 6h du matin.
   await queues.cron.add('daily-sync', {}, {
