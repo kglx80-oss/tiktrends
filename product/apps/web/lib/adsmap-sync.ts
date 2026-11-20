@@ -1,7 +1,7 @@
 import 'server-only';
 import { db, schema, eq, and, inArray, sql } from '@tiktrends/db';
 import { decryptSecret, metaDailySync, metaAdsetsSync, type MetaDailyRow, type MetaAdsetInfo } from '@tiktrends/integrations';
-import { matchByName, matchByBatchVariant, porteuseSynchro, FENETRE_SYNCHRO_JOURS, type EntreeMesure, type ProtocoleAd } from '@tiktrends/core';
+import { matchByName, matchByBatchVariant, porteuseSynchro, FENETRE_SYNCHRO_JOURS, type EntreeMesure, type ProtocoleLuMeta } from '@tiktrends/core';
 import { refreshDecisions } from './decisions';
 import { daterJalons } from './jarvis-memory';
 import { jointureCreaDeLaMarque } from './adsmap-medias';
@@ -158,10 +158,11 @@ async function ingest(
       adsetName: tete?.adsetName ?? null,
       externalAdsetId: tete?.adsetId ?? null,
       externalCampaignId: tete?.campaignId ?? null,
-      adsetDailyBudget: adset?.dailyBudget ?? null,
-      // Ensemble non remonté ce passage (lecture des ensembles en échec) · le CBO déjà lu reste, il ne redevient pas inconnu.
+      // Ensemble non remonté ce passage (lecture des ensembles en échec, ensemble absent) · ce qu'on en savait reste ·
+      // le CBO ne redevient pas inconnu, le budget et le statut ne s'effacent pas. Lu, il s'écrit tel quel (un budget nul compris).
       campaignBudgetOptimization: sql`coalesce(excluded.campaign_budget_optimization, ${schema.adInstances.campaignBudgetOptimization})`,
-      status: adset?.status ?? null,
+      adsetDailyBudget: adset ? adset.dailyBudget : sql`${schema.adInstances.adsetDailyBudget}`,
+      status: adset ? adset.status : sql`${schema.adInstances.status}`,
     },
   }).returning({ id: schema.adInstances.id });
   if (!inst) return 0;
@@ -299,11 +300,15 @@ async function syncBrand(
   // pas. Une ad mesurée par fichier puis synchronisée garde ses journées
   // d'export · le verdict est le même quel que soit le chemin. Le protocole
   // frais (ensemble, budget, CBO) vient de Meta · le protocole se contrôle AVANT
-  // le verdict (§6.2), dans `verdictsDesMesures`.
-  const protocoleFrais = new Map<string, ProtocoleAd>(rattachees.map((r) => [r.ad.id, {
-    nomAnnonce: r.rows[0]!.adName, campagne: r.rows[0]!.campaignName, campagneId: r.rows[0]!.campaignId,
-    ensemble: r.rows[0]!.adsetName, ensembleId: r.rows[0]!.adsetId,
-    budgetJour: r.adset?.dailyBudget ?? null, cbo: r.adset?.campaignBudgetOptimization ?? false,
+  // le verdict (§6.2), dans `verdictsDesMesures`. Un ensemble NON LU ce passage
+  // ne dit rien de son budget ni de son CBO (`ensemble: null`) · le recalcul
+  // garde ceux qu'on connaissait (`protocoleMetaRetenu`).
+  const protocoleFrais = new Map<string, ProtocoleLuMeta>(rattachees.map((r) => [r.ad.id, {
+    annonce: {
+      nomAnnonce: r.rows[0]!.adName, campagne: r.rows[0]!.campaignName, campagneId: r.rows[0]!.campaignId,
+      ensemble: r.rows[0]!.adsetName, ensembleId: r.rows[0]!.adsetId,
+    },
+    ensemble: r.adset ? { budgetJour: r.adset.dailyBudget, cbo: r.adset.campaignBudgetOptimization } : null,
   }]));
   const ads = await adsDeLaMarque(brand.workspaceId, brand.id);
   const v = await recalculerVerdicts(brand, ads, new Set(rattachees.map((r) => r.ad.id)), { maintenant: aujourdhui, protocoleFrais, metaNonEcrites: nonEcrites });

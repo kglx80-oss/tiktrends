@@ -3,9 +3,9 @@ import { gte, lte, notInArray, type AnyColumn } from 'drizzle-orm';
 import { db, schema, eq, and, inArray, sql } from '@tiktrends/db';
 import {
   DEFAULT_VERDICT_CONFIG, motifEchecRemontee, lireLectureIncomplete, verdictsDesMesures, cleEntreeMesure, retenirJournees, protocoleRetenu, adAMesurer, sourceDesEntrees,
-  marquesRetenues, cboRetenu,
+  marquesRetenues, protocoleMetaRetenu,
   type AdAMesurer, type CandidatMesure, type DeclencheurRemontee, type EntreeCsvRetenable, type EntreeMesure, type EntreeRetenue, type JourneeMetaLue,
-  type JourneesRetenues, type MesuresLigne, type ProtocolRules, type ProtocoleAd, type RemonteeJournal, type SourceRemontee, type VerdictConfig,
+  type JourneesRetenues, type MesuresLigne, type ProtocolRules, type ProtocoleAd, type ProtocoleLuMeta, type RemonteeJournal, type SourceRemontee, type VerdictConfig,
 } from '@tiktrends/core';
 
 /**
@@ -456,15 +456,16 @@ const cboDuLot = (pc: unknown): Set<string> => {
  * jours que la connexion n'a pas. N'écrit que `computed`, `comparable`,
  * `metrics_agg` · un verdict arbitré par l'équipe reste ce qu'il est.
  *
- * `protocoleFrais` · ce que la synchro vient de lire chez Meta (CBO compris),
- * prioritaire · `metaNonEcrites` · journées lues chez Meta mais non écrites
+ * `protocoleFrais` · ce que la synchro vient de lire chez Meta, prioritaire ·
+ * sauf le budget et le CBO d'un ensemble NON LU, qui restent ceux de
+ * l'instance (`protocoleMetaRetenu`) · `metaNonEcrites` · journées lues chez Meta mais non écrites
  * (créa d'une autre marque).
  */
 export async function recalculerVerdicts(
   brand: { id: string; name: string; workspaceId: string },
   ads: readonly AdDeLaMarque[],
   touchees: ReadonlySet<string>,
-  o: { maintenant?: Date; protocoleFrais?: ReadonlyMap<string, ProtocoleAd>; metaNonEcrites?: ReadonlyMap<string, readonly EntreeMesure[]> } = {},
+  o: { maintenant?: Date; protocoleFrais?: ReadonlyMap<string, ProtocoleLuMeta>; metaNonEcrites?: ReadonlyMap<string, readonly EntreeMesure[]> } = {},
 ): Promise<{ verdicts: number; lots: number }> {
   if (!db) return { verdicts: 0, lots: 0 };
   const maintenant = o.maintenant ?? new Date();
@@ -497,7 +498,7 @@ export async function recalculerVerdicts(
     if (!p) {
       const stocke = lu.protocoleMeta.get(a.id);
       const relais = !!a.lotId && !!cboConnu.get(a.lotId)?.has(a.id);
-      const meta = o.protocoleFrais?.get(a.id) ?? (stocke ? { ...stocke, cbo: cboRetenu(lu.cboInstance.get(a.id), relais) } : undefined);
+      const meta = protocoleMetaRetenu(o.protocoleFrais?.get(a.id), stocke, { instance: lu.cboInstance.get(a.id), relais });
       p = protocoleRetenu(meta, lu.csv.get(a.id));
       protocoles.set(a.id, p);
     }

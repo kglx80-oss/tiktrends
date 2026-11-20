@@ -168,6 +168,42 @@ export function protocoleRetenu(meta: ProtocoleAd | null | undefined, csv: reado
  */
 export const cboRetenu = (instance: boolean | null | undefined, relais: boolean): boolean => instance ?? relais;
 
+/**
+ * Ce que la synchro vient de lire chez Meta pour une ad · l'annonce (campagne,
+ * ensemble, nom) vient des journées, le budget et le CBO de l'ENSEMBLE, lu à
+ * part (`metaAdsetsSync`) · `ensemble` vaut `null` quand il n'a PAS été lu
+ * (lecture des ensembles en échec · quota, droits · ou ensemble absent de la
+ * lecture).
+ */
+export interface ProtocoleLuMeta {
+  annonce: Omit<ProtocoleAd, 'budgetJour' | 'cbo'>;
+  ensemble: { budgetJour: number | null; cbo: boolean } | null;
+}
+
+/**
+ * Le protocole Meta retenu pour une ad · ce que la synchro vient de lire s'il
+ * y en a, sinon le protocole stocké sur l'instance · le CBO par `cboRetenu`.
+ *
+ * Un ensemble NON LU ne fait rien oublier · le budget et le CBO restent ceux
+ * qu'on connaissait (instance, relais du lot), seule l'annonce est rafraîchie.
+ * Le rendre « sans CBO, budget inconnu » ferait passer un lot en CBO pour
+ * « Protocole respecté · comparables » (le contrôle ignore les budgets nuls) et
+ * ouvrirait des `winner` absolus que le §6.1 interdit.
+ *
+ * `stocke` · le protocole lu sur l'instance (son `cbo` n'est pas lu ici) ·
+ * `cbo` · le CBO de l'instance et le relais du lot.
+ */
+export function protocoleMetaRetenu(
+  lu: ProtocoleLuMeta | undefined,
+  stocke: ProtocoleAd | undefined,
+  cbo: { instance: boolean | null | undefined; relais: boolean },
+): ProtocoleAd | undefined {
+  if (lu?.ensemble) return { ...lu.annonce, ...lu.ensemble };
+  const connu = cboRetenu(cbo.instance, cbo.relais);
+  if (lu) return { ...lu.annonce, budgetJour: stocke?.budgetJour ?? null, cbo: connu };
+  return stocke ? { ...stocke, cbo: connu } : undefined;
+}
+
 /** Une ad à mesurer, telle que la décrivent ses lectures · la forme que `verdictsDesMesures` attend. */
 export function adAMesurer(
   ad: { id: string; lotId: string | null; lot: number | null; lanceLe: string | null },
