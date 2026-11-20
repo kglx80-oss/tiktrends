@@ -5,7 +5,7 @@ import { db, schema } from '@tiktrends/db';
 import {
   buildUniqueNames, checkAdReady, formatViolations, resolveCampaignName,
   DEFAULT_VERDICT_CONFIG, type VerdictConfig, type AdShape, manquesAvantTest, VALEUR_ABSENTE,
-  structureVariante, butLotDuplique,
+  structureVariante, butLotDuplique, finPrevueAuLancement,
 } from '@tiktrends/core';
 import { adsmapGuard } from '../../lib/adsmap-guard';
 import { logAndTranslate } from '../../lib/error-log';
@@ -440,7 +440,13 @@ export async function prepareBatchAction(batchId: string): Promise<PrepareResult
   }
 }
 
-/** Marque le lot comme lancé · date de départ des fenêtres d'évaluation. */
+/**
+ * Marque le lot comme lancé · date de départ des fenêtres d'évaluation · et sa
+ * FIN PRÉVUE (`planned_end_at`), le lancement + la fenêtre d'évaluation de la
+ * marque (`finPrevueAuLancement`) · « fin prévue passée » (l'Accueil, l'import)
+ * la lit. Un lot lancé avant n'a pas de fin prévue · il n'est pas réécrit (la
+ * fenêtre du moteur prend le relais).
+ */
 export async function launchBatchAction(batchId: string): Promise<{ ok?: true; error?: string }> {
   const g = await adsmapGuard({ minRole: 'admin' });
   if ('error' in g) return { error: g.error };
@@ -458,11 +464,12 @@ export async function launchBatchAction(batchId: string): Promise<{ ok?: true; e
     }
 
     const maintenant = new Date();
+    const fenetre = (await settings(g.brand.id)).verdict.evaluationWindowDays;
     await db!.update(schema.ads)
       .set({ status: 'live', launchedAt: maintenant, updatedAt: maintenant })
       .where(and(eq(schema.ads.batchId, batchId), eq(schema.ads.status, 'ready')));
     await db!.update(schema.batches)
-      .set({ status: 'testing', launchedAt: maintenant })
+      .set({ status: 'testing', launchedAt: maintenant, plannedEndAt: finPrevueAuLancement(maintenant, fenetre) })
       .where(eq(schema.batches.id, batchId));
 
     return { ok: true };

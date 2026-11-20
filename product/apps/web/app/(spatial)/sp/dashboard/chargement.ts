@@ -227,7 +227,7 @@ export async function chargerAccueilSpatial(s: Session, params: Record<string, s
       const premier = lotsFinPrevuePassee(lots, maintenant, aConclure)[0];
       const finPrevue = premier ? await lire('fin prévue passée', async () => {
         const f = await chargerVariantesFinPrevue(s.workspaceId, marque!.id, premier.id);
-        return finPrevueAccueil({ lot: premier, variantes: f.variantes, seuil: f.seuil, acces: { refus: denyReason(acces, F('import')) } });
+        return finPrevueAccueil({ lot: premier, variantes: f.variantes, seuil: f.seuil, acces: { refus: denyReason(acces, F('import')) }, fenetre: { maintenant, fenetreJours: f.fenetreJours, lanceLe: premier.lanceLe } });
       }) : null;
       boucle = { etapes: etapesBoucleAccueil({ comptes, lots, aConclure, maintenant, lotsOuverts, finPrevue }), href: CHEMIN_BOUCLE_ACCUEIL };
     }
