@@ -38,8 +38,8 @@ export default async function ImportSpatial({ searchParams }: { searchParams: Pr
     ? {
       ...lotImport(cible, cible.ads.map((a) => ({
         code: a.variante, nomRegie: a.nomGenere, statut: a.statut, plateforme: a.plateforme,
-        verdict: a.verdict ? { calcule: a.verdict.calcule, impressions: a.verdict.impressions, depense: a.verdict.depense } : null,
-      })), d.config),
+        verdict: a.verdict ? { calcule: a.verdict.calcule, statut: a.verdict.statut, calculeLe: a.verdict.calculeLe, impressions: a.verdict.impressions, depense: a.verdict.depense } : null,
+      })), d.config, { ...d.ctx, lanceLe: cible.lanceLe }),
       mesures: mesuresDuLot(cible, d.ctx, d.config),
     }
     : null;

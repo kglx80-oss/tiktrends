@@ -1,6 +1,8 @@
 import { CHEMIN_IMPORT_RESULTATS } from '../../parcours-boucle';
 import type { VerdictValue } from '../../adsmap/types';
 import { sousLeMinimumDuMoteur, type SeuilMinimumMoteur } from '../../adsmap/verdict';
+import { jourCourt } from '../accueil/temps';
+import { mesuresArretees, type FenetreDuLot, type VerdictDate } from './mesure-arretee';
 
 /**
  * Spatial · Résultats · un lot en diffusion dont la FIN PRÉVUE est passée,
@@ -22,6 +24,11 @@ import { sousLeMinimumDuMoteur, type SeuilMinimumMoteur } from '../../adsmap/ver
  *
  * Les cas, dans cet ordre (la première vérité l'emporte) ·
  *  · `sans-mesure`   · aucune variante n'a de verdict calculé ;
+ *  · `arretees`      · la fenêtre du moteur est écoulée et au moins une
+ *                      variante mesurée n'a pas été recalculée depuis la fin
+ *                      de la fenêtre (`mesureArretee` · la synchro s'est
+ *                      arrêtée, un export ne couvrait qu'un début) · lu
+ *                      seulement quand l'appelant passe la fenêtre du lot ;
  *  · `sous-minimum`  · chaque variante mesurée reste sous le minimum du moteur
  *                      (`sousLeMinimumDuMoteur`, la règle 2 du verdict · le
  *                      seuil de la MARQUE, aucun seuil reposé ici) ;
@@ -41,17 +48,19 @@ export interface VarianteFinPrevue {
   statut: string;
   /** `adsmap_ads.platform` · seul Meta a une source de mesures (connexion, export Ads Manager). */
   plateforme: string;
-  /** Le verdict en base · `null` sans verdict. */
-  verdict: { calcule: VerdictValue | null; impressions: number | null; depense: number | null } | null;
+  /** Le verdict en base · `null` sans verdict · son statut et l'instant du calcul (`VerdictDate`), quand ils sont lus. */
+  verdict: ({ calcule: VerdictValue | null; impressions: number | null; depense: number | null } & VerdictDate) | null;
 }
 
-export type CasFinPrevue = 'sans-mesure' | 'sous-minimum' | 'partielles' | 'autre';
+export type CasFinPrevue = 'sans-mesure' | 'arretees' | 'sous-minimum' | 'partielles' | 'autre';
 
 export interface DiagnosticFinPrevue {
   cas: CasFinPrevue;
   variantes: number;
   /** Les variantes qui ont un verdict CALCULÉ (le moteur a lu leurs mesures). */
   mesurees: number;
+  /** `arretees` · combien de variantes, le jour (Paris) du dernier calcul parmi elles, la fenêtre du moteur. */
+  arretees?: { variantes: number; le: string; fenetreJours: number };
 }
 
 const nombre = (v: number | null | undefined): v is number => typeof v === 'number' && Number.isFinite(v);
@@ -68,13 +77,30 @@ export function finPrevuePassee(finPrevue: string | null | undefined, maintenant
   return Number.isFinite(t) && t <= maintenant.getTime();
 }
 
-/** Pourquoi aucun verdict n'attend · `null` quand les données ne permettent pas de trancher. */
-export function diagnosticFinPrevue(variantes: readonly VarianteFinPrevue[], seuil: SeuilMinimumMoteur): DiagnosticFinPrevue | null {
+/**
+ * La fin prévue posée au LANCEMENT d'un lot · le lancement + la fenêtre
+ * d'évaluation de la marque · l'instant exact où l'état du lot quitte « En
+ * diffusion » (`etatLotSpatial` · jours entiers ≥ fenêtre) · `null` sans
+ * fenêtre lisible (rien n'est deviné).
+ */
+export function finPrevueAuLancement(lanceLe: Date, fenetreJours: number): Date | null {
+  if (!Number.isFinite(lanceLe.getTime()) || !Number.isFinite(fenetreJours) || fenetreJours <= 0) return null;
+  return new Date(lanceLe.getTime() + fenetreJours * 86_400_000);
+}
+
+/**
+ * Pourquoi aucun verdict n'attend · `null` quand les données ne permettent pas
+ * de trancher. `fenetre` · la fenêtre du lot (son lancement, celle de la
+ * marque, l'instant) · sans elle, le cas `arretees` ne se lit pas.
+ */
+export function diagnosticFinPrevue(variantes: readonly VarianteFinPrevue[], seuil: SeuilMinimumMoteur, fenetre?: FenetreDuLot): DiagnosticFinPrevue | null {
   const n = variantes.length;
   if (n === 0) return null;
   const mesurees = variantes.filter((v) => !!v.verdict?.calcule);
   const m = mesurees.length;
   if (m === 0) return { cas: 'sans-mesure', variantes: n, mesurees: 0 };
+  const arretees = fenetre ? mesuresArretees(mesurees.map((v) => v.verdict), fenetre) : null;
+  if (arretees) return { cas: 'arretees', variantes: n, mesurees: m, arretees: { ...arretees, fenetreJours: fenetre!.fenetreJours } };
   const lisibles = mesurees.filter((v) => nombre(v.verdict!.impressions) && nombre(v.verdict!.depense));
   if (lisibles.length === m && lisibles.every((v) => sousLeMinimumDuMoteur({ spend: v.verdict!.depense!, impressions: v.verdict!.impressions! }, seuil))) {
     return { cas: 'sous-minimum', variantes: n, mesurees: m };
@@ -88,6 +114,12 @@ export function diagnosticFinPrevue(variantes: readonly VarianteFinPrevue[], seu
 const fr = (x: number) => x.toLocaleString('fr-FR', { maximumFractionDigits: 2 });
 const pl = (k: number, un: string, plusieurs: string) => `${k} ${k > 1 ? plusieurs : un}`;
 
+/** « mesures arrêtées le 9 janv., avant la fin de la fenêtre du moteur (7 jours) · 2 variantes sur 2 ». */
+export function phraseMesuresArretees(d: DiagnosticFinPrevue): string {
+  const a = d.arretees!;
+  return `mesures arrêtées le ${jourCourt(a.le)}, avant la fin de la fenêtre du moteur (${pl(a.fenetreJours, 'jour', 'jours')}) · ${pl(a.variantes, 'variante', 'variantes')} sur ${d.variantes}`;
+}
+
 /** Le minimum du moteur, dans ses mots · « 5 000 impressions ou 105 € dépensés par variante ». */
 export function phraseMinimumMoteur(seuil: SeuilMinimumMoteur): string {
   return `${fr(seuil.minImpressions)} impressions ou ${fr(seuil.minSpendMultiple * seuil.targetCpa)} € dépensés par variante`;
@@ -100,6 +132,7 @@ export function phraseDiagnosticFinPrevue(numero: number, d: DiagnosticFinPrevue
   const partiel = `${pl(sans, 'variante', 'variantes')} sur ${d.variantes} sans mesure`;
   switch (d.cas) {
     case 'sans-mesure': return `Lot #${numero} · aucune mesure reçue depuis le lancement`;
+    case 'arretees': return `Lot #${numero} · ${phraseMesuresArretees(d)}`;
     case 'sous-minimum': return `Lot #${numero} · mesures reçues, sous le minimum du moteur (${phraseMinimumMoteur(seuil)})${sans > 0 ? ` · ${partiel}` : ''}`;
     case 'partielles': return `Lot #${numero} · ${partiel}`;
     case 'autre': return `Lot #${numero} · chaque variante a ses mesures, au moins une au-dessus du minimum du moteur`;
@@ -193,8 +226,10 @@ export function finPrevueAccueil(p: {
   variantes: readonly VarianteFinPrevue[];
   seuil: SeuilMinimumMoteur;
   acces: { refus: 'role' | 'plan' | null };
+  /** La fenêtre du lot · sans elle, une mesure arrêtée n'est pas lue (`diagnosticFinPrevue`). */
+  fenetre?: FenetreDuLot;
 }): FinPrevueAccueil {
-  const d = diagnosticFinPrevue(p.variantes, p.seuil);
+  const d = diagnosticFinPrevue(p.variantes, p.seuil, p.fenetre);
   const geste = gesteFinPrevue(p.lot, d, sourcesImportLot(p.variantes), p.acces);
   const phrase = phraseDiagnosticFinPrevue(p.lot.numero, d, p.seuil);
   const texte = phrase && geste?.etat === 'sans-source' ? `${phrase} · ${geste.raison}` : phrase;
@@ -254,13 +289,14 @@ export function lotImport(
   l: { id: string; numero: number; but: string | null },
   variantes: ReadonlyArray<VarianteFinPrevue & { code: string; nomRegie: string | null }>,
   seuil: SeuilMinimumMoteur,
+  fenetre?: FenetreDuLot,
 ): LotImport {
   const sources = sourcesImportLot(variantes);
   return {
     id: l.id,
     numero: l.numero,
     titre: l.but?.trim() ? `Lot #${l.numero} · ${l.but.trim()}` : `Lot #${l.numero}`,
-    diagnostic: phraseDiagnosticFinPrevue(l.numero, diagnosticFinPrevue(variantes, seuil), seuil),
+    diagnostic: phraseDiagnosticFinPrevue(l.numero, diagnosticFinPrevue(variantes, seuil, fenetre), seuil),
     sansSource: sources.ok ? null : `Lot #${l.numero} · ${sources.raison}`,
     variantes: variantes.map((v) => {
       const etat = etatVarianteImport(v, seuil);

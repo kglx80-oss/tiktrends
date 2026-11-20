@@ -13,9 +13,11 @@
  * appel qui peut durer plusieurs minutes.
  */
 
+import { DELAI_DECLENCHEUR_RECAP_MS } from '@tiktrends/core';
+
 const INTERNAL = 'http://web:3000';
 
-export interface AdsMapTriggerResult { ok: boolean; status?: number; detail?: string }
+export interface AdsMapTriggerResult { ok: boolean; status?: number; detail?: string; corps?: Record<string, unknown> }
 
 /**
  * Appelle un endpoint cron protégé et rend compte · le SEUL point de contact
@@ -37,10 +39,10 @@ async function triggerCron(path: string, tag: string, timeoutMs: number): Promis
     const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
     if (!res.ok) {
       console.error(`[${tag}] passage refusé`, res.status, body.error ?? '');
-      return { ok: false, status: res.status, detail: String(body.error ?? res.status) };
+      return { ok: false, status: res.status, detail: String(body.error ?? res.status), corps: body };
     }
     console.log(`[${tag}] passage terminé`, JSON.stringify(body));
-    return { ok: true, status: res.status };
+    return { ok: true, status: res.status, corps: body };
   } catch (e) {
     console.error(`[${tag}] passage injoignable`, (e as Error).message);
     return { ok: false, detail: (e as Error).message };
@@ -94,4 +96,19 @@ export function triggerTracker(): Promise<AdsMapTriggerResult> {
  */
 export function triggerVideosHistoriques(): Promise<AdsMapTriggerResult> {
   return triggerCron('/api/cron/videos-historiques', 'videos-historiques', 2 * 60_000);
+}
+
+/**
+ * Récapitulatif hebdomadaire · notifications `digest` et courriel aux
+ * propriétaires et administrateurs des marques dont la semaine porte quelque
+ * chose. Aucun appel modèle (le récap est calculé, jamais rédigé) · rien de
+ * facturé, seulement des comptes et des envois. La route existait et était
+ * protégée · rien ne la déclenchait, donc ni la cloche ni « Quoi de neuf » ne
+ * recevaient de récap.
+ *
+ * Rend la réponse telle quelle · c'est `passageRecap` (`./recap`) qui décide
+ * de retenter, de reporter ou d'alerter.
+ */
+export function triggerDigest(): Promise<AdsMapTriggerResult> {
+  return triggerCron('/api/cron/digest', 'digest', DELAI_DECLENCHEUR_RECAP_MS);
 }

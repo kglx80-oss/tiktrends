@@ -75,6 +75,7 @@ export * from './adsmap/jarvis-chat';
 export * from './adsmap/jarvis-actions';
 export * from './adsmap/rationale';
 export * from './adsmap/digest';
+export * from './adsmap/recap-hebdo-planifie';
 export * from './adsmap/milestones';
 export * from './adsmap/curation';
 export * from './adsmap/format-generation';

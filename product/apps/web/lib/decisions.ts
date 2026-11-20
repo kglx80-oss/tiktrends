@@ -2,7 +2,7 @@ import 'server-only';
 import { and, eq, inArray } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
-  buildDecisions, findGaps, iterationParentSet, DEFAULT_VERDICT_CONFIG,
+  buildDecisions, findGaps, iterationParentSet, DEFAULT_VERDICT_CONFIG, protocoleSeulementInconnu,
   type DecisionAd, type DecisionBatch, type DecisionGap,
   type VerdictConfig, type GraphNodeShape, VALEUR_ABSENTE,
 } from '@tiktrends/core';
@@ -110,13 +110,14 @@ async function readState(workspaceId: string, brandId: string) {
   }
 
   const batches: DecisionBatch[] = batchRows.map((b) => {
-    const c = (b.protocolCheck ?? null) as { compliant?: boolean; summary?: string } | null;
+    const c = (b.protocolCheck ?? null) as { compliant?: boolean; summary?: string; violations?: unknown } | null;
     return {
       id: b.id, number: b.number, status: b.status,
       compliant: typeof c?.compliant === 'boolean' ? c.compliant : null,
       protocolSummary: c?.summary ?? null,
       spend: depenseParLot.get(b.id) ?? null,
       underfunded: sousFinance,
+      protocoleInconnu: protocoleSeulementInconnu(Array.isArray(c?.violations) ? (c.violations as Array<{ code: string }>) : null),
     };
   });
 

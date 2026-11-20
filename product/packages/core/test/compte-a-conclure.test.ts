@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   FILTRES_LOTS, LIEN_A_CONCLURE, PARAM_FILTRE_LOTS, aFaireMaintenant, compteAConclure, dansFiltreLots, etapesBoucleAccueil, etatLotSpatial,
-  filtreInitialLots, gestesListeLots, lotsFinPrevuePassee, pastilleAConclure, phraseFinPrevuePassee, selectionAConclure,
+  filtreInitialLots, gestesListeLots, idsLotsConclus, lotsFinPrevuePassee, pastilleAConclure, phraseFinPrevuePassee, selectionAConclure,
   type FaitsAdSpatial, type FaitsEtatLot, type FaitsLotSpatial, type FaitsVerdictSpatial, type LotAccueil, type VerdictValue,
 } from '../src';
 
@@ -95,7 +95,9 @@ describe('le lien · la liste filtrée « À conclure », pour l’admin comme p
 
 describe('l’Accueil lit le même compte · « À traiter », « À faire maintenant »', () => {
   const NOW = MAINTENANT;
-  const accueil = (id: string, numero: number, o: Partial<LotAccueil> = {}): LotAccueil => ({ id, numero, statut: 'testing', but: null, lanceLe: ilYa(10), finPrevue: null, variantes: 2, vignette: null, ...o });
+  // `conclu` · la règle de l'état sur les faits du corpus (`idsLotsConclus`), comme l'Accueil la lit.
+  const conclus = idsLotsConclus(CORPUS, CTX);
+  const accueil = (id: string, numero: number, o: Partial<LotAccueil> = {}): LotAccueil => ({ id, numero, statut: 'testing', but: null, lanceLe: ilYa(10), finPrevue: null, variantes: 2, vignette: null, conclu: conclus.has(id), ...o });
   // Les lots datés de l'Accueil · la fin prévue est passée pour `conclure` ET pour `importer` (aucun verdict à arbitrer).
   const LOTS = [
     accueil('conclure', 9, { finPrevue: ilYa(1), vignette: 'https://x.test/a.jpg' }), accueil('muet', 8), accueil('diffusion', 7, { lanceLe: ilYa(2), finPrevue: ilYa(-5) }),
@@ -115,13 +117,14 @@ describe('l’Accueil lit le même compte · « À traiter », « À faire maint
     }
   });
 
-  it('une fin prévue passée sans verdict à arbitrer · dite sous « En diffusion », son libellé à elle, jamais comptée', () => {
+  it('une fin prévue passée sans verdict à arbitrer · dite sous « En diffusion », son libellé à elle, jamais comptée · jamais pour un lot conclu', () => {
     const e = etapesBoucleAccueil({ comptes, lots: LOTS, aConclure: c, maintenant: NOW, lotsOuverts: true });
-    expect(lotsFinPrevuePassee(LOTS, NOW, c).map((l) => l.id)).toEqual(['conclu', 'importer']);
+    // `conclu` (toutes ses variantes arbitrées) n'attend plus rien · ni « fin prévue passée », ni « En diffusion ».
+    expect(lotsFinPrevuePassee(LOTS, NOW, c).map((l) => l.id), 'un lot entièrement arbitré est dit « fin prévue passée »').toEqual(['importer']);
     const d = e.find((x) => x.cle === 'diffusion')!;
-    expect(d.sous, 'la fin prévue passée n’est pas dite, ou pas sous son libellé').toBe('Lots #5 et #6 · fin prévue passée, aucun verdict à arbitrer');
+    expect(d.sous, 'la fin prévue passée n’est pas dite, ou pas sous son libellé').toBe('Lot #6 · fin prévue passée, aucun verdict à arbitrer');
     expect(d.progression, 'une progression « rien à faire d’ici là » sous une fin passée').toBeNull();
-    expect(d.n, 'un lot compté « à conclure » reste compté en diffusion').toBe(3);
+    expect(d.n, 'un lot compté « à conclure » ou conclu est compté en diffusion').toBe(2);
     expect(phraseFinPrevuePassee([{ numero: 3 }])).toBe('Lot #3 · fin prévue passée, aucun verdict à arbitrer');
     expect(e.map((x) => x.sous).join(' | '), 'la fin prévue passée est appelée « à conclure »').not.toMatch(/#5 à conclure|#6 à conclure/);
   });

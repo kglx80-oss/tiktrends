@@ -66,7 +66,7 @@ describe('Spatial · Accueil · raccourcis', () => {
   });
 });
 
-const lot = (o: Partial<LotAccueil>): LotAccueil => ({ id: 'l', numero: 1, statut: 'testing', but: null, lanceLe: null, finPrevue: null, variantes: 3, vignette: null, ...o });
+const lot = (o: Partial<LotAccueil>): LotAccueil => ({ id: 'l', numero: 1, statut: 'testing', but: null, lanceLe: null, finPrevue: null, variantes: 3, vignette: null, conclu: false, ...o });
 
 describe('Spatial · Accueil · lots et « À faire maintenant »', () => {
   it('fin prévue passée = en diffusion, fin prévue passée, et PAS dans le compte « à conclure » · sans fin prévue, jamais', () => {

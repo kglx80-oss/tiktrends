@@ -74,11 +74,12 @@ vi.mock('next/headers', () => ({
 }));
 vi.mock('next/cache', () => ({ revalidatePath: () => {}, revalidateTag: () => {}, unstable_noStore: () => {} }));
 vi.mock('../lib/spend-guard', () => ({ spendStatus: async () => ({ spentUsd: 0, capUsd: 10, summary: '', blocked: false }) }));
-vi.mock('../lib/mailer', async (importOriginal) => ({ ...(await importOriginal<typeof import('../lib/mailer')>()), sendMail: async () => ({ ok: false, skipped: true }) }));
+// Un SMTP configuré et un envoi RÉUSSI simulés · sans SMTP, le récap répond 503 `smtp_absent` et laisse la semaine interrompue.
+vi.mock('../lib/mailer', async (importOriginal) => ({ ...(await importOriginal<typeof import('../lib/mailer')>()), smtpConfigure: () => true, sendMail: async () => ({ ok: true }) }));
 vi.mock('../app/actions/assistant', () => ({ askAssistant: async () => ({}) }));
 
 import { db, schema, eq, and } from '@tiktrends/db';
-import { radarDigest } from '@tiktrends/core';
+import { cleVerrouRecap, radarDigest } from '@tiktrends/core';
 import { avecSpatial } from './spatial/fournisseur';
 import { GET as cronRecap } from '../app/api/cron/digest/route';
 import { fetchNotifications, type NotifItem } from '../app/actions/notifications';
@@ -113,8 +114,13 @@ async function radarCommeNotifier(workspaceId: string): Promise<void> {
   await db!.insert(schema.notifications).values(cibles.map((uid) => ({ workspaceId, userId: uid, type: 'radar', title: 'Radar de veille', body: corps.slice(0, 400), href: '/adsmap/radar' })));
 }
 
-/** La VRAIE route du récap (cron du lundi) · elle écrit les notifications `digest`. */
+/**
+ * La VRAIE route du récap (cron du lundi) · elle écrit les notifications `digest`.
+ * Elle ne passe qu'une fois par semaine (verrou `digest:<semaine>`) · chaque
+ * relance du test joue une semaine NOUVELLE, on rend donc le verrou d'abord.
+ */
 async function lancerRecap(): Promise<{ notified: number }> {
+  await db!.delete(schema.appSettings).where(eq(schema.appSettings.key, cleVerrouRecap(new Date())));
   vi.stubEnv('CRON_SECRET', 'cron-de-test');
   try {
     const r = await cronRecap(new Request('http://localhost/api/cron/digest', { headers: { authorization: 'Bearer cron-de-test' } }));

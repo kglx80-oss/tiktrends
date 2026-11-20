@@ -71,6 +71,8 @@ export interface DecisionBatch {
   spend: number | null;
   /** Vrai si le budget prévu ne permettra pas de conclure. */
   underfunded: boolean;
+  /** Vrai si seul un CBO INCONNU (ensembles non lus) retire sa comparabilité au lot · `protocoleSeulementInconnu`. */
+  protocoleInconnu?: boolean;
 }
 
 export interface DecisionGap {
@@ -193,8 +195,11 @@ export function buildDecisions(input: DecisionInput): Decision[] {
       out.push({
         type: 'protocol_violation', targetId: b.id, targetKind: 'batch', priority: 2,
         spendAtStake: b.spend,
-        title: `Lot ${b.number} · ${b.protocolSummary ?? 'le protocole n’est pas respecté'}${b.spend ? ` (${eur(b.spend)} engagés)` : ''}.`,
-        action: 'Corrige la structure maintenant · après le test, les verdicts resteront relatifs.',
+        // Le résumé est une phrase (point final) · le titre en ajoute un après les montants, jamais deux.
+        title: `Lot ${b.number} · ${(b.protocolSummary ?? 'le protocole n’est pas respecté').replace(/\.\s*$/, '')}${b.spend ? ` (${eur(b.spend)} engagés)` : ''}.`,
+        action: b.protocoleInconnu
+          ? 'Rétablis l’accès de la connexion Meta aux ensembles de publicités, ou importe un export Ads Manager du lot avec la colonne budget de l’ensemble · le CBO établi, le contrôle du lot se refait.'
+          : 'Corrige la structure maintenant · après le test, les verdicts resteront relatifs.',
       });
     }
     // Un lot sous-financé dépensera tout puis rendra « non concluant ».

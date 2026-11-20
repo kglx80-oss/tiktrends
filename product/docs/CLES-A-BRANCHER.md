@@ -174,11 +174,38 @@ Le tableau des intégrations ne montre que **présent / absent**, jamais la vale
 
 ## Récapitulatif hebdomadaire
 
-`/api/cron/digest` · une fois par semaine, le lundi matin.
+`/api/cron/digest` · une fois par semaine, le lundi à 07:47 heure de Paris.
 
-```
-0 7 * * 1  curl -fsS -H "Authorization: Bearer $CRON_SECRET" https://app.tiktrends.co/api/cron/digest
-```
+**Le worker le planifie lui-même** (tâche `weekly-digest`, motif et fuseau dans
+`packages/core/src/adsmap/recap-hebdo-planifie.ts`) · aucune crontab à poser.
+S'il en reste une sur la machine qui tape cette route (`crontab -l`,
+`/etc/cron.d/`), **la retirer** : elle ne doublerait rien (verrou
+`digest:<semaine ISO>` dans `app_settings`, qui note chaque destinataire servi),
+mais la lettre partirait à l'heure de celui des deux qui arrive le premier.
+
+Un passage en échec répond 500 et le worker le retente (6 tentatives, attente
+exponentielle depuis 1 min) · la reprise ne sert que ce qui manque. Un passage
+encore en cours (409) est revérifié toutes les 16 min, au plus 10 fois, sans
+consommer de tentative. Un passage tué par un redéploiement est repris une fois
+son verrou muet depuis 15 min. Un courriel refusé définitivement (5xx au RCPT
+avec un code du destinataire 5.1.1/2/3/6/10 · boîte inexistante) est noté
+abandonné, une ligne dans le journal web, et le worker écrit une ALERTE
+« abandonnés ». Si au moins 3 de ces refus dépassent les envois réussis,
+personne n'est abandonné (cause commune probable : relais, quota) · la semaine
+reste interrompue et le worker écrit `[digest] ALERTE · disjoncteur des
+courriels …` sans retenter.
+
+**Sans `SMTP_URL`** (classée « plus tard » plus haut) · les notifications de
+l'application partent, aucun courriel n'est tenté, la route répond 503
+`smtp_absent` et le worker écrit UNE ligne `[digest] SMTP non configuré ·
+lettres servies dans l'application · courriels non envoyés`, sans retente ni
+ALERTE. Une fois `SMTP_URL` posée (et le conteneur web redémarré), un appel à
+la main la même semaine envoie les courriels sans redoubler les notifications.
+
+Si la semaine reste non servie, le journal du worker l'écrit en clair :
+`[digest] ALERTE · récap hebdomadaire NON SERVI …` (ou `NON CONFIRMÉ` si le
+job a été perdu · vérifier alors le verrou `digest:<semaine>` dans
+`app_settings`).
 
 Il ne dépense **rien** : la lettre est calculée à partir de comptes, jamais
 rédigée par un modèle. Et il n'envoie pas de lettre aux marques dont la semaine

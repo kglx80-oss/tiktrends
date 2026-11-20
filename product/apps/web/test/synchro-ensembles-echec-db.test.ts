@@ -29,6 +29,8 @@ const J = (k: number) => new Date(Date.now() - k * JOUR).toISOString().slice(0, 
 const meta = vi.hoisted(() => ({
   ensembles: [] as Array<Record<string, unknown>> | 'droits',
   appelsEnsembles: 0,
+  /** Une ad déplacée dans un autre ensemble (et/ou une autre campagne) · ce que disent ses journées. */
+  deplace: {} as Record<string, { ensemble?: string; campagne?: string }>,
 }));
 
 vi.mock('@tiktrends/db', async (importOriginal) => {
@@ -64,7 +66,7 @@ function fauxFetch() {
     }
     // Insights · 7 journées par ad, 50 € et 5 achats par jour · CPA 10 € · de quoi couronner un `winner` absolu si le lot était comparable.
     const data = ADS.flatMap((ad) => JOURS.map((k) => ({
-      ad_id: ad, ad_name: `Marque_B1_${ad}`, adset_id: `s-${ad}`, adset_name: `Ensemble ${ad}`, campaign_id: 'c-1', campaign_name: CAMPAGNE,
+      ad_id: ad, ad_name: `Marque_B1_${ad}`, adset_id: meta.deplace[ad]?.ensemble ?? `s-${ad}`, adset_name: `Ensemble ${ad}`, campaign_id: meta.deplace[ad]?.campagne ?? 'c-1', campaign_name: CAMPAGNE,
       date_start: J(k), spend: '50', impressions: '5000', reach: '4000', clicks: '120', inline_link_clicks: '90',
       actions: [{ action_type: 'omni_purchase', value: '5' }], action_values: [{ action_type: 'omni_purchase', value: '195' }],
     })));
@@ -175,6 +177,36 @@ describe('synchro Adsmap · une lecture des ensembles Meta en échec ne fait rie
     await runAdsMapSyncForBrand(ids.brand);
     expect(await instances(), 'lecture réussie · un budget d’ensemble lu vide n’a pas remplacé l’ancien').toEqual({ 'meta-a': cboPur, 'meta-b': cboPur });
     expect((await lot()).codes).toContain('cbo');
+    expect(relatifs(await verdicts())).toEqual(RELATIFS);
+  });
+
+  it('lecture réussie qui ne rend PAS l’ensemble de meta-a, après un CBO connu · le CBO de meta-a tient, le lot reste relatif', async () => {
+    const cboPur = { budget: null, statut: 'ACTIVE', cbo: true };
+    meta.ensembles = ensembles(cboPur).filter((e) => e.id !== 's-meta-a');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try { await runAdsMapSyncForBrand(ids.brand); } finally { warn.mockRestore(); }
+    expect(meta.appelsEnsembles, 'témoin · la lecture des ensembles n’a pas réussi').toBeGreaterThan(0);
+    expect(await instances(), 'ensemble absent d’une lecture réussie · ce qu’on savait de meta-a a été effacé').toEqual({ 'meta-a': cboPur, 'meta-b': cboPur });
+    expect((await lot()).codes, 'ensemble absent d’une lecture réussie · le CBO connu de meta-a a été oublié').toContain('cbo');
+    expect(relatifs(await verdicts())).toEqual(RELATIFS);
+  });
+
+  it('ensembles REFUSÉS, meta-a passée dans un AUTRE ensemble (même campagne) · son ancien budget et son ancien statut ne valent plus · inconnus, CBO de la campagne gardé', async () => {
+    const abo = { budget: 60, statut: 'PAUSED', cbo: false };
+    meta.ensembles = ensembles(abo);
+    await runAdsMapSyncForBrand(ids.brand);
+    expect(await instances()).toEqual({ 'meta-a': abo, 'meta-b': abo });
+    meta.deplace = { 'meta-a': { ensemble: 's-meta-a-2' } };
+    try { await synchroEnsemblesRefuses(); } finally { meta.deplace = {}; }
+    expect(await instances(), 'ensemble changé, non lu · le budget ou le statut de l’ancien ensemble a été prêté au nouveau').toEqual({ 'meta-a': { budget: null, statut: null, cbo: false }, 'meta-b': abo });
+    expect((await lot()).codes).toEqual([]);
+  });
+
+  it('ensembles REFUSÉS, meta-a passée dans une AUTRE campagne · son CBO ne vaut plus (propriété de la campagne) · inconnu, le lot ne se compare pas', async () => {
+    meta.deplace = { 'meta-a': { ensemble: 's-meta-a-3', campagne: 'c-2' } };
+    try { await synchroEnsemblesRefuses(); } finally { meta.deplace = {}; }
+    expect((await instances())['meta-a'], 'campagne changée, non lue · le CBO de l’ancienne campagne a été prêté à la nouvelle').toEqual({ budget: null, statut: null, cbo: null });
+    expect((await lot()).codes).toEqual(['cbo_inconnu']);
     expect(relatifs(await verdicts())).toEqual(RELATIFS);
   });
 });

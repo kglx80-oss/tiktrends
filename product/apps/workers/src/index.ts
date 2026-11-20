@@ -4,8 +4,9 @@ import { startWorkers } from './worker';
 import { startIngestWorker } from './ingest';
 import { runDailySync } from './sync';
 import { triggerAdsMapSync, triggerAllocations, triggerBascule, triggerRadar, triggerTracker, triggerVideosHistoriques } from './adsmap';
+import { OPTIONS_RECAP, alerteEchecRecap, passageRecap } from './recap';
 import { fixtures } from '@tiktrends/integrations';
-import { MOTIF_REMONTEE_ADSMAP } from '@tiktrends/core';
+import { FUSEAU_RECAP_HEBDO, MOTIF_RECAP_HEBDO, MOTIF_REMONTEE_ADSMAP } from '@tiktrends/core';
 import { db, convertirUnite } from '@tiktrends/db';
 import { arretPropreSurSignal } from './studios/boucle';
 
@@ -19,10 +20,11 @@ function startCronWorker() {
     if (job.name === 'videos-historiques') return await triggerVideosHistoriques();
     if (job.name === 'allocations-annuelles') return await triggerAllocations();
     if (job.name === 'bascule-forfaits') return await triggerBascule();
+    if (job.name === 'weekly-digest') return await passageRecap(job);
     return { skipped: job.name };
   }, { connection });
   w.on('completed', (j) => console.log('[cron] completed', j.name));
-  w.on('failed', (j, err) => console.error('[cron] failed', j?.name, err));
+  w.on('failed', (j, err) => { console.error('[cron] failed', j?.name, err); alerteEchecRecap(j, err); });
   return w;
 }
 
@@ -40,11 +42,15 @@ async function main() {
   }
 
   const { studio } = startWorkers();
-  // Arrêt propre sur SIGTERM/SIGINT (recréation du conteneur à chaque commit) ·
-  // le worker Studios finit son tour avant la sortie (voir `boucle.ts`).
-  arretPropreSurSignal({ processus: process, arreter: async () => { await studio?.arreter(); }, sortir: (c) => process.exit(c) });
   startIngestWorker();
-  startCronWorker();
+  const cron = startCronWorker();
+  // Arrêt propre sur SIGTERM/SIGINT (recréation du conteneur à chaque commit) ·
+  // le worker Studios finit son tour avant la sortie (voir `boucle.ts`), le
+  // worker cron ferme SANS attendre son job en cours (`close(true)`) · un
+  // passage du récap peut durer bien plus que la borne d'arrêt, et le
+  // reprendre ne double rien (verrou de la semaine). Le job abandonné est remis
+  // en attente par BullMQ et relancé au redémarrage.
+  arretPropreSurSignal({ processus: process, arreter: async () => { await Promise.all([studio?.arreter(), cron.close(true)]); }, sortir: (c) => process.exit(c) });
 
   // Synchro quotidienne des sources de données (Shopify + Meta) · 6h du matin.
   await queues.cron.add('daily-sync', {}, {
@@ -97,8 +103,21 @@ async function main() {
   await queues.cron.add('allocations-annuelles', {}, { repeat: { pattern: '20 3 * * *' }, jobId: 'allocations-annuelles', removeOnComplete: 20, removeOnFail: 20 });
   await queues.cron.add('bascule-forfaits', {}, { repeat: { pattern: '40 3 * * *' }, jobId: 'bascule-forfaits', removeOnComplete: 20, removeOnFail: 20 });
 
+  // Récapitulatif hebdomadaire · lundi 07:47, heure de PARIS (le seul motif lu
+  // dans un fuseau · « lundi matin » n'a de sens qu'à Paris, et l'heure d'été
+  // déplacerait sinon la lettre d'une heure). Après le radar de la nuit, avant
+  // la journée · justification au noyau (`MOTIF_RECAP_HEBDO`). La route pose un
+  // verrou par semaine ISO qui note chaque destinataire servi · un échec est
+  // retenté, un passage en cours attendu sans consommer de tentative, un
+  // abandon crié (`passageRecap`) · la reprise ne double rien.
+  await queues.cron.add('weekly-digest', {}, {
+    repeat: { pattern: MOTIF_RECAP_HEBDO, tz: FUSEAU_RECAP_HEBDO },
+    jobId: 'weekly-digest',
+    ...OPTIONS_RECAP,
+  });
+
   await queues.ingest.add('demo-tiktok', { platform: 'tiktok', ads: (fixtures.tiktok as { ads: unknown[] }).ads });
   await queues.radar.add('demo', { brandId: 'demo' });
-  console.log('[workers] up · crons tracker-scan (04:00), radar-scan (05:00), daily-sync (06:00) et adsmap-sync (07:00) planifiés, videos-historiques toutes les 5 min + jobs démo');
+  console.log('[workers] up · crons tracker-scan (04:00), radar-scan (05:00), daily-sync (06:00) et adsmap-sync (07:00) planifiés, videos-historiques toutes les 5 min, weekly-digest (lundi 07:47 Paris) + jobs démo');
 }
 main().catch((e) => { console.error(e); process.exit(1); });
