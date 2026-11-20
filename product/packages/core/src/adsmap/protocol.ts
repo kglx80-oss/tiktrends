@@ -30,12 +30,14 @@ export interface ProtocolAd {
   campaignName: string | null;
   adsetDailyBudget: number | null;
   spend: number;
-  campaignBudgetOptimization?: boolean;
+  /** `null` · INCONNU (ensemble jamais lu chez Meta, ni sur l'instance ni au relais du lot) · absent · non fourni. */
+  campaignBudgetOptimization?: boolean | null;
 }
 
 export type ViolationCode =
   | 'campaign_name'      // le lot ne tourne pas dans la campagne attendue
   | 'cbo'                // budget piloté au niveau campagne
+  | 'cbo_inconnu'        // on ne sait pas si le budget est piloté par la campagne (ensembles non lus)
   | 'shared_adset'       // plusieurs annonces dans le même ad set
   | 'budget_variance'    // budgets d'ad sets trop dispersés
   | 'spend_share'        // une annonce n'a pas reçu sa part
@@ -122,6 +124,19 @@ export function checkProtocol(
     });
   }
 
+  // 2 bis · CBO INCONNU · une annonce qui a dépensé sans qu'on sache qui pilote son
+  // budget ne se compare pas · le silence vaut mieux qu'un « gagnant » que Meta a
+  // peut-être choisi (§6.1). Une annonce sans dépense ne biaise rien · sa
+  // sous-diffusion est dite à part (5).
+  const inconnu = ads.filter((a) => a.campaignBudgetOptimization === null && a.spend > 0);
+  if (inconnu.length && rules.structure !== 'cbo_tolerated') {
+    violations.push({
+      code: 'cbo_inconnu',
+      message: `Le CBO de ${inconnu.length} annonce(s) n'est pas établi · leur ensemble n'a pas été lu chez Meta (droits ou quota, ensemble archivé, annonce terminée que la synchro ne relit plus) et aucune autre annonce de leur campagne ne le dit · on ne sait pas si leur budget est piloté par la campagne. Les verdicts de ce lot resteront relatifs tant qu'il n'est pas établi · par une lecture réussie des ensembles de cette campagne, ou par un export Ads Manager avec la colonne budget de l'ensemble.`,
+      adIds: inconnu.map((a) => a.adId),
+    });
+  }
+
   // 3 · Un ad set par annonce.
   if (rules.structure === 'abo_one_adset_per_ad') {
     const parAdset = new Map<string, string[]>();
@@ -166,7 +181,7 @@ export function checkProtocol(
 
   // Le nom de campagne seul ne disqualifie pas le lot : c'est une gêne de
   // rattachement, pas un biais de mesure.
-  const bloquantes = violations.filter((v) => v.code !== 'campaign_name' && v.code !== 'spend_share');
+  const bloquantes = violations.filter(estBloquante);
 
   return {
     compliant: bloquantes.length === 0,
@@ -176,6 +191,19 @@ export function checkProtocol(
   };
 }
 
+/** Une violation qui retire la comparabilité du lot · le nom de campagne et la sous-diffusion n'en retirent pas. */
+const estBloquante = (v: { code: string }) => v.code !== 'campaign_name' && v.code !== 'spend_share';
+
+/**
+ * Vrai si la SEULE chose qui retire sa comparabilité au lot est un CBO inconnu ·
+ * rien n'est à corriger dans la structure, c'est la lecture des ensembles qu'il
+ * faut rétablir. Lit les violations telles qu'écrites (`protocol_check_json`).
+ */
+export function protocoleSeulementInconnu(violations: ReadonlyArray<{ code: string }> | null | undefined): boolean {
+  const b = (violations ?? []).filter(estBloquante);
+  return b.length > 0 && b.every((v) => v.code === 'cbo_inconnu');
+}
+
 /** Résumé d'une phrase pour l'entête du lot et la file de décisions. */
 export function summarizeProtocol(check: ProtocolCheck): string {
   if (check.violations.some((v) => v.code === 'no_data')) return 'Lot non rattaché au compte publicitaire.';
@@ -183,5 +211,6 @@ export function summarizeProtocol(check: ProtocolCheck): string {
   if (check.compliant) return 'Protocole respecté, avec des réserves mineures · les verdicts restent comparables.';
   const cbo = check.violations.find((v) => v.code === 'cbo');
   if (cbo) return 'Budget piloté par la campagne : les verdicts de ce lot ne seront que relatifs.';
+  if (protocoleSeulementInconnu(check.violations)) return 'CBO non établi · les verdicts de ce lot ne seront que relatifs tant qu’il ne l’est pas.';
   return `${check.violations.length} écart(s) au protocole · les verdicts de ce lot ne sont pas comparables entre eux.`;
 }

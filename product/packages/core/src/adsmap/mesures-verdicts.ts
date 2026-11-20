@@ -40,7 +40,7 @@ export interface AdAMesurer {
   /** Les entrées RETENUES (journées Meta et entrées CSV après `retenirMesures`). */
   entrees: readonly EntreeMesure[];
   /** Ce que la dernière ligne dit du protocole · nom d'annonce, ensemble, campagne, budget. */
-  protocole: ProtocoleLigne & { nomAnnonce: string | null };
+  protocole: Omit<ProtocoleLigne, 'cbo'> & { nomAnnonce: string | null; /** `null` · inconnu · le lot ne se compare pas. */ cbo: boolean | null };
 }
 
 export interface VerdictMesure {
@@ -70,6 +70,29 @@ function journeesDans(entrees: readonly EntreeMesure[], fenetre?: { since?: stri
   const jours = new Set<string>();
   for (const e of dans) for (let t = jourMs(e.debut); t <= jourMs(e.fin); t += 86_400_000) jours.add(ymd(t));
   return { rows, jours: jours.size };
+}
+
+/**
+ * Le CBO de chaque CAMPAGNE, tel que ces ads le disent (celles d'un même lot ·
+ * `verdictsDesMesures`) · le CBO est une
+ * propriété de la campagne (Meta le lit au budget de la campagne), donc une ad
+ * dont le CBO est inconnu (ensemble non lu, ad terminée que la synchro ne relit
+ * plus, ensemble archivé) prend celui d'une ad de la MÊME campagne qui le
+ * connaît. Une voisine ne le dit que si elle l'ÉTABLIT · CBO oui, ou non AVEC
+ * un budget d'ensemble connu (une ligne d'export sans colonne de budget dit
+ * « non » sans le prouver · elle ne parle pas pour les autres). Deux ads de la
+ * campagne en désaccord (la campagne a changé entre deux lectures) · CBO · le
+ * lot ne se compare pas de toute façon. Sans identifiant de campagne, rien ne
+ * se rapproche.
+ */
+export function cboParCampagne(ads: ReadonlyArray<{ protocole: { campagneId: string | null; cbo: boolean | null; budgetJour: number | null } }>): Map<string, boolean> {
+  const out = new Map<string, boolean>();
+  for (const a of ads) {
+    const { campagneId: c, cbo, budgetJour } = a.protocole;
+    if (!c || cbo === null || (cbo === false && budgetJour === null)) continue;
+    out.set(c, (out.get(c) ?? false) || cbo);
+  }
+  return out;
 }
 
 /**
@@ -103,7 +126,9 @@ export function verdictsDesMesures(
     });
   }
 
-  // 3 · Protocole, lot par lot.
+  // 3 · Protocole, lot par lot · un CBO inconnu prend celui de sa campagne quand une ad DU MÊME LOT le connaît.
+  // Pas au-delà · une campagne lue en ABO il y a des semaines sur un lot clos a pu passer en CBO depuis · le
+  // silence vaut mieux qu'un « comparable » emprunté à un autre test.
   const lots = new Map<string, AdAMesurer[]>();
   for (const a of mesurees) if (a.lotId) lots.set(a.lotId, [...(lots.get(a.lotId) ?? []), a]);
   const comparable = new Map<string, boolean>();
@@ -111,6 +136,8 @@ export function verdictsDesMesures(
   const rang = new Map<string, number>();
   const protocoles: ResultatVerdictsMesures['protocoles'] = [];
   for (const [lotId, membres] of lots) {
+    const cboCampagne = cboParCampagne(membres);
+    const cboDe = (a: AdAMesurer) => a.protocole.cbo ?? (a.protocole.campagneId ? cboCampagne.get(a.protocole.campagneId) ?? null : null);
     const protoAds: ProtocolAd[] = membres.map((a) => ({
       adId: a.id,
       adName: a.protocole.nomAnnonce ?? '',
@@ -120,7 +147,7 @@ export function verdictsDesMesures(
       campaignName: a.protocole.campagne,
       adsetDailyBudget: a.protocole.budgetJour,
       spend: agreges.get(a.id)?.metrics.spend ?? 0,
-      campaignBudgetOptimization: a.protocole.cbo,
+      campaignBudgetOptimization: cboDe(a),
     }));
     const check = checkProtocol(protoAds, ctx.regles, { brandName: ctx.marque, batchNumber: membres[0]!.lotNumero ?? 0 });
     protocoles.push({ lotId, check, resume: summarizeProtocol(check) });
