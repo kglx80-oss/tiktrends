@@ -216,7 +216,7 @@ function entreeCsv(r: typeof schema.mesuresCsv.$inferSelect): EntreeCsvLue {
   };
   for (const k of Object.keys(mesures) as Array<keyof MesuresLigne>) if (mesures[k] === undefined) delete mesures[k];
   return {
-    debut: r.dateDebut, fin: r.dateFin, mesures, nomAnnonce: r.nomAnnonce,
+    debut: r.dateDebut, fin: r.dateFin, mesures, nomAnnonce: r.nomAnnonce, metaAdId: r.metaAdId,
     protocole: { campagne: r.campagne, campagneId: r.campagneId, ensemble: r.ensemble, ensembleId: r.ensembleId, budgetJour: r.budgetJour, cbo: r.cbo },
     importeLe: (r.importeLe as Date).toISOString(),
   };
@@ -501,7 +501,7 @@ export async function recalculerVerdicts(
       const stocke = lu.protocoleMeta.get(a.id);
       const relais = !!a.lotId && !!cboConnu.get(a.lotId)?.has(a.id);
       const meta = protocoleMetaRetenu(o.protocoleFrais?.get(a.id), stocke, { instance: lu.cboInstance.get(a.id), relais });
-      p = protocoleRetenu(meta, lu.csv.get(a.id));
+      p = protocoleRetenu(meta, lu.csv.get(a.id), { idMeta: a.idMeta });
       protocoles.set(a.id, p);
       cboConnexion.set(a.id, meta?.cbo ?? null);
     }
@@ -518,7 +518,9 @@ export async function recalculerVerdicts(
         ...p.check, summary: p.resume, checkedAt: maintenant.toISOString(),
         source: sourceDesEntrees(membres.flatMap((a) => lu.parAd.get(a.id) ?? [])),
         // Le RELAIS (voir `cboDuLot`) · toujours écrit tant qu'une instance d'avant 0073 peut en dépendre · trié, ensemble stable quel que soit l'ordre de lecture des ads.
-        // Le CBO de la CONNEXION seulement · un CBO dit par un export n'y entre pas (il deviendrait définitif, un export correctif n'y pourrait plus rien).
+        // Le CBO de la CONNEXION seulement · un CBO dit par un export n'y entre pas · l'export est relu à chaque recalcul
+        // (sa plus récente ligne qui établit décide, un export correctif peut donc le défaire). Un CBO lu chez Meta, lui,
+        // reste au relais et l'emporte sur tout export ABO (le CBO l'emporte dès qu'une source le dit) · c'est voulu.
         cboMeta: membres.filter((a) => protocoles.get(a.id)?.source === 'meta' && cboConnexion.get(a.id) === true).map((a) => a.id).sort(),
       },
     }).where(and(eq(schema.batches.id, p.lotId), eq(schema.batches.brandId, brand.id)));

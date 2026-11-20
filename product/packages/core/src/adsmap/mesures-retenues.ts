@@ -52,7 +52,11 @@ export type SourceMesure = 'meta' | 'csv';
 export interface JourneeMetaLue extends EntreeMesure { adId: string | null }
 
 /** Une entrée d'export déjà en base · son protocole et sa date d'import (la plus récente donne le protocole). */
-export interface EntreeCsvRetenable extends EntreeMesure { protocole: ProtocoleLigne; nomAnnonce: string | null; importeLe: string }
+export interface EntreeCsvRetenable extends EntreeMesure {
+  protocole: ProtocoleLigne; nomAnnonce: string | null; importeLe: string;
+  /** L'identifiant Meta de l'annonce lu dans la ligne (« Ad ID ») · une ligne rattachée par lui est celle de l'annonce, donc de sa campagne. */
+  metaAdId?: string | null;
+}
 
 /**
  * Une entrée qui COMPTE · d'où elle vient, et l'ad qu'elle mesure (`null` ·
@@ -171,24 +175,36 @@ export const cboEtabliParExport = (p: { cbo: boolean; budgetJour: number | null 
  */
 export function memeCampagne(meta: { campagneId: string | null; campagne: string | null }, ligne: { campagneId: string | null; campagne: string | null }): boolean {
   if (meta.campagneId && ligne.campagneId) return meta.campagneId === ligne.campagneId;
-  return !!meta.campagne && !!ligne.campagne && normNom(meta.campagne) === normNom(ligne.campagne);
+  // Un nom sans lettre ni chiffre latins (emoji, cyrillique…) se normalise en '' · deux vides ne prouvent pas la même campagne.
+  const a = meta.campagne ? normNom(meta.campagne) : '', b = ligne.campagne ? normNom(ligne.campagne) : '';
+  return a !== '' && a === b;
 }
 
 /**
  * Le protocole d'une ad · la connexion d'abord (elle suit l'ensemble tel qu'il
  * tourne), sinon la ligne de fichier importée la plus récente · `source` le dit.
  *
- * Le CBO de la connexion se croise avec la dernière ligne d'export DE SA
- * CAMPAGNE (`memeCampagne`), quand elle l'établit (`cboEtabliParExport`) · le
- * CBO l'emporte dès qu'une des deux le dit (un « non » périmé ne cache pas un
- * CBO) · sinon ce que la connexion sait, sinon ce que l'export établit · c'est
- * le contournement naturel d'un jeton sans droits sur les ensembles. Le reste
- * du protocole reste celui de la connexion.
+ * Le CBO de la connexion se croise avec la plus récente ligne d'export DE SA
+ * CAMPAGNE QUI L'ÉTABLIT (`cboEtabliParExport` non nul) · une ligne muette
+ * (sans colonne budget, budget à vie) ne dit rien et n'efface pas ce qu'une
+ * ligne plus ancienne a établi. Une ligne est de sa campagne quand elle porte
+ * l'identifiant Meta de l'annonce (`idMeta`), sinon par `memeCampagne`. Le CBO
+ * l'emporte dès qu'une des deux sources le dit (un « non » périmé ne cache pas
+ * un CBO) · sinon ce que la connexion sait, sinon ce que l'export établit ·
+ * c'est le contournement naturel d'un jeton sans droits sur les ensembles. Le
+ * reste du protocole reste celui de la connexion.
+ *
+ * Risque connu, non traité · un « non » de la connexion PÉRIMÉ (instance lue en
+ * ABO, campagne passée en CBO depuis, ensembles illisibles) tient tant qu'aucun
+ * export ne dit CBO · rien ne date le dernier ensemble lu.
  */
-export function protocoleRetenu(meta: ProtocoleAd | null | undefined, csv: readonly EntreeCsvRetenable[] = []): { protocole: ProtocoleAd; source: SourceMesure | null } {
+export function protocoleRetenu(
+  meta: ProtocoleAd | null | undefined, csv: readonly EntreeCsvRetenable[] = [], o: { idMeta?: string | null } = {},
+): { protocole: ProtocoleAd; source: SourceMesure | null } {
   const recentes = [...csv].sort((x, y) => (x.importeLe < y.importeLe ? 1 : x.importeLe > y.importeLe ? -1 : 0));
   if (meta) {
-    const ligne = recentes.find((l) => memeCampagne(meta, l.protocole));
+    const deLaCampagne = (l: EntreeCsvRetenable) => (!!o.idMeta && l.metaAdId === o.idMeta) || memeCampagne(meta, l.protocole);
+    const ligne = recentes.find((l) => deLaCampagne(l) && cboEtabliParExport(l.protocole) !== null);
     const etabli = ligne ? cboEtabliParExport(ligne.protocole) : null;
     const cbo = meta.cbo === true || etabli === true ? true : (meta.cbo ?? etabli);
     return { protocole: cbo === meta.cbo ? meta : { ...meta, cbo }, source: 'meta' };

@@ -29,7 +29,7 @@ import { describe, it, expect, vi, beforeAll } from 'vitest';
 
 const ids = vi.hoisted(() => {
   const { randomUUID } = require('node:crypto') as typeof import('node:crypto');
-  return { ws: randomUUID(), user: randomUUID(), A: randomUUID(), B: randomUUID(), B2: randomUUID(), C: randomUUID(), D: randomUUID(), E: randomUUID(), F: randomUUID(), marque: '' };
+  return { ws: randomUUID(), user: randomUUID(), A: randomUUID(), B: randomUUID(), B2: randomUUID(), C: randomUUID(), D: randomUUID(), E: randomUUID(), F: randomUUID(), G: randomUUID(), marque: '' };
 });
 const JOUR = 86_400_000;
 const J = (k: number) => new Date(Date.now() - k * JOUR).toISOString().slice(0, 10);
@@ -65,10 +65,10 @@ import { applyMesuresAction } from '../app/actions/adsmap-mesures';
 
 vi.setConfig({ testTimeout: 180_000, hookTimeout: 180_000 });
 
-const MARQUES = { A: 'act_a', B: 'act_b', B2: 'act_b2', C: 'act_c', D: 'act_d', E: 'act_e', F: 'act_f' } as const;
+const MARQUES = { A: 'act_a', B: 'act_b', B2: 'act_b2', C: 'act_c', D: 'act_d', E: 'act_e', F: 'act_f', G: 'act_g' } as const;
 type Cle = keyof typeof MARQUES;
 /** Les identifiants Meta des ads d'une marque · E en chiffres (un export Ads Manager ne rattache qu'un identifiant Meta valide). */
-const adsDe = (m: Cle) => (m === 'E' ? ['120200000000000101', '120200000000000102'] : m === 'F' ? ['120200000000000201', '120200000000000202'] : [`${m.toLowerCase()}-1`, `${m.toLowerCase()}-2`]);
+const adsDe = (m: Cle) => (m === 'E' ? ['120200000000000101', '120200000000000102'] : m === 'F' ? ['120200000000000201', '120200000000000202'] : m === 'G' ? ['120200000000000301', '120200000000000302'] : [`${m.toLowerCase()}-1`, `${m.toLowerCase()}-2`]);
 const JOURS = [7, 6, 5, 4, 3, 2, 1];
 
 function fauxFetch() {
@@ -130,7 +130,7 @@ beforeAll(async () => {
     for (const [i, ext] of adsDe(m).entries()) {
       const [ad] = await db!.insert(schema.ads).values({
         workspaceId: ids.ws, conceptId: c!.id, batchId: b!.id, variantCode: `v${i + 1}`, format: 'static', status: 'paused',
-        externalIds: { ad_id: ext }, launchedAt: new Date(Date.now() - 7 * JOUR),
+        externalIds: { ad_id: ext }, generatedName: `Marque_B1_${ext}`, launchedAt: new Date(Date.now() - 7 * JOUR),
       }).returning({ id: schema.ads.id });
       S.ads[m].push(ad!.id);
     }
@@ -211,9 +211,14 @@ describe('D · une ad TERMINÉE (plus relue par la synchro) au CBO inconnu, sa v
 });
 
 /** Un export Ads Manager des ads d'une marque · `budget` · la colonne « Ad set budget » (montant, ou « Using campaign budget »). */
-const exportAbo = (budget: string, m: Cle = 'E', campagne = '[ADSMAP] TEST Marque B1') => [
-  'Day,Reporting starts,Reporting ends,Campaign name,Ad set name,Ad name,Ad ID,Ad delivery,Results,Result indicator,Reach,Impressions,Amount spent (EUR),Link clicks,Purchases,Purchases conversion value,Ad set budget,Ad set budget type,Clicks (all)',
-  ...adsDe(m).map((ad) => [J(8), J(8), J(8), campagne, `Ensemble ${ad}`, `Marque_B1_${ad}`, ad, 'Active', 1, 'purchase', 900, 1000, '10.00', 20, 1, 39, budget, 'Daily', 30].join(',')),
+const exportAbo = (budget: string, m: Cle = 'E', campagne = '[ADSMAP] TEST Marque B1', jour = 8, avecId = true) => [
+  `Day,Reporting starts,Reporting ends,Campaign name,Ad set name,Ad name,${avecId ? 'Ad ID,' : ''}Ad delivery,Results,Result indicator,Reach,Impressions,Amount spent (EUR),Link clicks,Purchases,Purchases conversion value,Ad set budget,Ad set budget type,Clicks (all)`,
+  ...adsDe(m).map((ad) => [J(jour), J(jour), J(jour), campagne, `Ensemble ${ad}`, `Marque_B1_${ad}`, ...(avecId ? [ad] : []), 'Active', 1, 'purchase', 900, 1000, '10.00', 20, 1, 39, budget, 'Daily', 30].join(',')),
+].join('\n') + '\n';
+/** Le même export SANS colonne campagne · rattaché par l'identifiant Meta de l'annonce (« Ad ID »). */
+const exportSansCampagne = (budget: string, m: Cle) => [
+  'Day,Reporting starts,Reporting ends,Ad set name,Ad name,Ad ID,Ad delivery,Results,Result indicator,Reach,Impressions,Amount spent (EUR),Link clicks,Purchases,Purchases conversion value,Ad set budget,Ad set budget type,Clicks (all)',
+  ...adsDe(m).map((ad) => [J(8), J(8), J(8), `Ensemble ${ad}`, `Marque_B1_${ad}`, ad, 'Active', 1, 'purchase', 900, 1000, '10.00', 20, 1, 39, budget, 'Daily', 30].join(',')),
 ].join('\n') + '\n';
 
 describe('E · ensembles toujours refusés, un export Ads Manager qui dit le budget de l’ensemble', () => {
@@ -236,29 +241,47 @@ describe('E · ensembles toujours refusés, un export Ads Manager qui dit le bud
     expect(await verdicts('E')).toEqual(RELATIFS);
   });
 
-  it('puis un export ABO CORRECTIF (mauvais fichier, ou campagne passée en ABO) · le lot redevient comparable · l’export n’a rien écrit de définitif au relais', async () => {
+  it('puis un export ABO CORRECTIF, sur une AUTRE période (les deux lignes restent) · le lot redevient comparable · l’export n’a rien écrit de définitif au relais', async () => {
     ids.marque = ids.E;
-    expect((await applyMesuresAction(exportAbo('50'), [], 'export-e3.csv')).error).toBeUndefined();
+    expect((await applyMesuresAction(exportAbo('50', 'E', '[ADSMAP] TEST Marque B1', 9), [], 'export-e3.csv')).error).toBeUndefined();
+    const [n] = await db!.select({ n: sql<number>`count(*)::int` }).from(schema.mesuresCsv).where(eq(schema.mesuresCsv.brandId, ids.E));
+    expect(n!.n, 'témoin · l’export correctif a écrasé l’export CBO au lieu de s’y ajouter').toBe(4);
     expect((await lot('E')).relais, 'le CBO dit par un export a été écrit au relais du lot comme un CBO lu chez Meta').toEqual([]);
     expect((await lot('E')).codes, 'export CBO puis export ABO correctif · le lot reste coincé en CBO').toEqual([]);
     expect(await verdicts('E')).toEqual(COMPARABLES);
   });
 });
 
-describe('F · ensembles refusés, export rattaché à l’ad mais d’une AUTRE campagne que sa campagne Meta', () => {
+describe('G · ensembles refusés, export rattaché par l’Ad ID, SANS colonne campagne', () => {
+  it('la ligne est celle de l’annonce, donc de sa campagne · son budget d’ensemble établit l’ABO · lot comparable', async () => {
+    meta.ensembles.G = 'droits';
+    await synchro('G');
+    expect((await lot('G')).codes).toEqual(['cbo_inconnu']);
+    ids.marque = ids.G;
+    expect((await applyMesuresAction(exportSansCampagne('50', 'G'), [], 'export-g.csv')).error).toBeUndefined();
+    const [l] = await db!.select({ c: schema.mesuresCsv.campagne, id: schema.mesuresCsv.metaAdId }).from(schema.mesuresCsv).where(eq(schema.mesuresCsv.brandId, ids.G)).limit(1);
+    expect(l, 'témoin · la ligne importée a une campagne, ou pas d’identifiant Meta').toEqual({ c: null, id: expect.stringMatching(/^1202/) });
+    expect((await lot('G')).codes, 'un export rattaché par l’Ad ID sans colonne campagne n’établit rien · le lot reste coincé').toEqual([]);
+    expect(await verdicts('G')).toEqual(COMPARABLES);
+  });
+});
+
+describe('F · ensembles refusés, export rattaché par le NOM de l’annonce (sans Ad ID) mais d’une AUTRE campagne que sa campagne Meta', () => {
+  // Sans Ad ID · une ligne rattachée par son nom peut venir d'une autre campagne. Avec l'Ad ID, elle est forcément celle
+  // de l'annonce (une annonce ne change pas de campagne · un nom différent n'y est qu'un renommage) · voir G.
   it('l’export (ABO, autre campagne) n’établit rien · le lot reste « CBO non établi »', async () => {
     meta.ensembles.F = 'droits';
     await synchro('F');
     expect((await lot('F')).codes).toEqual(['cbo_inconnu']);
     ids.marque = ids.F;
-    expect((await applyMesuresAction(exportAbo('50', 'F', 'Campagne ABO de l’an dernier'), [], 'export-f.csv')).error).toBeUndefined();
+    expect((await applyMesuresAction(exportAbo('50', 'F', 'Campagne ABO de l’an dernier', 8, false), [], 'export-f.csv')).error).toBeUndefined();
     expect((await lot('F')).codes, 'un export d’une autre campagne établit le CBO de la campagne Meta de l’ad').toEqual(['cbo_inconnu']);
     expect(await verdicts('F')).toEqual(RELATIFS);
   });
 
   it('témoin · le même export, campagne de l’ad (nom identique, casse et espaces près) · il établit l’ABO', async () => {
     ids.marque = ids.F;
-    expect((await applyMesuresAction(exportAbo('50', 'F', '[adsmap]  test MARQUE b1'), [], 'export-f2.csv')).error).toBeUndefined();
+    expect((await applyMesuresAction(exportAbo('50', 'F', '[adsmap]  test MARQUE b1', 8, false), [], 'export-f2.csv')).error).toBeUndefined();
     expect((await lot('F')).codes).toEqual([]);
     expect(await verdicts('F')).toEqual(COMPARABLES);
   });

@@ -85,6 +85,27 @@ describe('protocoleRetenu · la connexion d’abord, sinon la ligne d’export l
     expect(protocoleRetenu({ ...m, cbo: false }, [L({ budgetJour: 50 })]).protocole.cbo).toBe(false);
     expect(protocoleRetenu(m, [L({ budgetJour: 50 })]).protocole.cbo, 'un CBO lu chez Meta a cédé à un export ABO').toBe(true);
   });
+  it('la plus récente ligne de la campagne QUI ÉTABLIT décide · une ligne muette (sans budget, ou budget à vie) récente ne l’efface pas', () => {
+    const L = (o: Partial<EntreeCsvRetenable['protocole']>, importeLe: string, k: number) => csv(J(k), J(k), jour(1, 0), importeLe, { campagneId: 'c1', ...o });
+    const cboAncien = L({ budgetJour: null, cbo: true }, '2026-10-01T00:00:00Z', 0);
+    const muetteRecente = L({ budgetJour: null, cbo: false }, '2026-10-09T00:00:00Z', 1);
+    expect(protocoleRetenu({ ...m, cbo: false }, [cboAncien, muetteRecente]).protocole.cbo, 'un export muet récent efface le CBO établi par un export plus ancien').toBe(true);
+    expect(protocoleRetenu({ ...m, cbo: null }, [L({ budgetJour: 50 }, '2026-10-01T00:00:00Z', 0), muetteRecente]).protocole.cbo, 'un export muet récent efface l’ABO établi par un export plus ancien').toBe(false);
+  });
+  it('un export CORRECTIF plus récent l’emporte · ligne CBO ancienne, ligne ABO récente, Meta ne sait pas ⇒ ABO', () => {
+    const L = (o: Partial<EntreeCsvRetenable['protocole']>, importeLe: string, k: number) => csv(J(k), J(k), jour(1, 0), importeLe, { campagneId: 'c1', ...o });
+    expect(protocoleRetenu({ ...m, cbo: null }, [L({ budgetJour: null, cbo: true }, '2026-10-01T00:00:00Z', 0), L({ budgetJour: 50 }, '2026-10-09T00:00:00Z', 1)]).protocole.cbo, 'une ligne quelconque qui dit CBO l’emporte sur l’export correctif plus récent').toBe(false);
+  });
+  it('une ligne rattachée par l’IDENTIFIANT Meta de l’annonce est de sa campagne, même sans colonne campagne', () => {
+    const sansCampagne = { ...csv(J(0), J(0), jour(1, 0), undefined, { campagne: null, campagneId: null, budgetJour: 50 }), metaAdId: '120200000000000301' };
+    expect(protocoleRetenu({ ...m, cbo: null }, [sansCampagne], { idMeta: '120200000000000301' }).protocole.cbo, 'un export rattaché par l’Ad ID, sans colonne campagne, n’établit rien').toBe(false);
+    expect(protocoleRetenu({ ...m, cbo: null }, [sansCampagne], { idMeta: '120200000000000999' }).protocole.cbo, 'l’identifiant d’une AUTRE annonce vaut la campagne').toBeNull();
+    expect(protocoleRetenu({ ...m, cbo: null }, [sansCampagne]).protocole.cbo).toBeNull();
+  });
+  it('deux noms de campagne sans lettre ni chiffre latins (emoji, cyrillique…) ne se ressemblent pas pour autant', () => {
+    expect(memeCampagne({ campagneId: null, campagne: '🔥🔥' }, { campagneId: null, campagne: 'Кампания' }), 'deux noms vides une fois normalisés passent pour la même campagne').toBe(false);
+    expect(memeCampagne({ campagneId: null, campagne: '🔥 B1' }, { campagneId: null, campagne: 'b1' })).toBe(true);
+  });
   it('une ligne d’export d’une AUTRE campagne n’établit rien · identifiants, sinon noms normalisés', () => {
     const inc: ProtocoleAd = { ...m, cbo: null };
     expect(protocoleRetenu(inc, [csv(J(0), J(0), jour(1, 0), undefined, { campagneId: 'c9', budgetJour: 50 })]).protocole.cbo, 'un export d’une autre campagne (identifiant) établit le CBO de celle-ci').toBeNull();

@@ -162,6 +162,8 @@ async function ingest(
       // tant qu'il vaut encore · le budget et le statut sont ceux de l'ENSEMBLE (gardés si l'ad n'en a pas changé), le
       // CBO celui de la CAMPAGNE (gardé si l'ad n'en a pas changé) · sinon inconnus (NULL). Lu, tout s'écrit tel quel
       // (un budget nul compris). Les colonnes de droite valent l'ancienne ligne (Postgres, `on conflict do update`).
+      // Risque connu, non traité · une bascule ABO → CBO de la MÊME campagne, ensembles illisibles · le « non » et le
+      // budget gardés sont périmés et rien ne le voit (aucune date du dernier ensemble lu).
       campaignBudgetOptimization: sql`coalesce(excluded.campaign_budget_optimization, case when ${schema.adInstances.externalCampaignId} is not distinct from excluded.external_campaign_id then ${schema.adInstances.campaignBudgetOptimization} end)`,
       adsetDailyBudget: adset ? adset.dailyBudget : sql`case when ${schema.adInstances.externalAdsetId} is not distinct from excluded.external_adset_id then ${schema.adInstances.adsetDailyBudget} end`,
       status: adset ? adset.status : sql`case when ${schema.adInstances.externalAdsetId} is not distinct from excluded.external_adset_id then ${schema.adInstances.status} end`,
