@@ -6,6 +6,7 @@ import { RAISON_LOGO_SANS_STOCKAGE, type BilanLogosCharte, cheminIdentiteMarque,
 import { forfaitEffectif } from '../../../../../lib/droits-forfait';
 import { getSession, type Session } from '../../../../../lib/auth';
 import { canAccess, FEATURES, roleAtLeast } from '../../../../../lib/rbac';
+import { effectiveAccess } from '../../../../../lib/access';
 import { anthropicConfigured } from '../../../../../lib/ai-status';
 import { unlimitedCredits } from '../../../../../lib/credits';
 import { getActiveBrand } from '../../../../../lib/brands';
@@ -58,7 +59,7 @@ export async function chargerMarque(id: string): Promise<ContexteMarque> {
     unlimited: unlimitedCredits(s.user.email), aiReady: anthropicConfigured(),
     sousNav: sousNavMarque(b.id), retours: messagesRetourMarque({ limiteConcurrents: messageLimiteConcurrents(forfaitEffectif(s.plan)) }),
     jarvis: refusJarvis(s) ? null : '/jarvis',
-    creerPub: canAccess({ role: s.role, plan: s.plan, equipe: s.equipe ?? undefined }, studio) ? lienNouveauProjet({ type: 'ads' }) : null,
+    creerPub: canAccess(effectiveAccess(s), studio) ? lienNouveauProjet({ type: 'ads' }) : null,
   };
 }
 

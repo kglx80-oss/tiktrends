@@ -6,7 +6,7 @@ import { db, schema } from '@tiktrends/db';
 import { CHEMIN_IMPORT_RESULTATS, empreinteDuLogo, entreesRail, entreesRailEspace, initialesAvatar, estPlateformeMac, raccourcisActifsDepuisCookie, ENTETE_CHEMIN, RACCOURCIS_COOKIE, type EntreeRail, type PastilleAImporter, type SectionSpatiale } from '@tiktrends/core';
 import { getSession } from '../auth';
 import { effectiveAccess } from '../access';
-import { isFounder } from '../founder';
+import { aPouvoirsFondateur } from '../founder';
 import { regimeSession } from '../credits-appels';
 import { unlimitedCredits } from '../credits';
 import { listBrands, getActiveBrand, type BrandLite } from '../brands';
@@ -163,7 +163,7 @@ export async function chargerCoquille(): Promise<DonneesCoquille> {
     marque: active ? { id: active.id, nom: active.name, ...logoCoquille(active) } : null,
     marques: marques.map((m) => ({ id: m.id, nom: m.name })),
     peutGererMarques: roleAtLeast(s.role, 'admin'),
-    admin: isFounder(s.user.email) && roleAtLeast(s.role, 'admin'),
+    admin: aPouvoirsFondateur(s.user.email) && roleAtLeast(s.role, 'admin'),
     passer,
     railOuvert: !railCollapsedFromCookie((await cookies()).get(RAIL_COOKIE)?.value),
     // Lot 13 ter · les touches visibles · coupées ou non (cookie d'ergonomie), ⌘ ou Ctrl (en-têtes) · justes dès le premier rendu.

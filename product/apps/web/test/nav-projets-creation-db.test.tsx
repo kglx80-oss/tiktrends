@@ -104,7 +104,7 @@ describe('jamais de porte morte', () => {
   });
 
   it('lecture seule (équipe, rôle d’espace lecteur) · on le dit, et le serveur refuse aussi', async () => {
-    h.session = session(ids, 'uv', { equipe: { role: 'membre', matrice: {}, plateformeAdmissible: false } as SessionTest['equipe'] });
+    h.session = session(ids, 'uv', { equipe: { role: 'membre', matrice: {}, plateformeAdmissible: true } as SessionTest['equipe'] });
     const d = await rendu(projetsPage());
     expect(d.querySelector('a.ctanew')).toBeNull();
     expect(d.querySelector('[data-nouveau-projet="lecture-seule"]')?.textContent).toContain('pas d’en créer');

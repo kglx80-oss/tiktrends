@@ -55,7 +55,7 @@ describe('effectiveAccess · equipe prime, client inchangé', () => {
       role: 'client_viewer', plan: 'starter', user: { email: AUTRE },
       equipe: { role: 'admin', matrice: {}, plateformeAdmissible: true },
     });
-    expect(a.equipe).toEqual({ role: 'admin', matrice: {}, plateformeAdmissible: true });
+    expect(a.equipe, 'la face équipe ne porte que le rôle et la matrice').toEqual({ role: 'admin', matrice: {} });
     expect(a.plan).toBe('business');
   });
 
@@ -67,13 +67,20 @@ describe('effectiveAccess · equipe prime, client inchangé', () => {
     expect(a).toEqual({ role: 'client_viewer', plan: 'starter' });
   });
 
-  it('équipe gradée (non fondateur) → Access.equipe posé, formule de l’espace conservée', () => {
+  it('équipe gradée ADMISSIBLE (non fondateur) → Access.equipe posé, formule de l’espace conservée', () => {
     const a = effectiveAccess({
       role: 'client_viewer', plan: 'starter', user: { email: AUTRE },
-      equipe: { role: 'membre', matrice: {} },
+      equipe: { role: 'membre', matrice: {}, plateformeAdmissible: true },
     });
     expect(a.equipe).toEqual({ role: 'membre', matrice: {} });
     expect(a.plan).toBe('starter');
+  });
+
+  it('équipe gradée NON admissible (ou admissibilité absente) → face client (« Fermer aussi »)', () => {
+    for (const plateformeAdmissible of [false, undefined]) {
+      const a = effectiveAccess({ role: 'client_viewer', plan: 'starter', user: { email: AUTRE }, equipe: { role: 'membre', matrice: {}, plateformeAdmissible } });
+      expect(a).toEqual({ role: 'client_viewer', plan: 'starter' });
+    }
   });
 });
 

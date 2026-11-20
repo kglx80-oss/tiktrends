@@ -15,7 +15,7 @@ const etat = { illimite: true };
 vi.mock('next/navigation', () => ({ redirect: () => { throw new Error('redirect'); }, useRouter: () => ({ push: () => {}, refresh: () => {} }), useSearchParams: () => new URLSearchParams(), usePathname: () => '/billing' }));
 vi.mock('../lib/auth', () => ({ getSession: async () => ({ workspaceId: 'w', workspaceName: 'Espace', role: 'owner', plan: 'business', user: { id: 'u', email: 'demo@exemple.invalid' } }) }));
 vi.mock('@tiktrends/db', () => ({ db: null, schema: {} }));
-vi.mock('../lib/founder', () => ({ isFounder: () => true }));
+vi.mock('../lib/founder', () => ({ aPouvoirsFondateur: () => true }));
 vi.mock('../lib/credits', () => ({ unlimitedCredits: () => etat.illimite }));
 vi.mock('../lib/stripe', () => ({ stripeConfigured: () => false, planPurchasable: () => false }));
 vi.mock('../app/actions/stripe', () => ({ createCheckoutAction: async () => {}, createPortalAction: async () => {}, createTopupCheckoutAction: async () => {} }));

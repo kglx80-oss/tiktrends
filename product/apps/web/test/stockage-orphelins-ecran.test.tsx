@@ -22,7 +22,7 @@ const h = vi.hoisted(() => ({
 vi.mock('next/navigation', () => ({ redirect: (u: string) => { throw new Error(`REDIRECT ${u}`); }, usePathname: () => '/admin/stockage', useRouter: () => ({ push() {}, refresh() {} }) }));
 vi.mock('@tiktrends/db', () => ({ db: undefined, schema: new Proxy({}, { get: () => new Proxy({}, { get: () => ({}) }) }), sql: Object.assign(() => ({}), { identifier: () => ({}) }) }));
 vi.mock('../lib/auth', () => ({ getSession: async () => h.session }));
-vi.mock('../lib/founder', () => ({ isFounder: () => h.fondateur }));
+vi.mock('../lib/founder', () => ({ aPouvoirsFondateur: () => h.fondateur }));
 vi.mock('../lib/settings', () => ({ getPlanConfig: async () => { h.lectures.push('tarifs'); throw new Error('lecture interdite avant la porte'); } }));
 vi.mock('../lib/stockage-inventaire', () => ({ chargerInventaireStockage: async () => { h.lectures.push('inventaire'); throw new Error('lecture interdite avant la porte'); } }));
 

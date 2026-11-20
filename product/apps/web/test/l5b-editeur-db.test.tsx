@@ -271,7 +271,7 @@ describe('profils · lecture seule, hors portée', () => {
   });
 
   it('lecteur d’équipe (studio.read sans studio.propose) · page en lecture seule, enregistrement FORBIDDEN, rien écrit', async () => {
-    h.session = session(ids, 'uv', { equipe: { role: 'membre', matrice: { membre: ['studio'] } } } as never);
+    h.session = session(ids, 'uv', { equipe: { role: 'membre', matrice: { membre: ['studio'] }, plateformeAdmissible: true } } as never);
     const d = await page(projet);
     expect(d.querySelector('.studio'), d.innerHTML.slice(0, 400)).not.toBeNull();
     expect(d.querySelector('.wshead .pill')?.textContent ?? '', 'pastille « Lecture seule » absente pour un rôle sans studio.propose').toContain('Lecture seule');

@@ -7,7 +7,7 @@ import {
 } from '@tiktrends/core';
 import { getSession } from '../../../../lib/auth';
 import { PLAN_CREDITS, PLAN_LABEL, roleAtLeast, type Plan } from '../../../../lib/rbac';
-import { isFounder } from '../../../../lib/founder';
+import { aPouvoirsFondateur } from '../../../../lib/founder';
 import { unlimitedCredits } from '../../../../lib/credits';
 import { trialStatus } from '../../../../lib/trial';
 import { CreditsMarges } from '../../../../spatial/vues/admin/CreditsMarges';
@@ -25,7 +25,7 @@ export default async function CreditsMargesSpatial() {
   const s = await getSession();
   if (!s) redirect('/login');
   if (!roleAtLeast(s.role, 'admin')) redirect('/dashboard');
-  if (!isFounder(s.user.email)) redirect('/billing');
+  if (!aPouvoirsFondateur(s.user.email)) redirect('/billing');
 
   let solde = 0, finEssai: Date | null = null, sorte = 'normal';
   let journal: Array<typeof schema.creditLedger.$inferSelect> = [];

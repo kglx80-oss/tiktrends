@@ -11,7 +11,7 @@ import {
 import { fileSupport } from '@tiktrends/core';
 import { getSession, type Session } from '../../../../lib/auth';
 import { roleAtLeast, PLAN_LABEL, type Plan } from '../../../../lib/rbac';
-import { isFounder } from '../../../../lib/founder';
+import { aPouvoirsFondateur } from '../../../../lib/founder';
 import { getPlanConfig } from '../../../../lib/settings';
 import type { BandeauAdmin } from '../../../../spatial/vues/admin/base';
 import { SOUS_NAV_ADMIN_COMPLETE } from '../../../../spatial/vues/admin/sous-nav';
@@ -49,7 +49,7 @@ export async function porteAdminGeste(): Promise<{ ok: true; session: Session } 
   const s = await getSession();
   if (!s) return { ok: false, vers: '/login' };
   if (!roleAtLeast(s.role, 'admin')) return { ok: false, vers: '/dashboard' };
-  if (!isFounder(s.user.email)) return { ok: false, vers: '/dashboard' };
+  if (!aPouvoirsFondateur(s.user.email)) return { ok: false, vers: '/dashboard' };
   return { ok: true, session: s };
 }
 

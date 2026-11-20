@@ -1,10 +1,10 @@
 import 'server-only';
 import {
-  accesTotal, permissionsStudio, restreindrePlateforme, aPermissionPlateforme, estRoleEspace, peutGererConnaissances,
+  permissionsStudio, vueEquipeAdmin, restreindrePlateforme, aPermissionPlateforme, estRoleEspace, peutGererConnaissances,
   type DroitsSousNavAdmin,
 } from '@tiktrends/core';
 import { roleAtLeast } from './rbac';
-import { isFounder } from './founder';
+import { aPouvoirsFondateur } from './founder';
 import type { Session } from './auth';
 
 /**
@@ -33,10 +33,11 @@ function permissionsPlateforme(s: SessionDroits) {
 export function droitsSousNavAdmin(s: SessionDroits): DroitsSousNavAdmin {
   const plateforme = permissionsPlateforme(s);
   return {
-    tour: roleAtLeast(s.role, 'admin') && isFounder(s.user.email),
+    tour: roleAtLeast(s.role, 'admin') && aPouvoirsFondateur(s.user.email),
     promptRead: aPermissionPlateforme(plateforme, 'prompt.read'),
     providerConfigure: aPermissionPlateforme(plateforme, 'provider.configure'),
     connaissances: peutGererConnaissances(s.equipe),
-    equipe: !!s.equipe && accesTotal(s.equipe.role),
+    // La porte de `/admin/equipe` (`vueEquipeAdmin`) · l'écran complet seul · un compte non admissible n'y lit que son message.
+    equipe: vueEquipeAdmin(s.equipe) === 'complete',
   };
 }

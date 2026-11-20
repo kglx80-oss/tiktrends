@@ -6,7 +6,7 @@ import { MOT_DE_PASSE_MIN, RACCOURCIS_COOKIE, liensAccesProfil, messagesRetourPr
 import { getSession } from '../../../../lib/auth';
 import { PLAN_LABEL, ROLE_LABEL, roleAtLeast } from '../../../../lib/rbac';
 import { RAIL_COOKIE, railCollapsedFromCookie } from '../../../../lib/rail-preference';
-import { isFounder } from '../../../../lib/founder';
+import { aPouvoirsFondateur } from '../../../../lib/founder';
 import { changePasswordAction, saveProfileAction } from '../../../actions/admin';
 import { Profil } from '../../../../spatial/vues/reglages/Profil';
 
@@ -31,7 +31,7 @@ export default async function ProfilSpatial() {
     <Profil
       identite={{ nom: s.user.name || '', email: s.user.email, avatar, masquer }}
       acces={{ espace: s.workspaceName, role: ROLE_LABEL[s.role], abonnement: PLAN_LABEL[s.plan] }}
-      liens={liensAccesProfil({ admin, fondateur: admin && isFounder(s.user.email) })}
+      liens={liensAccesProfil({ admin, fondateur: admin && aPouvoirsFondateur(s.user.email) })}
       enregistrer={db ? saveProfileAction : null}
       changerMotDePasse={db ? changePasswordAction : null}
       motDePasseMin={MOT_DE_PASSE_MIN}

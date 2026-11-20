@@ -21,6 +21,8 @@ import { renderToStaticMarkup } from 'react-dom/server';
  */
 
 const etat = vi.hoisted(() => ({ session: null as unknown, compter: false, acces: [] as string[] }));
+// « Codé seul » · le fondateur du test est inscrit dans la liste CODÉE (`FOUNDER_EMAILS` n'ouvre plus rien).
+vi.mock('../lib/founder', async (importOriginal) => (await import('./helpers/fondateurs-codes-de-test')).fondateursCodesDeTest(await importOriginal<typeof import('../lib/founder')>(), ['fondateur-r5@exemple.invalid']));
 vi.mock('@tiktrends/db', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@tiktrends/db')>();
   const { pgMemoire } = await import('./helpers/pg-memoire');

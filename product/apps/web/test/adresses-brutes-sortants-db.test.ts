@@ -74,6 +74,8 @@ vi.hoisted(() => {
 });
 const CFG = vi.hoisted(() => ({ endpoint: 's3.brutes.test', region: 'gra', bucket: 'tt-prive', accessKeyId: 'cle', secretAccessKey: 'secret', publicBaseUrl: 'https://adresse-brute.stockage.test/tt-prive' }));
 
+// « Codé seul » · le fondateur du test est inscrit dans la liste CODÉE (`FOUNDER_EMAILS` n'ouvre plus rien).
+vi.mock('../lib/founder', async (importOriginal) => (await import('./helpers/fondateurs-codes-de-test')).fondateursCodesDeTest(await importOriginal<typeof import('../lib/founder')>(), ['ua@studios.test']));
 vi.mock('@tiktrends/db', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@tiktrends/db')>();
   const { pgMemoire } = await import('./helpers/pg-memoire');
@@ -316,7 +318,6 @@ const SORTANTS: Readonly<Record<string, { n: number } & Traitement>> = {
 const s = { produit: '', fichier: '', sortie: '', projet: '', version: '', ad: '', adIntrus: '' };
 
 beforeAll(async () => {
-  vi.stubEnv('FOUNDER_EMAILS', 'ua@studios.test');
   vi.stubEnv('CRON_SECRET', 'secret-cron-test');
   vi.stubEnv('APP_URL', APP);
   vi.stubEnv('SMTP_URL', 'smtp://faux:faux@smtp.exemple.invalid:25');

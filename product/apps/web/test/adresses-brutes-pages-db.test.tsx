@@ -41,6 +41,8 @@ vi.hoisted(() => {
 });
 const CFG = vi.hoisted(() => ({ endpoint: 's3.brutes.test', region: 'gra', bucket: 'tt-prive', accessKeyId: 'cle', secretAccessKey: 'secret', publicBaseUrl: 'https://adresse-brute.stockage.test/tt-prive' }));
 
+// « Codé seul » · le fondateur du test est inscrit dans la liste CODÉE (`FOUNDER_EMAILS` n'ouvre plus rien).
+vi.mock('../lib/founder', async (importOriginal) => (await import('./helpers/fondateurs-codes-de-test')).fondateursCodesDeTest(await importOriginal<typeof import('../lib/founder')>(), ['ua@studios.test']));
 vi.mock('@tiktrends/db', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@tiktrends/db')>();
   const { pgMemoire } = await import('./helpers/pg-memoire');
@@ -249,7 +251,6 @@ function trouver<T>(el: unknown, pred: (o: Record<string, unknown>) => boolean):
 }
 
 beforeAll(async () => {
-  vi.stubEnv('FOUNDER_EMAILS', 'ua@studios.test');
   vi.stubGlobal('fetch', fauxBucket);
   await semer(db, schema, ids);
   await db.update(schema.workspaces).set({ plan: 'business', onboardedAt: new Date() }).where(eq(schema.workspaces.id, ids.wsA));

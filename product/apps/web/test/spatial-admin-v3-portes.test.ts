@@ -15,7 +15,7 @@ const h = vi.hoisted(() => ({
 vi.mock('next/navigation', () => ({ redirect: (u: string) => { throw new Error(`REDIRECT ${u}`); } }));
 vi.mock('@tiktrends/db', () => ({ db: undefined, schema: new Proxy({}, { get: () => new Proxy({}, { get: () => ({}) }) }) }));
 vi.mock('../lib/auth', () => ({ getSession: async () => h.session }));
-vi.mock('../lib/founder', () => ({ isFounder: () => h.fondateur }));
+vi.mock('../lib/founder', () => ({ aPouvoirsFondateur: () => h.fondateur }));
 vi.mock('../lib/studios/prompts/garde-prompts', () => ({ gardePlateforme: async () => h.garde }));
 vi.mock('../lib/studios/prompts/vues-registre', () => ({
   vueVersions: h.lu('versions'), vueReleases: h.lu('releases'), vueEvaluations: h.lu('evaluations'), vueBenchmark: h.lu('benchmark'),

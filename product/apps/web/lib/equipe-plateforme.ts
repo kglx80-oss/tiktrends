@@ -2,7 +2,7 @@ import 'server-only';
 import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { accesTotal, plateformeAdmissible, type RolePlateforme, type MatriceDroits } from '@tiktrends/core';
-import { isFounder, estFondateurCode } from './founder';
+import { estFondateurCode, estFondateurEnvironnement } from './founder';
 
 /**
  * Le rôle d'ÉQUIPE INTERNE d'un compte + la matrice des droits éditable.
@@ -32,8 +32,8 @@ export interface EquipeSession {
   /**
    * Le rôle vient-il d'une ligne `platform_staff` ? `false` · fondateur de
    * l'environnement (`FOUNDER_EMAILS`) sans inscription dans l'équipe · le
-   * message dédié ne lui dit pas « créé après ton inscription »
-   * (`messageNonAdmissible`).
+   * message dédié lui dit que cette liste n'ouvre plus rien
+   * (`messageNonAdmissible`, « Codé seul »).
    */
   inscritEquipe?: boolean;
 }
@@ -41,9 +41,12 @@ export interface EquipeSession {
 /**
  * La logique PURE, séparée de la base pour être éprouvée au RÉSULTAT :
  *
- * - `platform_staff` donne le rôle. Pas de ligne mais compte fondateur →
+ * - `platform_staff` donne le rôle. Pas de ligne mais fondateur CODÉ →
  *   `adminplus` (filet : un fondateur garde l'accès total même si l'amorçage a
- *   sauté). Ni l'un ni l'autre → `null` (compte client, pas d'équipe).
+ *   sauté). Pas de ligne mais adresse de `FOUNDER_EMAILS` → `adminplus` aussi,
+ *   jamais admissible (`equipeDeSession`) · SANS POUVOIR · seulement pour que
+ *   le compte lise pourquoi il n'a rien (`MESSAGE_FONDATEUR_HORS_CODE`). Ni
+ *   l'un ni l'autre → `null` (compte client, pas d'équipe).
  * - Accès total (adminplus/admin) → matrice VIDE : ils voient tout, la matrice
  *   ne les concerne pas · une requête de moins et aucune ambiguïté.
  * - Rôle gradé → on porte la matrice éditable telle quelle (rôle → rubriques).
@@ -53,7 +56,7 @@ export function equipeDepuisLignes(
   staffRole: RolePlateforme | null,
   rightsRows: ReadonlyArray<{ role: string; rubriques: readonly string[] | null }>,
 ): EquipeSession | null {
-  const role: RolePlateforme | null = staffRole ?? (isFounder(email) ? 'adminplus' : null);
+  const role: RolePlateforme | null = staffRole ?? (estFondateurCode(email) || estFondateurEnvironnement(email) ? 'adminplus' : null);
   if (!role) return null;
   if (accesTotal(role)) return { role, matrice: {} };
   const matrice: MatriceDroits = {};
