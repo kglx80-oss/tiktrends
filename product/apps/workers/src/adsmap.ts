@@ -106,14 +106,9 @@ export function triggerVideosHistoriques(): Promise<AdsMapTriggerResult> {
  * protégée · rien ne la déclenchait, donc ni la cloche ni « Quoi de neuf » ne
  * recevaient de récap.
  *
- * Contrairement aux autres déclencheurs, un échec LÈVE · BullMQ retente alors
- * (`TENTATIVES_RECAP`, attente exponentielle) au lieu de classer la tâche
- * « terminée » sur un passage raté. Retenter ne double rien · la route tient un
- * verrou par semaine ISO qui note chaque destinataire servi, et reprend
- * seulement ce qui manque (409 `en_cours` tant qu'un passage vivant travaille).
+ * Rend la réponse telle quelle · c'est `passageRecap` (`./recap`) qui décide
+ * de retenter, de reporter ou d'alerter.
  */
-export async function triggerDigest(): Promise<AdsMapTriggerResult> {
-  const r = await triggerCron('/api/cron/digest', 'digest', DELAI_DECLENCHEUR_RECAP_MS);
-  if (!r.ok) throw new Error(`récap hebdomadaire non servi · ${r.detail ?? r.status ?? 'inconnu'}`);
-  return r;
+export function triggerDigest(): Promise<AdsMapTriggerResult> {
+  return triggerCron('/api/cron/digest', 'digest', DELAI_DECLENCHEUR_RECAP_MS);
 }

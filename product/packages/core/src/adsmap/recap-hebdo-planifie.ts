@@ -70,6 +70,28 @@ export const SEUIL_ABANDON_RECAP_MS = 3 * DELAI_DECLENCHEUR_RECAP_MS;
 export const TENTATIVES_RECAP = 6;
 export const ATTENTE_RECAP_MS = 60_000;
 
+/**
+ * Un 409 `en_cours` n'est PAS un échec · un passage vivant travaille. Le
+ * worker ne consomme alors aucune tentative · il reprogramme une vérification
+ * différée de `REPORT_EN_COURS_MS` (au-delà du seuil d'abandon · si le passage
+ * meurt entre-temps, la vérification suivante le trouve reprenable), au plus
+ * `REPORTS_EN_COURS_MAX` fois. 8 × 16 min = 2 h 08 de patience · un passage de
+ * 500 marques est estimé à 17-50 min (relecture de #1112) · plus du double.
+ * Au-delà, le worker ALERTE au lieu de se taire.
+ */
+export const REPORT_EN_COURS_MS = SEUIL_ABANDON_RECAP_MS + 60_000;
+export const REPORTS_EN_COURS_MAX = 8;
+
+/**
+ * Délai SMTP explicite (connexion, accueil, inactivité) · les défauts de
+ * nodemailer (2 min, 30 s, 10 min) laissaient un envoi muet plus longtemps que
+ * le seuil d'abandon · un passage VIVANT passait pour mort, une tentative le
+ * reprenait, et les deux écrivaient au même destinataire. Un envoi au pire
+ * (3 × 30 s) reste ainsi très en deçà du seuil · et le passage bat AVANT
+ * chaque envoi.
+ */
+export const DELAI_SMTP_MS = 30_000;
+
 /** Le nom du préfixe de la clé de verrou dans `app_settings`. */
 export const PREFIXE_VERROU_RECAP = 'digest:';
 
@@ -101,7 +123,12 @@ export function cleVerrouRecap(instant: Date, fuseau: string = FUSEAU_RECAP_HEBD
 
 /* ───────────────────────────── le verrou et sa progression ───────────────────────────── */
 
-export interface ServiRecap { notifies: string[]; courriels: string[] }
+export interface ServiRecap {
+  notifies: string[];
+  courriels: string[];
+  /** Courriels refusés DÉFINITIVEMENT (5xx sur le destinataire ou le contenu) · plus retentés. */
+  abandons: string[];
+}
 
 /** La valeur du verrou dans `app_settings` · réécrite à chaque destinataire servi. */
 export interface EtatVerrouRecap {
@@ -139,6 +166,7 @@ export function lireEtatRecap(v: unknown): EtatVerrouRecap | null {
       servis[k] = {
         notifies: Array.isArray(x.notifies) ? x.notifies.map(String) : [],
         courriels: Array.isArray(x.courriels) ? x.courriels.map(String) : [],
+        abandons: Array.isArray(x.abandons) ? x.abandons.map(String) : [],
       };
     }
   }
@@ -181,13 +209,15 @@ export function avecMarquesRecap(e: EtatVerrouRecap, marques: string[], maintena
   return { ...e, marques: [...marques], battement: maintenant.toISOString() };
 }
 
-const servi = (e: EtatVerrouRecap, marque: string): ServiRecap => e.servis[marque] ?? { notifies: [], courriels: [] };
+const servi = (e: EtatVerrouRecap, marque: string): ServiRecap => e.servis[marque] ?? { notifies: [], courriels: [], abandons: [] };
 
 export function dejaNotifieRecap(e: EtatVerrouRecap, marque: string, utilisateur: string): boolean {
   return servi(e, marque).notifies.includes(utilisateur);
 }
+/** Déjà écrit · ou abandonné après un refus définitif (on ne réessaie pas une boîte qui n'existe pas). */
 export function dejaEcritRecap(e: EtatVerrouRecap, marque: string, utilisateur: string): boolean {
-  return servi(e, marque).courriels.includes(utilisateur);
+  const s = servi(e, marque);
+  return s.courriels.includes(utilisateur) || s.abandons.includes(utilisateur);
 }
 
 export function avecNotificationRecap(e: EtatVerrouRecap, marque: string, utilisateur: string, maintenant: Date): EtatVerrouRecap {
@@ -199,6 +229,61 @@ export function avecCourrielRecap(e: EtatVerrouRecap, marque: string, utilisateu
   const s = servi(e, marque);
   if (s.courriels.includes(utilisateur)) return e;
   return { ...e, battement: maintenant.toISOString(), servis: { ...e.servis, [marque]: { ...s, courriels: [...s.courriels, utilisateur] } } };
+}
+
+export function avecAbandonRecap(e: EtatVerrouRecap, marque: string, utilisateur: string, maintenant: Date): EtatVerrouRecap {
+  const s = servi(e, marque);
+  if (s.abandons.includes(utilisateur)) return e;
+  return { ...e, battement: maintenant.toISOString(), servis: { ...e.servis, [marque]: { ...s, abandons: [...s.abandons, utilisateur] } } };
+}
+
+/** Le passage bat · rien d'autre ne change. */
+export function avecBattementRecap(e: EtatVerrouRecap, maintenant: Date): EtatVerrouRecap {
+  return { ...e, battement: maintenant.toISOString() };
+}
+
+/**
+ * Un refus SMTP DÉFINITIF pour CE destinataire · réponse 5xx à `RCPT TO` (la
+ * boîte n'existe pas, refusée) ou à `DATA` (contenu refusé). Un 5xx ailleurs
+ * (`AUTH`, `MAIL FROM`) dit que la CONFIGURATION est fausse · tous les
+ * courriels échoueraient, on n'abandonne personne, la semaine reste
+ * `interrompu`. Un 4xx ou une coupure réseau sont passagers.
+ */
+export function refusDefinitifSmtp(e: { responseCode?: unknown; command?: unknown } | null | undefined): boolean {
+  const code = Number(e?.responseCode);
+  const commande = String(e?.command ?? '').toUpperCase();
+  return code >= 500 && code < 600 && (commande.startsWith('RCPT') || commande === 'DATA');
+}
+
+/** Ce que le worker fait de la réponse de la route. */
+export type SuiteRecap =
+  | { action: 'fini' }
+  | { action: 'reporter'; delaiMs: number; reports: number }
+  | { action: 'retenter' }
+  | { action: 'abandon'; raison: string };
+
+/**
+ * La suite d'un déclenchement de `weekly-digest`.
+ *  · servi (ou déjà servi) · fini ;
+ *  · 409 `en_cours` / `verrou_perdu` · un passage vivant tient la semaine ·
+ *    REPORTER sans consommer de tentative, au plus `REPORTS_EN_COURS_MAX` fois ;
+ *  · tout autre échec (500, délai dépassé, injoignable) · RETENTER (BullMQ,
+ *    une tentative) tant qu'il en reste ;
+ *  · plus rien · ABANDON, que le worker crie (la semaine n'est pas `fait`).
+ */
+export function suiteRecap(
+  issue: { ok: boolean; status?: number; detail?: string },
+  c: { reports: number; tentative: number; tentativesMax: number },
+): SuiteRecap {
+  if (issue.ok) return { action: 'fini' };
+  if (issue.status === 409 && (issue.detail === 'en_cours' || issue.detail === 'verrou_perdu')) {
+    return c.reports < REPORTS_EN_COURS_MAX
+      ? { action: 'reporter', delaiMs: REPORT_EN_COURS_MS, reports: c.reports + 1 }
+      : { action: 'abandon', raison: `un passage tient la semaine depuis ${REPORTS_EN_COURS_MAX} vérifications (${Math.round(REPORTS_EN_COURS_MAX * REPORT_EN_COURS_MS / 60_000)} min)` };
+  }
+  return c.tentative < c.tentativesMax
+    ? { action: 'retenter' }
+    : { action: 'abandon', raison: `dernière tentative (${c.tentative}/${c.tentativesMax}) en échec · ${issue.detail ?? issue.status ?? 'inconnu'}` };
 }
 
 /**

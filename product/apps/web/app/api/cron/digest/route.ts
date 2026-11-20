@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
-  avecCourrielRecap, avecMarquesRecap, avecNotificationRecap, cleVerrouRecap, decisionVerrouRecap,
+  avecAbandonRecap, avecBattementRecap, avecCourrielRecap, avecMarquesRecap, avecNotificationRecap, cleVerrouRecap, decisionVerrouRecap,
   dejaEcritRecap, dejaNotifieRecap, destinataireRecap, etatInitialRecap, finRecap, repriseRecap, semaineIso,
   type EtatVerrouRecap,
 } from '@tiktrends/core';
@@ -40,8 +40,15 @@ export const maxDuration = 300;
  *    `SEUIL_ABANDON_RECAP_MS`) ou `interrompu` · REPRISE, seulement ce qui
  *    n'est pas noté servi.
  *
- * Seule fenêtre de doublon restante · un courriel parti, le processus tué
- * avant d'avoir noté l'envoi. Aucune base ne rend un envoi SMTP transactionnel.
+ * Le passage BAT avant chaque marque lue, avant chaque envoi et après chaque
+ * refus · et chaque battement vérifie le jeton. Un passage qui a perdu le
+ * verrou (repris parce qu'il semblait mort) s'arrête AVANT d'envoyer.
+ *
+ * Seule fenêtre de doublon restante, déclarée · un courriel PARTI dont l'envoi
+ * n'a pas pu être noté : processus tué entre l'envoi et la note, base en panne
+ * au moment de noter, ou réponse SMTP perdue après `DATA` (le serveur a pris
+ * le message, nous croyons à un échec et le renverrons). Aucune base ne rend un
+ * envoi SMTP transactionnel.
  *
  * ── Ce qu'il ne fait pas ─────────────────────────────────────────────────────
  *
@@ -57,8 +64,10 @@ export const maxDuration = 300;
  *
  * Elle est gratuite et ne peut pas rebondir. Le courriel dépend d'un service
  * externe · si l'envoi échoue, la lettre est quand même dans l'application, et
- * l'échec ne fait pas perdre le passage des autres marques. Le passage finit
- * alors `interrompu` (500), et la tentative suivante ne renvoie que ce courriel.
+ * l'échec ne fait pas perdre le passage des autres marques. Un refus passager
+ * laisse le passage `interrompu` (500) · la tentative suivante ne renvoie que
+ * ce courriel. Un refus DÉFINITIF (5xx sur le destinataire ou le contenu,
+ * `refusDefinitifSmtp`) est noté abandonné, journalisé, et n'est plus retenté.
  */
 
 /** Le verrou est passé à un autre passage · on s'arrête sans rien écrire. */
@@ -88,6 +97,8 @@ export async function GET(req: Request) {
     if (!r.length) throw new VerrouPerdu();
     etat = e;
   };
+  /** Bat · et vérifie au passage que le verrou est toujours à ce passage. */
+  const battre = async () => { if (etat) await ecrire(avecBattementRecap(etat, new Date())); };
 
   try {
     // ── Prendre le verrou, ou le reprendre ──────────────────────────────────
@@ -97,7 +108,8 @@ export async function GET(req: Request) {
       etat = neuf;
     } else {
       const [l] = await base.select({ value: A.value }).from(A).where(eq(A.key, cle));
-      const d = decisionVerrouRecap(l?.value, maintenant);
+      if (!l) return NextResponse.json({ error: 'en_cours', week: semaine }, { status: 409 });
+      const d = decisionVerrouRecap(l.value, maintenant);
       if (d.action === 'deja_passe') {
         console.log('[cron:digest]', semaine, '· déjà passé cette semaine · rien de renvoyé');
         return NextResponse.json({ ok: true, skipped: 'deja_passe', week: semaine, brands: 0, notified: 0, mailed: 0 });
@@ -107,9 +119,12 @@ export async function GET(req: Request) {
         return NextResponse.json({ error: 'en_cours', week: semaine }, { status: 409 });
       }
       const repris = repriseRecap(d.precedent, jeton, maintenant);
-      const ancien = d.precedent?.jeton;
+      // Comparer-échanger sur la valeur ENTIÈRE relue · si le passage d'origine
+      // a écrit entre la lecture et ici (une note, un battement), la reprise
+      // échoue au lieu d'écraser sa progression. Vaut aussi pour une valeur
+      // illisible (`precedent` nul).
       const r = await base.update(A).set({ value: repris, updatedAt: new Date() })
-        .where(ancien ? and(eq(A.key, cle), sql`${A.value}->>'jeton' = ${ancien}`) : eq(A.key, cle))
+        .where(and(eq(A.key, cle), sql`${A.value} = ${JSON.stringify(l!.value)}::jsonb`))
         .returning({ key: A.key });
       if (!r.length) return NextResponse.json({ error: 'en_cours', week: semaine }, { status: 409 });
       etat = repris;
@@ -117,7 +132,7 @@ export async function GET(req: Request) {
     }
 
     // ── Les lettres · la fenêtre du PREMIER passage, la liste figée ─────────
-    const lettres = await weeklyDigests(new Date(etat.debut));
+    const lettres = await weeklyDigests(new Date(etat.debut), { auPas: battre });
     if (etat.marques === null) await ecrire(avecMarquesRecap(etat, lettres.map((l) => l.brandId), new Date()));
     const retenues = new Set(etat.marques ?? []);
     const disparues = [...retenues].filter((id) => !lettres.some((l) => l.brandId === id));
@@ -169,12 +184,19 @@ export async function GET(req: Request) {
         });
         for (const u of users) {
           if (!u.email || dejaEcritRecap(etat, l.brandId, u.id)) continue;
+          // AVANT l'envoi · battre ET vérifier le jeton. Un passage repris ne doit
+          // pas écrire au destinataire que la reprise va servir.
+          await battre();
           const r = await sendMail({ to: u.email, subject: mail.subject, html: mail.html, text: mail.text });
           if (r.ok) {
             await ecrire(avecCourrielRecap(etat, l.brandId, u.id, new Date()));
             envoyees++;
+          } else if (r.definitif) {
+            await ecrire(avecAbandonRecap(etat, l.brandId, u.id, new Date()));
+            console.warn('[cron:digest]', semaine, '· courriel abandonné (refus définitif) · marque', l.brandId, '· destinataire', u.id);
           } else if (!r.skipped) {
-            // Refusé par le service d'envoi · pas noté, la tentative suivante le renverra.
+            // Refus passager · pas noté, la tentative suivante le renverra. Le passage bat · un SMTP lent n'est pas un passage mort.
+            await battre();
             courrielsEnEchec++;
           }
         }

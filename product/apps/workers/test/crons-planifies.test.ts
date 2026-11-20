@@ -31,11 +31,12 @@ import { join } from 'node:path';
  */
 const EXEMPTIONS: Readonly<Record<string, string>> = {};
 
-type Ajout = { file: string; nom: string; opts?: { repeat?: { pattern?: string; tz?: string }; attempts?: number; backoff?: { type?: string; delay?: number } } };
+type Ajout = { file: string; nom: string; data?: unknown; opts?: { repeat?: { pattern?: string; tz?: string }; attempts?: number; backoff?: { type?: string; delay?: number }; delay?: number } };
 const h = vi.hoisted(() => ({
   statut: 200,
   ajouts: [] as Ajout[],
-  handlers: new Map<string, (job: { name: string }) => Promise<unknown>>(),
+  handlers: new Map<string, (job: { name: string; data?: unknown; attemptsMade?: number; opts?: { attempts?: number } }) => Promise<unknown>>(),
+  erreurs: [] as string[],
   appels: [] as string[],
   logs: [] as string[],
 }));
@@ -43,10 +44,10 @@ const h = vi.hoisted(() => ({
 vi.mock('bullmq', () => ({
   Queue: class {
     constructor(private n: string) {}
-    add(nom: string, _d: unknown, opts?: Ajout['opts']) { h.ajouts.push({ file: this.n, nom, opts }); return Promise.resolve(); }
+    add(nom: string, data: unknown, opts?: Ajout['opts']) { h.ajouts.push({ file: this.n, nom, data, opts }); return Promise.resolve(); }
   },
   Worker: class {
-    constructor(n: string, p: (job: { name: string }) => Promise<unknown>) { h.handlers.set(n, p); }
+    constructor(n: string, p: (job: { name: string; data?: unknown; attemptsMade?: number; opts?: { attempts?: number } }) => Promise<unknown>) { h.handlers.set(n, p); }
     on() { return this; }
   },
 }));
@@ -57,7 +58,7 @@ vi.mock('../src/ingest', () => ({ startIngestWorker: () => undefined }));
 vi.mock('../src/sync', () => ({ runDailySync: async () => ({ synchro: 'locale' }) }));
 vi.mock('../src/studios/boucle', () => ({ arretPropreSurSignal: () => undefined }));
 
-import { ATTENTE_RECAP_MS, FUSEAU_RECAP_HEBDO, MOTIF_RECAP_HEBDO, TENTATIVES_RECAP } from '@tiktrends/core';
+import { ATTENTE_RECAP_MS, FUSEAU_RECAP_HEBDO, MOTIF_RECAP_HEBDO, REPORT_EN_COURS_MS, REPORTS_EN_COURS_MAX, TENTATIVES_RECAP } from '@tiktrends/core';
 
 const DOSSIER_CRON = join(process.cwd(), '..', 'web', 'app', 'api', 'cron');
 /** Les routes cron SUR DISQUE · un dossier `<nom>` qui porte un `route.ts`. */
@@ -74,9 +75,12 @@ beforeAll(async () => {
   vi.stubEnv('INTERNAL_APP_URL', 'http://web.test:3000');
   vi.stubGlobal('fetch', async (url: string | URL) => {
     h.appels.push(new URL(String(url)).pathname);
-    return new Response(JSON.stringify(h.statut === 200 ? { ok: true } : { error: 'en_cours' }), { status: h.statut, headers: { 'content-type': 'application/json' } });
+    const corps = h.statut === 200 ? { ok: true } : h.statut === 409 ? { error: 'en_cours' } : { error: 'digest_incomplet' };
+    return new Response(JSON.stringify(corps), { status: h.statut, headers: { 'content-type': 'application/json' } });
   });
   vi.spyOn(console, 'log').mockImplementation((...a: unknown[]) => { h.logs.push(a.map(String).join(' ')); });
+  vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+  vi.spyOn(console, 'error').mockImplementation((...a: unknown[]) => { h.erreurs.push(a.map(String).join(' ')); });
   vi.spyOn(process, 'exit').mockImplementation(((c?: number) => { throw new Error(`process.exit(${c}) · le point d’entrée a échoué`); }) as never);
 
   await import('../src/index');
@@ -128,14 +132,47 @@ describe('chaque route cron est déclenchée par une tâche planifiée du worker
     expect(atteintes.get('weekly-digest')).toEqual(['/api/cron/digest']);
   });
 
-  it('weekly-digest · un passage refusé LÈVE, et BullMQ le retente un nombre borné de fois', async () => {
+  it('weekly-digest · tentatives bornées, attente exponentielle', () => {
     const digest = h.ajouts.find((a) => a.file === 'cron' && a.nom === 'weekly-digest');
     expect(digest!.opts, 'weekly-digest sans tentatives bornées · un passage raté n’est jamais retenté').toMatchObject({ attempts: TENTATIVES_RECAP, backoff: { type: 'exponential', delay: ATTENTE_RECAP_MS } });
-    const handler = h.handlers.get('cron')!;
-    h.statut = 409;
-    try {
-      await expect(handler({ name: 'weekly-digest' }), 'un récap refusé (409, 500) est classé « terminé » · BullMQ ne le retentera pas').rejects.toThrow(/récap hebdomadaire non servi/);
-    } finally { h.statut = 200; }
-    await expect(handler({ name: 'weekly-digest' })).resolves.toMatchObject({ ok: true });
   });
+
+  describe('weekly-digest · la suite d’un déclenchement', () => {
+    const handler = () => h.handlers.get('cron')!;
+    const avec = async (statut: number, f: () => Promise<void>) => { h.statut = statut; h.erreurs = []; try { await f(); } finally { h.statut = 200; } };
+
+    it('409 « en cours » · ne lève pas (aucune tentative consommée), REPORTE une vérification différée au-delà du seuil', async () => {
+      await avec(409, async () => {
+        const avant = h.ajouts.length;
+        await expect(handler()({ name: 'weekly-digest', attemptsMade: 5, opts: { attempts: TENTATIVES_RECAP } }), 'un 409 « en cours » lève · il consomme une tentative').resolves.toMatchObject({ reporte: 1 });
+        const report = h.ajouts.slice(avant);
+        expect(report, 'un 409 « en cours » n’a reprogrammé aucune vérification').toHaveLength(1);
+        expect(report[0]).toMatchObject({ file: 'cron', nom: 'weekly-digest', data: { reports: 1 }, opts: { delay: REPORT_EN_COURS_MS, attempts: TENTATIVES_RECAP } });
+        expect(report[0]!.opts?.repeat).toBeUndefined();
+      });
+    });
+
+    it('500 avant la dernière tentative · LÈVE (BullMQ retente)', async () => {
+      await avec(500, async () => {
+        await expect(handler()({ name: 'weekly-digest', attemptsMade: 0, opts: { attempts: TENTATIVES_RECAP } }), 'un récap en échec est classé « terminé » · BullMQ ne le retentera pas').rejects.toThrow(/récap hebdomadaire non servi/);
+      });
+    });
+
+    it('500 à la DERNIÈRE tentative · ALERTE explicite', async () => {
+      await avec(500, async () => {
+        await handler()({ name: 'weekly-digest', attemptsMade: TENTATIVES_RECAP - 1, opts: { attempts: TENTATIVES_RECAP } }).catch(() => undefined);
+        expect(h.erreurs.some((e) => e.includes('ALERTE · récap hebdomadaire NON SERVI')), 'la dernière tentative laisse la semaine non servie sans alerte').toBe(true);
+      });
+    });
+
+    it('409 après le dernier report · ALERTE, plus de report', async () => {
+      await avec(409, async () => {
+        const avant = h.ajouts.length;
+        await handler()({ name: 'weekly-digest', data: { reports: REPORTS_EN_COURS_MAX } }).catch(() => undefined);
+        expect(h.ajouts.length - avant, 'les reports ne sont pas bornés').toBe(0);
+        expect(h.erreurs.some((e) => e.includes('ALERTE · récap hebdomadaire NON SERVI')), 'un passage qui tient la semaine trop longtemps n’alerte pas').toBe(true);
+      });
+    });
+  });
+
 });

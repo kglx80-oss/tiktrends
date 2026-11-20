@@ -1,5 +1,6 @@
 import 'server-only';
 import nodemailer from 'nodemailer';
+import { DELAI_SMTP_MS, refusDefinitifSmtp } from '@tiktrends/core';
 
 /**
  * Envoi d'e-mails transactionnels via SMTP (SMTP_URL).
@@ -14,7 +15,12 @@ let transport: nodemailer.Transporter | null | undefined;
 function getTransport(): nodemailer.Transporter | null {
   if (transport !== undefined) return transport;
   const url = process.env.SMTP_URL;
-  transport = url ? nodemailer.createTransport(url) : null;
+  // Délais explicites (`DELAI_SMTP_MS`) · les défauts de nodemailer (connexion
+  // 2 min, accueil 30 s, inactivité 10 min) laissaient un envoi muet plus
+  // longtemps que le seuil d'abandon du récap hebdomadaire.
+  transport = url
+    ? nodemailer.createTransport({ url, connectionTimeout: DELAI_SMTP_MS, greetingTimeout: DELAI_SMTP_MS, socketTimeout: DELAI_SMTP_MS } as Parameters<typeof nodemailer.createTransport>[0])
+    : null;
   return transport;
 }
 
@@ -24,7 +30,7 @@ export function appUrl(): string {
 
 const FROM = () => process.env.MAIL_FROM || 'TikTrends <no-reply@tiktrends.co>';
 
-export async function sendMail(opts: { to: string | { name: string; address: string }; subject: string; html: string; text?: string }): Promise<{ ok: boolean; skipped?: boolean; error?: string }> {
+export async function sendMail(opts: { to: string | { name: string; address: string }; subject: string; html: string; text?: string }): Promise<{ ok: boolean; skipped?: boolean; error?: string; definitif?: boolean }> {
   const t = getTransport();
   if (!t) {
     console.log(`[mail:skip] (SMTP non configuré) « ${opts.subject} » → ${typeof opts.to === 'string' ? opts.to : opts.to.address}`);
@@ -35,6 +41,7 @@ export async function sendMail(opts: { to: string | { name: string; address: str
     return { ok: true };
   } catch (e) {
     console.error('[mail:error]', (e as Error).message);
-    return { ok: false, error: (e as Error).message };
+    // Refus définitif (5xx sur le destinataire ou le contenu) · réessayer n'y changera rien.
+    return { ok: false, error: (e as Error).message, definitif: refusDefinitifSmtp(e as { responseCode?: unknown; command?: unknown }) };
   }
 }

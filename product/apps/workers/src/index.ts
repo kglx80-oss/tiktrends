@@ -3,9 +3,10 @@ import { queues, connection } from './queue';
 import { startWorkers } from './worker';
 import { startIngestWorker } from './ingest';
 import { runDailySync } from './sync';
-import { triggerAdsMapSync, triggerAllocations, triggerBascule, triggerDigest, triggerRadar, triggerTracker, triggerVideosHistoriques } from './adsmap';
+import { triggerAdsMapSync, triggerAllocations, triggerBascule, triggerRadar, triggerTracker, triggerVideosHistoriques } from './adsmap';
+import { OPTIONS_RECAP, passageRecap } from './recap';
 import { fixtures } from '@tiktrends/integrations';
-import { ATTENTE_RECAP_MS, FUSEAU_RECAP_HEBDO, MOTIF_RECAP_HEBDO, MOTIF_REMONTEE_ADSMAP, TENTATIVES_RECAP } from '@tiktrends/core';
+import { FUSEAU_RECAP_HEBDO, MOTIF_RECAP_HEBDO, MOTIF_REMONTEE_ADSMAP } from '@tiktrends/core';
 import { db, convertirUnite } from '@tiktrends/db';
 import { arretPropreSurSignal } from './studios/boucle';
 
@@ -19,7 +20,7 @@ function startCronWorker() {
     if (job.name === 'videos-historiques') return await triggerVideosHistoriques();
     if (job.name === 'allocations-annuelles') return await triggerAllocations();
     if (job.name === 'bascule-forfaits') return await triggerBascule();
-    if (job.name === 'weekly-digest') return await triggerDigest();
+    if (job.name === 'weekly-digest') return await passageRecap(job);
     return { skipped: job.name };
   }, { connection });
   w.on('completed', (j) => console.log('[cron] completed', j.name));
@@ -103,12 +104,12 @@ async function main() {
   // déplacerait sinon la lettre d'une heure). Après le radar de la nuit, avant
   // la journée · justification au noyau (`MOTIF_RECAP_HEBDO`). La route pose un
   // verrou par semaine ISO qui note chaque destinataire servi · un échec est
-  // retenté (le déclencheur lève), la reprise ne double rien.
+  // retenté, un passage en cours attendu sans consommer de tentative, un
+  // abandon crié (`passageRecap`) · la reprise ne double rien.
   await queues.cron.add('weekly-digest', {}, {
     repeat: { pattern: MOTIF_RECAP_HEBDO, tz: FUSEAU_RECAP_HEBDO },
     jobId: 'weekly-digest',
-    attempts: TENTATIVES_RECAP, backoff: { type: 'exponential', delay: ATTENTE_RECAP_MS },
-    removeOnComplete: 20, removeOnFail: 20,
+    ...OPTIONS_RECAP,
   });
 
   await queues.ingest.add('demo-tiktok', { platform: 'tiktok', ads: (fixtures.tiktok as { ads: unknown[] }).ads });

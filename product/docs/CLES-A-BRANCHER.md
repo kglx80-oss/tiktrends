@@ -176,7 +176,12 @@ mais la lettre partirait à l'heure de celui des deux qui arrive le premier.
 
 Un passage en échec répond 500 et le worker le retente (6 tentatives, attente
 exponentielle depuis 1 min) · la reprise ne sert que ce qui manque. Un passage
-tué par un redéploiement est repris une fois son verrou muet depuis 15 min.
+encore en cours (409) est revérifié toutes les 16 min, au plus 8 fois, sans
+consommer de tentative. Un passage tué par un redéploiement est repris une fois
+son verrou muet depuis 15 min. Un courriel refusé définitivement (5xx sur le
+destinataire) est noté abandonné, une ligne dans le journal web. Si la semaine
+reste non servie, le journal du worker l'écrit en clair :
+`[digest] ALERTE · récap hebdomadaire NON SERVI cette semaine`.
 
 Il ne dépense **rien** : la lettre est calculée à partir de comptes, jamais
 rédigée par un modèle. Et il n'envoie pas de lettre aux marques dont la semaine

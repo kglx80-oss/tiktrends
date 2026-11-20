@@ -190,16 +190,23 @@ export async function brandFacts(
  * le cron posait « fait » sur sa semaine et plus aucune relance ne servait.
  * Seuls les faits d'une marque gardent leur repli (`sansCasse`, plus haut) ·
  * un compteur manquant retire une phrase, pas la lettre.
+ *
+ * L'ordre est STABLE (`id`) · une reprise du cron relit la même liste, et la
+ * borne de 500 coupe au même endroit d'un passage à l'autre.
+ *
+ * `auPas` est appelé avant chaque marque · le cron y bat son verrou (une
+ * lecture de 500 marques dure des minutes, un verrou muet passerait pour mort).
  */
-export async function weeklyDigests(now = new Date()): Promise<BrandDigest[]> {
+export async function weeklyDigests(now = new Date(), o: { auPas?: () => Promise<void> } = {}): Promise<BrandDigest[]> {
   if (!db) return [];
   const depuis = new Date(now.getTime() - SEMAINE_MS);
 
   const marques = await db.select({ id: schema.brands.id, name: schema.brands.name, workspaceId: schema.brands.workspaceId })
-    .from(schema.brands).limit(500);
+    .from(schema.brands).orderBy(schema.brands.id).limit(500);
 
   const out: BrandDigest[] = [];
   for (const b of marques) {
+    if (o.auPas) await o.auPas();
     const facts = await brandFacts(b.id, b.workspaceId, b.name, depuis);
     if (!worthSending(facts)) continue;
     out.push({ brandId: b.id, workspaceId: b.workspaceId, digest: buildDigest(facts), facts });

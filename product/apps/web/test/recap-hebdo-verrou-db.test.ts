@@ -25,16 +25,24 @@ const h = vi.hoisted(() => {
   process.env.CRON_SECRET = 'cron-de-test';
   return {
     courriels: [] as Array<{ to?: unknown; subject?: unknown }>,
+    essais: [] as string[],
     refuse: null as string | null,
+    transport: null as unknown,
+    surEnvoi: null as null | ((m: { to?: unknown }) => Promise<void>),
+    avantRequete: null as null | ((t: string) => Promise<void>),
+    apresRequete: null as null | ((t: string) => Promise<void>),
+    brut: null as null | ((t: string, p?: unknown[]) => Promise<unknown>),
     ids: { wsA: u(), wsB: u(), brandA: u(), brandB: u(), owner: u(), admin: u(), membre: u(), ownerB: u() },
   };
 });
 
 vi.mock('nodemailer', () => ({
   default: {
-    createTransport: () => ({
+    createTransport: (o: unknown) => (h.transport = o, {
       sendMail: async (m: (typeof h.courriels)[number]) => {
-        if (h.refuse && String(m.to) === h.refuse) throw new Error('550 boîte refusée (test)');
+        h.essais.push(String(m.to));
+        if (h.surEnvoi) await h.surEnvoi(m);
+        if (h.refuse && String(m.to) === h.refuse) throw new Error('boîte injoignable (test)');
         h.courriels.push(m);
         return { messageId: 'faux' };
       },
@@ -44,11 +52,24 @@ vi.mock('nodemailer', () => ({
 vi.mock('@tiktrends/db', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@tiktrends/db')>();
   const { pgMemoire } = await import('./helpers/pg-memoire');
-  return { ...actual, db: await pgMemoire(actual.schema as unknown as Record<string, unknown>) };
+  const db = await pgMemoire(actual.schema as unknown as Record<string, unknown>);
+  // Des crochets autour de chaque requête hors transaction · pour VOLER le verrou
+  // (ou écrire comme le passage d'origine) au moment précis où la route lit.
+  type Client = { query: (t: unknown, ...r: unknown[]) => Promise<unknown> };
+  const client = (db as unknown as { session: { client: Client } }).session.client;
+  const q = client.query.bind(client);
+  h.brut = (t, p) => q(t, p ?? []);
+  client.query = async (t, ...r) => {
+    if (h.avantRequete) await h.avantRequete(String(t));
+    const res = await q(t, ...r);
+    if (h.apresRequete) await h.apresRequete(String(t));
+    return res;
+  };
+  return { ...actual, db };
 });
 
 import { db, schema, eq, and, sql } from '@tiktrends/db';
-import { avecCourrielRecap, avecMarquesRecap, avecNotificationRecap, cleVerrouRecap, etatInitialRecap, lireEtatRecap, SEUIL_ABANDON_RECAP_MS } from '@tiktrends/core';
+import { avecCourrielRecap, avecMarquesRecap, avecNotificationRecap, cleVerrouRecap, etatInitialRecap, lireEtatRecap, DELAI_SMTP_MS, SEUIL_ABANDON_RECAP_MS } from '@tiktrends/core';
 import { GET as cronRecap } from '../app/api/cron/digest/route';
 
 const ids = h.ids;
@@ -296,3 +317,129 @@ describe('reprises · un passage interrompu ou tué', () => {
     expect(r.corps).toMatchObject({ ok: true, notified: 1, mailed: 1 });
   });
 });
+
+/* ───────────────────────── le jeton · un passage dépossédé n'écrit plus rien ───────────────────────── */
+
+const VOL = `update app_settings set value = jsonb_set(value, '{jeton}', '"voleur"'::jsonb) where key = $1`;
+
+describe('un passage dont le verrou est VOLÉ (repris par une autre tentative) s’arrête sans rien écrire ni envoyer', () => {
+  it('vol entre les notifications et le premier courriel · aucun courriel après le vol, 409 verrou_perdu, verrou au voleur', async () => {
+    const instant = lundi('2027-01-18'); // 2027-W03
+    await trouvailles(instant, 'w03');
+    const cle = cleVerrouRecap(instant);
+    const avant = { n: await notificationsRecap(), m: courrielsA(), e: h.essais.length };
+    let vole: unknown = null;
+    h.avantRequete = async (t) => {
+      if (vole === null && /from "users"/.test(t)) {
+        await h.brut!(VOL, [cle]);
+        vole = (await verrou(instant)) ?? {};
+      }
+    };
+    let r: Awaited<ReturnType<typeof passage>>;
+    try { r = await passage(instant); } finally { h.avantRequete = null; }
+    expect(vole, 'préalable · le vol a eu lieu').not.toBeNull();
+    expect(h.essais.length - avant.e, 'un courriel est parti après le vol du verrou').toBe(0);
+    expect(courrielsA() - avant.m).toBe(0);
+    expect(await notificationsRecap() - avant.n, 'préalable · les notifications d’avant le vol sont écrites').toBe(2);
+    expect(r.status).toBe(409);
+    expect(r.corps.error).toBe('verrou_perdu');
+    expect(await verrou(instant), 'le passage volé a encore écrit dans le verrou').toEqual(vole);
+    expect((await verrou(instant))?.jeton).toBe('voleur');
+  });
+
+  it('vol entre deux marques · aucune notification ni courriel pour la seconde, 409 verrou_perdu', async () => {
+    const instant = lundi('2027-01-25'); // 2027-W04
+    await trouvailles(instant, 'w04');
+    await trouvailles(instant, 'w04b', ids.wsB, ids.brandB);
+    const cle = cleVerrouRecap(instant);
+    const [premier, second] = ids.brandA < ids.brandB ? [ids.wsA, ids.wsB] : [ids.wsB, ids.wsA];
+    const destinataires = (ws: string) => (ws === ids.wsA ? 2 : 1);
+    const avant = { p: await notificationsRecap(premier), s: await notificationsRecap(second), e: h.essais.length };
+    let lectures = 0;
+    h.avantRequete = async (t) => { if (/from "workspace_members"/.test(t) && ++lectures === 2) await h.brut!(VOL, [cle]); };
+    let r: Awaited<ReturnType<typeof passage>>;
+    try { r = await passage(instant); } finally { h.avantRequete = null; }
+    expect(lectures, 'préalable · la seconde marque a été atteinte').toBeGreaterThanOrEqual(2);
+    expect(await notificationsRecap(premier) - avant.p, 'préalable · la première marque est servie avant le vol').toBe(destinataires(premier));
+    expect(await notificationsRecap(second) - avant.s, 'une notification est écrite après le vol du verrou').toBe(0);
+    expect(h.essais.length - avant.e, 'des courriels sont partis après le vol du verrou').toBe(destinataires(premier));
+    expect(r.status).toBe(409);
+    expect(r.corps.error).toBe('verrou_perdu');
+    expect((await verrou(instant))?.jeton).toBe('voleur');
+  });
+
+  it('le passage d’origine écrit entre la lecture et la reprise · la reprise échoue (409) au lieu d’écraser sa progression', async () => {
+    const instant = lundi('2027-02-01'); // 2027-W05
+    await trouvailles(instant, 'w05');
+    const cle = cleVerrouRecap(instant);
+    const mort = new Date(instant.getTime() - SEUIL_ABANDON_RECAP_MS - 60_000);
+    const e = avecMarquesRecap(etatInitialRecap('origine', mort), [ids.brandA], mort);
+    await db!.insert(schema.appSettings).values({ key: cle, value: e });
+    const avant = { n: await notificationsRecap(), e: h.essais.length };
+    let ecrit = false;
+    // Juste APRÈS que la reprise a lu le verrou · l'origine, lente mais vivante, sert la marque et le note.
+    h.apresRequete = async (t) => {
+      if (ecrit || !/^select "value" from "app_settings"/.test(t)) return;
+      ecrit = true;
+      for (const u of [ids.owner, ids.admin]) await h.brut!(`insert into notifications (workspace_id, user_id, type, title) values ($1, $2, 'digest', 'origine')`, [ids.wsA, u]);
+      let suite = e;
+      for (const u of [ids.owner, ids.admin]) suite = avecNotificationRecap(suite, ids.brandA, u, instant);
+      await h.brut!('update app_settings set value = $1::jsonb where key = $2', [JSON.stringify(suite), cle]);
+    };
+    let r: Awaited<ReturnType<typeof passage>>;
+    try { r = await passage(instant); } finally { h.apresRequete = null; }
+    expect(ecrit, 'préalable · l’origine a écrit entre la lecture et la reprise').toBe(true);
+    expect(await notificationsRecap() - avant.n, 'la reprise a écrasé la progression de l’origine et doublé ses notifications').toBe(2);
+    expect(r.status).toBe(409);
+    expect((await verrou(instant))?.jeton, 'la reprise a pris le verrou d’un passage vivant').toBe('origine');
+  });
+});
+
+describe('un SMTP lent ou qui refuse · le passage bat, il ne passe pas pour mort', () => {
+  it('deux envois refusés de 10 min chacun · une tentative arrivée pendant le second trouve le passage VIVANT (409)', async () => {
+    const instant = lundi('2027-02-08'); // 2027-W06
+    await trouvailles(instant, 'w06');
+    const avant = { n: await notificationsRecap() };
+    let n = 0;
+    let concurrente: { status: number; corps: Reponse } | null = null;
+    h.surEnvoi = async () => {
+      vi.setSystemTime(new Date(Date.now() + 10 * 60_000));
+      if (++n === 2) { const x = await appel(); concurrente = { status: x.status, corps: await x.json() as Reponse }; }
+      throw Object.assign(new Error('421 service indisponible (test)'), { responseCode: 421, command: 'DATA' });
+    };
+    const espion = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    let r: Awaited<ReturnType<typeof passage>>;
+    try { r = await passage(instant); } finally { h.surEnvoi = null; espion.mockRestore(); }
+    expect(concurrente, 'préalable · une tentative est arrivée pendant l’envoi').not.toBeNull();
+    expect(concurrente!.status, 'un passage vivant (SMTP lent) a été repris par une autre tentative').toBe(409);
+    expect(concurrente!.corps.error).toBe('en_cours');
+    expect(r.corps).toMatchObject({ error: 'digest_incomplet', failedMails: 2 });
+    expect(await notificationsRecap() - avant.n).toBe(2);
+  });
+
+  it('un refus DÉFINITIF (550 sur le destinataire) · noté abandonné, journalisé, la semaine finit « fait », jamais renvoyé', async () => {
+    const instant = lundi('2027-02-15'); // 2027-W07
+    await trouvailles(instant, 'w07');
+    const adresse = `${ids.admin}@recap.test`;
+    const essaisAdmin = () => h.essais.filter((x) => x === adresse).length;
+    const avant = { m: courrielsA(), e: essaisAdmin() };
+    const avis: string[] = [];
+    h.surEnvoi = async (m) => { if (String(m.to) === adresse) throw Object.assign(new Error('550 5.1.1 boîte inconnue (test)'), { responseCode: 550, command: 'RCPT TO' }); };
+    const espionW = vi.spyOn(console, 'warn').mockImplementation((...a: unknown[]) => { avis.push(a.map(String).join(' ')); });
+    const espionE = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    let r: Awaited<ReturnType<typeof passage>>;
+    try { r = await passage(instant); } finally { espionW.mockRestore(); espionE.mockRestore(); }
+    expect(r.status, 'un refus définitif garde la semaine « interrompu »').toBe(200);
+    expect(r.corps).toMatchObject({ ok: true, notified: 2, mailed: 1 });
+    expect(avis.some((x) => x.includes('courriel abandonné')), 'l’abandon n’est pas journalisé').toBe(true);
+    expect(lireEtatRecap(await verrou(instant))?.servis[ids.brandA]?.abandons).toEqual([ids.admin]);
+    try { expect((await passage(instant)).corps.skipped).toBe('deja_passe'); } finally { h.surEnvoi = null; }
+    expect(essaisAdmin() - avant.e, 'une boîte refusée définitivement est réessayée').toBe(1);
+    expect(courrielsA() - avant.m).toBe(1);
+  });
+
+  it('le transport SMTP a des délais explicites (connexion, accueil, inactivité)', () => {
+    expect(h.transport, 'le transport n’a pas reçu les délais').toMatchObject({ url: 'smtp://faux.exemple.test:25', connectionTimeout: DELAI_SMTP_MS, greetingTimeout: DELAI_SMTP_MS, socketTimeout: DELAI_SMTP_MS });
+  });
+});
+

@@ -4,6 +4,8 @@ import {
   SEUIL_ABANDON_RECAP_MS, DELAI_DECLENCHEUR_RECAP_MS, TENTATIVES_RECAP, ATTENTE_RECAP_MS,
   etatInitialRecap, lireEtatRecap, decisionVerrouRecap, repriseRecap, avecMarquesRecap,
   avecNotificationRecap, avecCourrielRecap, dejaNotifieRecap, dejaEcritRecap, finRecap,
+  avecAbandonRecap, refusDefinitifSmtp, suiteRecap, REPORT_EN_COURS_MS, REPORTS_EN_COURS_MAX, DELAI_SMTP_MS,
+  type SuiteRecap,
 } from '../src/adsmap/recap-hebdo-planifie';
 
 /**
@@ -137,5 +139,101 @@ describe('le verrou de la semaine · reprendre ce qui manque, ne jamais doubler'
     for (let n = 1; n < TENTATIVES_RECAP; n++) cumul += ATTENTE_RECAP_MS * 2 ** (n - 1);
     expect(cumul, 'les relances s’arrêtent avant que le verrou d’un passage tué devienne reprenable').toBeGreaterThan(SEUIL_ABANDON_RECAP_MS + DELAI_DECLENCHEUR_RECAP_MS);
     expect(cumul, 'les relances débordent sur la journée').toBeLessThan(2 * 3_600_000);
+  });
+});
+
+describe('un courriel refusé définitivement · noté abandonné, plus retenté', () => {
+  it('5xx sur le destinataire ou le contenu · définitif ; ailleurs ou 4xx · passager', () => {
+    expect(refusDefinitifSmtp({ responseCode: 550, command: 'RCPT TO' })).toBe(true);
+    expect(refusDefinitifSmtp({ responseCode: 552, command: 'DATA' })).toBe(true);
+    expect(refusDefinitifSmtp({ responseCode: 535, command: 'AUTH PLAIN' }), 'une authentification refusée est une configuration fausse').toBe(false);
+    expect(refusDefinitifSmtp({ responseCode: 550, command: 'MAIL FROM' })).toBe(false);
+    expect(refusDefinitifSmtp({ responseCode: 451, command: 'RCPT TO' })).toBe(false);
+    expect(refusDefinitifSmtp({})).toBe(false);
+    expect(refusDefinitifSmtp(null)).toBe(false);
+  });
+  it('un abandon compte comme écrit · la reprise ne le renvoie pas', () => {
+    const e = avecAbandonRecap(etatInitialRecap('j', new Date(0)), 'm', 'u', new Date(0));
+    expect(dejaEcritRecap(e, 'm', 'u')).toBe(true);
+    expect(lireEtatRecap(JSON.parse(JSON.stringify(e)))?.servis.m?.abandons).toEqual(['u']);
+  });
+});
+
+describe('le délai SMTP · un passage vivant ne passe jamais pour mort', () => {
+  it('le pire envoi (connexion + accueil + inactivité) reste très en deçà du seuil d’abandon', () => {
+    expect(3 * DELAI_SMTP_MS * 5, 'un envoi au pire, avec un facteur 5, dépasse le seuil d’abandon').toBeLessThan(SEUIL_ABANDON_RECAP_MS);
+  });
+});
+
+/**
+ * Le CALENDRIER d'un lundi · on simule le worker (réponse de la route,
+ * `suiteRecap`, attente BullMQ) et le verrou (`decisionVerrouRecap`) minute
+ * par minute, pour un passage long qui finit, qui meurt, ou qui finit
+ * interrompu. La semaine doit finir `fait` · jamais perdue en silence.
+ */
+type Fin = { type: 'fait' | 'interrompu' | 'mort'; a: number }; // minutes après T0
+function calendrier(fin: Fin, suite: typeof suiteRecap = suiteRecap): 'fait' | 'perdu' {
+  const MIN = 60_000;
+  const T0 = Date.parse('2026-11-16T06:47:00Z');
+  const fetchMs = DELAI_DECLENCHEUR_RECAP_MS;
+  const REPRISE_MS = 3 * MIN; // une reprise ne sert que ce qui manque
+  // Passes successives · la première a la fin donnée, les reprises finissent « fait ».
+  let passe = { debut: 0, fin: fin.a * MIN, type: fin.type as Fin['type'] };
+  let verrou = false;
+  const etatA = (t: number) => {
+    if (!verrou) return null;
+    const e = etatInitialRecap('p', new Date(T0 + passe.debut));
+    if (t < passe.fin) return { ...e, battement: new Date(T0 + t).toISOString() };
+    if (passe.type === 'mort') return { ...e, battement: new Date(T0 + passe.fin).toISOString() };
+    return finRecap(e, passe.type === 'interrompu' ? 1 : 0, new Date(T0 + passe.fin));
+  };
+  let t = 0; let tentative = 1; let reports = 0;
+  for (let garde = 0; garde < 100; garde++) {
+    let issue: { ok: boolean; status?: number; detail?: string };
+    let te: number;
+    const valeur = etatA(t);
+    const decision = valeur ? decisionVerrouRecap(valeur, new Date(T0 + t)) : { action: 'prendre' as const };
+    if (decision.action === 'deja_passe') { issue = { ok: true }; te = t; }
+    else if (decision.action === 'en_cours') { issue = { ok: false, status: 409, detail: 'en_cours' }; te = t; }
+    else {
+      if (decision.action !== 'prendre') passe = { debut: t, fin: t + REPRISE_MS, type: 'fait' };
+      verrou = true;
+      const finPasse = passe.fin;
+      if (finPasse - t <= fetchMs) {
+        te = finPasse;
+        issue = passe.type === 'fait' ? { ok: true } : passe.type === 'interrompu' ? { ok: false, status: 500, detail: 'digest_incomplet' } : { ok: false, detail: 'socket hang up' };
+      } else { te = t + fetchMs; issue = { ok: false, detail: 'The operation was aborted due to timeout' }; }
+    }
+    const s: SuiteRecap = suite(issue, { reports, tentative, tentativesMax: TENTATIVES_RECAP });
+    if (s.action === 'fini') return etatA(te)?.etat === 'fait' ? 'fait' : 'perdu';
+    if (s.action === 'abandon') return 'perdu';
+    if (s.action === 'reporter') { reports = s.reports; t = te + s.delaiMs; }
+    else { t = te + ATTENTE_RECAP_MS * 2 ** (tentative - 1); tentative++; }
+  }
+  return 'perdu';
+}
+
+describe('le calendrier d’un passage long · la semaine finit servie', () => {
+  it('un 409 « en cours » ne consomme pas de tentative · il reporte au-delà du seuil d’abandon', () => {
+    expect(suiteRecap({ ok: false, status: 409, detail: 'en_cours' }, { reports: 0, tentative: 6, tentativesMax: 6 })).toEqual({ action: 'reporter', delaiMs: REPORT_EN_COURS_MS, reports: 1 });
+    expect(REPORT_EN_COURS_MS).toBeGreaterThan(SEUIL_ABANDON_RECAP_MS);
+    expect(suiteRecap({ ok: false, status: 409, detail: 'en_cours' }, { reports: REPORTS_EN_COURS_MAX, tentative: 1, tentativesMax: 6 }).action).toBe('abandon');
+    expect(suiteRecap({ ok: false, status: 500 }, { reports: 0, tentative: 6, tentativesMax: 6 }).action).toBe('abandon');
+    expect(suiteRecap({ ok: false, status: 500 }, { reports: 0, tentative: 5, tentativesMax: 6 }).action).toBe('retenter');
+  });
+
+  const DUREES = [3, 10, 17, 30, 50, 60, 90];
+  for (const L of DUREES) {
+    it(`passage de ${L} min · fini, interrompu, ou mort à n’importe quelle minute · la semaine finit « fait »`, () => {
+      expect(calendrier({ type: 'fait', a: L }), `fini à ${L} min`).toBe('fait');
+      expect(calendrier({ type: 'interrompu', a: L }), `interrompu à ${L} min`).toBe('fait');
+      for (let d = 1; d <= L; d++) expect(calendrier({ type: 'mort', a: d }), `passage de ${L} min mort à ${d} min · semaine perdue`).toBe('fait');
+    });
+  }
+
+  it('témoin · si un 409 consommait une tentative (ancien comportement), un passage long perdait la semaine', () => {
+    const ancien: typeof suiteRecap = (issue, c) => (issue.ok ? { action: 'fini' } : c.tentative < c.tentativesMax ? { action: 'retenter' } : { action: 'abandon', raison: 'x' });
+    const perdues = DUREES.flatMap((L) => [calendrier({ type: 'interrompu', a: L }, ancien), calendrier({ type: 'mort', a: L }, ancien)]).filter((x) => x === 'perdu');
+    expect(perdues.length, 'la simulation ne voit pas le défaut qu’elle prétend garder').toBeGreaterThan(0);
   });
 });
