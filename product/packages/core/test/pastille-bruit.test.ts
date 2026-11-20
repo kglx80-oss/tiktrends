@@ -92,7 +92,7 @@ describe('deux cas au noyau · « en cours » et « manquantes »', () => {
       expect(pastilleAImporter(compteAImporter([l], a(t), SEUIL))?.libelle, 'la pastille ne s’allume pas après la fin prévue').toBe('Lot #7 · attend ses mesures');
     }
     // La même frontière que l'Accueil (`lotsFinPrevuePassee`) · une seule règle, `finPrevuePassee`.
-    const accueil = (t: Date) => lotsFinPrevuePassee([{ id: 'f', numero: 7, statut: 'testing', but: null, lanceLe: l.lanceLe, finPrevue: l.finPrevue, variantes: 2, vignette: null }], t, null).length > 0;
+    const accueil = (t: Date) => lotsFinPrevuePassee([{ id: 'f', numero: 7, statut: 'testing', but: null, lanceLe: l.lanceLe, finPrevue: l.finPrevue, variantes: 2, vignette: null, conclu: false }], t, null).length > 0;
     for (const t of [new Date(fin.getTime() - 1), fin, new Date(fin.getTime() + 1)]) {
       expect(accueil(t), `l’Accueil et la pastille ne lisent pas la même fin prévue à ${t.toISOString()}`).toBe(finPrevuePassee(l.finPrevue, t));
       expect(casMesuresLot(l, a(t), SEUIL) === 'manquantes').toBe(finPrevuePassee(l.finPrevue, t));

@@ -111,7 +111,7 @@ describe('sources et geste · l’import EXISTANT, ouvert sur ce lot', () => {
 describe('l’Accueil · « En diffusion » porte le diagnostic et le geste du PREMIER lot à fin prévue passée', () => {
   const NOW = new Date('2026-10-27T12:00:00Z');
   const il = (j: number) => new Date(NOW.getTime() - j * 86_400_000).toISOString();
-  const lotA = (id: string, numero: number, fin: number): LotAccueil => ({ id, numero, statut: 'testing', but: null, lanceLe: il(20), finPrevue: il(fin), variantes: 2, vignette: null });
+  const lotA = (id: string, numero: number, fin: number): LotAccueil => ({ id, numero, statut: 'testing', but: null, lanceLe: il(20), finPrevue: il(fin), variantes: 2, vignette: null, conclu: false });
   const LOTS = [lotA('recent', 7, 1), lotA('ancien', 3, 5), { ...lotA('court', 2, 1), finPrevue: null }];
   const comptes = { tests: 2, avecHypothese: 2, aArbitrer: 0, arbitres: 0, apprentissages: 0 };
   const zero = { n: 0, lots: [] };

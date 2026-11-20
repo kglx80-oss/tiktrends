@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_VERDICT_CONFIG, compteAConclure, compteAImporter, diagnosticFinPrevue, etatLotSpatial, finPrevueAccueil, finPrevueAuLancement,
   finPrevuePassee, lotAttendDesMesures, lotConcluable, mesuresDuLot, mesureArretee, phraseDiagnosticFinPrevue,
+  decalerJour, jourParis,
   type FaitsAdSpatial, type FaitsLotSpatial, type FaitsVerdictSpatial, type VerdictValue,
 } from '../src';
 
@@ -90,12 +91,55 @@ describe('ce qui ne bouge pas', () => {
   });
 });
 
+describe('un lot ANCIEN, jamais arbitré · le comportement au déploiement', () => {
+  const aJ = (n: number) => ({ maintenant: new Date(LANCE.getTime() + n * J), fenetreJours: 7 });
+  it('lancé il y a 60 jours · synchro qui tourne (dernier calcul la nuit dernière) · l’état de ses verdicts, inchangé', () => {
+    const hier = new Date(LANCE.getTime() + 59 * J).toISOString();
+    expect(etatLotSpatial(nonConcluantJ3(hier), aJ(60)), 'un vieux lot sain bascule « à importer »').toBe('non_concluant');
+    expect(etatLotSpatial(trancheJ3(hier), aJ(60))).toBe('a_conclure');
+  });
+
+  it('lancé il y a 60 jours · aucun calcul depuis J3 · mesures manquantes (la synchro peut encore le relire)', () => {
+    expect(etatLotSpatial(trancheJ3(jour(3)), aJ(60)), 'un lot de 60 jours aux mesures arrêtées à J3 est proposé à conclure').toBe('a_importer');
+  });
+
+  it('lancé il y a 120 jours ou plus · la synchro ne relit plus ses jours · la règle se tait, l’arbitrage reste possible', () => {
+    expect(etatLotSpatial(trancheJ3(jour(3)), aJ(119)), '119 jours · encore relisible').toBe('a_importer');
+    for (const n of [120, 200]) {
+      expect(etatLotSpatial(trancheJ3(jour(3)), aJ(n)), `${n} jours · une impasse permanente « à importer »`).toBe('a_conclure');
+      expect(etatLotSpatial(nonConcluantJ3(jour(3)), aJ(n))).toBe('non_concluant');
+    }
+  });
+});
+
 describe('le jour · celui de Paris (`jourParis`, comme l’Accueil)', () => {
   it('la veille du jour où la fenêtre se ferme, à Paris · arrêtée · le jour même à Paris (encore la veille en UTC) · à jour', () => {
     const f = { ...A_J8, lanceLe: LANCE.toISOString() };
     // La fenêtre se ferme le 12 oct. (Paris). 21 h 30 UTC le 11 = 23 h 30 Paris le 11 · 22 h 30 UTC le 11 = 0 h 30 Paris le 12.
     expect(mesureArretee({ statut: 'computed', calcule: 'inconclusive', calculeLe: '2026-10-11T21:30:00Z' }, f), '23 h 30 à Paris la veille · dit à jour').toBe(true);
     expect(mesureArretee({ statut: 'computed', calcule: 'inconclusive', calculeLe: '2026-10-11T22:30:00Z' }, f), '0 h 30 à Paris le jour où la fenêtre se ferme · dit arrêté (jour UTC, pas celui de Paris)').toBe(false);
+  });
+});
+
+describe('le raccourci sans calendrier · le même résultat que le jour de Paris, demi-heure par demi-heure', () => {
+  it('lancements et calculs à chaque demi-heure, autour des deux changements d’heure (29 mars, 25 oct.) · fenêtres de 1, 7 et 14 jours', () => {
+    const H = 1_800_000;
+    let compares = 0;
+    for (const [mois, jourDebut] of [[2, 21], [9, 17]] as const) for (const fenetreJours of [1, 7, 14]) {
+      for (let h = 0; h < 96; h += 1) {
+        const lance = Date.UTC(2026, mois, jourDebut) + h * H;
+        const lanceLe = new Date(lance).toISOString();
+        const fin = decalerJour(jourParis(new Date(lance)), fenetreJours);
+        for (let k = 0; k <= (fenetreJours + 3) * 48; k += 1) {
+          const calculeLe = new Date(lance + k * H).toISOString();
+          const attendu = jourParis(new Date(calculeLe)) < fin;
+          const f = { lanceLe, fenetreJours, maintenant: new Date(lance + (fenetreJours + 4) * J) };
+          expect(mesureArretee({ statut: 'computed', calcule: 'inconclusive', calculeLe }, f), `${fenetreJours} j · lancé ${lanceLe} · calculé ${calculeLe}`).toBe(attendu);
+          compares++;
+        }
+      }
+    }
+    expect(compares).toBeGreaterThan(250_000);
   });
 });
 

@@ -4,7 +4,7 @@ import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
   DEFAULT_VERDICT_CONFIG, conclusionLot, manquesAvantTest, etatLotSpatial, presentationLot, referenceConclusion, lireOrigineHypothese, lireProvenanceJarvis, lireProvenanceCommentaire, lireProvenanceNote, sommeRetenues,
-  compteAConclure, compteAImporter,
+  compteAConclure, compteAImporter, idsLotsConclus,
   type EstimationHypothese, type OrigineHypotheseLibre, type ProvenanceJarvis, type ProvenanceCommentaire, type ProvenanceNote, type VerdictConfig, type VerdictValue, type FaitsAdSpatial, type FaitsLotSpatial, type ContexteLots, type AgregatMesures,
   type FaitsHypotheseAd, type CompteAConclure, type FaitsVerdictSpatial, type SeuilMinimumMoteur, type VarianteFinPrevue,
   type CompteAImporter, type FaitsLotAImporter,
@@ -327,6 +327,17 @@ export interface PartageRail { faits?: Promise<FaitsRail> }
 export function faitsRailPartages(workspaceId: string, brandId: string, maintenant = new Date(), partage?: PartageRail): Promise<FaitsRail> {
   if (!partage) return chargerFaitsRail(workspaceId, brandId, maintenant);
   return (partage.faits ??= chargerFaitsRail(workspaceId, brandId, maintenant));
+}
+
+/**
+ * Ce que l'Accueil lit des états des lots · LE compte « à conclure »
+ * (`compteAConclure`) ET les lots conclus (`idsLotsConclus` · toutes leurs
+ * variantes arbitrées, écartés de « En diffusion » et de « fin prévue
+ * passée ») · tirés de LA même lecture (`faitsRailPartages`).
+ */
+export async function lireEtatsAccueil(workspaceId: string, brandId: string, maintenant = new Date()): Promise<{ aConclure: CompteAConclure; conclus: Set<string> }> {
+  const f = await faitsRailPartages(workspaceId, brandId, maintenant);
+  return { aConclure: compteAConclure(f.lots, f.ctx), conclus: idsLotsConclus(f.lots, f.ctx) };
 }
 
 /** LE compte « à conclure » de la marque · la pastille du rail et l'Accueil le lisent ici (règle `compteAConclure`, inchangée). */

@@ -16,7 +16,10 @@ import { renderToStaticMarkup } from 'react-dom/server';
  *  · n2 · le jeton a expiré à J3 · ses verdicts datés de J3 (un tranché) · à J8,
  *    « Mesures manquantes · … mesures arrêtées le … » · jamais compté « à conclure » ;
  *  · n3 · les mêmes verdicts, recalculés le jour où la fenêtre se ferme · inchangé,
- *    « à conclure ».
+ *    « à conclure » ;
+ *  · n4 · lancé par la même action, puis entièrement arbitré (ses variantes
+ *    `done`, ses verdicts validés) · resté `testing` · jamais « fin prévue
+ *    passée » ni compté « En diffusion » à l'Accueil.
  * Aucun réseau, 0 $.
  */
 
@@ -51,7 +54,7 @@ vi.mock('next/cache', () => ({ revalidatePath: () => {}, revalidateTag: () => {}
 vi.mock('../app/actions/assistant', () => ({ askAssistant: async () => ({}) }));
 vi.mock('../app/actions/adsmap-attribution', () => ({ attributionViewAction: async () => ({}), creativeTrendAction: async () => ({}) }));
 
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { phraseFinPrevuePassee } from '@tiktrends/core';
 import { avecSpatial } from './spatial/fournisseur';
@@ -115,6 +118,7 @@ beforeAll(async () => {
   await lot('n2', 2, { verdicts: [{ calcule: 'loser', le: A(3) }, { calcule: 'inconclusive', le: A(3) }] });
   // Les mêmes, recalculés par la synchro du jour où la fenêtre se ferme (le 12 oct., 7 h Paris).
   await lot('n3', 3, { verdicts: [{ calcule: 'loser', le: new Date('2026-10-12T05:00:00Z') }, { calcule: 'inconclusive', le: new Date('2026-10-12T05:00:00Z') }] });
+  await lot('n4', 4, { pret: true });
 }, 180_000);
 
 afterEach(() => { vi.useRealTimers(); h.session = null; h.marque = null; });
@@ -141,6 +145,7 @@ async function accueil() {
   const t = etape('À traiter');
   return {
     sous: net(e!.querySelector('strong + span')?.textContent),
+    n: Number(net(e!.querySelector('.big3')?.textContent)),
     diagnostic: e!.querySelector('[data-fin-prevue]') ? net(e!.querySelector('[data-fin-prevue] > span:not(.btn)')?.textContent) : null,
     traiter: t ? Number(net(t.querySelector('.big3')?.textContent)) : null,
   };
@@ -155,6 +160,12 @@ describe('le lancement écrit la fin prévue · « fin prévue passée » s’al
     expect(b!.statut).toBe('testing');
     expect(b!.lance?.toISOString()).toBe(T0.toISOString());
     expect(b!.fin?.toISOString() ?? null, 'le lancement n’écrit pas la fin prévue').toBe(A(7).toISOString());
+    // n4 · lancé de même, puis entièrement arbitré · ses variantes `done`, ses verdicts validés (ce qu'écrit l'arbitrage).
+    expect(await launchBatchAction(L.n4!)).toEqual({ ok: true });
+    for (const v of ['v1', 'v2']) {
+      const [a] = await db.update(schema.ads).set({ status: 'done' }).where(and(eq(schema.ads.batchId, L.n4!), eq(schema.ads.variantCode, v))).returning({ id: schema.ads.id });
+      await db.insert(schema.verdicts).values({ adId: a!.id, workspaceId: I.ws!, computed: 'winner', validated: 'winner', status: 'validated', comparable: true, computedAt: A(7), metricsAgg: { spend: 150, impressions: 20000 } });
+    }
 
     // En diffusion (J5) · « mesures en cours », jusqu'à la fin prévue.
     horloge(A(5));
@@ -165,7 +176,9 @@ describe('le lancement écrit la fin prévue · « fin prévue passée » s’al
     expect(i.cas).toBe('manquantes');
     expect(i.texte, 'la fin prévue n’est pas dite passée').toBe('Mesures manquantes · la fin prévue du lot #1 (le 12 oct.) est passée.');
     const a = await accueil();
-    expect(a.sous, '« fin prévue passée » ne s’allume pas à l’Accueil').toBe(phraseFinPrevuePassee([{ numero: 1 }]));
+    // n1 · non arbitré, fin prévue passée · dit · n4 · entièrement arbitré · ni dit, ni compté en diffusion.
+    expect(a.sous, '« fin prévue passée » ne s’allume pas à l’Accueil, ou nomme le lot entièrement arbitré').toBe(phraseFinPrevuePassee([{ numero: 1 }]));
+    expect(a.n, 'le lot entièrement arbitré est compté « En diffusion »').toBe(2);
     expect(a.diagnostic).toBe('Lot #1 · aucune mesure reçue depuis le lancement');
   });
 });

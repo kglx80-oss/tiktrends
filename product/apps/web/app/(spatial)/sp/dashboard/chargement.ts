@@ -25,7 +25,7 @@ import { adsVignettesDuLot, jointureCreaDeLaMarque, vignetteDuLot, vignettesDesA
 import { compterBoucle } from '../../../../lib/boucle-resultats';
 import { anthropicConfigured } from '../../../../lib/ai-status';
 import { unlimitedCredits } from '../../../../lib/credits';
-import { chargerVariantesFinPrevue, compterAConclure } from '../adsmap/donnees';
+import { chargerVariantesFinPrevue, lireEtatsAccueil } from '../adsmap/donnees';
 import { notifsRelues } from '../../../../lib/studios/mes-mentions';
 import type { EtatQuoiIterer, EtatReporting, PropsAccueil } from '../../../../spatial/vues/accueil/Accueil';
 
@@ -72,7 +72,7 @@ export async function chargerAccueilSpatial(s: Session, params: Record<string, s
   const lotsOuverts = adsmapOuvert && canAccess(acces, F('lots'));
   const analyticsOuvert = canAccess(acces, F('analytics')) && !!marque && !!db;
 
-  const [v5, parcours, fiche, lots, notifs, metaBrand, aConclure] = await Promise.all([
+  const [v5, parcours, fiche, lotsLus, notifs, metaBrand, etats] = await Promise.all([
     chargerAccueilV5(s, { marque, nouveauProjet, nbProjets: tete.nbProjets }),
     roleAtLeast(s.role, 'member') ? lire('parcours', () => onboardingState(s.workspaceId, admin)) : Promise.resolve(null),
     // La fiche s'ouvre aux admins (`/brands/[id]`) · même lecture et même règle de complétude que l'Accueil V5.
@@ -105,7 +105,7 @@ export async function chargerAccueilSpatial(s: Session, params: Record<string, s
         .where(and(eq(B.brandId, marque!.id), eq(B.workspaceId, s.workspaceId)))
         .groupBy(B.id).orderBy(desc(B.number)).limit(200);
       const vignettes = await vignettesDesAds(s.workspaceId, marque!.id, rows.flatMap((r) => r.candidates ?? []));
-      return rows.map((r): LotAccueil => ({
+      return rows.map((r): Omit<LotAccueil, 'conclu'> => ({
         id: r.id, numero: r.numero, statut: r.statut, but: r.but, variantes: Number(r.variantes),
         lanceLe: r.lanceLe ? (r.lanceLe as Date).toISOString() : null, finPrevue: r.finPrevue ? (r.finPrevue as Date).toISOString() : null,
         vignette: vignetteDuLot(r.candidates, vignettes),
@@ -126,9 +126,13 @@ export async function chargerAccueilSpatial(s: Session, params: Record<string, s
     // LA lecture de la connexion ET des chiffres clés Meta · la même que la vue Analytics, Jarvis et le Radar (D2).
     analyticsOuvert ? lire('chiffres clés Meta', () => lireChiffresClesMeta(marque!.id, s.workspaceId, maintenant)) : Promise.resolve(null),
     // LE compte « à conclure » · celui de la pastille du rail et des lignes de la liste « À conclure »
-    // (`/adsmap/lots`, ouverte à qui arbitre · membre comme admin), sous la même garde (Adsmap).
-    adsmapOuvert ? lire('lots à conclure', () => compterAConclure(s.workspaceId, marque!.id, maintenant)) : Promise.resolve(null),
+    // (`/adsmap/lots`, ouverte à qui arbitre · membre comme admin), sous la même garde (Adsmap) · et les lots
+    // conclus (toutes leurs variantes arbitrées), tirés de la même lecture.
+    adsmapOuvert ? lire('lots à conclure', () => lireEtatsAccueil(s.workspaceId, marque!.id, maintenant)) : Promise.resolve(null),
   ]);
+  const aConclure = etats?.aConclure ?? null;
+  // Un lot conclu reste `testing` en base · ni « En diffusion » ni « fin prévue passée » · états illisibles, rien n'est caché.
+  const lots: LotAccueil[] | null = lotsLus ? lotsLus.map((l) => ({ ...l, conclu: etats?.conclus.has(l.id) ?? false })) : null;
 
   /* ── Reporting Meta ─────────────────────────────────────────────────── */
   let reporting: EtatReporting | null = null;
