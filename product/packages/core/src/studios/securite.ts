@@ -361,6 +361,46 @@ export function accesTotalAdmissible(equipe: { role: string; plateformeAdmissibl
   return !!equipe && (ROLES_ACCES_TOTAL as readonly string[]).includes(equipe.role) && equipe.plateformeAdmissible === true;
 }
 
+/**
+ * Les privilèges d'ÉQUIPE d'une session, hors studio · LA règle de l'accès
+ * effectif (`effectiveAccess`) et du lecteur de la dépense plateforme
+ * (`voitDepensePlateforme`).
+ *
+ *  · `formuleBusiness` · la formule lue est forcée à Business (barre de
+ *    crédits, facturation, toute lecture de `.plan`) ;
+ *  · `depensePlateforme` · lit la dépense IA de toute la plateforme et le
+ *    plafond en dollars ;
+ *  · `faceEquipe` · l'accès se lit par la matrice des rubriques, sans aucun
+ *    verrou de formule (`rbac`, `Access.equipe`).
+ *
+ * Les deux premiers exigent un fondateur de la liste CODÉE ou l'accès total
+ * ADMISSIBLE (`accesTotalAdmissible`, pas une copie). Sur main 1173851d, le
+ * rôle seul suffisait (`accesTotal`, `isFounder` qui inclut `FOUNDER_EMAILS`) ·
+ * un tiers qui créait le premier le compte d'un e-mail inscrit en Admin
+ * utilisait toutes les fonctions Business et lisait la dépense de la
+ * plateforme.
+ *
+ * `faceEquipe` · même exigence pour l'accès total (un compte non admissible
+ * retombe sur la face CLIENT · rôle et formule réels de son espace) ; un rôle
+ * GRADÉ la garde comme avant, admissible ou non (sa matrice décide, sans
+ * formule) · l'admissibilité ne lui a jamais rien ouvert (`admissibiliteMembre`).
+ */
+export interface PrivilegesEquipe {
+  formuleBusiness: boolean;
+  depensePlateforme: boolean;
+  faceEquipe: boolean;
+}
+
+export function privilegesEquipe(p: {
+  /** Fondateur de la liste CODÉE (`estFondateurCode`), jamais `FOUNDER_EMAILS`. */
+  fondateurCode: boolean;
+  equipe: { role: string; plateformeAdmissible?: boolean } | null | undefined;
+}): PrivilegesEquipe {
+  const total = p.fondateurCode || accesTotalAdmissible(p.equipe);
+  const grade = !!p.equipe && !(ROLES_ACCES_TOTAL as readonly string[]).includes(p.equipe.role);
+  return { formuleBusiness: total, depensePlateforme: total, faceEquipe: !!p.equipe && (total || grade) };
+}
+
 /* ────────────────────────────────────────────────────────────────────────── */
 /*  SEC-04 · données non fiables, hors du rôle `system`                        */
 /* ────────────────────────────────────────────────────────────────────────── */

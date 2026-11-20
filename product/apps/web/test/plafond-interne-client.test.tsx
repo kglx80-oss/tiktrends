@@ -51,8 +51,8 @@ import { RadarAdsmap } from '../spatial/vues/resultats/RadarAdsmap';
 
 /** Admin d'un espace client sur Plus · le cas de l'audit. */
 const client = () => ({ user: { id: ids.user, email: 'admin@client.test', name: null }, workspaceId: ids.ws, workspaceName: 'Démo', role: 'admin', plan: 'plus', equipe: null });
-/** Équipe de la plateforme à accès total. */
-const personnel = () => ({ user: { id: ids.user, email: 'equipe@agence.test', name: null }, workspaceId: ids.ws, workspaceName: 'Démo', role: 'owner', plan: 'plus', equipe: { role: 'adminplus', matrice: {} } });
+/** Équipe de la plateforme à accès total, ADMISSIBLE (compte antérieur à son inscription · `privilegesEquipe`). */
+const personnel = () => ({ user: { id: ids.user, email: 'equipe@agence.test', name: null }, workspaceId: ids.ws, workspaceName: 'Démo', role: 'owner', plan: 'plus', equipe: { role: 'adminplus', matrice: {}, plateformeAdmissible: true } });
 /** Équipe de la plateforme SANS accès total · traitée comme un client. */
 const equipeRestreinte = () => ({ ...personnel(), equipe: { role: 'manager', matrice: {} } });
 
