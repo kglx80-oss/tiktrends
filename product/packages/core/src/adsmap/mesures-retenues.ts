@@ -156,12 +156,27 @@ export type ProtocoleAd = Omit<ProtocoleLigne, 'cbo'> & { nomAnnonce: string | n
 export const PROTOCOLE_INCONNU: ProtocoleAd = { nomAnnonce: null, campagne: null, campagneId: null, ensemble: null, ensembleId: null, budgetJour: null, cbo: null };
 
 /**
+ * Le CBO qu'une ligne d'export ÉTABLIT · « Utilisation du budget de la
+ * campagne » (`cbo`) ⇒ oui · un budget d'ensemble lu ⇒ non · rien (ligne sans
+ * colonne de budget) ⇒ inconnu · une ligne muette ne prouve pas l'ABO.
+ */
+export const cboEtabliParExport = (p: { cbo: boolean; budgetJour: number | null }): boolean | null => (p.cbo ? true : p.budgetJour !== null ? false : null);
+
+/**
  * Le protocole d'une ad · la connexion d'abord (elle suit l'ensemble tel qu'il
  * tourne), sinon la ligne de fichier importée la plus récente · `source` le dit.
+ *
+ * Connexion au CBO INCONNU (ensembles non lus) · la dernière ligne d'export le
+ * complète quand elle l'établit (`cboEtabliParExport`) · c'est le contournement
+ * naturel d'un jeton sans droits sur les ensembles. Le reste du protocole reste
+ * celui de la connexion.
  */
 export function protocoleRetenu(meta: ProtocoleAd | null | undefined, csv: readonly EntreeCsvRetenable[] = []): { protocole: ProtocoleAd; source: SourceMesure | null } {
-  if (meta) return { protocole: meta, source: 'meta' };
   const dernier = [...csv].sort((x, y) => (x.importeLe < y.importeLe ? 1 : x.importeLe > y.importeLe ? -1 : 0))[0];
+  if (meta) {
+    const cbo = meta.cbo ?? (dernier ? cboEtabliParExport(dernier.protocole) : null);
+    return { protocole: cbo === meta.cbo ? meta : { ...meta, cbo }, source: 'meta' };
+  }
   return dernier ? { protocole: { ...dernier.protocole, nomAnnonce: dernier.nomAnnonce }, source: 'csv' } : { protocole: PROTOCOLE_INCONNU, source: null };
 }
 
@@ -193,9 +208,12 @@ export interface ProtocoleLuMeta {
  *
  * Un ensemble NON LU ne fait rien oublier · le budget et le CBO restent ceux
  * qu'on connaissait (instance, relais du lot), seule l'annonce est rafraîchie ·
- * le budget stocké ne vaut que pour le MÊME ensemble (une ad passée dans un
- * autre ensemble n'a plus ce budget · inconnu, `null`). Rien de connu · CBO
- * inconnu (`null`), le lot ne se compare pas.
+ * le budget stocké ne vaut que pour le MÊME ensemble · c'est l'écriture de
+ * l'instance qui le garantit (`ingest` efface budget et statut quand l'ad change
+ * d'ensemble, le CBO quand elle change de campagne) · le recalcul relit
+ * l'instance APRÈS cette écriture, donc `stocke` est toujours celui de
+ * l'ensemble du jour. Rien de connu · CBO inconnu (`null`), le lot ne se
+ * compare pas.
  * Le rendre « sans CBO, budget inconnu » ferait passer un lot en CBO pour
  * « Protocole respecté · comparables » (le contrôle ignore les budgets nuls) et
  * ouvrirait des `winner` absolus que le §6.1 interdit.
@@ -210,10 +228,7 @@ export function protocoleMetaRetenu(
 ): ProtocoleAd | undefined {
   if (lu?.ensemble) return { ...lu.annonce, ...lu.ensemble };
   const connu = cboRetenu(cbo.instance, cbo.relais);
-  if (lu) {
-    const memeEnsemble = !!stocke && stocke.ensembleId === lu.annonce.ensembleId;
-    return { ...lu.annonce, budgetJour: memeEnsemble ? stocke.budgetJour : null, cbo: connu };
-  }
+  if (lu) return { ...lu.annonce, budgetJour: stocke?.budgetJour ?? null, cbo: connu };
   return stocke ? { ...stocke, cbo: connu } : undefined;
 }
 

@@ -132,7 +132,7 @@ export function checkProtocol(
   if (inconnu.length && rules.structure !== 'cbo_tolerated') {
     violations.push({
       code: 'cbo_inconnu',
-      message: `Les ensembles de publicités de ${inconnu.length} annonce(s) n'ont pas pu être lus chez Meta (droits ou quota) · on ne sait pas si leur budget est piloté par la campagne (CBO). Les verdicts de ce lot resteront relatifs jusqu'à la prochaine lecture réussie.`,
+      message: `Le CBO de ${inconnu.length} annonce(s) n'est pas établi · leur ensemble n'a pas été lu chez Meta (droits ou quota, ensemble archivé, annonce terminée que la synchro ne relit plus) et aucune autre annonce de leur campagne ne le dit · on ne sait pas si leur budget est piloté par la campagne. Les verdicts de ce lot resteront relatifs tant qu'il n'est pas établi · par une lecture réussie des ensembles de cette campagne, ou par un export Ads Manager avec la colonne budget de l'ensemble.`,
       adIds: inconnu.map((a) => a.adId),
     });
   }
@@ -211,6 +211,6 @@ export function summarizeProtocol(check: ProtocolCheck): string {
   if (check.compliant) return 'Protocole respecté, avec des réserves mineures · les verdicts restent comparables.';
   const cbo = check.violations.find((v) => v.code === 'cbo');
   if (cbo) return 'Budget piloté par la campagne : les verdicts de ce lot ne seront que relatifs.';
-  if (protocoleSeulementInconnu(check.violations)) return 'Ensembles Meta non lus · protocole inconnu, les verdicts de ce lot ne seront que relatifs jusqu’à la prochaine lecture.';
+  if (protocoleSeulementInconnu(check.violations)) return 'Ensembles Meta non lus · CBO inconnu, les verdicts de ce lot ne seront que relatifs tant qu’il n’est pas établi.';
   return `${check.violations.length} écart(s) au protocole · les verdicts de ce lot ne sont pas comparables entre eux.`;
 }

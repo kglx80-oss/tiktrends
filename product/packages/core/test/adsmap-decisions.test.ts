@@ -98,8 +98,14 @@ describe('lots', () => {
   it('protocole seulement INCONNU (ensembles non lus) · l’action est de rétablir la lecture, pas de corriger la structure', () => {
     const d = buildDecisions(input({ batches: [lot({ protocoleInconnu: true })] }));
     expect(d[0]!.type).toBe('protocol_violation');
-    expect(d[0]!.action).toBe('Vérifie l’accès de la connexion Meta aux ensembles de publicités · la prochaine lecture réussie rétablit le contrôle du lot.');
+    expect(d[0]!.action).toBe('Rétablis l’accès de la connexion Meta aux ensembles de publicités, ou importe un export Ads Manager du lot avec la colonne budget de l’ensemble · le CBO établi, le contrôle du lot se refait.');
     expect(buildDecisions(input({ batches: [lot()] }))[0]!.action).toMatch(/Corrige la structure/);
+  });
+
+  it('un résumé qui finit par un point · un seul point, après les montants', () => {
+    const d = buildDecisions(input({ batches: [lot({ protocolSummary: 'Budget piloté par la campagne : relatifs.' })] }));
+    expect(d[0]!.title).toBe('Lot 3 · Budget piloté par la campagne : relatifs (900 € engagés).');
+    expect(buildDecisions(input({ batches: [lot({ protocolSummary: 'Résumé.', spend: null })] }))[0]!.title).toBe('Lot 3 · Résumé.');
   });
 
   it('ne le signale plus une fois le lot analysé', () => {

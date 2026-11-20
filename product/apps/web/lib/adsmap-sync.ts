@@ -158,11 +158,13 @@ async function ingest(
       adsetName: tete?.adsetName ?? null,
       externalAdsetId: tete?.adsetId ?? null,
       externalCampaignId: tete?.campaignId ?? null,
-      // Ensemble non remonté ce passage (lecture des ensembles en échec, ensemble absent) · ce qu'on en savait reste ·
-      // le CBO ne redevient pas inconnu, le budget et le statut ne s'effacent pas. Lu, il s'écrit tel quel (un budget nul compris).
-      campaignBudgetOptimization: sql`coalesce(excluded.campaign_budget_optimization, ${schema.adInstances.campaignBudgetOptimization})`,
-      adsetDailyBudget: adset ? adset.dailyBudget : sql`${schema.adInstances.adsetDailyBudget}`,
-      status: adset ? adset.status : sql`${schema.adInstances.status}`,
+      // Ensemble non remonté ce passage (lecture des ensembles en échec, ensemble absent) · ce qu'on en savait reste,
+      // tant qu'il vaut encore · le budget et le statut sont ceux de l'ENSEMBLE (gardés si l'ad n'en a pas changé), le
+      // CBO celui de la CAMPAGNE (gardé si l'ad n'en a pas changé) · sinon inconnus (NULL). Lu, tout s'écrit tel quel
+      // (un budget nul compris). Les colonnes de droite valent l'ancienne ligne (Postgres, `on conflict do update`).
+      campaignBudgetOptimization: sql`coalesce(excluded.campaign_budget_optimization, case when ${schema.adInstances.externalCampaignId} is not distinct from excluded.external_campaign_id then ${schema.adInstances.campaignBudgetOptimization} end)`,
+      adsetDailyBudget: adset ? adset.dailyBudget : sql`case when ${schema.adInstances.externalAdsetId} is not distinct from excluded.external_adset_id then ${schema.adInstances.adsetDailyBudget} end`,
+      status: adset ? adset.status : sql`case when ${schema.adInstances.externalAdsetId} is not distinct from excluded.external_adset_id then ${schema.adInstances.status} end`,
     },
   }).returning({ id: schema.adInstances.id });
   if (!inst) return 0;

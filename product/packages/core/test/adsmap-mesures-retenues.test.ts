@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  retenirJournees, protocoleRetenu, protocoleMetaRetenu, cboRetenu, adAMesurer, sourceDesEntrees, sommeRetenues, journeesReporting, importeesDans, mentionImportees,
+  retenirJournees, protocoleRetenu, protocoleMetaRetenu, cboRetenu, cboEtabliParExport, cboParCampagne, adAMesurer, sourceDesEntrees, sommeRetenues, journeesReporting, importeesDans, mentionImportees,
   dansFenetre, verdictsDesMesures, sousKpisResultats, kpisResultats, PROTOCOLE_INCONNU, DEFAULT_VERDICT_CONFIG,
   type EntreeMesure, type EntreeCsvRetenable, type JourneeMetaLue, type MesuresLigne, type ProtocoleAd,
 } from '../src';
@@ -69,6 +69,15 @@ describe('protocoleRetenu · la connexion d’abord, sinon la ligne d’export l
     const p = protocoleRetenu(null, [csv(J(0), J(0), jour(1, 0), '2026-10-01T00:00:00Z', { ensemble: 'ancien' }), csv(J(1), J(1), jour(1, 0), '2026-10-09T00:00:00Z', { ensemble: 'récent' })]);
     expect([p.source, p.protocole.ensemble]).toEqual(['csv', 'récent']);
   });
+  it('connexion au CBO INCONNU · la dernière ligne d’export l’établit · CBO oui ⇒ oui, budget d’ensemble ⇒ non, ligne muette ⇒ inconnu', () => {
+    const inc: ProtocoleAd = { ...m, cbo: null };
+    expect(protocoleRetenu(inc, [csv(J(0), J(0), jour(1, 0), undefined, { budgetJour: 50 })]), 'un export qui dit ABO est ignoré quand Meta ne sait pas').toEqual({ protocole: { ...inc, cbo: false }, source: 'meta' });
+    expect(protocoleRetenu(inc, [csv(J(0), J(0), jour(1, 0), undefined, { budgetJour: null, cbo: true })]).protocole.cbo).toBe(true);
+    expect(protocoleRetenu(inc, [csv(J(0), J(0), jour(1, 0), undefined, { budgetJour: null, cbo: false })]).protocole.cbo, 'une ligne sans budget prouve l’ABO').toBeNull();
+    expect(protocoleRetenu(inc, [csv(J(0), J(0), jour(1, 0), '2026-10-01T00:00:00Z', { budgetJour: 50 }), csv(J(1), J(1), jour(1, 0), '2026-10-09T00:00:00Z', { budgetJour: null, cbo: true })]).protocole.cbo, 'pas la DERNIÈRE ligne').toBe(true);
+    expect(protocoleRetenu(m, [csv(J(0), J(0), jour(1, 0), undefined, { budgetJour: 50 })]).protocole.cbo, 'un CBO lu chez Meta a cédé à l’export · Meta l’emporte quand il sait').toBe(true);
+    expect([cboEtabliParExport({ cbo: true, budgetJour: null }), cboEtabliParExport({ cbo: false, budgetJour: 20 }), cboEtabliParExport({ cbo: false, budgetJour: null })]).toEqual([true, false, null]);
+  });
   it('rien · protocole inconnu, source nulle · CBO inconnu (`null`)', () => {
     expect(protocoleRetenu(undefined, [])).toEqual({ protocole: PROTOCOLE_INCONNU, source: null });
     expect(PROTOCOLE_INCONNU.cbo).toBeNull();
@@ -82,14 +91,12 @@ describe('protocoleMetaRetenu · un ensemble NON LU ne fait rien oublier (budget
     expect(protocoleMetaRetenu({ annonce, ensemble: { budgetJour: null, cbo: true } }, stocke, { instance: false, relais: false }))
       .toEqual({ ...annonce, budgetJour: null, cbo: true });
   });
-  it('ensemble NON lu, MÊME ensemble que l’instance · l’annonce du jour, le budget et le CBO connus · jamais « sans CBO, budget inconnu »', () => {
+  it('ensemble NON lu · l’annonce du jour, le budget et le CBO de l’instance · jamais « sans CBO, budget inconnu »', () => {
+    // Le budget stocké est TOUJOURS celui de l'ensemble du jour · l'instance est réécrite avant le recalcul, et `ingest`
+    // efface budget et statut quand l'ad change d'ensemble (garde en base · `synchro-ensembles-echec-db.test.ts`). Une
+    // comparaison d'ensembles ici ne s'exécuterait jamais en production · elle a été retirée, pas dupliquée.
     expect(protocoleMetaRetenu({ annonce: { ...annonce, ensembleId: 'as-1' }, ensemble: null }, stocke, { instance: true, relais: false }), 'ensemble non lu · le CBO ou le budget connus ont été oubliés')
       .toEqual({ ...annonce, ensembleId: 'as-1', budgetJour: 45, cbo: true });
-  });
-  it('ensemble NON lu, l’ad a CHANGÉ d’ensemble (as-1 stocké, as-2 du jour) · l’ancien budget ne vaut plus · budget inconnu, CBO connu', () => {
-    // Avant (#1111), ce cas gardait 45 · le budget d'as-1 était prêté à as-2. Corrigé · le budget n'appartient qu'à son ensemble.
-    expect(protocoleMetaRetenu({ annonce, ensemble: null }, stocke, { instance: true, relais: false }), 'ensemble changé · le budget de l’ancien ensemble a été prêté au nouveau')
-      .toEqual({ ...annonce, budgetJour: null, cbo: true });
   });
   it('ensemble NON lu, instance d’avant 0073 (CBO NULL) · le relais du lot', () => {
     expect(protocoleMetaRetenu({ annonce, ensemble: null }, stocke, { instance: null, relais: true })?.cbo).toBe(true);
@@ -108,6 +115,27 @@ describe('protocoleMetaRetenu · un ensemble NON LU ne fait rien oublier (budget
   it('rien de lu ce passage (import) · le protocole stocké, CBO de l’instance · rien du tout · aucun protocole Meta', () => {
     expect(protocoleMetaRetenu(undefined, stocke, { instance: true, relais: false })).toEqual({ ...stocke, cbo: true });
     expect(protocoleMetaRetenu(undefined, undefined, { instance: undefined, relais: false })).toBeUndefined();
+  });
+});
+
+describe('cboParCampagne · le CBO est une propriété de la campagne', () => {
+  const p = (campagneId: string | null, cbo: boolean | null, budgetJour: number | null = 20) => ({ protocole: { campagneId, cbo, budgetJour } });
+  it('une ad qui l’établit le dit pour sa campagne · désaccord ⇒ CBO · sans identifiant, rien', () => {
+    const r = cboParCampagne([p('c1', false), p('c1', null), p('c2', false), p('c2', true), p('c4', true), p('c4', false), p(null, true), p('c3', null)]);
+    expect(Object.fromEntries(r), 'désaccord dans la campagne · l’ordre de lecture décide au lieu du CBO').toEqual({ c1: false, c2: true, c4: true });
+  });
+  it('« non » sans budget d’ensemble (ligne d’export muette) ne parle pas pour les autres', () => {
+    expect(cboParCampagne([p('c1', false, null)]).has('c1')).toBe(false);
+  });
+  it('dans le lot · une ad au CBO inconnu prend celui de sa campagne · le lot se compare (ABO) ou reste relatif (CBO)', () => {
+    const ad = (id: string, campagneId: string, cbo: boolean | null) => ({ id, lotId: 'L', lotNumero: 1, lanceLe: J(0), entrees: [0, 1, 2, 3, 4, 5, 6].map((k) => ({ debut: J(k), fin: J(k), mesures: jour(50, 5, { impressions: 5000 }) })),
+      protocole: { nomAnnonce: id, campagne: 'C', campagneId, ensemble: `ES ${id}`, ensembleId: `as-${id}`, budgetJour: 50, cbo } });
+    const ctx = { config: DEFAULT_VERDICT_CONFIG, regles: { structure: 'abo_one_adset_per_ad' as const, campaignNamePattern: '[ADSMAP] TEST {brand} B{batch}', budgetVarianceTolerance: 0.2, minSpendShare: 0.35 }, marque: 'M', aujourdhui: J(8) };
+    const codes = (r: ReturnType<typeof verdictsDesMesures>) => r.protocoles[0]!.check.violations.map((v) => v.code);
+    expect(codes(verdictsDesMesures([ad('a', 'c1', false), ad('b', 'c1', null)], ctx)), 'la campagne est connue (ABO) · l’ad terminée reste « inconnue »').toEqual(['campaign_name']);
+    expect(codes(verdictsDesMesures([ad('a', 'c1', true), ad('b', 'c1', null)], ctx))).toEqual(['campaign_name', 'cbo']);
+    expect(codes(verdictsDesMesures([ad('a', 'c1', false), ad('b', 'c2', null)], ctx))).toContain('cbo_inconnu');
+    expect(codes(verdictsDesMesures([ad('b', 'c1', null)], { ...ctx, reperes: [ad('a', 'c1', false)] })), 'une ad de la même campagne dans un AUTRE lot (repères de la marque) ne dit pas le CBO').toEqual(['campaign_name']);
   });
 });
 

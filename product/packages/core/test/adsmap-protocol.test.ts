@@ -57,15 +57,17 @@ describe('CBO · la violation qui coûte le plus cher', () => {
 });
 
 describe('CBO INCONNU · ensembles non lus · le lot ne se compare pas', () => {
-  const RESUME = 'Ensembles Meta non lus · protocole inconnu, les verdicts de ce lot ne seront que relatifs jusqu’à la prochaine lecture.';
+  const RESUME = 'Ensembles Meta non lus · CBO inconnu, les verdicts de ce lot ne seront que relatifs tant qu’il n’est pas établi.';
 
   it('une annonce qui a dépensé, CBO inconnu (`null`) · lot NON comparable, résumé qui le dit', () => {
     const c = checkProtocol([ad(1, { campaignBudgetOptimization: null }), ad(2, { campaignBudgetOptimization: false })], rules, ctx);
     expect(c.compliant, 'CBO inconnu · le lot reste comparable').toBe(false);
     const v = c.violations.find((x) => x.code === 'cbo_inconnu')!;
     expect(v.adIds).toEqual(['ad1']);
-    expect(v.message).toMatch(/n'ont pas pu être lus chez Meta/);
+    expect(v.message).toMatch(/ensemble archivé, annonce terminée/);
+    expect(v.message, 'le message promet un rétablissement par la seule « prochaine lecture »').toMatch(/export Ads Manager/);
     expect(summarizeProtocol(c)).toBe(RESUME);
+    expect(RESUME).not.toMatch(/prochaine lecture/);
     expect(protocoleSeulementInconnu(c.violations)).toBe(true);
   });
 
