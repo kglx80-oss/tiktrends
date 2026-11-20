@@ -193,8 +193,10 @@ describe('la marque « retenue » · exactement la règle entrée par entrée (2
   });
 });
 
-describe('cboRetenu · l’instance d’abord, le relais du lot ensuite', () => {
-  it('le CBO écrit sur l’instance l’emporte, dans les deux sens · NULL (instance d’avant 0073) → le relais', () => {
-    expect([cboRetenu(true, false), cboRetenu(false, true), cboRetenu(null, true), cboRetenu(undefined, true), cboRetenu(null, false)]).toEqual([true, false, true, true, false]);
+describe('cboRetenu · l’instance d’abord, le relais du lot ensuite, sinon INCONNU', () => {
+  it('le CBO écrit sur l’instance l’emporte, dans les deux sens · NULL (instance d’avant 0073) → le relais · ni l’un ni l’autre → inconnu (`null`)', () => {
+    // Avant, « ni instance ni relais » valait `false` (ABO présumé) · un lot pouvait alors se dire comparable sans qu'on sache rien de son CBO.
+    // Le relais ne liste que les ads lues en CBO · en être absent ne prouve pas l'ABO.
+    expect([cboRetenu(true, false), cboRetenu(false, true), cboRetenu(null, true), cboRetenu(undefined, true), cboRetenu(null, false)]).toEqual([true, false, true, true, null]);
   });
 });

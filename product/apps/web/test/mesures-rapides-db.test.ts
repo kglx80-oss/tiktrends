@@ -366,11 +366,13 @@ describe('le CBO gardé sur la pub (ad_instances), le relais du lot en repli', (
     expect(p.relais, 'le relais n’est plus réécrit · un lot d’avant 0073 le perdrait au recalcul suivant').toEqual([...S.y].sort());
   });
 
-  it('témoin · instance sans CBO ET relais retiré · le lot n’est plus en CBO (la garde voit l’absence)', async () => {
+  it('témoin · instance sans CBO ET relais retiré · le lot n’est plus « en CBO » (la garde voit l’absence) · l’export importé (budget d’ensemble 45 €) établit l’ABO, et la campagne le dit pour l’autre ad', async () => {
     await db!.update(schema.batches).set({ protocolCheck: sql`${schema.batches.protocolCheck} - 'cboMeta'` }).where(eq(schema.batches.id, S.lot3));
     h.marque = ids.brandA;
     expect((await applyMesuresAction(EXPORT_Y, [], 'export-y.csv')).error).toBeUndefined();
+    // Sans export ni voisine de campagne, ce lot serait « CBO inconnu » · `synchro-cbo-inconnu-db.test.ts` (C) le garde.
     expect((await lot3()).codes).not.toContain('cbo');
+    expect((await lot3()).codes).not.toContain('cbo_inconnu');
   });
 
   it('import qui ÉPINGLE un identifiant Meta dont la connexion a des jours · recalcul de la marque en échec · la marque a été effacée dans l’import, l’entrée couverte n’est plus comptée', async () => {

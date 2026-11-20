@@ -43,7 +43,7 @@
  * Pur · ni base, ni réseau, ni horloge.
  */
 
-import { retenirMesures, type EntreeMesure, type MesuresLigne, type ProtocoleLigne } from './mesures-csv';
+import { normNom, retenirMesures, type EntreeMesure, type MesuresLigne, type ProtocoleLigne } from './mesures-csv';
 import type { AdAMesurer } from './mesures-verdicts';
 
 export type SourceMesure = 'meta' | 'csv';
@@ -52,7 +52,11 @@ export type SourceMesure = 'meta' | 'csv';
 export interface JourneeMetaLue extends EntreeMesure { adId: string | null }
 
 /** Une entrée d'export déjà en base · son protocole et sa date d'import (la plus récente donne le protocole). */
-export interface EntreeCsvRetenable extends EntreeMesure { protocole: ProtocoleLigne; nomAnnonce: string | null; importeLe: string }
+export interface EntreeCsvRetenable extends EntreeMesure {
+  protocole: ProtocoleLigne; nomAnnonce: string | null; importeLe: string;
+  /** L'identifiant Meta de l'annonce lu dans la ligne (« Ad ID ») · une ligne rattachée par lui est celle de l'annonce, donc de sa campagne. */
+  metaAdId?: string | null;
+}
 
 /**
  * Une entrée qui COMPTE · d'où elle vient, et l'ad qu'elle mesure (`null` ·
@@ -146,17 +150,66 @@ export function marquesRetenues<E extends { debut: string; fin: string }>(
 
 /* ───────────────────────── protocole ───────────────────────── */
 
-export type ProtocoleAd = ProtocoleLigne & { nomAnnonce: string | null };
+/**
+ * Le protocole d'une ad · `cbo` à TROIS états · `true` / `false` lus (chez Meta ou
+ * dans un export), `null` · INCONNU (aucun ensemble lu, ni sur l'instance ni au
+ * relais du lot) · un CBO inconnu retire sa comparabilité au lot (`checkProtocol`).
+ */
+export type ProtocoleAd = Omit<ProtocoleLigne, 'cbo'> & { nomAnnonce: string | null; cbo: boolean | null };
 
-export const PROTOCOLE_INCONNU: ProtocoleAd = { nomAnnonce: null, campagne: null, campagneId: null, ensemble: null, ensembleId: null, budgetJour: null, cbo: false };
+export const PROTOCOLE_INCONNU: ProtocoleAd = { nomAnnonce: null, campagne: null, campagneId: null, ensemble: null, ensembleId: null, budgetJour: null, cbo: null };
+
+/**
+ * Le CBO qu'une ligne d'export ÉTABLIT · « Utilisation du budget de la
+ * campagne » (`cbo`) ⇒ oui · un budget d'ensemble lu ⇒ non · rien (ligne sans
+ * colonne de budget) ⇒ inconnu · une ligne muette ne prouve pas l'ABO.
+ */
+export const cboEtabliParExport = (p: { cbo: boolean; budgetJour: number | null }): boolean | null => (p.cbo ? true : p.budgetJour !== null ? false : null);
+
+/**
+ * La ligne d'export parle-t-elle de la campagne Meta de l'ad · identifiants
+ * égaux quand les deux en ont un, sinon noms de campagne égaux une fois
+ * normalisés (casse, accents, ponctuation) · rien à comparer ⇒ non. Une ligne
+ * rattachée par son nom peut venir d'une autre campagne · elle ne dit rien de
+ * celle-ci.
+ */
+export function memeCampagne(meta: { campagneId: string | null; campagne: string | null }, ligne: { campagneId: string | null; campagne: string | null }): boolean {
+  if (meta.campagneId && ligne.campagneId) return meta.campagneId === ligne.campagneId;
+  // Un nom sans lettre ni chiffre latins (emoji, cyrillique…) se normalise en '' · deux vides ne prouvent pas la même campagne.
+  const a = meta.campagne ? normNom(meta.campagne) : '', b = ligne.campagne ? normNom(ligne.campagne) : '';
+  return a !== '' && a === b;
+}
 
 /**
  * Le protocole d'une ad · la connexion d'abord (elle suit l'ensemble tel qu'il
  * tourne), sinon la ligne de fichier importée la plus récente · `source` le dit.
+ *
+ * Le CBO de la connexion se croise avec la plus récente ligne d'export DE SA
+ * CAMPAGNE QUI L'ÉTABLIT (`cboEtabliParExport` non nul) · une ligne muette
+ * (sans colonne budget, budget à vie) ne dit rien et n'efface pas ce qu'une
+ * ligne plus ancienne a établi. Une ligne est de sa campagne quand elle porte
+ * l'identifiant Meta de l'annonce (`idMeta`), sinon par `memeCampagne`. Le CBO
+ * l'emporte dès qu'une des deux sources le dit (un « non » périmé ne cache pas
+ * un CBO) · sinon ce que la connexion sait, sinon ce que l'export établit ·
+ * c'est le contournement naturel d'un jeton sans droits sur les ensembles. Le
+ * reste du protocole reste celui de la connexion.
+ *
+ * Risque connu, non traité · un « non » de la connexion PÉRIMÉ (instance lue en
+ * ABO, campagne passée en CBO depuis, ensembles illisibles) tient tant qu'aucun
+ * export ne dit CBO · rien ne date le dernier ensemble lu.
  */
-export function protocoleRetenu(meta: ProtocoleAd | null | undefined, csv: readonly EntreeCsvRetenable[] = []): { protocole: ProtocoleAd; source: SourceMesure | null } {
-  if (meta) return { protocole: meta, source: 'meta' };
-  const dernier = [...csv].sort((x, y) => (x.importeLe < y.importeLe ? 1 : x.importeLe > y.importeLe ? -1 : 0))[0];
+export function protocoleRetenu(
+  meta: ProtocoleAd | null | undefined, csv: readonly EntreeCsvRetenable[] = [], o: { idMeta?: string | null } = {},
+): { protocole: ProtocoleAd; source: SourceMesure | null } {
+  const recentes = [...csv].sort((x, y) => (x.importeLe < y.importeLe ? 1 : x.importeLe > y.importeLe ? -1 : 0));
+  if (meta) {
+    const deLaCampagne = (l: EntreeCsvRetenable) => (!!o.idMeta && l.metaAdId === o.idMeta) || memeCampagne(meta, l.protocole);
+    const ligne = recentes.find((l) => deLaCampagne(l) && cboEtabliParExport(l.protocole) !== null);
+    const etabli = ligne ? cboEtabliParExport(ligne.protocole) : null;
+    const cbo = meta.cbo === true || etabli === true ? true : (meta.cbo ?? etabli);
+    return { protocole: cbo === meta.cbo ? meta : { ...meta, cbo }, source: 'meta' };
+  }
+  const dernier = recentes[0];
   return dernier ? { protocole: { ...dernier.protocole, nomAnnonce: dernier.nomAnnonce }, source: 'csv' } : { protocole: PROTOCOLE_INCONNU, source: null };
 }
 
@@ -164,9 +217,15 @@ export function protocoleRetenu(meta: ProtocoleAd | null | undefined, csv: reado
  * Le CBO d'une ad synchronisée · celui que la synchro a écrit sur son instance
  * (`ad_instances.campaign_budget_optimization`, 0073) quand elle l'a lu ·
  * sinon (instance d'avant 0073, ou ensemble non lu) le RELAIS du contrôle du
- * lot (`protocol_check_json.cboMeta`, écrit avant que l'instance le porte).
+ * lot (`protocol_check_json.cboMeta`, écrit avant que l'instance le porte) ·
+ * sinon le budget d'ENSEMBLE connu sur l'instance (une instance d'avant 0073 en
+ * porte un) · Meta ne pose pas de budget d'ensemble sous un budget de
+ * campagne, donc il prouve l'ABO, comme la colonne budget d'un export ·
+ * sinon INCONNU (`null`). Le relais ne liste que les ads lues en CBO · en être
+ * absent ne prouve pas l'ABO, donc ne vaut pas `false`.
  */
-export const cboRetenu = (instance: boolean | null | undefined, relais: boolean): boolean => instance ?? relais;
+export const cboRetenu = (instance: boolean | null | undefined, relais: boolean, budgetJour: number | null = null): boolean | null =>
+  instance ?? (relais ? true : budgetJour !== null ? false : null);
 
 /**
  * Ce que la synchro vient de lire chez Meta pour une ad · l'annonce (campagne,
@@ -185,7 +244,13 @@ export interface ProtocoleLuMeta {
  * y en a, sinon le protocole stocké sur l'instance · le CBO par `cboRetenu`.
  *
  * Un ensemble NON LU ne fait rien oublier · le budget et le CBO restent ceux
- * qu'on connaissait (instance, relais du lot), seule l'annonce est rafraîchie.
+ * qu'on connaissait (instance, relais du lot), seule l'annonce est rafraîchie ·
+ * le budget stocké ne vaut que pour le MÊME ensemble · c'est l'écriture de
+ * l'instance qui le garantit (`ingest` efface budget et statut quand l'ad change
+ * d'ensemble, le CBO quand elle change de campagne) · le recalcul relit
+ * l'instance APRÈS cette écriture, donc `stocke` est toujours celui de
+ * l'ensemble du jour. Rien de connu · CBO inconnu (`null`), le lot ne se
+ * compare pas.
  * Le rendre « sans CBO, budget inconnu » ferait passer un lot en CBO pour
  * « Protocole respecté · comparables » (le contrôle ignore les budgets nuls) et
  * ouvrirait des `winner` absolus que le §6.1 interdit.
@@ -199,7 +264,7 @@ export function protocoleMetaRetenu(
   cbo: { instance: boolean | null | undefined; relais: boolean },
 ): ProtocoleAd | undefined {
   if (lu?.ensemble) return { ...lu.annonce, ...lu.ensemble };
-  const connu = cboRetenu(cbo.instance, cbo.relais);
+  const connu = cboRetenu(cbo.instance, cbo.relais, stocke?.budgetJour ?? null);
   if (lu) return { ...lu.annonce, budgetJour: stocke?.budgetJour ?? null, cbo: connu };
   return stocke ? { ...stocke, cbo: connu } : undefined;
 }
