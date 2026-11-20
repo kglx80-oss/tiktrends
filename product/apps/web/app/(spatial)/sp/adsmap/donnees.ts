@@ -112,7 +112,7 @@ export interface DonneesLots {
 const LIMITE_ADS_LOTS = 2000;
 const adsDeLaMarque = (workspaceId: string, brandId: string) => and(eq(schema.ads.workspaceId, workspaceId), eq(schema.personas.brandId, brandId));
 const ORDRE_ADS_LOTS = [asc(schema.ads.variantCode), asc(schema.ads.id)] as const;
-/** Le verdict tel que l'état d'un lot le lit · sa valeur, son statut, et l'instant de son dernier calcul (`computed_at` · une mesure arrêtée avant la fin de la fenêtre, `mesureArretee`). */
+/** Le verdict tel que l'état d'un lot le lit · sa valeur, son statut, et l'instant de son dernier calcul (`computed_at` · une mesure arrêtée avant la fin de la fenêtre · l'état, `mesureArretee` · la phrase, `mesuresArretees` → `mesureArreteeConstatee`). */
 const verdictLu = (v: { status: string | null; computed: string | null; computedAt: Date | null }): Pick<FaitsVerdictSpatial, 'statut' | 'calcule' | 'calculeLe'> => ({
   calcule: (v.computed ?? null) as VerdictValue | null,
   statut: v.status === 'validated' ? 'validated' : 'computed',

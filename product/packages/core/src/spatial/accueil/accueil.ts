@@ -132,7 +132,8 @@ export interface LotAccueil {
  */
 export function lotConcluAccueil(l: Pick<LotAccueil, 'id' | 'variantes'>, conclus: ReadonlyMap<string, number> | null | undefined): boolean {
   const lues = conclus?.get(l.id);
-  return lues !== undefined && lues > 0 && lues === l.variantes;
+  // `lotsConclusLus` ne retient que l'état `conclu`, qui exige au moins une variante lue · aucun zéro à départager.
+  return lues !== undefined && lues === l.variantes;
 }
 
 const temps = (iso: string | null) => (iso ? Date.parse(iso) : NaN);

@@ -49,6 +49,16 @@ import type { ContexteLots } from './lots';
  * l'import, la fiche, `reserveFenetreIncomplete`) dit toujours « mesures
  * arrêtées » · l'arbitre sait qu'il tranche sur une fenêtre incomplète.
  *
+ * Ce que le constat NE sait PAS · il lit la fenêtre COURANTE de la marque
+ * (`ContexteLots.fenetreJours`), aucune fenêtre n'est figée au lancement ·
+ * une marque qui relève sa fenêtre après coup (7 → 14 jours) voit d'anciens
+ * lots, mesurés en entier sur 7 jours, dits rétroactivement « mesures
+ * arrêtées » (« Fenêtre incomplète » sur la fiche d'un lot arbitrable,
+ * `reserveFenetreIncomplete`). De même, un protocole volontairement plus
+ * court que la fenêtre (variantes arrêtées à J5 sur une fenêtre de 7, que la
+ * synchro ne recalcule plus, ou un dernier export importé à J5) la déclenche
+ * aussi · le constat ne distingue pas un arrêt voulu d'un arrêt subi.
+ *
  * Un lot ANCIEN jamais arbitré n'est pas touché pour autant · tant que la
  * synchro tourne, chaque variante diffusée ou en pause d'un lot dont une
  * variante remonte est recalculée chaque nuit (`computed_at` = la nuit

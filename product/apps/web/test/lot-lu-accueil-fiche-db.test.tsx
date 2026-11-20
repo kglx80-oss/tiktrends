@@ -18,8 +18,9 @@ import { renderToStaticMarkup } from 'react-dom/server';
  *    prévue passée » · le diagnostic dit « mesures arrêtées », pas « 1
  *    variante sur 2 sans mesure » ;
  *  · #11 · `a4`, `a5` calculées à J3 · l'état s'arbitre (borne de 120 jours,
- *    gardée) · la fiche dit à l'arbitre que la fenêtre est incomplète, l'import
- *    dit « mesures arrêtées ».
+ *    gardée) · la fiche dit à l'arbitre que la fenêtre est incomplète et lui
+ *    donne le recours (l'import de CE lot) · on suit le lien · l'import dit
+ *    « mesures arrêtées ».
  * Aucun réseau, 0 $.
  */
 
@@ -55,7 +56,7 @@ vi.mock('../app/actions/assistant', () => ({ askAssistant: async () => ({}) }));
 vi.mock('../app/actions/adsmap-attribution', () => ({ attributionViewAction: async () => ({}), creativeTrendAction: async () => ({}) }));
 
 import { db, schema } from '@tiktrends/db';
-import { phraseFinPrevuePassee } from '@tiktrends/core';
+import { lienImportLot, phraseFinPrevuePassee } from '@tiktrends/core';
 import { avecSpatial } from './spatial/fournisseur';
 import AccueilSpatial from '../app/(spatial)/sp/dashboard/page';
 import LotSpatial from '../app/(spatial)/sp/adsmap/lots/[id]/page';
@@ -170,13 +171,23 @@ describe('après 120 jours · l’état s’arbitre, la phrase dit toujours « m
     commeProprietaire();
     const d = dom(avecSpatial(await LotSpatial({ params: Promise.resolve({ id: L.arbitrable! }), searchParams: Promise.resolve({}) })));
     expect(d.querySelector('#conclure, [data-conclure], form'), 'préalable · la fiche propose l’arbitrage').toBeTruthy();
-    const reserves = [...d.querySelectorAll('p.faint')].map((p) => net(p.textContent));
-    expect(reserves, 'la fiche ne dit pas à l’arbitre que la fenêtre est incomplète').toContain(
-      'Fenêtre incomplète · mesures arrêtées le 9 janv., avant la fin de la fenêtre du moteur (7 jours) · 2 variantes sur 2 · la synchro ne relit plus ces jours, tu arbitres sur ce qui a été mesuré.',
+    const f = d.querySelector<HTMLElement>(`section[data-fenetre-incomplete="${L.arbitrable}"]`);
+    expect(f, 'la fiche ne dit pas à l’arbitre que la fenêtre est incomplète').not.toBeNull();
+    expect(net(f!.querySelector('h2')?.textContent)).toBe('Fenêtre incomplète');
+    expect(net(f!.querySelector('[data-diagnostic]')?.textContent), 'la phrase de la fiche n’est pas celle attendue (constat, recours)').toBe(
+      'Mesures arrêtées le 9 janv., avant la fin de la fenêtre du moteur (7 jours) · 2 variantes sur 2 · un export importé peut encore la compléter, sinon tu arbitres sur ce qui a été mesuré.',
     );
+    expect(net(f!.textContent), 'la fiche affirme ce que la synchro fait').not.toMatch(/synchro/);
+    expect(d.querySelector(`[data-import-lot="${L.arbitrable}"]`), 'le lot arbitrable est présenté « Mesures à importer »').toBeNull();
+    const geste = f!.querySelector<HTMLAnchorElement>('a[data-geste="importer-lot"]');
+    expect(geste?.getAttribute('href'), 'le recours n’ouvre pas l’import de ce lot').toBe(lienImportLot(L.arbitrable!));
+    expect(net(geste?.textContent)).toBe('Importer les mesures du lot #11');
     expect(net(d.textContent), 'tiret cadratin à l’écran').not.toMatch(/—/);
 
-    const i = dom(avecSpatial(await ImportSpatial({ searchParams: Promise.resolve({ lot: L.arbitrable! }) })));
+    // On SUIT le lien · l'écran d'import s'ouvre sur ce lot, et y dit le même constat.
+    const u = new URL(geste!.getAttribute('href')!, 'https://app.test');
+    expect(u.pathname).toBe('/adsmap/import');
+    const i = dom(avecSpatial(await ImportSpatial({ searchParams: Promise.resolve(Object.fromEntries(u.searchParams)) })));
     const s = i.querySelector<HTMLElement>('section[data-lot-cible]');
     expect(s?.dataset.lotCible, 'l’écran d’import ne s’ouvre pas sur le lot #11').toBe(L.arbitrable);
     expect(net(s!.querySelector('[data-diagnostic]')?.textContent), 'l’import se tait après 120 jours').toBe('Lot #11 · mesures arrêtées le 9 janv., avant la fin de la fenêtre du moteur (7 jours) · 2 variantes sur 2');

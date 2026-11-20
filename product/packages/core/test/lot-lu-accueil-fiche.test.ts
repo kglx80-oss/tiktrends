@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_VERDICT_CONFIG, compteAConclure, diagnosticFinPrevue, etatLotSpatial, finPrevueAccueil, lotConcluAccueil, lotsConclusLus,
-  lotsFinPrevuePassee, mesureArretee, phraseDiagnosticFinPrevue, reserveFenetreIncomplete,
+  lienImportLot, lotsFinPrevuePassee, mesureArretee, phraseDiagnosticFinPrevue, reserveFenetreIncomplete, RAISON_IMPORT_FERME,
   type FaitsAdSpatial, type FaitsLotSpatial, type FaitsVerdictSpatial, type LotAccueil, type VerdictValue,
 } from '../src';
 
@@ -94,20 +94,37 @@ describe('2 · après 120 jours, l’état s’arbitre · la phrase dit toujours
     });
   }
 
-  it('la fiche d’un lot arbitrable · l’arbitre lit qu’il tranche sur une fenêtre incomplète', () => {
-    const reserve = (n: number) => reserveFenetreIncomplete({ etat: etatLotSpatial(TRANCHE_J3, aJ(n)), variantes: TRANCHE_J3.ads, seuil: SEUIL, fenetre: fenetre(n) });
-    const attendu = `Fenêtre incomplète · ${PHRASE} · la synchro ne relit plus ces jours, tu arbitres sur ce qui a été mesuré.`;
-    expect(reserve(120), 'J120 · l’arbitre ne sait pas que la fenêtre est incomplète').toBe(attendu);
-    expect(reserve(400)).toBe(attendu);
-    expect(attendu, 'tiret cadratin à l’écran').not.toMatch(/[—–]/);
+  const LOT7 = { id: 'l7', numero: 7 };
+  const reserve = (n: number, refus: 'role' | 'plan' | null = null, variantes = TRANCHE_J3.ads) =>
+    reserveFenetreIncomplete({ etat: etatLotSpatial(TRANCHE_J3, aJ(n)), lot: LOT7, variantes, seuil: SEUIL, fenetre: fenetre(n), acces: { refus } });
+  const RECOURS = 'Mesures arrêtées le 8 oct., avant la fin de la fenêtre du moteur (7 jours) · 2 variantes sur 2 · un export importé peut encore la compléter, sinon tu arbitres sur ce qui a été mesuré.';
+
+  it('la fiche d’un lot arbitrable · l’arbitre lit qu’il tranche sur une fenêtre incomplète, et le recours · l’import de CE lot', () => {
+    for (const n of [120, 127, 400]) {
+      const r = reserve(n);
+      expect(r?.texte, `J${n} · l’arbitre ne sait pas que la fenêtre est incomplète, ou le recours lui est caché`).toBe(RECOURS);
+      expect(r?.geste, `J${n} · le recours n’ouvre pas l’import de ce lot`).toEqual({ etat: 'ouvert', libelle: 'Importer les mesures du lot #7', href: lienImportLot('l7') });
+    }
+    // La phrase ne dit rien de la synchro · entre J120 et J127 elle relit encore la fin de la fenêtre · une marque sans connexion n'en a pas.
+    expect(RECOURS, 'la phrase affirme ce que la synchro fait ou ne fait pas').not.toMatch(/synchro/);
+    expect(RECOURS, 'tiret cadratin à l’écran').not.toMatch(/[—–]/);
     // Avant J120 · le lot est « Mesures à importer », la fiche porte déjà l'import et son diagnostic · aucune réserve en double.
     expect(reserve(119), 'J119 · réserve sur un lot « Mesures à importer », en double de l’import').toBeNull();
+  });
+
+  it('import fermé à la personne · le contrôle fermé et sa raison · aucune source · le recours n’est pas promis', () => {
+    expect(reserve(400, 'role')?.geste, 'un membre reçoit un import ouvert').toEqual({ etat: 'ferme', libelle: 'Importer les mesures du lot #7', raison: RAISON_IMPORT_FERME.role });
+    const tiktok = TRANCHE_J3.ads.map((a) => ({ ...a, plateforme: 'tiktok' }));
+    const r = reserve(400, null, tiktok);
+    expect(r?.geste, 'un geste d’import sans source').toBeNull();
+    expect(r?.texte, 'sans source, la phrase promet un export').toBe('Mesures arrêtées le 8 oct., avant la fin de la fenêtre du moteur (7 jours) · 2 variantes sur 2 · aucune source d’import · TikTok n’a encore ni connexion ni export, seul Meta remonte des mesures · tu arbitres sur ce qui a été mesuré.');
   });
 
   it('un lot à jour · aucune réserve · un lot non arbitrable · aucune réserve', () => {
     const AJOUR = faits('l8', 8, [ad('v1', verdict('loser', { calculeLe: new Date(LANCE.getTime() + 300 * J).toISOString() })), ad('v2', verdict('inconclusive', { calculeLe: new Date(LANCE.getTime() + 300 * J).toISOString() }))]);
     expect(etatLotSpatial(AJOUR, aJ(400))).toBe('a_conclure');
-    expect(reserveFenetreIncomplete({ etat: 'a_conclure', variantes: AJOUR.ads, seuil: SEUIL, fenetre: fenetre(400) }), 'réserve sur un lot à jour').toBeNull();
-    expect(reserveFenetreIncomplete({ etat: 'conclu', variantes: TRANCHE_J3.ads, seuil: SEUIL, fenetre: fenetre(400) }), 'réserve sur un lot qu’on n’arbitre pas').toBeNull();
+    const r = (etat: 'a_conclure' | 'conclu', variantes: FaitsAdSpatial[]) => reserveFenetreIncomplete({ etat, lot: LOT7, variantes, seuil: SEUIL, fenetre: fenetre(400), acces: { refus: null } });
+    expect(r('a_conclure', AJOUR.ads), 'réserve sur un lot à jour').toBeNull();
+    expect(r('conclu', TRANCHE_J3.ads), 'réserve sur un lot qu’on n’arbitre pas').toBeNull();
   });
 });
