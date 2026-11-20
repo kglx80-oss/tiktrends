@@ -1,10 +1,11 @@
 import { CHEMIN_IMPORT_RESULTATS } from '../../parcours-boucle';
 import type { SeuilMinimumMoteur } from '../../adsmap/verdict';
-import { PRESENTATION_ETAT_LOT, etatLotSpatial, type ContexteLots, type EtatLotSpatial, type FaitsVerdictVariante } from './lots';
+import { PRESENTATION_ETAT_LOT, etatLotSpatial, lotArbitrable, type ContexteLots, type EtatLotSpatial, type FaitsVerdictVariante } from './lots';
 import {
-  diagnosticFinPrevue, finPrevueAccueil, finPrevuePassee, lienImportLot, phraseMesuresArretees, sourcesImportLot,
+  diagnosticFinPrevue, finPrevueAccueil, finPrevuePassee, gesteImportLot, lienImportLot, phraseMesuresArretees, sourcesImportLot,
   type FinPrevueAccueil, type LotImport, type VarianteFinPrevue,
 } from './fin-prevue';
+import type { FenetreDuLot } from './mesure-arretee';
 import { jourCourt } from '../accueil/temps';
 
 /**
@@ -113,7 +114,7 @@ export function mesuresDuLot(l: FaitsLotAImporter & { numero: number }, ctx: Con
   const jour = (iso: string) => jourCourt(iso.slice(0, 10));
   const n = l.numero;
   if (cas === 'manquantes') {
-    // La cause la plus précise d'abord · des mesures arrêtées avant la fin de la fenêtre (`mesureArretee`).
+    // La cause la plus précise d'abord · des mesures arrêtées avant la fin de la fenêtre (`mesuresArretees` → `mesureArreteeConstatee`, le constat sans borne).
     const d = diagnosticFinPrevue(l.ads, seuil, { ...ctx, lanceLe: l.lanceLe });
     return {
       cas,
@@ -290,4 +291,44 @@ export function phraseSansMesureApres(lot: Pick<LotImport, 'numero' | 'variantes
  */
 export function importFicheLot(p: Parameters<typeof finPrevueAccueil>[0] & { etat: EtatLotSpatial }): FinPrevueAccueil | null {
   return p.etat === 'a_importer' ? finPrevueAccueil(p) : null;
+}
+
+/**
+ * La fiche d'un lot qu'on ARBITRE (`lotArbitrable` · à conclure, non
+ * concluant) dont les mesures se sont arrêtées avant la fin de la fenêtre ·
+ * ce que l'arbitre lit, et le geste qui y répond. Ce cas n'existe qu'au-delà
+ * de la borne de relecture (`FENETRE_SYNCHRO_JOURS` · en deçà, le lot est
+ * « Mesures à importer » et la fiche porte déjà l'import et son diagnostic,
+ * `importFicheLot`) · l'état redevient arbitrable (voulu · sinon une impasse),
+ * mais l'arbitre tranche sur une fenêtre incomplète · on le lui dit, avec le
+ * constat du diagnostic (`diagnosticFinPrevue`, cas `arretees`, sans borne).
+ *
+ * La phrase reste vraie dans chaque cas · elle ne dit rien de la synchro
+ * (entre 120 et 120 + fenêtre jours, la synchro relit encore la fin de la
+ * fenêtre · une marque qui n'importe que des exports n'a pas de synchro) ·
+ * elle dit le recours · un export importé recalcule le verdict
+ * (`computed_at`) et lève le constat · le geste est l'import EXISTANT ouvert
+ * sur CE lot (`gesteImportLot` · ouvert, fermé avec sa raison, ou aucune
+ * source · alors le recours n'est pas promis). `null` sinon.
+ */
+export const TITRE_FENETRE_INCOMPLETE = 'Fenêtre incomplète';
+
+export function reserveFenetreIncomplete(p: {
+  etat: EtatLotSpatial;
+  lot: { id: string; numero: number };
+  variantes: readonly VarianteFinPrevue[];
+  seuil: SeuilMinimumMoteur;
+  fenetre: FenetreDuLot;
+  acces: { refus: 'role' | 'plan' | null };
+}): FinPrevueAccueil | null {
+  if (!lotArbitrable(p.etat)) return null;
+  const d = diagnosticFinPrevue(p.variantes, p.seuil, p.fenetre);
+  if (d?.cas !== 'arretees') return null;
+  const geste = gesteImportLot(p.lot, sourcesImportLot(p.variantes), p.acces);
+  const constat = phraseMesuresArretees(d);
+  const Constat = constat.charAt(0).toUpperCase() + constat.slice(1);
+  const texte = geste.etat === 'sans-source'
+    ? `${Constat} · ${geste.raison} · tu arbitres sur ce qui a été mesuré.`
+    : `${Constat} · un export importé peut encore la compléter, sinon tu arbitres sur ce qui a été mesuré.`;
+  return { lotId: p.lot.id, texte, geste: geste.etat === 'sans-source' ? null : geste };
 }

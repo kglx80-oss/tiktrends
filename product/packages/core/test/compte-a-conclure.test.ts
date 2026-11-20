@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   FILTRES_LOTS, LIEN_A_CONCLURE, PARAM_FILTRE_LOTS, aFaireMaintenant, compteAConclure, dansFiltreLots, etapesBoucleAccueil, etatLotSpatial,
-  filtreInitialLots, gestesListeLots, idsLotsConclus, lotsFinPrevuePassee, pastilleAConclure, phraseFinPrevuePassee, selectionAConclure,
+  filtreInitialLots, gestesListeLots, lotConcluAccueil, lotsConclusLus, lotsFinPrevuePassee, pastilleAConclure, phraseFinPrevuePassee, selectionAConclure,
   type FaitsAdSpatial, type FaitsEtatLot, type FaitsLotSpatial, type FaitsVerdictSpatial, type LotAccueil, type VerdictValue,
 } from '../src';
 
@@ -95,9 +95,10 @@ describe('le lien · la liste filtrée « À conclure », pour l’admin comme p
 
 describe('l’Accueil lit le même compte · « À traiter », « À faire maintenant »', () => {
   const NOW = MAINTENANT;
-  // `conclu` · la règle de l'état sur les faits du corpus (`idsLotsConclus`), comme l'Accueil la lit.
-  const conclus = idsLotsConclus(CORPUS, CTX);
-  const accueil = (id: string, numero: number, o: Partial<LotAccueil> = {}): LotAccueil => ({ id, numero, statut: 'testing', but: null, lanceLe: ilYa(10), finPrevue: null, variantes: 2, vignette: null, conclu: conclus.has(id), ...o });
+  // `conclu` · la règle de l'état sur les faits du corpus (`lotsConclusLus`), lus en entier (`lotConcluAccueil`), comme l'Accueil la lit.
+  const conclus = lotsConclusLus(CORPUS, CTX);
+  const enBase = (id: string) => CORPUS.find((l) => l.id === id)?.ads.length ?? 0;
+  const accueil = (id: string, numero: number, o: Partial<LotAccueil> = {}): LotAccueil => ({ id, numero, statut: 'testing', but: null, lanceLe: ilYa(10), finPrevue: null, variantes: enBase(id), vignette: null, conclu: lotConcluAccueil({ id, variantes: enBase(id) }, conclus), ...o });
   // Les lots datés de l'Accueil · la fin prévue est passée pour `conclure` ET pour `importer` (aucun verdict à arbitrer).
   const LOTS = [
     accueil('conclure', 9, { finPrevue: ilYa(1), vignette: 'https://x.test/a.jpg' }), accueil('muet', 8), accueil('diffusion', 7, { lanceLe: ilYa(2), finPrevue: ilYa(-5) }),

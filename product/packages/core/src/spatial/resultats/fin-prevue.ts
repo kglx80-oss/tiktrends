@@ -26,9 +26,12 @@ import { mesuresArretees, type FenetreDuLot, type VerdictDate } from './mesure-a
  *  · `sans-mesure`   · aucune variante n'a de verdict calculé ;
  *  · `arretees`      · la fenêtre du moteur est écoulée et au moins une
  *                      variante mesurée n'a pas été recalculée depuis la fin
- *                      de la fenêtre (`mesureArretee` · la synchro s'est
- *                      arrêtée, un export ne couvrait qu'un début) · lu
- *                      seulement quand l'appelant passe la fenêtre du lot ;
+ *                      de la fenêtre (`mesuresArretees` · la synchro s'est
+ *                      arrêtée, un export importé avant la fin de la fenêtre ·
+ *                      la règle lit l'instant du calcul, `computed_at`, pas le
+ *                      dernier jour mesuré) · le CONSTAT, sans la borne de
+ *                      relecture de l'état · lu seulement quand l'appelant
+ *                      passe la fenêtre du lot ;
  *  · `sous-minimum`  · chaque variante mesurée reste sous le minimum du moteur
  *                      (`sousLeMinimumDuMoteur`, la règle 2 du verdict · le
  *                      seuil de la MARQUE, aucun seuil reposé ici) ;
