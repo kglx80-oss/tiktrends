@@ -95,3 +95,17 @@ export function triggerTracker(): Promise<AdsMapTriggerResult> {
 export function triggerVideosHistoriques(): Promise<AdsMapTriggerResult> {
   return triggerCron('/api/cron/videos-historiques', 'videos-historiques', 2 * 60_000);
 }
+
+/**
+ * Récapitulatif hebdomadaire · notifications `digest` et courriel aux
+ * propriétaires et administrateurs des marques dont la semaine porte quelque
+ * chose. Aucun appel modèle (le récap est calculé, jamais rédigé) · rien de
+ * facturé, seulement des comptes et des envois. La route existait et était
+ * protégée · rien ne la déclenchait, donc ni la cloche ni « Quoi de neuf » ne
+ * recevaient de récap. Un passage par semaine ISO (verrou `digest:<semaine>`
+ * côté route) · une relance ou une crontab restée sur la machine ne double rien.
+ * 5 minutes · la durée maximale de la route (`maxDuration`).
+ */
+export function triggerDigest(): Promise<AdsMapTriggerResult> {
+  return triggerCron('/api/cron/digest', 'digest', 5 * 60_000);
+}
