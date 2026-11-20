@@ -155,7 +155,13 @@ function voitFeature(a: Access, f: Feature): boolean {
   return roleVoitRubrique(a.equipe.role, rub, a.equipe.matrice);
 }
 
-/** La feature est-elle VERROUILLÉE par la formule ? L'équipe n'est jamais bloquée par le plan. */
+/**
+ * La feature est-elle VERROUILLÉE par la formule ? La face équipe n'est jamais
+ * bloquée par le plan · elle n'est posée (`Access.equipe`) que par
+ * `effectiveAccess` sous `privilegesEquipe` (noyau) · accès total ADMISSIBLE,
+ * fondateur codé, ou rôle gradé. Un accès total non admissible arrive ici en
+ * face client · la formule réelle de son espace s'applique.
+ */
 function verrouille(a: Access, f: Feature): boolean {
   return a.equipe ? false : !planAtLeast(a.plan, f.minPlan);
 }

@@ -2,7 +2,9 @@
  * Admissibilité de l'équipe plateforme, rendue VISIBLE · pur, sans base ni UI.
  *
  * Depuis la PR #1106 (SEC-10 / E5), un compte d'équipe n'a les droits de
- * portée plateforme (crédits illimités, Connaissances, écriture de l'équipe)
+ * portée plateforme (crédits illimités, Connaissances, écriture de l'équipe ;
+ * puis, suivi de #1108, formule Business forcée, levée des verrous de formule
+ * et lecture de la dépense plateforme · `privilegesEquipe`)
  * que s'il est ADMISSIBLE (`plateformeAdmissible` · fondateur de la liste
  * codée, ou compte créé AVANT l'inscription de son e-mail dans
  * `platform_staff`). Effet assumé : un membre invité avant d'avoir un compte
@@ -48,11 +50,11 @@ export const CONSIGNE_REINSCRIPTION =
 
 /** Ce que lit le membre concerné · accès total, non admissible. */
 export const MESSAGE_NON_ADMISSIBLE =
-  'Ton compte a été créé après ton inscription à l’équipe · tes crédits illimités et les Connaissances sont fermés. Fais « Mot de passe oublié » sur ton adresse et reconnecte-toi, puis demande à un fondateur de te réinscrire.';
+  'Ton compte a été créé après ton inscription à l’équipe · tes crédits illimités, les Connaissances et l’accès d’équipe à toutes les fonctions sont fermés, tu as la formule de ton espace. Fais « Mot de passe oublié » sur ton adresse et reconnecte-toi, puis demande à un fondateur de te réinscrire.';
 
 /** Fondateur déclaré par l'environnement (`FOUNDER_EMAILS`), sans inscription dans l'équipe. */
 export const MESSAGE_FONDATEUR_HORS_CODE =
-  'Ton accès d’équipe vient de la liste des fondateurs de l’environnement, sans inscription dans l’équipe · tes crédits illimités et les Connaissances sont fermés. Fais « Mot de passe oublié » sur ton adresse et reconnecte-toi, puis demande à un fondateur de t’inscrire dans l’équipe.';
+  'Ton accès d’équipe vient de la liste des fondateurs de l’environnement, sans inscription dans l’équipe · tes crédits illimités, les Connaissances et l’accès d’équipe à toutes les fonctions sont fermés, tu as la formule de ton espace. Fais « Mot de passe oublié » sur ton adresse et reconnecte-toi, puis demande à un fondateur de t’inscrire dans l’équipe.';
 
 /** Refus général des Connaissances · client, rôle gradé. */
 export const REFUS_CONNAISSANCES =
@@ -99,7 +101,7 @@ export function admissibiliteMembre(f: {
   const statut: StatutAdmissibilite = cree ? 'compte-posterieur' : 'sans-compte';
   if (!estAccesTotal(f.role)) return { statut, admissible, libelle: 'Non admissible · sans effet pour ce rôle', compte, consigne: null };
   const pourquoi = cree
-    ? 'Compte créé après son inscription · crédits illimités et Connaissances fermés.'
+    ? 'Compte créé après son inscription · crédits illimités, Connaissances, accès d’équipe à toutes les fonctions et dépense de la plateforme fermés.'
     : 'Pas encore de compte · le compte qu’il créera sera postérieur, donc non admissible. Attends que son compte existe.';
   return { statut, admissible, libelle: 'Non admissible', compte, consigne: `${pourquoi} ${CONSIGNE_REINSCRIPTION}` };
 }
