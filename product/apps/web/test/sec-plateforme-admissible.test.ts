@@ -31,6 +31,10 @@ vi.mock('@tiktrends/db', async (importOriginal) => {
 import { db, schema } from '@tiktrends/db';
 import { permissionsStudio, restreindrePlateforme, PERMISSIONS_PLATEFORME, messageNonAdmissible, MESSAGE_NON_ADMISSIBLE, MESSAGE_FONDATEUR_HORS_CODE } from '@tiktrends/core';
 import { equipeDeSession } from '../lib/equipe-plateforme';
+import { equipeAuthentique } from '../lib/registre-equipe-session';
+
+/** L'équipe que lit la production · le jeton de `equipeDeSession`, passé par l'accesseur (suite de #1125). */
+const equipeLue = async (email: string) => equipeAuthentique({ equipe: await equipeDeSession(email) });
 import { aPouvoirsFondateur, estFondateurCode, estFondateurEnvironnement } from '../lib/founder';
 
 /** Un fondateur de la liste codée du dépôt (lib/founder.ts · FONDATEURS). */
@@ -62,39 +66,39 @@ function portee(roleEquipe: string, admissible: boolean | undefined) {
 
 describe('SEC-10 · equipeDeSession · antériorité du compte', () => {
   it('compte créé APRÈS l’inscription staff · rôle conservé, portée plateforme du studio refusée', async () => {
-    const e = await equipeDeSession(CAPTE);
+    const e = await equipeLue(CAPTE);
     expect(e?.role, 'le rôle d’équipe ne doit pas être retiré ailleurs').toBe('admin');
     expect(e?.plateformeAdmissible, 'compte créé après l’entrée staff jugé admissible').toBe(false);
     expect(portee(e!.role, e!.plateformeAdmissible), 'le compte capté reçoit des permissions plateforme').toEqual([]);
   });
 
   it('compte créé AVANT l’inscription staff · admissible, portée plateforme complète', async () => {
-    const e = await equipeDeSession(LEGITIME);
+    const e = await equipeLue(LEGITIME);
     expect(e?.role).toBe('admin');
     expect(e?.plateformeAdmissible).toBe(true);
     expect(portee(e!.role, e!.plateformeAdmissible)).toEqual([...PERMISSIONS_PLATEFORME].sort());
   });
 
   it('fondateur de la liste codée · admissible quelle que soit la date', async () => {
-    const e = await equipeDeSession(FONDATEUR_CODE);
+    const e = await equipeLue(FONDATEUR_CODE);
     expect(e).toMatchObject({ role: 'adminplus', plateformeAdmissible: true });
   });
 
   it('fondateur par FOUNDER_EMAILS seulement · rôle conservé, non admissible (liste codée exigée)', async () => {
-    const e = await equipeDeSession(ENV_FONDATEUR);
+    const e = await equipeLue(ENV_FONDATEUR);
     expect(e).toMatchObject({ role: 'adminplus', plateformeAdmissible: false });
   });
 
   it('le message dédié suit les faits de la session · inscrit puis compte postérieur, ou fondateur de l’environnement sans inscription', async () => {
-    expect(messageNonAdmissible(await equipeDeSession(CAPTE))).toBe(MESSAGE_NON_ADMISSIBLE);
-    const env = await equipeDeSession(ENV_FONDATEUR);
+    expect(messageNonAdmissible(await equipeLue(CAPTE))).toBe(MESSAGE_NON_ADMISSIBLE);
+    const env = await equipeLue(ENV_FONDATEUR);
     expect(env?.inscritEquipe, 'un fondateur de l’environnement n’a pas de ligne d’équipe').toBe(false);
     expect(messageNonAdmissible(env), 'un fondateur de l’environnement lit « créé après ton inscription »').toBe(MESSAGE_FONDATEUR_HORS_CODE);
-    expect(messageNonAdmissible(await equipeDeSession(LEGITIME))).toBeNull();
+    expect(messageNonAdmissible(await equipeLue(LEGITIME))).toBeNull();
   });
 
   it('compte client · aucune équipe, comme avant', async () => {
-    expect(await equipeDeSession('client@sec.test')).toBeNull();
+    expect(await equipeLue('client@sec.test')).toBeNull();
   });
 });
 

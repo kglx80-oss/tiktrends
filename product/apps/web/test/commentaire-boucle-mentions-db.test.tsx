@@ -3,7 +3,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { act, type ReactElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
-import type { IdsStudios, SessionTest } from './studios-semis';
+import type { IdsStudios, SessionTest, SurchargeSession } from './studios-semis';
 
 /**
  * Fermer la boucle du commentaire, et les mentions · base RÉELLE (pglite,
@@ -83,7 +83,7 @@ const S = {
   LC: '', LI: '', LS: '', LT: '', nC: 0, nI: 0, nS: 0, nT: 0,
   itC: '', itI: '', itS: '', itT: '',
 };
-const proprietaire = (o: Partial<SessionTest> = {}): SessionTest => session(ids, 'ua', { role: 'owner', plan: 'plus', ...o });
+const proprietaire = (o: SurchargeSession = {}): SessionTest => session(ids, 'ua', { role: 'owner', plan: 'plus', ...o });
 const admise: Record<string, TestedVariable> = {};
 
 async function chaine(titre: string) {

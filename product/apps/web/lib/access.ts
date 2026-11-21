@@ -1,8 +1,7 @@
 import 'server-only';
 import { privilegesEquipe } from '@tiktrends/core';
 import { estFondateurCode } from './founder';
-import type { EquipeSession } from './equipe-plateforme';
-import { equipeAuthentique } from './registre-equipe-session';
+import { equipeAuthentique, type JetonEquipe } from './registre-equipe-session';
 import type { MatriceDroits, RolePlateforme } from '@tiktrends/core';
 import { inscrireFaceEquipe, type Access, type FaceEquipe, type Plan, type Role } from './rbac';
 
@@ -48,7 +47,7 @@ import { inscrireFaceEquipe, type Access, type FaceEquipe, type Plan, type Role 
  * n'a pas d'équipe (`membres-mentions`, accès d'un AUTRE membre).
  */
 export function effectiveAccess(
-  s: { role: Role; plan: Plan; user: { email: string }; equipe?: EquipeSession | null },
+  s: { role: Role; plan: Plan; user: { email: string }; equipe?: JetonEquipe | null },
 ): Access {
   // L'entrée est AUTHENTIFIÉE · seule une session d'équipe produite par `equipeDeSession` compte (l'accesseur dit le filet).
   const equipe = equipeAuthentique(s) ?? undefined;

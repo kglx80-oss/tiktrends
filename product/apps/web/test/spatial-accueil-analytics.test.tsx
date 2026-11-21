@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
+import type { JetonEquipe } from '../lib/registre-equipe-session';
 
 /**
  * Spatial · Accueil · la vue Analytics (`/dashboard?vue=analytics`) et le
@@ -17,7 +18,8 @@ import { renderToStaticMarkup } from 'react-dom/server';
 type Session = {
   workspaceId: string; workspaceName: string; role: 'owner' | 'admin' | 'member' | 'client_viewer'; plan: 'starter' | 'core' | 'plus' | 'business';
   user: { id: string; email: string; name: string };
-  equipe?: { role: 'membre' | 'lecture' | 'freelance' | 'manager'; matrice: Record<string, never>; plateformeAdmissible?: boolean } | null;
+  // Le jeton opaque de la vraie session (suite de #1125) · posé par sessionEquipeTest, lu par equipeAuthentique.
+  equipe?: JetonEquipe | null;
 };
 const etat = vi.hoisted(() => ({
   session: null as unknown,

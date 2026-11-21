@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeAll } from 'vitest';
-import type { IdsStudios, SessionTest } from './studios-semis';
+import type { IdsStudios, SessionTest, SurchargeSession } from './studios-semis';
 
 /**
  * Lot 7 · raccordement V5, sur une VRAIE base (pglite + migrations) et par les
@@ -41,7 +41,7 @@ import { creerProjetDepuisSources, ajouterSourcesAuProjet, lireProjetDetail } fr
 import { definirDroitsAsset } from '../app/actions/studios/produit';
 
 const ids = etat.ids;
-const qui = (q: 'ua' | 'uv' | 'ur' | 'ub', s: Partial<SessionTest> = {}) => { etat.session = session(ids, q, s); };
+const qui = (q: 'ua' | 'uv' | 'ur' | 'ub', s: SurchargeSession = {}) => { etat.session = session(ids, q, s); };
 
 const ANNONCE = {
   id: '9001', platform: 'meta', status: 'active', daysRunning: 40, mediaType: 'image',

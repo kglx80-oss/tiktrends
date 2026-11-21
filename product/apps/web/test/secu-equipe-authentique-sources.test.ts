@@ -9,24 +9,35 @@ import ts from 'typescript';
  * `plateformeAdmissible` que l'appelant veut. Seule l'équipe produite par
  * `equipeDeSession` (gelée, inscrite au registre) doit compter · c'est ce que
  * rend `equipeAuthentique` (lib/registre-equipe-session.ts), l'accesseur
- * unique. Ce test refuse toute AUTRE lecture `.equipe` d'une session dans le
- * code de production · une garde, une page, une action écrite demain sur
- * `s.equipe` échoue ici et dit où.
+ * unique.
  *
- * Il lit le code avec le COMPILATEUR (programme TypeScript de apps/web) · est
- * une « session » tout objet dont la propriété `equipe` porte le type
- * `EquipeSession` (lib/equipe-plateforme.ts) · `Session`, `Pick<Session, …>`,
- * un type écrit à la main, un alias. Une lecture sur une valeur `any` est
- * refusée aussi (elle peut être une session · mesuré · 0 aujourd'hui). Les
- * autres `.equipe` du dépôt (`Access.equipe`, la face · un message de ticket
- * `m.equipe` booléen · une prop) ne sont pas des sessions et passent.
+ * ── Ce que le TYPE ferme désormais (suite de #1125) ─────────────────────────
+ * `Session.equipe` est un `JetonEquipe` opaque, sans champ lisible. Une lecture
+ * brute d'un champ, un passage structurel vers le noyau
+ * (`roleEffectifAudit({ equipe: null, ...s, roleEspace })`), un type local ou
+ * un utilitaire (`Readonly<EquipeSession>`, `Pick<…>`), une affectation
+ * déstructurante ou une forge ne COMPILENT plus · éprouvé ligne à ligne par
+ * `secu-equipe-opaque.types.test.ts`. Ce recensement n'en est plus le filet.
+ *
+ * ── Ce qui reste ici ─────────────────────────────────────────────────────────
+ * Le jeton lui-même se lit sans erreur (`const j = s.equipe`), et la suite
+ * naturelle d'une telle lecture est un cast (`j as unknown as EquipeSession`,
+ * une affectation à `any`), que le compilateur laisse passer. Ce test refuse
+ * donc toujours toute lecture `.equipe` d'une session hors de l'accesseur · est
+ * une « session » tout objet dont la propriété `equipe` porte `JetonEquipe`
+ * (le jeton) ou `EquipeSession` (une équipe en clair dans un type écrit à la
+ * main · elle peut venir d'un cast), et toute lecture sur une valeur `any`.
+ * Les autres `.equipe` du dépôt (`Access.equipe`, la face · un message de
+ * ticket `m.equipe` booléen · une prop) ne sont pas des sessions et passent.
+ * Passer le jeton TEL QUEL à un lecteur qui l'authentifie (`effectiveAccess({
+ * ...s, role, plan })`) n'est pas une lecture · c'est le chemin voulu.
  *
  * Formes vues · `s.equipe`, `s?.equipe`, `s['equipe']`, la déstructuration
  * (`const { equipe } = s`, renommée, en paramètre). Formes NON vues (à dire,
- * pas à taire) · un nom calculé (`s['equi' + 'pe']`), `Reflect.get`,
- * `Object.entries(s)`, un `.js` sans types. Le filet contre l'erreur est ici ·
- * la barrière à l'exécution est l'accesseur lui-même, éprouvé par
- * `secu-equipe-authentique-db.test.tsx`.
+ * pas à taire) · `Reflect.get` à clé non littérale, `Object.entries(s)`,
+ * `Object.assign`, un `.js` sans types. Là, la barrière est à l'exécution ·
+ * le registre, éprouvé au résultat par `secu-equipe-opaque.types.test.ts`
+ * (forme 4) et `secu-equipe-authentique-db.test.tsx`.
  */
 
 const WEB = join(__dirname, '..');
@@ -48,8 +59,10 @@ const CODE_SONDE = `
 import type { Session } from './auth';
 import type { Access } from './rbac';
 import type { EquipeSession } from './equipe-plateforme';
+import type { JetonEquipe } from './registre-equipe-session';
 type SessionMaison = { user: { email: string }; equipe?: EquipeSession | null };
-export function sonde(s: Session, p: Pick<Session, 'equipe'>, m: SessionMaison, a: Access, x: any, t: { equipe: boolean }) {
+type JetonMaison = { equipe: JetonEquipe };
+export function sonde(s: Session, p: Pick<Session, 'equipe'>, m: SessionMaison, a: Access, x: any, t: { equipe: boolean }, j: JetonMaison) {
   const l1 = s.equipe; // LECTURE point
   const l2 = p?.equipe; // LECTURE optionnelle
   const l3 = m['equipe']; // LECTURE crochets
@@ -58,10 +71,11 @@ export function sonde(s: Session, p: Pick<Session, 'equipe'>, m: SessionMaison, 
   const l5 = (s as any).equipe; // LECTURE any
   const l6 = x.equipe; // LECTURE any
   const f = ({ equipe: e }: Session) => e; // LECTURE paramètre
+  const l7 = j.equipe as unknown as EquipeSession; // LECTURE jeton puis cast
   const n1 = a.equipe; // PAS une session · la face
   const n2 = t.equipe; // PAS une session · un booléen
   const n3 = { equipe: null }; // PAS une lecture · une écriture
-  return [l1, l2, l3, l4, equipe, l5, l6, f, n1, n2, n3];
+  return [l1, l2, l3, l4, equipe, l5, l6, f, l7, n1, n2, n3];
 }
 `;
 
@@ -70,11 +84,16 @@ interface Lecture { fichier: string; ligne: number; texte: string }
 let lectures: Lecture[] = [];
 let fichiersLus = 0;
 
-/** Le type porte-t-il `EquipeSession` (déclaré dans lib/equipe-plateforme.ts), directement ou dans une union ? */
+/** Les types d'une équipe de session · le jeton opaque, et l'équipe en clair (chacun dans SON fichier, pas un homonyme). */
+const TYPES_EQUIPE: Array<[string, RegExp]> = [
+  ['JetonEquipe', /[\\/]lib[\\/]registre-equipe-session\.ts$/],
+  ['EquipeSession', /[\\/]lib[\\/]equipe-plateforme\.ts$/],
+];
+/** Le type porte-t-il le jeton ou l'équipe en clair, directement ou dans une union ? */
 function porteEquipeSession(t: ts.Type, prof = 0): boolean {
   if (prof > 5) return false;
   const sym = t.aliasSymbol ?? t.getSymbol();
-  if (sym?.getName() === 'EquipeSession' && sym.declarations?.some((d) => /[\\/]lib[\\/]equipe-plateforme\.ts$/.test(d.getSourceFile().fileName))) return true;
+  if (TYPES_EQUIPE.some(([nom, fichier]) => sym?.getName() === nom && sym.declarations?.some((d) => fichier.test(d.getSourceFile().fileName)))) return true;
   return t.isUnionOrIntersection() && t.types.some((x) => porteEquipeSession(x, prof + 1));
 }
 
@@ -132,7 +151,7 @@ describe('Session d’équipe · une seule lecture de `.equipe`, l’accesseur a
     const lignes = CODE_SONDE.split('\n');
     const attendues = lignes.flatMap((l, i) => (/\/\/ LECTURE/.test(l) ? [i + 1] : []));
     const jamais = lignes.flatMap((l, i) => (/\/\/ PAS/.test(l) ? [i + 1] : []));
-    expect(attendues.length, 'la sonde a perdu ses cas').toBe(8);
+    expect(attendues.length, 'la sonde a perdu ses cas').toBe(9);
     for (const ligne of attendues) expect(vues.some((v) => v.ligne === ligne), `ligne de sonde ${ligne} « ${lignes[ligne - 1]!.trim()} » · une lecture de session passe le recensement`).toBe(true);
     for (const ligne of jamais) expect(vues.some((v) => v.ligne === ligne), `ligne de sonde ${ligne} « ${lignes[ligne - 1]!.trim()} » · le recensement crie au loup`).toBe(false);
   });

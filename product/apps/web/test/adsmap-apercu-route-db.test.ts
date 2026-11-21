@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
-import type { IdsStudios, SessionTest } from './studios-semis';
+import type { IdsStudios, SessionTest, SurchargeSession } from './studios-semis';
 
 /**
  * `GET /api/adsmap/[id]/apercu` · le média d'une ad Adsmap rangé au stockage
@@ -63,7 +63,7 @@ async function lire(id: string, adresse = routeApercuAdAdsmap(id)): Promise<{ st
   return { statut: r.status, location: r.headers.get('location'), entetes: r.headers };
 }
 
-const proprietaire = (surcharge: Partial<SessionTest> = {}) => session(ids, 'ua', { role: 'owner', plan: 'plus', ...surcharge });
+const proprietaire = (surcharge: SurchargeSession = {}) => session(ids, 'ua', { role: 'owner', plan: 'plus', ...surcharge });
 
 beforeAll(async () => {
   await semer(db, schema, ids);

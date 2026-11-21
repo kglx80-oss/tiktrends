@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest';
-import type { IdsStudios, SessionTest } from './studios-semis';
+import type { IdsStudios, SessionTest, SurchargeSession } from './studios-semis';
 
 /**
  * F1 · garde SERVEUR des interrupteurs (cahier 01 §14).
@@ -184,7 +184,7 @@ describe('pilote et coupure par espace', () => {
 });
 
 describe('réglage plateforme · action auditée, réservée à la plateforme', () => {
-  const plateforme = () => session(ids, 'ua', { role: 'owner', equipe: { role: 'adminplus', matrice: {}, plateformeAdmissible: true } as SessionTest['equipe'] });
+  const plateforme = () => session(ids, 'ua', { role: 'owner', equipe: { role: 'adminplus', matrice: {}, plateformeAdmissible: true } as SurchargeSession['equipe'] });
   const reglages = async () => (await db.select().from(schema.appSettings).where(eq(schema.appSettings.key, cleInterrupteursEspace(ids.wsB))));
   const audits = async () => (await db.select().from(schema.studioAuditEvents).where(eq(schema.studioAuditEvents.action, 'studios.interrupteurs')));
 

@@ -1,5 +1,6 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
+import type { JetonEquipe } from '../lib/registre-equipe-session';
 
 /**
  * Lot 20B · Sauvegardes · le pont Adsmap fermé DIT pourquoi.
@@ -19,7 +20,8 @@ const ids = vi.hoisted(() => {
   const { randomUUID } = require('node:crypto') as typeof import('node:crypto');
   return { ws: randomUUID(), marque: randomUUID(), user: randomUUID(), dehors: randomUUID() };
 });
-type EquipeTest = { role: 'membre'; matrice: Record<string, never>; plateformeAdmissible?: boolean } | null;
+// Le jeton opaque de la vraie session (suite de #1125) · posé par sessionEquipeTest.
+type EquipeTest = JetonEquipe | null;
 const session = vi.hoisted(() => ({ plan: 'starter' as string, role: 'member' as string, marque: true, equipe: null as EquipeTest }));
 
 vi.mock('@tiktrends/db', async (importOriginal) => {

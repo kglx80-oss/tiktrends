@@ -171,7 +171,7 @@ beforeAll(async () => {
   s.adEtrangereAutreEspace = await ad('V3', s.creaB1, 'BRIEF-ETRANGERE-B1 si on montre le geste, on rassure.');
   s.adSansCrea = await ad('V4', null, 'BRIEF-SANS-CREA-A1 si on parle au réveil, on retient mieux.');
 
-  h.session = { user: { id: ids.ua, email: 'ua@studios.test', name: 'Kevin' }, workspaceId: ids.wsA, workspaceName: 'Espace A', role: 'owner', plan: 'business', equipe: sessionEquipeTest({ role: 'adminplus', matrice: {}, plateformeAdmissible: true }) as SessionTest['equipe'] };
+  h.session = { user: { id: ids.ua, email: 'ua@studios.test', name: 'Kevin' }, workspaceId: ids.wsA, workspaceName: 'Espace A', role: 'owner', plan: 'business', equipe: sessionEquipeTest({ role: 'adminplus', matrice: {}, plateformeAdmissible: true }) };
   h.cookie = ids.brandA1;
 });
 afterAll(() => { vi.unstubAllEnvs(); });
