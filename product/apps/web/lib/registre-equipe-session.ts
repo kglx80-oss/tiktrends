@@ -28,11 +28,32 @@ import type { EquipeSession } from './equipe-plateforme';
  */
 const SESSIONS_AUTHENTIQUES = new WeakSet<object>();
 
-/** RÉSERVÉ à `equipeDeSession` (et au helper de test) · gèle puis inscrit une session d'équipe qu'il vient de lire en base. */
-export function authentifierEquipeSession(e: EquipeSession): EquipeSession {
+declare const JETON_EQUIPE: unique symbol;
+/**
+ * ── `Session.equipe` est OPAQUE au niveau du type (suite de #1125) ──────────
+ * Le champ porte ce jeton, pas une `EquipeSession` · un objet marqué d'un
+ * `unique symbol` (jamais posé à l'exécution), sans AUCUN champ lisible. Lire
+ * `s.equipe.plateformeAdmissible`, passer la session au noyau par sa forme
+ * (`roleEffectifAudit({ equipe: null, ...s, roleEspace })`,
+ * `voitDepensePlateforme`, `privilegesEquipe`), la recevoir dans un type local
+ * (`{ equipe?: { role } }`, `Readonly<EquipeSession>`, `Pick<…>`), la
+ * déstructurer (`({ equipe } = s)`) ou la forger (`{ ...s, equipe: { … } }`)
+ * ne COMPILE plus · le noyau attend `role` et `plateformeAdmissible`, le jeton
+ * n'en a pas. Seul `equipeAuthentique` (plus bas) rend une `EquipeSession`,
+ * après le registre. Éprouvé par `test/secu-equipe-opaque.types.test.ts`.
+ *
+ * Ce que le type ne ferme pas · un cast, un `any` (`Reflect.get` à clé non
+ * littérale, `Object.entries`), `Object.assign` · la barrière reste le
+ * registre, à l'exécution. À l'exécution, le jeton EST l'objet gelé et inscrit.
+ */
+export type JetonEquipe = { readonly [JETON_EQUIPE]: true };
+
+/** RÉSERVÉ à `equipeDeSession` (et au helper de test) · gèle puis inscrit une session d'équipe qu'il vient de lire en base · rend son jeton opaque. */
+export function authentifierEquipeSession(e: EquipeSession): JetonEquipe {
   const gelee: EquipeSession = Object.freeze({ ...e, matrice: matriceGelee(e.matrice) });
   SESSIONS_AUTHENTIQUES.add(gelee);
-  return gelee;
+  // La seule conversion vers le jeton · l'objet est celui que le registre connaît.
+  return gelee as unknown as JetonEquipe;
 }
 
 /**
@@ -44,10 +65,13 @@ export function authentifierEquipeSession(e: EquipeSession): EquipeSession {
  * plateforme, les Connaissances, « Rôles & droits » et les onglets
  * d'administration passent tous par lui. Une `equipe` reconstruite à la main ·
  * littéral, copie, JSON · vaut ABSENTE pour chacun, quel que soit son
- * `plateformeAdmissible`. Le recensement `secu-equipe-authentique-sources`
- * refuse toute autre lecture.
+ * `plateformeAdmissible`. Le seul passage du jeton opaque (`JetonEquipe`) à
+ * l'`EquipeSession` · le type refuse toute autre lecture, le recensement
+ * `secu-equipe-authentique-sources` refuse en plus la lecture brute du jeton
+ * (prélude d'un cast).
  */
-export function equipeAuthentique(s: { equipe?: EquipeSession | null } | null | undefined): EquipeSession | null {
+export function equipeAuthentique(s: { equipe?: JetonEquipe | null } | null | undefined): EquipeSession | null {
+  // `unknown` · une session venue d'un `any` peut porter n'importe quoi ici, le registre seul décide.
   const e: unknown = s?.equipe;
   // `typeof` d'abord · un `any` peut y avoir posé une chaîne, que WeakSet#has accepte sans lever.
   const objet = typeof e === 'object' && e !== null;

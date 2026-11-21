@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import type { IdsStudios, SessionTest } from './studios-semis';
+import type { IdsStudios, SessionTest, SurchargeSession } from './studios-semis';
 
 /**
  * Sécurité · Bibliothèque et marques suivies · les actions serveur appliquent la
@@ -161,7 +161,7 @@ const EXEMPTIONS: Readonly<Record<string, string>> = {
 };
 
 /** Équipe plateforme à accès total, mais `client_viewer` dans l'espace · le plancher de rôle d'ESPACE tient. */
-const equipeLectrice = () => session(ids, 'uv', { equipe: { role: 'adminplus', matrice: {}, plateformeAdmissible: true } as SessionTest['equipe'] });
+const equipeLectrice = () => session(ids, 'uv', { equipe: { role: 'adminplus', matrice: {}, plateformeAdmissible: true } as SurchargeSession['equipe'] });
 
 /** [qui, session, raison du refus d'écriture, la lecture lui est-elle ouverte ?] */
 const REFUSES: Array<[string, () => SessionTest, 'role' | 'plan', boolean]> = [

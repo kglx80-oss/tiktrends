@@ -5,7 +5,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { IdsStudios, SessionTest } from './studios-semis';
+import type { IdsStudios, SessionTest, SurchargeSession } from './studios-semis';
 
 /**
  * « Itérer depuis la gagnante » PARTOUT où on lit un résultat (suite de #1083)
@@ -83,7 +83,6 @@ import { Lot } from '../spatial/vues/resultats/Lot';
 import { Hypotheses } from '../spatial/vues/resultats/Hypotheses';
 import { LOTS_SANS_GAGNANTE, cartesSansGagnante, faitsCartesSansGagnante, propsFicheLot } from './helpers/gagnante-partout-vues';
 import { sansNomsAjoutes } from './helpers/noms-accessibles';
-import { sessionEquipeTest } from './helpers/face-equipe';
 
 vi.setConfig({ testTimeout: 120_000, hookTimeout: 240_000 });
 
@@ -94,7 +93,7 @@ const S = {
   lots: {} as Record<CleLot | 'R' | 'A2', { id: string; n: number }>,
   ads: {} as Record<string, string>,
 };
-const proprietaire = (o: Partial<SessionTest> = {}): SessionTest => session(ids, 'ua', { role: 'owner', plan: 'plus', ...o });
+const proprietaire = (o: SurchargeSession = {}): SessionTest => session(ids, 'ua', { role: 'owner', plan: 'plus', ...o });
 const admise: Record<string, TestedVariable> = {};
 
 async function chaine(titre: string, brandId = ids.brandA1) {
@@ -393,7 +392,7 @@ describe('les portes · autre marque active, rôle sans `studio.propose`', () =>
   });
 
   it('Résultats ouvert par l’équipe, rôle d’espace sans `studio.propose` · fiche et carte · fermées avec la raison du rôle', async () => {
-    h.session = session(ids, 'uv', { plan: 'plus', equipe: sessionEquipeTest({ role: 'adminplus', matrice: {}, plateformeAdmissible: true }) as SessionTest['equipe'] });
+    h.session = session(ids, 'uv', { plan: 'plus', equipe: { role: 'adminplus', matrice: {}, plateformeAdmissible: true } });
     const d = await fiche('C');
     expect(ferme(d, geste(ligneVariante(d, 'C4'))), 'sur la fiche').toEqual(['BUTTON', 'true', LIBELLE_ITERER_GAGNANTE, RAISON_ROLE_ITERATION]);
     expect(d.querySelector('a[data-iterer-gagnante]'), 'un lien ouvert sans le rôle').toBeNull();

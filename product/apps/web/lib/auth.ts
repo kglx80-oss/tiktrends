@@ -10,7 +10,8 @@ import { eq } from 'drizzle-orm';
 import type { Role, Plan } from './rbac';
 import { epochDuJeton, sessionEpochValide } from './session-epoch';
 import { accesTotalAdmissible, espaceCourant } from '@tiktrends/core';
-import { equipeDeSession, type EquipeSession } from './equipe-plateforme';
+import { equipeDeSession } from './equipe-plateforme';
+import { equipeAuthentique, type JetonEquipe } from './registre-equipe-session';
 import { noterCreditsStaff } from './credits';
 
 const COOKIE = 'tt_session';
@@ -46,7 +47,9 @@ export interface Session {
   plan: Plan;
   // Équipe interne (rôle plateforme + matrice) · absent pour un compte client.
   // Présent → c'est lui qui décide l'accès (voir effectiveAccess / rbac).
-  equipe?: EquipeSession | null;
+  // OPAQUE (suite de #1125) · un jeton sans champ lisible · seul
+  // `equipeAuthentique(s)` (lib/registre-equipe-session.ts) en rend l'équipe.
+  equipe?: JetonEquipe | null;
 }
 
 /* ----------------------------- Mots de passe ----------------------------- */
@@ -144,7 +147,7 @@ export async function getSession(): Promise<Session | null> {
   // AUTO-CICATRISANT : comme toute dépense passe d'abord par getSession, une
   // rétrogradation retire l'email AVANT la prochaine dépense de ce compte.
   const equipe = await equipeDeSession(u.email);
-  noterCreditsStaff(u.email, accesTotalAdmissible(equipe));
+  noterCreditsStaff(u.email, accesTotalAdmissible(equipeAuthentique({ equipe })));
 
   return {
     user: { id: u.id, email: u.email, name: u.name },

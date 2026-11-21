@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { Session } from '../lib/auth';
-import { sessionEquipeTest } from './helpers/face-equipe';
+import type { EquipeSession } from '../lib/equipe-plateforme';
+import { jetonForgeTest, sessionEquipeTest } from './helpers/face-equipe';
 
 /**
  * Semis commun des tests studios · deux espaces, trois marques, cinq personnes.
@@ -22,22 +23,35 @@ export function idsStudios() {
 export type IdsStudios = ReturnType<typeof idsStudios>;
 
 export type SessionTest = Pick<Session, 'user' | 'workspaceId' | 'workspaceName' | 'role' | 'plan' | 'equipe'>;
+/** Ce qu'un test surcharge · l'`equipe` y est une `EquipeSession` en clair, `session()` la convertit en jeton (authentique ou forgé). */
+export type SurchargeSession = Partial<Omit<SessionTest, 'equipe'>> & { equipe?: EquipeSession | null };
 
 /**
- * La session d'un membre du semis, comme `getSession` la rendrait · une
- * `equipe` passée ici est AUTHENTIFIÉE (`sessionEquipeTest`, le registre que
- * remplit `equipeDeSession`) · sinon chaque lecteur la vaudrait absente
- * (`equipeAuthentique`, suite de #1124). Un test qui éprouve une équipe
- * reconstruite à la main la pose lui-même, après coup.
+ * La session d'un membre du semis, comme `getSession` la rendrait.
+ *
+ * Une `equipe` passée dans `surcharge` est AUTHENTIFIÉE par défaut
+ * (`sessionEquipeTest`, le registre que remplit `equipeDeSession`) · sinon
+ * chaque lecteur la vaudrait absente (`equipeAuthentique`, suite de #1124).
+ * C'est commode, et c'est un piège · un test qui veut éprouver une session
+ * FORGÉE et passe son équipe ici l'obtiendrait authentique, et prouverait le
+ * contraire de ce qu'il croit. Il passe donc `{ authentique: false }` · l'équipe
+ * est alors posée BRUTE (`jetonForgeTest`, non inscrite), comme une session
+ * reconstruite à la main, et chaque lecteur doit la valoir absente.
  */
-export function session(ids: IdsStudios, qui: 'ua' | 'uv' | 'ur' | 'ub', surcharge: Partial<SessionTest> = {}): SessionTest {
+export function session(
+  ids: IdsStudios,
+  qui: 'ua' | 'uv' | 'ur' | 'ub',
+  surcharge: SurchargeSession = {},
+  options: { authentique?: boolean } = {},
+): SessionTest {
   const ws = qui === 'ub' ? ids.wsB : ids.wsA;
   const role = qui === 'uv' ? 'client_viewer' : 'member';
   const { equipe, ...reste } = surcharge;
+  const jeton = !equipe ? null : options.authentique === false ? jetonForgeTest(equipe) : sessionEquipeTest(equipe);
   return {
     user: { id: ids[qui], email: `${qui}@studios.test`, name: null },
     workspaceId: ws, workspaceName: ws === ids.wsA ? 'Espace A' : 'Espace B',
-    role, plan: 'core', ...reste, equipe: equipe ? sessionEquipeTest(equipe) : null,
+    role, plan: 'core', ...reste, equipe: jeton,
   };
 }
 
