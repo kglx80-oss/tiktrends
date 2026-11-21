@@ -14,8 +14,8 @@ import { describe, it, expect, vi, beforeAll } from 'vitest';
  * garde rejoue donc la course À LA MAIN · la ligne est réécrite (le CBO de A)
  * juste APRÈS la lecture de `preparer` et AVANT l'écriture de B · la ligne que
  * B écrit doit garder le CBO de A, donc l'avoir relue dans sa transaction.
- * (Le verrou consultatif par marque, qui sérialise deux vrais imports en
- * production, ne s'éprouve pas sur une seule connexion.)
+ * (Le verrou consultatif par marque, qui empêche deux vrais imports de
+ * s'écrire en même temps, est gardé à part · `adsmap-import-verrou-db.test.ts`.)
  */
 
 const ids = vi.hoisted(() => {

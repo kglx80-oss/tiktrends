@@ -389,3 +389,16 @@ export function preuveAEcrire<D>(ancienne: PreuveLigne<D> | undefined, nouvelle:
   const gardee = { cbo: ancienne.cbo, budgetJour: memeEnsembleLignes(ancienne, nouvelle) ? ancienne.budgetJour : null };
   return cboEtabliParExport(gardee) === null ? neuve : { ...gardee, importeLe: ancienne.importeLe };
 }
+
+/**
+ * La clé du verrou d'ÉCRITURE d'un import de mesures · une par marque. Sous ce
+ * verrou, l'import relit les lignes qu'il remplace puis les écrit · aucun autre
+ * import de la marque n'écrit entre les deux (`preuveAEcrire` calcule sur une
+ * lecture juste). Le verrou n'ATTEND pas · tenu ailleurs, l'import est refusé
+ * (`REFUS_IMPORT_MESURES_EN_COURS`) au lieu de garder une connexion du pool le
+ * temps de l'autre import.
+ */
+export const cleVerrouImportMesures = (brandId: string): string => `adsmap-mesures-import:${brandId}`;
+
+/** Ce que lit l'administrateur quand un autre import de la marque tient le verrou · rien n'est écrit. */
+export const REFUS_IMPORT_MESURES_EN_COURS = 'Un import de mesures est déjà en cours pour cette marque · réessaie dans un instant.';
