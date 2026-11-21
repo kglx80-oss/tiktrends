@@ -8,6 +8,7 @@ import {
 } from '@tiktrends/core';
 import { getSession, type Session } from '../auth';
 import { effectiveAccess } from '../access';
+import { equipeAuthentique } from '../registre-equipe-session';
 import { canAccess, FEATURES, type Feature } from '../rbac';
 import { refusCapacite } from './interrupteurs';
 
@@ -56,7 +57,11 @@ export function contexteDepuisSession(
   traceId: string,
 ): ContexteStudio {
   const roleEspace: RoleEspace = estRoleEspace(s.role) ? s.role : 'client_viewer';
-  const roleEquipe = s.equipe?.role ?? null;
+  // Suite de #1124 · l'équipe AUTHENTIQUE seule (`equipeAuthentique`) · une
+  // équipe reconstruite à la main vaut absente, son `plateformeAdmissible`
+  // n'est pas cru (rôle d'équipe, portée plateforme, audit).
+  const equipe = equipeAuthentique(s);
+  const roleEquipe = equipe?.role ?? null;
   // SEC-10 / E5 · la portée PLATEFORME n'est accordée qu'à un compte admissible
   // (fondateur de la liste codée, ou compte créé AVANT son entrée
   // `platform_staff` · `equipeDeSession`). Absent → refus. La portée espace
@@ -67,7 +72,7 @@ export function contexteDepuisSession(
       studioOuvert: canAccess(effectiveAccess(s), FEATURE_STUDIO),
       roleEquipe,
     }),
-    s.equipe?.plateformeAdmissible === true,
+    equipe?.plateformeAdmissible === true,
   );
   const marques = marquesAccessibles({ marquesDuWorkspace, restrictionsMarque });
   return {
@@ -75,7 +80,7 @@ export function contexteDepuisSession(
     workspaceId: s.workspaceId,
     roleEspace,
     roleEquipe,
-    roleEffectif: roleEffectifAudit({ roleEspace, equipe: s.equipe }),
+    roleEffectif: roleEffectifAudit({ roleEspace, equipe }),
     permissions,
     marquesDuWorkspace: [...marquesDuWorkspace],
     restrictionsMarque: [...restrictionsMarque],

@@ -27,8 +27,9 @@ import { db, schema } from '@tiktrends/db';
 import { REFUS_PUBLICATION_PLATEFORME, type SaisieConnaissance } from '@tiktrends/core';
 import { creerConnaissanceAction, nouvelleVersionAction, publierConnaissanceAction } from '../app/actions/connaissances';
 import { lireUneConnaissance } from '../lib/jarvis-connaissances';
+import { sessionEquipeTest } from './helpers/face-equipe';
 
-const adminPlus = () => ({ user: { id: 'u', email: 'equipe@agence.test', name: null }, workspaceId: ids.ws, workspaceName: 'Démo', role: 'owner', plan: 'plus', equipe: { role: 'adminplus', matrice: {}, plateformeAdmissible: true } });
+const adminPlus = () => ({ user: { id: 'u', email: 'equipe@agence.test', name: null }, workspaceId: ids.ws, workspaceName: 'Démo', role: 'owner', plan: 'plus', equipe: sessionEquipeTest({ role: 'adminplus', matrice: {}, plateformeAdmissible: true }) });
 const saisie = (o: Partial<SaisieConnaissance> = {}): SaisieConnaissance => ({ titre: 'Plateforme 55', type: 'instruction', texte: 'TEXTE_55', origine: { mode: 'saisie' }, portee: { niveau: 'plateforme' }, ...o });
 const lignes = async () => (await db.select({ key: schema.appSettings.key }).from(schema.appSettings).where(like(schema.appSettings.key, 'connaissance:%'))).length;
 const etat = async (id: string, n: number) => (await lireUneConnaissance(id))?.versions.find((v) => v.n === n)?.etat;

@@ -37,8 +37,9 @@ import { creerConnaissanceAction, retirerConnaissanceAction } from '../app/actio
 import { usageConnaissances, titresDesSources } from '../lib/jarvis-connaissances';
 import { POST } from '../app/api/jarvis/chat/route';
 import { demarrerMockFournisseur } from './lot19b-mock-fournisseur';
+import { sessionEquipeTest } from './helpers/face-equipe';
 
-const equipe = () => ({ user: { id: ids.user, email: 'equipe@agence.test', name: null }, workspaceId: ids.ws, workspaceName: 'Démo', role: 'owner', plan: 'plus', equipe: { role: 'adminplus', matrice: {}, plateformeAdmissible: true } });
+const equipe = () => ({ user: { id: ids.user, email: 'equipe@agence.test', name: null }, workspaceId: ids.ws, workspaceName: 'Démo', role: 'owner', plan: 'plus', equipe: sessionEquipeTest({ role: 'adminplus', matrice: {}, plateformeAdmissible: true }) });
 const membre = () => ({ user: { id: ids.user, email: 'membre@client.test', name: null }, workspaceId: ids.ws, workspaceName: 'Démo', role: 'member', plan: 'plus', equipe: null });
 const saisie = (o: Partial<SaisieConnaissance>): SaisieConnaissance => ({ titre: 'T', type: 'instruction', texte: 'X', origine: { mode: 'saisie' }, portee: { niveau: 'plateforme' }, ...o });
 
