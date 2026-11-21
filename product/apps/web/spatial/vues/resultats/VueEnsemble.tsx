@@ -41,6 +41,8 @@ export interface PropsVueEnsemble {
   sousNav: SousNavResultats;
   sous: string;
   accroche: { avant: string; fort: string; apres: string };
+  /** Sans lot vedette · `videVedetteResultats` (noyau · des lots lus en partie ne sont pas comptés) · absent, la phrase d'avant. */
+  videVedette?: string;
   kpis: readonly KpiResultats[];
   vedette: LotVedette | null;
   autres: readonly AutreLot[];
@@ -119,7 +121,7 @@ export function VueEnsemble(p: PropsVueEnsemble) {
         </section>
       ) : (
         <section className="tile">
-          <p className="muted">Aucun lot n’a encore de verdict · un verdict arrive quand les mesures d’un lot lancé remontent.</p>
+          <p className="muted">{p.videVedette ?? 'Aucun lot n’a encore de verdict · un verdict arrive quand les mesures d’un lot lancé remontent.'}</p>
           <Lien className="btn sm pri" href={p.commencer.href} style={{ marginTop: 12 }}>{p.commencer.libelle}</Lien>
         </section>
       )}

@@ -3,6 +3,7 @@ import { NOM_PERSONA_PROVISOIRE } from '../marque/personas-edition';
 import { estLotImporte } from '../../adsmap/lot-nature';
 import { issueVariante, type Compte } from './conclusion-lot';
 import { lienLotSpatial, type FaitsLotSpatial } from './lots';
+import { estLuEnEntier } from './lecture-lot';
 
 /**
  * Résultats · QUEL PERSONA fait gagner une créative (lot 9 V5 · VB P06).
@@ -320,7 +321,7 @@ export function entreesLecturePersonas(lots: readonly FaitsLotSpatial[], attribu
 export function entreesLectureGroupes(lots: readonly FaitsLotSpatial[], attribution: (adId: string) => PersonaRef | null): EntreeLectureGroupe[] {
   return lots.filter((l) => !estLotImporte({ status: l.statut, launchedAt: l.lanceLe }))
     // Un lot lu en partie n'apporte aucune variante · la lecture par groupe ne se tire pas d'une partie d'un lot.
-    .flatMap((l) => (l.partielle ? [] : l.ads.map((a) => ({ groupe: attribution(a.id), issue: issueVariante(a) }))));
+    .filter(estLuEnEntier).flatMap((l) => l.ads.map((a) => ({ groupe: attribution(a.id), issue: issueVariante(a) })));
 }
 
 /** Combien de tests ciblent ce persona, et dans combien de lots (« N tests · N lots » de la fiche). */

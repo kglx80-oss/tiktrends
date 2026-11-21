@@ -334,7 +334,7 @@ const ORDRE_GAIN: Record<string, number> = { winner: 0, baby_winner: 1 };
  */
 export function syntheseLot(l: FaitsLotSpatial, cibleCpa: number | null): SyntheseLot {
   // Lu en partie · aucune synthèse ne se tire d'une partie du lot (ni « aucune variante », ni une gagnante de ce qui reste).
-  if (l.partielle) return { gagnante: null, titre: NON_CALCULE, phrase: `${TITRE_LECTURE_INCOMPLETE} · ${compteLecture(l)} · aucun verdict d’ensemble n’est tiré d’une partie du lot.`, niveau: 1 };
+  if (l.partielle) return { gagnante: null, titre: NON_CALCULE, phrase: `${TITRE_LECTURE_INCOMPLETE} · ${compteLecture(l)} · le verdict d’ensemble n’est pas calculé sur une partie du lot.`, niveau: 1 };
   const lus = l.ads.map((a) => ({ a, v: verdictAffiche(a.verdict) })).filter((x) => x.v);
   const gagnantes = lus.filter((x) => GAGNANTES.has(x.v!))
     .sort((x, y) => (ORDRE_GAIN[x.v!]! - ORDRE_GAIN[y.v!]!) || ((x.a.verdict?.cpa ?? Infinity) - (y.a.verdict?.cpa ?? Infinity)));
@@ -427,13 +427,24 @@ export function prochaineActionBoucle(lots: ReadonlyArray<{ presentation: Presen
 
 
 /** La phrase d'ouverture de la vue d'ensemble (`rvlead`) · comptée, jamais interprétée. */
-export function accrocheResultats(vedette: { numero: number; synthese: SyntheseLot; aConclure: boolean } | null, autresEnAttente: number): { avant: string; fort: string; apres: string } {
+/**
+ * Ce que la vue d'ensemble dit sans lot vedette · `lotsNonLus` · des lots lus en
+ * partie (leurs verdicts ne sont pas lus) · « aucun lot n'a de verdict » serait
+ * tiré de rien · la phrase ne parle que des lots lus, et dit combien ne le sont pas.
+ */
+export function videVedetteResultats(lotsNonLus: number): string {
+  if (lotsNonLus <= 0) return 'Aucun lot n’a encore de verdict · un verdict arrive quand les mesures d’un lot lancé remontent.';
+  return `Pas de verdict parmi les lots lus ici · ${lotsNonLus} lot${lotsNonLus > 1 ? 's ne sont pas lus' : ' n’est pas lu'} (${TITRE_LECTURE_INCOMPLETE.toLowerCase()}), ${lotsNonLus > 1 ? 'leurs verdicts ne sont pas comptés' : 'ses verdicts ne sont pas comptés'}.`;
+}
+
+export function accrocheResultats(vedette: { numero: number; synthese: SyntheseLot; aConclure: boolean } | null, autresEnAttente: number, lotsNonLus = 0): { avant: string; fort: string; apres: string } {
   const apres = autresEnAttente === 0 ? 'Aucun autre lot n’attend d’action de ta part.'
     : autresEnAttente === 1 ? 'Un autre attend une action de ta part.' : `${autresEnAttente} autres attendent une action de ta part.`;
   if (!vedette) {
     const attente = autresEnAttente === 0 ? 'Prépare un lot pour ouvrir la boucle.'
       : autresEnAttente === 1 ? 'Un lot attend une action de ta part.' : `${autresEnAttente} lots attendent une action de ta part.`;
-    return { avant: 'Aucun lot n’a encore de verdict.', fort: '', apres: attente };
+    // Des lots lus en partie · leurs verdicts ne sont pas lus · « aucun lot n'a de verdict » serait tiré de rien.
+    return { avant: lotsNonLus > 0 ? 'Pas de verdict parmi les lots lus ici.' : 'Aucun lot n’a encore de verdict.', fort: '', apres: attente };
   }
   return {
     avant: vedette.aConclure ? `Le lot #${vedette.numero} est prêt à donner sa réponse :` : `Dernier verdict, lot #${vedette.numero} :`,

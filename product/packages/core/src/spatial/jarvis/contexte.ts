@@ -5,7 +5,7 @@ import {
   type ContexteLots, type EtatLotSpatial, type FaitsAdSpatial, type FaitsLotSpatial,
 } from '../resultats/lots';
 import { conclusionLot, referenceConclusion } from '../resultats/conclusion-lot';
-import { compteLecture } from '../resultats/lecture-lot';
+import { compteLecture, variantesDesLotsLus } from '../resultats/lecture-lot';
 
 /**
  * Spatial · « Demander à Jarvis » EN CONTEXTE (lot 5 V5). RÈGLES PURES · ni base,
@@ -215,20 +215,28 @@ function resumerLot(e: Extract<EntreeContexteJarvis, { type: 'lot' }>): Contexte
   const titre = but ? `Lot #${l.numero} · ${but}` : `Lot #${l.numero}`;
   // Lu en partie · aucune variante n'est exposée · le nombre est celui de la base, ce qui a été lu est dit (jamais « 0 variante »),
   // et la question ne parle pas d'un état (« ce lot est lecture incomplète ») · elle demande ce qu'il faut savoir sans ses variantes.
-  const ads = l.partielle ? [] : l.ads;
   const nb = (k: number) => `${k} variante${k > 1 ? 's' : ''}`;
+  /** Les lignes des variantes · un lot lu en partie n'en a aucune (rien n'est tiré de lui), dit sur la première ligne. */
+  const lignesVariantes = (): string[] => {
+    if (l.partielle) return [];
+    const ads = l.ads;
+    return [
+      ...ads.slice(0, B.variantes).map((a) => {
+        const h = nettoyerContexteJarvis(a.hypothese, B.valeur);
+        return `Variante ${nettoyerContexteJarvis(a.variante, 12)} · ${categorieVariable(a.variable)}${h ? ` · « ${h} »` : ' · hypothèse non écrite'} · ${mesures(a)}`;
+      }),
+      ...(ads.length > B.variantes ? [`… et ${ads.length - B.variantes} autres variantes, non détaillées ici`] : []),
+    ];
+  };
   const corps = [
-    `${titre} · ${p.statut.libelle}${l.partielle ? '' : ` · ${plateformesLot(l)}`}${p.jour !== null ? ` · jour ${p.jour} sur ${p.fenetre}` : ''} · ${l.partielle ? `${nb(l.partielle.variantesEnBase)} en base, ${compteLecture(l)} · lecture incomplète, rien n’est calculé sur ce lot` : nb(ads.length)}`,
+    `${titre} · ${p.statut.libelle}${l.partielle ? '' : ` · ${plateformesLot(l)}`}${p.jour !== null ? ` · jour ${p.jour} sur ${p.fenetre}` : ''} · ${l.partielle ? `${nb(l.partielle.variantesEnBase)} en base, ${compteLecture(l)} · lecture incomplète, rien n’est calculé sur ce lot` : nb(l.ads.length)}`,
     `Verdict du moteur · ${nettoyerContexteJarvis(syn.titre, B.titre)} · ${nettoyerContexteJarvis(syn.phrase, B.raison)}`,
     `Conclusion du lot · ${conc.titre} · ${nettoyerContexteJarvis(conc.phrase, B.raison)}`,
     ...(e.cibleCpa ? [`Cible de la marque · ${eur(e.cibleCpa)} par achat`] : []),
-    ...ads.slice(0, B.variantes).map((a) => {
-      const h = nettoyerContexteJarvis(a.hypothese, B.valeur);
-      return `Variante ${nettoyerContexteJarvis(a.variante, 12)} · ${categorieVariable(a.variable)}${h ? ` · « ${h} »` : ' · hypothèse non écrite'} · ${mesures(a)}`;
-    }),
-    ...(ads.length > B.variantes ? [`… et ${ads.length - B.variantes} autres variantes, non détaillées ici`] : []),
+    ...lignesVariantes(),
   ];
-  const gagnante = ads.find((a) => a.id === syn.gagnante);
+  // Lu en partie · aucune gagnante (`syntheseLot` · « Non calculé »).
+  const gagnante = l.partielle ? undefined : l.ads.find((a) => a.id === syn.gagnante);
   const fini = ETATS_FINIS.has(p.etat);
   const question = l.partielle
     ? `Sur le ${titre} · ses variantes n’ont pas été lues ici (${compteLecture(l)}). Que faut-il vérifier avant de l’arbitrer variante par variante ?`
@@ -272,7 +280,7 @@ function resumerResultats(e: Extract<EntreeContexteJarvis, { type: 'resultats' }
   const parEtat = new Map<string, number>();
   for (const { p } of pres) parEtat.set(p.statut.libelle, (parEtat.get(p.statut.libelle) ?? 0) + 1);
   // Un lot lu en partie n'apporte aucune variante au bilan des hypothèses.
-  const ads = [...e.lots.flatMap((l) => (l.partielle ? [] : l.ads)), ...e.horsLot];
+  const ads = [...variantesDesLotsLus(e.lots), ...e.horsLot];
   const avecHypothese = ads.filter((a) => a.hypothese?.trim());
   const tranchees = avecHypothese.map((a) => verdictAffiche(a.verdict)).filter(Boolean);
   const confirmees = tranchees.filter((v) => v === 'winner' || v === 'baby_winner').length;

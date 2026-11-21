@@ -293,6 +293,18 @@ export async function chargerLots(workspaceId: string, brandId: string, maintena
   };
 }
 
+/**
+ * Les variantes d'un lot LU EN ENTIER, par son identifiant · pour les règles qui
+ * prennent un lot de `faitsHypotheses` (qui ne porte que des lots lus en entier) ·
+ * un lot lu en partie n'y est pas · aucun `[]` ne se substitue à lui (`VariantesDuLot`).
+ */
+export function variantesDesLotsEntiers(d: Pick<DonneesLots, 'lots'>): (lotId: string) => readonly AdLue[] {
+  const lus = new Map(d.lots.filter(estLuEnEntier).map((l) => [l.id, l.ads] as const));
+  return (lotId) => lus.get(lotId) ?? AUCUNE_VARIANTE;
+}
+/** Inatteignable depuis `faitsHypotheses` · un identifiant hors des lots lus en entier n'a aucune variante à prêter. */
+const AUCUNE_VARIANTE: readonly AdLue[] = Object.freeze([]);
+
 /** Les états des lots, dans l'ordre de la liste. */
 export const etatsLots = (d: DonneesLots) => d.lots.map((l) => etatLotSpatial(l, d.ctx));
 

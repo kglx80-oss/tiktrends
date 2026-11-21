@@ -9,7 +9,7 @@ import { iterationPlanAction } from '../../../../actions/adsmap-iterate';
 import { completerHypotheseAction, creerHypotheseAction } from '../../../../actions/adsmap-hypotheses';
 import { Hypotheses } from '../../../../../spatial/vues/resultats/Hypotheses';
 import { RefusResultats } from '../../../../../spatial/vues/resultats/communs';
-import { chargerLots, faitsHypotheses, gardeResultats, type AdLue } from '../donnees';
+import { chargerLots, faitsHypotheses, gardeResultats, variantesDesLotsEntiers, type AdLue } from '../donnees';
 import { lireNotePourHypothese } from '../../../../../lib/studios/commentaire-iterer';
 import type { DepuisNoteHypothese } from '../../../../../spatial/vues/resultats/Hypotheses';
 
@@ -59,8 +59,8 @@ export default async function HypothesesSpatial({ searchParams }: { searchParams
     adId: r.adId, libelle: r.label, variable: r.changedVariable, etape: r.stageLabel, raison: r.rationale, priorite: r.priority,
   }));
   const parAd = new Map<string, AdLue>(variantesDesLotsLus(d.lots).map((a) => [a.id, a] as const));
-  // Un lot lu en partie n'expose aucune variante (`VariantesDuLot`) · aucune gagnante ne se tire de lui.
-  const adsDuLot = (lotId: string) => d.lots.find((l) => l.id === lotId)?.ads ?? [];
+  // Les lots lus en entier seulement · un lot lu en partie n'expose aucune variante (`VariantesDuLot`), aucune gagnante ne se tire de lui.
+  const adsDuLot = variantesDesLotsEntiers(d);
   const aIterer = gagnantesDesHypotheses(ads, adsDuLot);
   const gagnantes = aIterer.length
     ? gestesGagnantesHypotheses(ads, adsDuLot, {

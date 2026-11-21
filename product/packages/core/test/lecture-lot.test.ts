@@ -3,7 +3,7 @@ import {
   BORNES_LECTURE_LOTS, DEFAULT_VERDICT_CONFIG, MESURE_LECTURE_LOTS, MESURE_LECTURE_LOT_SEUL, PRESENTATION_ETAT_LOT, TITRE_LECTURE_INCOMPLETE,
   compteAConclure, compteAImporter, dansFiltreLots, etatLotSpatial, lotArbitrable, lotImport, lotLuEnEntier, lotsALire, lotsConclusLus,
   noteLectureLots, phraseLotLuEnPartie, presentationLot, syntheseLot, controlesLot, coachLot, conclusionLot, phraseLot, indexAutresLots, resumerContexteJarvis,
-  NON_CALCULE_LECTURE, NON_CALCULE, lectureDuLot, nombreVariantes, categorieLot, plateformesLot, hypotheseLot, preparationLot, suiteLot,
+  NON_CALCULE_LECTURE, NON_CALCULE, gestesClavierLot, gestesContexteJarvis, variantesDe, RAISON_GESTE_LECTURE_INCOMPLETE, lectureDuLot, nombreVariantes, categorieLot, plateformesLot, hypotheseLot, preparationLot, suiteLot,
   type FaitsAdSpatial, type FaitsLotSpatial, type FaitsVerdictSpatial, type VerdictValue,
 } from '../src';
 
@@ -142,7 +142,7 @@ describe('un lot lu en partie · aucune phrase tirée d’une partie (ou de rien
       ...Object.values(coachLot(p, syn, nonLu)), phraseLot(p, syn, nonLu), suiteLot(p.etat, syn), conclusionLot(nonLu, p.etat, { n: 40, k: 10 }).titre, conclusionLot(nonLu, p.etat, { n: 40, k: 10 }).phrase];
     expect(textes.filter((t) => FAUSSES.test(t)), 'une phrase est tirée de rien').toEqual([]);
     expect(syn).toMatchObject({ gagnante: null, titre: 'Non calculé' });
-    expect(syn.phrase).toBe('Lecture incomplète · 0 variante lue sur 8 · aucun verdict d’ensemble n’est tiré d’une partie du lot.');
+    expect(syn.phrase).toBe('Lecture incomplète · 0 variante lue sur 8 · le verdict d’ensemble n’est pas calculé sur une partie du lot.');
     expect(controlesLot(nonLu, p, 5000).map((c) => c.detail).slice(0, 2)).toEqual([NON_CALCULE_LECTURE, 'lecture incomplète · minimum 5\u202f000']);
     expect(conclusionLot(nonLu, p.etat, { n: 40, k: 10 }).titre).toBe('Non calculée · lecture incomplète');
   });
@@ -170,6 +170,26 @@ describe('un lot lu en partie · aucune phrase tirée d’une partie (ou de rien
     const partie = lot('q', 33, [ad('a', null), ad('b', null), ad('c', null)], 8);
     expect(phraseLot(presentationLot(partie, enCours), syntheseLot(partie, 50), partie)).toMatch(/^Lu en partie · 3 variantes lues sur 8 · /);
     expect(indexAutresLots([{ etat: 'illisible' }, { etat: 'importe' }, { etat: 'conclu' }, { etat: 'non_concluant' }], -1, 4), 'un lot illisible passe avant un lot conclu ou importé').toEqual([3, 2, 1, 0]);
+  });
+});
+
+describe('les gestes d’un lot lu en partie · le lot lui-même, une raison vraie', () => {
+  const partiel = lot('g', 40, [], 8);
+  it('les raccourcis de la fiche · ni « aucun verdict n’attend », ni « aucune gagnante » · « Non calculé », avec le recours', () => {
+    const g = gestesClavierLot({ etat: 'illisible', ...variantesDe(partiel), planIds: new Set() });
+    expect([g.conclure.href, g.iterer.href]).toEqual([null, null]);
+    expect([g.conclure.raison, g.iterer.raison], 'un geste fermé d’un lot lu en partie dit une raison tirée de rien').toEqual([RAISON_GESTE_LECTURE_INCOMPLETE, RAISON_GESTE_LECTURE_INCOMPLETE]);
+    expect(RAISON_GESTE_LECTURE_INCOMPLETE).toBe('Non calculé · lecture incomplète · arbitre depuis la fiche de test d’une variante.');
+  });
+  it('les gestes de Jarvis · même raison, pour « Créer l’itération » et « Conclure le lot »', () => {
+    const id = '00000000-0000-4000-8000-000000000040';
+    const g = gestesContexteJarvis({ type: 'lot', id, ...variantesDe(partiel), lot: { id, etat: 'illisible', ...variantesDe(partiel) } })!;
+    expect([g.iterer.cible, g.conclure.cible]).toEqual([null, null]);
+    expect([g.iterer.raison, g.conclure.raison], 'un geste de Jarvis fermé sur un lot lu en partie dit une raison tirée de rien').toEqual([RAISON_GESTE_LECTURE_INCOMPLETE, RAISON_GESTE_LECTURE_INCOMPLETE]);
+  });
+  it('`variantesDe` · toutes ou aucune, jamais un `[]` à la place', () => {
+    expect(variantesDe(partiel)).toEqual({ partielle: { variantesEnBase: 8, variantesLues: 0 } });
+    expect(variantesDe(lot('e', 41, [ad('a', null)]))).toEqual({ ads: [ad('a', null)] });
   });
 });
 

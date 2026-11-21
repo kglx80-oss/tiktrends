@@ -2,6 +2,7 @@ import type { TestedVariable } from '../../adsmap/types';
 import { estGagnanteValidee } from '../../adsmap/verdict-libelle';
 import { LIBELLE_CHOIX_VARIABLE, type ChoixVariablesIteration } from '../studios/iterer-variable';
 import { lienLotSpatial, lotConcluable, type EtatLotSpatial, type FaitsAdSpatial } from '../resultats/lots';
+import { RAISON_GESTE_LECTURE_INCOMPLETE, type VariantesDuLot } from '../resultats/lecture-lot';
 import { demandeContexteJarvis, lienJarvisContexte, nettoyerContexteJarvis, type DemandeContexteJarvis, type TypeContexteJarvis } from './contexte';
 
 /**
@@ -112,14 +113,17 @@ export interface GesteJarvis {
   raison: string | null;
 }
 
-export interface FaitsGestesJarvis {
+/**
+ * Les faits des gestes · les variantes du contexte (celles du lot, ou la seule
+ * ad de l'hypothèse) et le lot à conclure · TOUTES ou AUCUNE (`VariantesDuLot`) ·
+ * jamais un `[]` à la place d'un lot lu en partie.
+ */
+export type FaitsGestesJarvis = {
   type: TypeContexteJarvis;
   id: string;
-  /** Les variantes du contexte · celles du lot, ou la seule ad de l'hypothèse. */
-  ads: readonly FaitsAdSpatial[];
   /** Le lot à conclure · le lot joint, ou celui de l'hypothèse · `null` hors lot. */
-  lot: { id: string; etat: EtatLotSpatial; ads: readonly FaitsAdSpatial[] } | null;
-}
+  lot: ({ id: string; etat: EtatLotSpatial } & VariantesDuLot<readonly FaitsAdSpatial[]>) | null;
+} & VariantesDuLot<readonly FaitsAdSpatial[]>;
 
 /** Une gagnante ARBITRÉE (verdict validé, gagnant, comparable) · la règle des gestes « Créer l'itération » et des raccourcis d'un lot (lot 13 bis). */
 export const gagnanteArbitree = (a: FaitsAdSpatial) => !!a.verdict && a.verdict.statut === 'validated' && estGagnanteValidee(a.verdict.retenu, a.verdict.comparable);
@@ -129,18 +133,19 @@ const gagnante = gagnanteArbitree;
 export function gestesContexteJarvis(f: FaitsGestesJarvis): { iterer: GesteJarvis; conclure: GesteJarvis } | null {
   const d = demandeContexteJarvis(f.type, f.id);
   if (!d || !TYPES_GESTES_JARVIS.includes(d.type)) return null;
-  const iterable = f.ads.some(gagnante);
+  // Lu en partie · ni « aucune gagnante », ni « aucun verdict n'attend » · rien n'est calculé, la raison le dit.
+  const iterable = !f.partielle && f.ads.some(gagnante);
   const iterer: GesteJarvis = {
     cle: 'iterer', libelle: 'Créer l’itération',
     cible: iterable ? { type: 'iterer', contexte: d } : null,
-    raison: iterable ? null : d.type === 'lot' ? RAISON_GESTE_SANS_GAGNANTE_LOT : RAISON_GESTE_SANS_GAGNANTE_HYPOTHESE,
+    raison: iterable ? null : f.partielle ? RAISON_GESTE_LECTURE_INCOMPLETE : d.type === 'lot' ? RAISON_GESTE_SANS_GAGNANTE_LOT : RAISON_GESTE_SANS_GAGNANTE_HYPOTHESE,
   };
   const l = f.lot;
-  const concluable = !!l && lotConcluable(l.etat, l.ads);
+  const concluable = !!l && !l.partielle && lotConcluable(l.etat, l.ads);
   const conclure: GesteJarvis = {
     cle: 'conclure', libelle: 'Conclure le lot',
     cible: concluable ? { type: 'conclure', lotId: l!.id } : null,
-    raison: concluable ? null : !l ? RAISON_GESTE_HORS_LOT : RAISON_GESTE_RIEN_A_CONCLURE,
+    raison: concluable ? null : !l ? RAISON_GESTE_HORS_LOT : l.partielle ? RAISON_GESTE_LECTURE_INCOMPLETE : RAISON_GESTE_RIEN_A_CONCLURE,
   };
   return { iterer, conclure };
 }

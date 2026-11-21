@@ -101,9 +101,10 @@ export default async function FicheTestSpatial({ params, searchParams }: { param
     testsOffre: offre?.offre ? tousLesTests.filter((a) => offreDe(a.id)?.id === offre.offre!.id).map((a) => a.id) : [],
   });
   // Lot 13 ter · ce que T et L ouvrent (une navigation) · fermé, la raison du geste.
-  // Son lot · cherché parmi les lots lus en entier · lu en partie, il n'expose pas ses variantes (la fiche de test se lit sans lui).
-  const sonLot = lots.lots.find((l) => !l.partielle && l.ads.some((a) => a.id === d.id)) ?? null;
-  const clavier = gestesClavierTest({ adId: d.id, gagnanteArbitree, planIds, lot: sonLot ? { id: sonLot.id, numero: sonLot.numero } : null });
+  // Son lot · lu dans le détail du test (`batchId`), jamais dans la lecture des lots · un lot non lu là reste SON lot (la fiche de test est le recours d'un lot lu en partie).
+  // Portée · le lot doit être un lot de la marque active (`lots.lots` porte TOUS ses lots, lus ou non).
+  const sonLot = d.batchId && d.batchNumber !== null && lots.lots.some((l) => l.id === d.batchId) ? { id: d.batchId, numero: d.batchNumber } : null;
+  const clavier = gestesClavierTest({ adId: d.id, gagnanteArbitree, planIds, lot: sonLot });
   const hypotheseOuverte = accesHypothese({ adsmap: roleAtLeast(g.s.role, 'member') ? 'ok' : 'role', marqueActive: true });
 
   const suite: PropsActionsFiche['suite'] = !pres.suiteApresVerdict

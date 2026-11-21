@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import {
   outilsResultats, redirectionTestProfond, redirectionVueAdsmap,
-  accrocheResultats, sousKpisResultats, barresCpa, categorieVariable, compteLotsEnAttente, indexAutresLots, indexLotVedette, kpisResultats,
+  accrocheResultats, videVedetteResultats, sousKpisResultats, barresCpa, categorieVariable, compteLotsEnAttente, indexAutresLots, indexLotVedette, kpisResultats,
   phraseLot, plateformesLot, lienLotSpatial, LIBELLE_NIVEAU, presentationLot, sousNavResultats, suiteLot, syntheseLot, volumeMinimumLot, etatLotSpatial,
   analyseJarvisEnsemble, PRESENTATION_ETAT_LOT,
 } from '@tiktrends/core';
@@ -38,14 +38,18 @@ export default async function ResultatsSpatial({ searchParams }: { searchParams:
 
   const lus = d.lots.map((l) => ({ l, etat: etatLotSpatial(l, d.ctx), pres: presentationLot(l, d.ctx), syn: syntheseLot(l, d.config.targetCpa), aDesVerdicts: !l.partielle && l.ads.some((a) => a.verdict) }));
   const iv = indexLotVedette(lus);
+  // Les lots lus en partie · leurs verdicts ne sont pas lus · l'accroche sans vedette le dit (jamais « aucun lot n'a de verdict »).
+  const nonLus = d.lots.filter((l) => l.partielle).length;
   const autres = indexAutresLots(lus, iv).map((i) => lus[i]!);
   const enAttente = compteLotsEnAttente(lus.filter((_, i) => i !== iv).map((x) => x.etat));
 
   let vedette: LotVedette | null = null;
-  if (iv >= 0) {
-    const { l, etat, pres, syn } = lus[iv]!;
-    // Inatteignable · un lot lu en partie n'a ni verdict ni état « à conclure » · il n'est jamais en vedette (`indexLotVedette`).
-    const ads = l.partielle ? [] : l.ads;
+  // Un lot lu en partie n'a ni verdict ni état « à conclure » · il n'est jamais en vedette (`indexLotVedette`) · et s'il l'était, aucune vedette.
+  const enVedette = iv >= 0 ? lus[iv]! : null;
+  if (enVedette && !enVedette.l.partielle) {
+    const { etat, pres, syn } = enVedette;
+    const l = enVedette.l;
+    const ads = l.ads;
     const barres = barresCpa(ads);
     const volume = volumeMinimumLot(l);
     const lecons = appris.filter((a) => a.adId && ads.some((x) => x.id === a.adId) && a.statut === 'validated' && !a.refute);
@@ -89,7 +93,8 @@ export default async function ResultatsSpatial({ searchParams }: { searchParams:
     <VueEnsemble
       sousNav={sousNavResultats({ admin: g.admin })}
       sous={sousKpisResultats({ jours: PERIODE_JOURS, metaConnecte: connexion.metaConnecte, importees: cur.importees ?? 0 })}
-      accroche={accrocheResultats(iv >= 0 ? { numero: lus[iv]!.l.numero, synthese: lus[iv]!.syn, aConclure: lus[iv]!.etat === 'a_conclure' } : null, enAttente)}
+      accroche={accrocheResultats(iv >= 0 ? { numero: lus[iv]!.l.numero, synthese: lus[iv]!.syn, aConclure: lus[iv]!.etat === 'a_conclure' } : null, enAttente, nonLus)}
+      videVedette={videVedetteResultats(nonLus)}
       kpis={kpisResultats(cur, vides(prec) ? null : prec)}
       vedette={vedette}
       autres={cartes}

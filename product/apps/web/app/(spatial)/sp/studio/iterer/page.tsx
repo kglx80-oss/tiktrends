@@ -223,7 +223,8 @@ export default async function IterationSpatiale({ searchParams }: { searchParams
       lireReponseJarvis(s, active.id, geste.reponse, projet ? { projectId: geste.contexte.id } : {}),
       projet
         ? lireCandidatsProjet(s, active.id, geste.contexte.id).then((l) => l && { ads: l.candidats.map((c) => ({ id: c.adId, variante: c.libelle, variable: c.variable })), autres: l.autres })
-        : lireContexteGestes(s, active.id, geste.contexte).then((c) => c && { ads: c.ads, autres: null }),
+        // Un lot lu en partie n'expose aucune pub · aucun candidat ne s'y cherche (le geste « Itérer » de Jarvis y est fermé).
+        : lireContexteGestes(s, active.id, geste.contexte).then((c) => (c && !c.variantes.partielle ? { ads: c.variantes.ads, autres: null } : null)),
     ]) : [null, null];
     const candidats = ads ? candidatsDuPlan(ads.ads, { variables, lignees: planDepuisLignes(rows).lignees }) : [];
     // Les autres variantes du contexte (perdantes, hors plan) · nommée seule, l'une d'elles ne désigne aucune gagnante.

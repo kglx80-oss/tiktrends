@@ -2,7 +2,7 @@ import { wilsonInterval, type Interval } from '../../adsmap/stats';
 import { estLotImporte } from '../../adsmap/lot-nature';
 import type { VerdictValue } from '../../adsmap/types';
 import { verdictAffiche, type EtatLotSpatial, type FaitsAdSpatial, type FaitsLotSpatial } from './lots';
-import { compteLecture } from './lecture-lot';
+import { compteLecture, variantesDesLotsLus } from './lecture-lot';
 
 /**
  * Spatial · Résultats · la CONCLUSION d'un lot entier, et l'écart d'une
@@ -104,7 +104,7 @@ function compter(ads: readonly FaitsAdSpatial[]): Compte {
 /** La référence de la marque pour un lot · les verdicts tranchés de ses AUTRES lots suivis (un historique importé n'est pas comparable). */
 export function referenceConclusion(lots: readonly FaitsLotSpatial[], lotId: string): Compte {
   // Un lot lu en partie n'apporte aucun verdict à la référence · on ne sait pas lesquels ont été coupés.
-  return compter(lots.filter((l) => l.id !== lotId && !estLotImporte({ status: l.statut, launchedAt: l.lanceLe })).flatMap((l) => (l.partielle ? [] : l.ads)));
+  return compter(variantesDesLotsLus(lots.filter((l) => l.id !== lotId && !estLotImporte({ status: l.statut, launchedAt: l.lanceLe }))));
 }
 
 export type ConclusionLot = 'confirmee' | 'infirmee' | 'non_concluante' | 'en_attente';

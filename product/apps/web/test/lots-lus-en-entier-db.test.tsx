@@ -82,6 +82,8 @@ import ResultatsSpatial from '../app/(spatial)/sp/adsmap/page';
 import BoucleSpatial from '../app/(spatial)/sp/adsmap/boucle/page';
 import { resoudreContexteJarvis } from '../lib/jarvis-contexte';
 import { gestesPourContexte } from '../lib/jarvis-gestes';
+import { lireGagnantesDepuis } from '../lib/iterer-gagnante';
+import TestSpatial from '../app/(spatial)/sp/adsmap/tests/[id]/page';
 
 vi.setConfig({ testTimeout: 120_000, hookTimeout: 180_000 });
 
@@ -107,16 +109,17 @@ const PETITE = () => ({ id: I.p!, name: 'Petite' });
  * Ce qu'aucune phrase ne doit dire d'un lot lu en partie · elle serait tirée d'une partie (ou de rien) · « Aucune
  * mesure ni aucun verdict ne suit » (la duplication, vraie de toute copie) n'en est pas une.
  */
-const PHRASES_FAUSSES = /aucune variante|Aucune mesure(?! ni aucun verdict ne suit)|Durée prévue atteinte|en préparation : 0|à choisir|Aucune hypothèse|Aucun persona|Aucune variante rangée|Pas encore lancé|0 étape/;
+const PHRASES_FAUSSES = /aucune variante|Aucune mesure(?! ni aucun verdict ne suit)|Durée prévue atteinte|en préparation : 0|à choisir|Aucune hypothèse|Aucun persona|Aucune variante rangée|Pas encore lancé|0 étape|Aucun verdict|n.est une gagnante arbitrée|aucun lot|Aucun test/i;
 /**
  * Les phrases tirées de rien dans un texte, avec leur contexte · `[]` attendu. Exemptions NOMMÉES (phrases vraies) ·
  *  · « Aucune mesure ni aucun verdict ne suit » · la duplication, vraie de toute copie (motif) ;
- *  · « Aucun lot en préparation » · la colonne vide de la Boucle, vraie quand aucun lot n'y est.
+ *  · « Aucun lot en préparation », « Aucun lot en diffusion » · les colonnes vides de la Boucle, vraies quand aucun lot n'y est.
+ * Insensible à la casse · « aucun verdict » et « Aucun verdict » disent la même chose.
  */
-const EXEMPTIONS = [/Aucun lot en préparation/g];
+const EXEMPTIONS = [/Aucune mesure ni aucun verdict ne suit/g, /Aucun lot en préparation/g, /Aucun lot en diffusion/g];
 const phrasesFausses = (texte: string) => {
   const t = EXEMPTIONS.reduce((x, e) => x.replace(e, '·'), texte);
-  return [...t.matchAll(new RegExp(`.{0,80}(${PHRASES_FAUSSES.source}).{0,80}`, 'g'))].map((m) => m[0]);
+  return [...t.matchAll(new RegExp(`.{0,80}(${PHRASES_FAUSSES.source}).{0,80}`, 'gi'))].map((m) => m[0]);
 };
 
 async function chaine(titre: string) {
@@ -181,6 +184,12 @@ async function vaste() {
     adId: x.id, workspaceId: I.ws!, computed: 'winner' as const, status: 'computed' as const, comparable: true, computedAt: A(8),
     metricsAgg: { spend: 150, impressions: 20_000, purchases: 3, cpa: 50, reason: 'Moteur', daysElapsed: 8 },
   })));
+  // #2, ancien lui aussi · CONCLU · ses 8 variantes arbitrées gagnantes · « Itérer depuis la gagnante » part de lui.
+  await db.insert(schema.verdicts).values(ids.filter((x) => x.b === L.vaste2).map((x) => ({
+    adId: x.id, workspaceId: I.ws!, computed: 'winner' as const, validated: 'winner' as const, status: 'validated' as const, comparable: true, computedAt: A(8),
+    metricsAgg: { spend: 150, impressions: 20_000, purchases: 3, cpa: 50, reason: 'Moteur', daysElapsed: 8 },
+  })));
+  for (const x of ids) if (x.b === L.vaste1 || x.b === L.vaste2) L[`${x.b === L.vaste1 ? 'vaste1' : 'vaste2'}:${x.id}`] = x.id;
 }
 
 /** « Petite » · #2 en préparation, 501 brouillons · #1 en diffusion, 501 variantes sans verdict · aucun n'est lu (plafond d'un lot). */
@@ -453,5 +462,55 @@ describe('le lot d’une fiche, de l’import et de Jarvis · lu en entier, hors
   it('portée · la fiche d’un lot de « Vaste » ouverte avec la marque Neva · introuvable', async () => {
     commeProprietaire();
     await expect(LotSpatial({ params: Promise.resolve({ id: L.vaste1! }), searchParams: Promise.resolve({}) }), 'la fiche d’un lot d’une autre marque s’ouvre').rejects.toThrow('NOT_FOUND');
+  });
+});
+
+describe('les gestes d’un lot non lu · le lot lui-même, une raison vraie (garde « B », suite)', () => {
+  it('la fiche du grand lot #25 · les raccourcis ne disent ni « Aucun verdict », ni « n’est une gagnante arbitrée »', async () => {
+    commeProprietaire();
+    const d = dom(avecSpatial(await LotSpatial({ params: Promise.resolve({ id: L.grand! }), searchParams: Promise.resolve({}) })));
+    const r = net(d.querySelector('[data-raccourcis-lot]')?.textContent);
+    expect(r, 'préalable · les raccourcis de la fiche').toContain('Conclure le lot');
+    expect(phrasesFausses(r), 'un geste fermé de la fiche dit une raison tirée de rien').toEqual([]);
+    expect(r, 'la raison des gestes ne dit pas le recours').toContain('Non calculé · lecture incomplète · arbitre depuis la fiche de test d’une variante.');
+  });
+
+  it('Jarvis · les gestes du grand lot #25 · fermés, avec la même raison vraie', async () => {
+    commeProprietaire();
+    const g = await gestesPourContexte(h.session as never, I.b!, { type: 'lot', id: L.grand! });
+    expect(g, 'préalable · les gestes du lot').not.toBeNull();
+    expect([g!.iterer.cible, g!.conclure.cible]).toEqual([null, null]);
+    expect(phrasesFausses([g!.iterer.raison, g!.conclure.raison].join(' · ')), 'un geste de Jarvis fermé dit une raison tirée de rien').toEqual([]);
+  });
+
+  it('la fiche de test d’une variante du grand lot (le recours) · son lot est le sien, jamais « rangé dans aucun lot »', async () => {
+    commeProprietaire();
+    const ad = Object.keys(L).find((k) => k.startsWith('grand:'))!;
+    const d = dom(avecSpatial(await TestSpatial({ params: Promise.resolve({ id: L[ad]! }), searchParams: Promise.resolve({}) })));
+    expect(net(d.textContent), 'préalable · la fiche de test s’ouvre').toContain('y0');
+    // Les raccourcis de la fiche de test (« Ouvrir le lot ») · la lecture par persona et par offre, qui ne compte pas les lots non lus,
+    // reste hors de cette PR (« Aucune variante tranchée … ne cible ce persona »).
+    const r = net(d.querySelector('[data-raccourcis-test]')?.textContent);
+    expect(r, 'préalable · les raccourcis de la fiche de test').not.toBe('');
+    expect(phrasesFausses(r), 'la fiche de test d’une variante d’un lot non lu dit une phrase tirée de rien').toEqual([]);
+    expect(net(d.textContent), 'la fiche de test d’une variante d’un lot non lu le dit « rangé dans aucun lot »').not.toMatch(/rangé dans aucun lot/);
+    expect(d.querySelector(`a[href="/adsmap/lots/${L.grand}"]`), 'la fiche de test ne mène pas à son lot').not.toBeNull();
+  });
+});
+
+describe('« Itérer depuis la gagnante » d’un lot hors budget · la fiche l’ouvre, l’arrivée l’accepte', () => {
+  it('« Vaste » #2 (conclu, hors budget) · la provenance relit le lot en entier, ses 8 gagnantes', async () => {
+    const r = await lireGagnantesDepuis(I.ws!, I.v!, { source: 'lot', id: L.vaste2! });
+    expect(r?.lot.id ?? null, 'l’arrivée ne retrouve pas le lot hors budget que la fiche a ouvert').toBe(L.vaste2);
+    expect(r!.gagnantes.length, 'l’arrivée ne relit pas les gagnantes du lot').toBe(8);
+  });
+});
+
+describe('`lotsALire` en base · le lot d’une fiche ne change JAMAIS les autres lots lus', () => {
+  it('un lot RÉCENT, pris dans le budget (« Vaste » #300) · la fiche lit exactement les lots de la liste', async () => {
+    const liste2 = await chargerLots(I.ws!, I.v!);
+    const fiche2 = await chargerLots(I.ws!, I.v!, new Date(), { lotEntier: L.vaste300! });
+    const entiers = (x: typeof liste2) => x.lots.filter((l) => !l.partielle).map((l) => l.id);
+    expect(entiers(fiche2), 'le lot d’une fiche récente libère du budget · la fiche lit d’autres lots que la liste').toEqual(entiers(liste2));
   });
 });

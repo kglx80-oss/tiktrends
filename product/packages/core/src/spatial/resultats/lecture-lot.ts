@@ -185,6 +185,18 @@ export function estLuEnEntier<L extends VariantesDuLot<ReadonlyArray<unknown>>>(
   return !l.partielle;
 }
 
+/**
+ * Les seules variantes d'un lot, telles que la lecture les rend · TOUTES ou
+ * AUCUNE (`partielle`) · ce qu'une règle qui décrit UN lot reçoit (gestes de
+ * la fiche, gestes de Jarvis) · jamais un `[]` à la place d'un lot partiel.
+ */
+export function variantesDe<L extends VariantesDuLot<ReadonlyArray<unknown>>>(l: L): VariantesDuLot<NonNullable<L['ads']>> {
+  return l.partielle ? { partielle: l.partielle } : { ads: l.ads as NonNullable<L['ads']> };
+}
+
+/** La raison d'un geste fermé sur un lot lu en partie · vraie (rien n'est calculé), avec le recours. */
+export const RAISON_GESTE_LECTURE_INCOMPLETE = 'Non calculé · lecture incomplète · arbitre depuis la fiche de test d’une variante.';
+
 /** Le lot est-il lu en entier · ses variantes sont exposées. */
 export function lotLuEnEntier(l: VariantesDuLot<ReadonlyArray<unknown>>): boolean {
   return !l.partielle;

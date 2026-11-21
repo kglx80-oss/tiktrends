@@ -1,7 +1,7 @@
 import 'server-only';
 import { and, eq, inArray } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { variantesDesLotsLus,
+import { variantesDesLotsLus, variantesDe, type VariantesDuLot,
   iterationProjetDepuisVariantes, dejaTesteesSurPub, etatLotSpatial, gestesContexteJarvis, parentDepuisPlan, reponseLisible, variablesDuPlan, variantesEssaiProjet,
   type CandidatIteration, type CandidatProjetJarvis, type ChoixVariablesIteration, type DemandeContexteJarvis, type GesteJarvis, type TestedVariable,
   type VarianteEssaiJarvis,
@@ -122,8 +122,8 @@ export async function lireCandidatsProjet(s: SessionLue, brandId: string, projec
 }
 
 export interface ContexteGestesLu {
-  /** Les variantes du contexte · celles du lot, ou la seule ad de l'hypothèse. */
-  ads: AdLue[];
+  /** Les variantes du contexte · celles du lot (TOUTES, ou AUCUNE · `partielle`), ou la seule ad de l'hypothèse · jamais un `[]` à la place d'un lot. */
+  variantes: VariantesDuLot<AdLue[]>;
   /** Le lot à conclure · le lot joint, ou celui de l'hypothèse. */
   lot: LotLu | null;
   etat: ReturnType<typeof etatLotSpatial> | null;
@@ -139,12 +139,12 @@ export async function lireContexteGestes(s: SessionLue, brandId: string, demande
     if (demande.type === 'lot') {
       const lot = d.lots.find((l) => l.id === demande.id);
       // Lu en partie (au-delà du plafond d'un lot seul) · aucune variante, état `illisible` · ni « Conclure », ni « Itérer » ne se tirent de rien.
-      return lot ? { ads: lot.partielle ? [] : lot.ads, lot, etat: etatLotSpatial(lot, d.ctx) } : null;
+      return lot ? { variantes: variantesDe(lot), lot, etat: etatLotSpatial(lot, d.ctx) } : null;
     }
     const ad = [...variantesDesLotsLus(d.lots), ...d.horsLot].find((a) => a.id === demande.id);
     if (!ad) return null;
     const lot = ad.lotId ? d.lots.find((l) => l.id === ad.lotId) ?? null : null;
-    return { ads: [ad], lot, etat: lot ? etatLotSpatial(lot, d.ctx) : null };
+    return { variantes: { ads: [ad] }, lot, etat: lot ? etatLotSpatial(lot, d.ctx) : null };
   } catch {
     return null;
   }
@@ -161,14 +161,17 @@ export async function gestesPourContexte(s: SessionLue, brandId: string, demande
   Promise<{ iterer: GesteJarvis; conclure: GesteJarvis; candidats: CandidatIteration[]; exclus: string[] } | null> {
   const c = await lireContexteGestes(s, brandId, demande, maintenant);
   if (!c) return null;
+  // Le lot lui-même (TOUTES ses variantes ou AUCUNE) · la règle ferme les gestes d'un lot lu en partie, avec une raison vraie.
   const g = gestesContexteJarvis({
-    type: demande.type, id: demande.id, ads: c.ads,
-    lot: c.lot && c.etat ? { id: c.lot.id, etat: c.etat, ads: c.lot.partielle ? [] : c.lot.ads } : null,
+    type: demande.type, id: demande.id, ...variantesDe(c.variantes),
+    lot: c.lot && c.etat ? { id: c.lot.id, etat: c.etat, ...variantesDe(c.lot) } : null,
   });
   if (!g) return null;
+  // Lu en partie · « Itérer » est fermé (`gestesContexteJarvis`) · aucun plan n'est lu, aucune pub ne s'y cherche.
+  if (c.variantes.partielle) return { ...g, candidats: [], exclus: [] };
   const plan = g.iterer.cible ? await lirePlanIteration() : null;
-  const candidats = plan ? candidatsDuPlan(c.ads, plan) : [];
-  return { ...g, candidats, exclus: exclusDuContexte(c.ads, candidats) };
+  const candidats = plan ? candidatsDuPlan(c.variantes.ads, plan) : [];
+  return { ...g, candidats, exclus: exclusDuContexte(c.variantes.ads, candidats) };
 }
 
 /* ───────────────────────── lot 5 quater · « Tester » et « Corriger le texte » ───────────────────────── */
@@ -197,8 +200,11 @@ export async function lireVariantesEssai(s: SessionLue, brandId: string, demande
     }
     const c = await lireContexteGestes(s, brandId, demande, maintenant);
     if (!c) return null;
+    // Lu en partie · aucune variante Studio ne se cherche parmi des pubs non lues · la liste fermée est vide, et dite telle.
+    if (c.variantes.partielle) return { variantes: [], exclus: [] };
+    const ads = c.variantes.ads;
     const g = await gardeStudio('studio.read');
-    const ids = c.ads.map((a) => a.id);
+    const ids = ads.map((a) => a.id);
     const studio = g.ok && g.ctx.workspaceId === s.workspaceId && g.ctx.marques.includes(brandId);
     const L = schema.studioTestLinks;
     const V = schema.studioVariants;
@@ -209,11 +215,11 @@ export async function lireVariantesEssai(s: SessionLue, brandId: string, demande
       : [];
     const parAd = new Map(liens.map((l) => [l.adId.toLowerCase(), l]));
     const essai = g.ok && g.ctx.permissions.espace.has('studio.propose');
-    const variantes: VarianteEssaiJarvis[] = c.ads.flatMap((a) => {
+    const variantes: VarianteEssaiJarvis[] = ads.flatMap((a) => {
       const l = parAd.get(a.id.toLowerCase());
       return l ? [{ varianteId: l.varianteId.toLowerCase(), projectId: l.projectId.toLowerCase(), nom: a.variante, enTest: true, rattachable: false, essai }] : [];
     });
-    return { variantes, exclus: c.ads.filter((a) => !parAd.has(a.id.toLowerCase())).map((a) => a.variante) };
+    return { variantes, exclus: ads.filter((a) => !parAd.has(a.id.toLowerCase())).map((a) => a.variante) };
   } catch {
     return null;
   }
