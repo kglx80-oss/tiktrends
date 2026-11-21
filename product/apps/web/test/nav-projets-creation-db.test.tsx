@@ -47,6 +47,7 @@ import { avecSpatial } from './spatial/fournisseur';
 // Vague 3 · « Nouveau projet » n'est plus servi que par Spatial (page V5 retirée).
 import PreparerProjetPage from '../app/(spatial)/sp/studio/projets/nouveau/page';
 import { NouveauProjet } from '../spatial/vues/studios/NouveauProjet';
+import { sessionEquipeTest } from './helpers/face-equipe';
 
 const ids = h.ids;
 const CONCEPT = '/studio/projets/nouveau';
@@ -104,7 +105,7 @@ describe('jamais de porte morte', () => {
   });
 
   it('lecture seule (équipe, rôle d’espace lecteur) · on le dit, et le serveur refuse aussi', async () => {
-    h.session = session(ids, 'uv', { equipe: { role: 'membre', matrice: {}, plateformeAdmissible: true } as SessionTest['equipe'] });
+    h.session = session(ids, 'uv', { equipe: sessionEquipeTest({ role: 'membre', matrice: {}, plateformeAdmissible: true }) as SessionTest['equipe'] });
     const d = await rendu(projetsPage());
     expect(d.querySelector('a.ctanew')).toBeNull();
     expect(d.querySelector('[data-nouveau-projet="lecture-seule"]')?.textContent).toContain('pas d’en créer');

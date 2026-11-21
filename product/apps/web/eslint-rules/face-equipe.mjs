@@ -389,26 +389,39 @@ export const pasDeTsIgnore = {
  */
 /** Le nom, recomposé · ce fichier est lu par le recensement, qui refuse ce nom hors de rbac.ts et access.ts. */
 export const INSCRIPTION = ['inscrireFace', 'Equipe'].join('');
-export const inscriptionFaceEquipe = {
-  meta: {
-    type: 'problem',
-    docs: { description: 'Seul lib/access.ts inscrit une face équipe.' },
-    schema: [],
-    messages: {
-      inscription: '« {{nom}} » hors de lib/access.ts · inscrire une face au registre la rendrait reconnue sans privilegesEquipe. Passe par effectiveAccess (lib/access.ts) · dans un test, par faceEquipeTest (test/helpers/face-equipe.ts).',
+/** Une porte réservée · son nom importé (nommé, renommé, ré-exporté) ou lu sur un espace de noms est signalé. */
+function porteReservee(nom, description, message) {
+  return {
+    meta: { type: 'problem', docs: { description }, schema: [], messages: { porte: message } },
+    create(context) {
+      const signaler = (node) => context.report({ node, messageId: 'porte', data: { nom } });
+      return {
+        ImportSpecifier(n) { if ((n.imported.name ?? n.imported.value) === nom) signaler(n); },
+        ExportSpecifier(n) { if ((n.local.name ?? n.local.value) === nom) signaler(n); },
+        MemberExpression(n) {
+          const p = n.property;
+          if ((!n.computed && p.type === 'Identifier' && p.name === nom) || (p.type === 'Literal' && p.value === nom)) signaler(n);
+        },
+      };
     },
-  },
-  create(context) {
-    const signaler = (node) => context.report({ node, messageId: 'inscription', data: { nom: INSCRIPTION } });
-    return {
-      ImportSpecifier(n) { if ((n.imported.name ?? n.imported.value) === INSCRIPTION) signaler(n); },
-      ExportSpecifier(n) { if ((n.local.name ?? n.local.value) === INSCRIPTION) signaler(n); },
-      MemberExpression(n) {
-        const p = n.property;
-        if ((!n.computed && p.type === 'Identifier' && p.name === INSCRIPTION) || (p.type === 'Literal' && p.value === INSCRIPTION)) signaler(n);
-      },
-    };
-  },
-};
+  };
+}
+export const inscriptionFaceEquipe = porteReservee(INSCRIPTION, 'Seul lib/access.ts inscrit une face équipe.',
+  '« {{nom}} » hors de lib/access.ts · inscrire une face au registre la rendrait reconnue sans privilegesEquipe. Passe par effectiveAccess (lib/access.ts) · dans un test, par faceEquipeTest (test/helpers/face-equipe.ts).');
 
-export default { rules: { 'face-equipe-forcee': faceEquipeForcee, 'pas-de-test-en-production': pasDeTestEnProduction, 'pas-de-ts-ignore': pasDeTsIgnore, 'inscription-face-equipe': inscriptionFaceEquipe } };
+/**
+ * Règle `tiktrends/authentification-equipe-session` (suite de #1122) ·
+ * `authentifierEquipeSession` (lib/registre-equipe-session.ts) est la seule
+ * porte du registre des sessions d'équipe · seul `equipeDeSession`
+ * (lib/equipe-plateforme.ts) l'appelle en production, et le helper de test
+ * (test/helpers/face-equipe.ts) dans les tests. Ailleurs, l'appeler rendrait
+ * authentique une session reconstruite à la main · `effectiveAccess` croirait
+ * son `plateformeAdmissible`. Le recensement (`secu-fondateurs-codes-sources`)
+ * refuse aussi le NOM hors de ces trois fichiers.
+ */
+/** Le nom, recomposé · ce fichier est lu par le recensement. */
+export const AUTHENTIFICATION = ['authentifier', 'EquipeSession'].join('');
+export const authentificationEquipeSession = porteReservee(AUTHENTIFICATION, 'Seul equipeDeSession authentifie une session d’équipe.',
+  '« {{nom}} » hors de lib/equipe-plateforme.ts · authentifier une session d’équipe ferait croire à effectiveAccess un plateformeAdmissible posé à la main. Passe par getSession (equipeDeSession) · dans un test, par sessionEquipeTest (test/helpers/face-equipe.ts).');
+
+export default { rules: { 'face-equipe-forcee': faceEquipeForcee, 'pas-de-test-en-production': pasDeTestEnProduction, 'pas-de-ts-ignore': pasDeTsIgnore, 'inscription-face-equipe': inscriptionFaceEquipe, 'authentification-equipe-session': authentificationEquipeSession } };

@@ -25,12 +25,16 @@ const compat = new FlatCompat({ baseDirectory: ICI });
  * eslint-rules/face-equipe.mjs). Exemptions, une par règle :
  *  · `face-equipe-forcee` · la construction de production, et le test qui
  *    forge des faces EXPRÈS pour prouver que le registre les refuse ;
- *  · `inscription-face-equipe` · la définition du registre et son seul appelant.
+ *  · `inscription-face-equipe` · la définition du registre et son seul appelant ;
+ *  · `authentification-equipe-session` · la définition du registre des
+ *    sessions, `equipeDeSession` qui les produit, et le helper de test.
  * Ni import de test ni `@ts-ignore` ne sont permis nulle part en production.
  */
 const CONSTRUCTION_PRODUCTION = 'lib/access.ts';
 const FORGE_EXPRES = 'test/secu-face-equipe-execution.test.ts';
 const REGISTRE = ['lib/rbac.ts', 'lib/access.ts'];
+/** Le registre des sessions d'équipe · sa définition, son producteur de production, le helper de test. */
+const REGISTRE_SESSIONS = ['lib/registre-equipe-session.ts', 'lib/equipe-plateforme.ts', 'test/helpers/face-equipe.ts'];
 const TESTS = ['test/**', '**/*.test.{ts,tsx}'];
 
 export default [
@@ -81,6 +85,11 @@ export default [
     files: ['**/*.{ts,tsx,js,mjs}'],
     ignores: REGISTRE,
     rules: { 'tiktrends/inscription-face-equipe': 'error' },
+  },
+  {
+    files: ['**/*.{ts,tsx,js,mjs}'],
+    ignores: REGISTRE_SESSIONS,
+    rules: { 'tiktrends/authentification-equipe-session': 'error' },
   },
   {
     rules: {

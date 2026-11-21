@@ -44,6 +44,7 @@ vi.mock('next/navigation', () => ({
 import { db, schema } from '@tiktrends/db';
 import { VERSION_FORMATS_CREATIFS } from '@tiktrends/core';
 import SavedPage from '../app/(spatial)/sp/saved/page';
+import { sessionEquipeTest } from './helpers/face-equipe';
 
 beforeAll(async () => {
   await db!.insert(schema.users).values({ id: ids.user, email: 'membre@agence.test', name: 'Membre' });
@@ -77,7 +78,7 @@ describe('Sauvegardes (Spatial) · pont Résultats fermé · la raison réelle �
   });
 
   it('rôle (équipe « membre », Adsmap hors de ses rubriques) · « réservé aux rôles… »', async () => {
-    session.plan = 'business'; session.equipe = { role: 'membre', matrice: {}, plateformeAdmissible: true };
+    session.plan = 'business'; session.equipe = sessionEquipeTest({ role: 'membre', matrice: {}, plateformeAdmissible: true });
     const h = await page();
     expect(nCartes(h)).toBe(2);
     expect(refus(h)).toEqual(['Préparer un test dans Résultats · réservé aux rôles qui ont accès à Adsmap.', 'Préparer un test dans Résultats · réservé aux rôles qui ont accès à Adsmap.']);

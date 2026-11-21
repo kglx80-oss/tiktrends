@@ -55,6 +55,7 @@ import { preparerCreation, proposerHypotheses, creerProjetDepuisSources, lirePro
 import { MESSAGE_SANS_RELEASE } from '../lib/studios/sources/hypotheses';
 import { lireProjetDetailPour } from '../lib/studios/sources/projet';
 import { contexteDepuisSession } from '../lib/studios/garde';
+import { sessionEquipeTest } from './helpers/face-equipe';
 
 const ids = etat.ids;
 const qui = (q: 'ua' | 'uv' | 'ur' | 'ub', s: Partial<SessionTest> = {}) => { etat.session = session(ids, q, s); };
@@ -330,7 +331,7 @@ describe('SEC-01 / SEC-02 · hors portée, NOT_FOUND neutre et sans fuite', () =
   });
 
   it('membre d’équipe invité en lecteur (studio ouvert par la matrice) · lit, mais ne crée ni n’exporte', async () => {
-    etat.session = session(ids, 'uv', { equipe: { role: 'membre', matrice: { membre: ['studio'] }, plateformeAdmissible: true } as never });
+    etat.session = session(ids, 'uv', { equipe: sessionEquipeTest({ role: 'membre', matrice: { membre: ['studio'] }, plateformeAdmissible: true }) as never });
     const avant = await compte();
     expect((await lireProjetDetail({ projectId: projetSaisie })).ok).toBe(true);
     expect(await creerProjetDepuisSources({ sources: [{ type: 'sauvegarde', id: SAUV.a2 }], brandId: ids.brandA2, cleClic: 'clic-lecteur-02' })).toMatchObject({ ok: false, code: 'FORBIDDEN' });

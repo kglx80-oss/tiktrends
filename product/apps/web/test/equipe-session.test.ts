@@ -2,6 +2,7 @@ import { describe, expect, it, beforeEach } from 'vitest';
 import { equipeDepuisLignes } from '../lib/equipe-plateforme';
 import { effectiveAccess } from '../lib/access';
 import { unlimitedCredits, noterCreditsStaff } from '../lib/credits';
+import { sessionEquipeTest } from './helpers/face-equipe';
 
 /**
  * PR 4 · le rôle d'ÉQUIPE entre dans la session et prend effet.
@@ -53,7 +54,7 @@ describe('effectiveAccess · equipe prime, client inchangé', () => {
   it('équipe à accès total ADMISSIBLE → Access.equipe posé + formule forcée business', () => {
     const a = effectiveAccess({
       role: 'client_viewer', plan: 'starter', user: { email: AUTRE },
-      equipe: { role: 'admin', matrice: {}, plateformeAdmissible: true },
+      equipe: sessionEquipeTest({ role: 'admin', matrice: {}, plateformeAdmissible: true }),
     });
     expect(a.equipe, 'la face équipe ne porte que le rôle et la matrice').toEqual({ role: 'admin', matrice: {} });
     expect(a.plan).toBe('business');
@@ -70,7 +71,7 @@ describe('effectiveAccess · equipe prime, client inchangé', () => {
   it('équipe gradée ADMISSIBLE (non fondateur) → Access.equipe posé, formule de l’espace conservée', () => {
     const a = effectiveAccess({
       role: 'client_viewer', plan: 'starter', user: { email: AUTRE },
-      equipe: { role: 'membre', matrice: {}, plateformeAdmissible: true },
+      equipe: sessionEquipeTest({ role: 'membre', matrice: {}, plateformeAdmissible: true }),
     });
     expect(a.equipe).toEqual({ role: 'membre', matrice: {} });
     expect(a.plan).toBe('starter');

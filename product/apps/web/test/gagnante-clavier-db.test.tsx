@@ -80,6 +80,7 @@ import { RaccourcisLot } from '../spatial/vues/resultats/RaccourcisLot';
 import { CanvasLibre } from '../spatial/vues/projet/CanvasLibre';
 import { AD_GAGNANTE, AD_NEE, AD_PERDANTE, LOT_CONCLU, MODELE_LIGNEE, canevasLignee, propsFicheConclue } from './helpers/gagnante-clavier-vues';
 import { ecartsDeNoms, sansNomsAjoutes } from './helpers/noms-accessibles';
+import { sessionEquipeTest } from './helpers/face-equipe';
 
 vi.setConfig({ testTimeout: 120_000, hookTimeout: 240_000 });
 
@@ -345,7 +346,7 @@ describe('la touche T · lot conclu avec gagnante · LE lien du bouton de sa var
   });
 
   it('fermé (Résultats ouvert par l’équipe, rôle sans `studio.propose`) · T fermé avec LA raison du bouton de sa variante · le toast la dit', async () => {
-    h.session = session(ids, 'uv', { plan: 'plus', equipe: { role: 'adminplus', matrice: {}, plateformeAdmissible: true } as SessionTest['equipe'] });
+    h.session = session(ids, 'uv', { plan: 'plus', equipe: sessionEquipeTest({ role: 'adminplus', matrice: {}, plateformeAdmissible: true }) as SessionTest['equipe'] });
     await monter(await page(S.lots.C.id));
     const code = /^Itérer depuis (\S+)$/.exec(visible(T()) ?? '')?.[1];
     expect(code, 'le bouton de T fermé ne nomme pas la variante').toBeTruthy();
@@ -362,7 +363,7 @@ describe('la touche T · lot conclu avec gagnante · LE lien du bouton de sa var
 
 describe('aucun nom accessible en double menant à deux cibles · la touche et le bouton de la ligne ont deux noms', () => {
   it('fiche du lot conclu · ouverte, puis fermée par le rôle · aucun doublon · les libellés VISIBLES de T et des lignes diffèrent', async () => {
-    for (const s of [proprietaire(), session(ids, 'uv', { plan: 'plus', equipe: { role: 'adminplus', matrice: {}, plateformeAdmissible: true } as SessionTest['equipe'] })]) {
+    for (const s of [proprietaire(), session(ids, 'uv', { plan: 'plus', equipe: sessionEquipeTest({ role: 'adminplus', matrice: {}, plateformeAdmissible: true }) as SessionTest['equipe'] })]) {
       h.session = s;
       await monter(await page(S.lots.C.id));
       expect(document.querySelectorAll('[data-iterer-gagnante]').length, 'préalable · des boutons de variante').toBeGreaterThan(1);

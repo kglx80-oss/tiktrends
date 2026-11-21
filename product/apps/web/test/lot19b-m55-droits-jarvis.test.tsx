@@ -86,6 +86,7 @@ import { invaliderConnaissances } from '../lib/jarvis-connaissances';
 import JarvisPage from '../app/(spatial)/sp/jarvis/page';
 import SourcesPage from '../app/(spatial)/sp/jarvis/sources/page';
 import { demarrerMockFournisseur } from './lot19b-mock-fournisseur';
+import { sessionEquipeTest } from './helpers/face-equipe';
 
 const T = '2026-10-05T08:00:00.000Z';
 function publiee(id: string, o: Partial<SaisieConnaissance>): Connaissance {
@@ -102,14 +103,14 @@ const SECRETS = ['TITRE_PLATEFORME_55', 'TEXTE_PLATEFORME_55', 'TITRE_ESPACE_55'
 const base = (o: Record<string, unknown>) => ({ user: { id: ids.user, email: 'membre@client.test', name: null }, workspaceId: ids.ws, workspaceName: 'Démo', ...o });
 const REFUSES: Array<[string, () => unknown]> = [
   ['membre d’un espace Starter', () => base({ role: 'member', plan: 'starter', equipe: null })],
-  ['membre d’équipe freelance (offre Business)', () => base({ role: 'member', plan: 'business', equipe: { role: 'freelance', matrice: {}, plateformeAdmissible: true } })],
+  ['membre d’équipe freelance (offre Business)', () => base({ role: 'member', plan: 'business', equipe: sessionEquipeTest({ role: 'freelance', matrice: {}, plateformeAdmissible: true }) })],
   ['client_viewer (offre Business)', () => base({ role: 'client_viewer', plan: 'business', equipe: null })],
   // Sans élargissement · la matrice ouvre Jarvis au rôle d'équipe « membre »,
   // mais le rôle d'ESPACE reste lecture seule · refusé comme avant.
-  ['client_viewer membre d’équipe « membre » (rubrique Jarvis)', () => base({ role: 'client_viewer', plan: 'business', equipe: { role: 'membre', matrice: {}, plateformeAdmissible: true } })],
+  ['client_viewer membre d’équipe « membre » (rubrique Jarvis)', () => base({ role: 'client_viewer', plan: 'business', equipe: sessionEquipeTest({ role: 'membre', matrice: {}, plateformeAdmissible: true }) })],
 ];
 const AUTORISES: Array<[string, () => unknown]> = [
-  ['fondateur (espace Starter)', () => base({ role: 'owner', plan: 'starter', user: { id: ids.user, email: 'kguilbaux@agence-glx.fr', name: null }, equipe: { role: 'adminplus', matrice: {} } })],
+  ['fondateur (espace Starter)', () => base({ role: 'owner', plan: 'starter', user: { id: ids.user, email: 'kguilbaux@agence-glx.fr', name: null }, equipe: sessionEquipeTest({ role: 'adminplus', matrice: {} }) })],
   ['membre d’un espace Core', () => base({ role: 'member', plan: 'core', equipe: null })],
   ['membre d’un espace Plus', () => base({ role: 'member', plan: 'plus', equipe: null })],
 ];

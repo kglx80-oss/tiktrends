@@ -27,6 +27,8 @@ const FORCER = 'function forcer<T>(x: unknown): T { return x as T; }';
 const SOURCE = readFileSync(PAGE, 'utf8');
 /** Le nom de la porte du registre, recomposé · le recensement le refuse hors de rbac.ts et access.ts. */
 const INSCRIRE = ['inscrireFace', 'Equipe'].join('');
+/** Le nom de la porte du registre des sessions d'équipe, recomposé · même raison. */
+const AUTHENTIFIER = ['authentifier', 'EquipeSession'].join('');
 
 /** La page, avec un contournement en plus de l'appel d'origine (qui reste utilisé · seule la règle peut parler). */
 function page(contournement: string, avant = '', apres = ''): string {
@@ -93,6 +95,11 @@ const CAS: Array<{ quoi: string; code: string; regle: string; phrase: RegExp }> 
     code: page(`canAccess({ role: s.role, plan }, studio) || !!${INSCRIRE}`, `import { ${INSCRIRE} } from '../../../../lib/rbac';`) },
   { quoi: 'porte du registre lue sur un espace de noms', regle: 'tiktrends/inscription-face-equipe', phrase: /hors de lib\/access\.ts/,
     code: page(`canAccess({ role: s.role, plan }, studio) || !!rbac.${INSCRIRE}`, "import * as rbac from '../../../../lib/rbac';") },
+  // Suite de #1122 · le registre des sessions d'équipe n'a qu'une porte, passée par equipeDeSession.
+  { quoi: 'import de la porte des sessions d’équipe', regle: 'tiktrends/authentification-equipe-session', phrase: /hors de lib\/equipe-plateforme\.ts · authentifier une session d’équipe ferait croire à effectiveAccess un plateformeAdmissible posé à la main/,
+    code: page(`canAccess({ role: s.role, plan }, studio) || !!${AUTHENTIFIER}`, `import { ${AUTHENTIFIER} } from '../../../../lib/registre-equipe-session';`) },
+  { quoi: 'porte des sessions lue sur un espace de noms', regle: 'tiktrends/authentification-equipe-session', phrase: /hors de lib\/equipe-plateforme\.ts/,
+    code: page(`canAccess({ role: s.role, plan }, studio) || !!registre.${AUTHENTIFIER}`, "import * as registre from '../../../../lib/registre-equipe-session';") },
   { quoi: 'import() par un gabarit sans substitution', regle: 'tiktrends/pas-de-test-en-production', phrase: /Import de « \.\.\/\.\.\/\.\.\/\.\.\/test\/helpers\/face-equipe »/,
     code: page("canAccess({ role: s.role, plan }, studio) || !!(await import(`../../../../test/helpers/face-equipe`))") },
   { quoi: 'module .test avec extension', regle: 'tiktrends/pas-de-test-en-production', phrase: /un module en \.test/,
@@ -140,6 +147,11 @@ describe('Face équipe · la règle ESLint typée refuse chaque contournement re
       expect(await severite(rel, inscription), `${rel} · la porte du registre n’est plus gardée`).toBe(2);
     }
     for (const rel of ['lib/rbac.ts', 'lib/access.ts']) expect(await severite(rel, inscription), `${rel} · le registre ne peut plus être défini ou appelé`).toBeUndefined();
+    const authentification = 'tiktrends/authentification-equipe-session';
+    for (const rel of ['app/(spatial)/sp/settings/page.tsx', 'lib/access.ts', 'lib/auth.ts', 'test/secu-face-equipe-execution.test.ts', 'test/budget-essai-rendu.test.tsx']) {
+      expect(await severite(rel, authentification), `${rel} · la porte des sessions d’équipe n’est plus gardée`).toBe(2);
+    }
+    for (const rel of ['lib/registre-equipe-session.ts', 'lib/equipe-plateforme.ts', 'test/helpers/face-equipe.ts']) expect(await severite(rel, authentification), `${rel} · le registre des sessions ne peut plus être défini ou passé`).toBeUndefined();
     // lib/access.ts n'est exempté que de face-equipe-forcee · ni import de test ni @ts-ignore n'y passent.
     for (const regle of ['tiktrends/pas-de-test-en-production', 'tiktrends/pas-de-ts-ignore']) {
       expect(await severite('lib/access.ts', regle), `${regle} ne garde plus lib/access.ts`).toBe(2);

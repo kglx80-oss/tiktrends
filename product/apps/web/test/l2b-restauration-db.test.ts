@@ -34,6 +34,7 @@ import {
 import { session, semer } from './studios-semis';
 import { creerProjet, enregistrerDocument } from '../app/actions/studios/projets';
 import { apercuVersionDocument, listerVersionsDocument, restaurerVersionDocument } from '../lib/studios/editeur/actions';
+import { sessionEquipeTest } from './helpers/face-equipe';
 
 const ids = h.ids;
 const qui = (q: 'ua' | 'uv' | 'ur' | 'ub') => { h.session = session(ids, q); };
@@ -173,7 +174,7 @@ describe('portée et droits · rien ne fuit, rien ne s’écrit', () => {
   it('lecteur · voit la liste (auteur, raison, courante) et l’aperçu, ne restaure pas', async () => {
     const avant = await instantane();
     // Lecteur d'équipe · `studio.read` sans `studio.propose` (le profil « lecture seule » de l'éditeur).
-    h.session = session(ids, 'uv', { equipe: { role: 'membre', matrice: { membre: ['studio'] }, plateformeAdmissible: true } } as never);
+    h.session = session(ids, 'uv', { equipe: sessionEquipeTest({ role: 'membre', matrice: { membre: ['studio'] }, plateformeAdmissible: true }) } as never);
     const ls = await listerVersionsDocument(projet);
     if (!ls.ok) throw new Error(ls.code);
     expect(ls.versions.map((x) => [x.n, x.courante])).toEqual([[5, true], [4, false], [3, false], [2, false], [1, false]]);

@@ -189,7 +189,24 @@ export function inscrireFaceEquipe(face: FaceEquipe): FaceEquipe {
 export function faceEquipeReconnue(a: Access): FaceEquipe | null {
   const f = a.equipe;
   // `typeof` d'abord · un `any` peut y avoir posé une chaîne ou un nombre, que WeakSet#has accepte sans lever.
-  return typeof f === 'object' && f !== null && FACES_RECONNUES.has(f) ? f : null;
+  if (typeof f !== 'object' || f === null) return null;
+  if (FACES_RECONNUES.has(f)) return f;
+  avertirFaceNonReconnue();
+  return null;
+}
+
+/**
+ * Filet de journal · un objet dans `Access.equipe` que le registre ne connaît
+ * pas n'arrive jamais en code légitime. Si il arrive · une face forgée, ou DEUX
+ * instances de ce module (chacune son registre) · alors chaque membre d'équipe
+ * légitime retomberait sans bruit sur la face client. Dit une fois par
+ * processus, sans donnée personnelle (ni e-mail ni identifiant).
+ */
+let faceNonReconnueDite = false;
+function avertirFaceNonReconnue(): void {
+  if (faceNonReconnueDite) return;
+  faceNonReconnueDite = true;
+  console.warn('[rbac] face équipe non reconnue · registre d’une autre instance du module ou face forgée · le compte retombe sur la face client');
 }
 
 /** La feature est-elle VISIBLE ? Client · rôle d'espace. Équipe · matrice des rubriques. */

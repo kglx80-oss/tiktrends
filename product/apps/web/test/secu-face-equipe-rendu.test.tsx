@@ -29,10 +29,12 @@ vi.mock('../lib/brands', async (orig) => ({ ...(await orig<typeof import('../lib
 
 import { avecSpatial } from './spatial/fournisseur';
 import FormatsPage from '../app/(spatial)/sp/veille/formats/page';
+import { sessionEquipeTest } from './helpers/face-equipe';
 
 const VERROU = 'Inclus dès la formule Core';
 const base = { workspaceId: '00000000-0000-4000-8000-000000001122', workspaceName: 'Espace Starter', role: 'member', plan: 'starter', user: { id: 'u-1122', email: 'membre-equipe@tiktrends.invalid', name: 'Membre' } };
-const equipe = (plateformeAdmissible: boolean) => ({ role: 'membre', matrice: { membre: ['veille'] }, plateformeAdmissible });
+/** La session d'équipe telle que getSession la rend (authentifiée · `equipeDeSession`). */
+const equipe = (plateformeAdmissible: boolean) => sessionEquipeTest({ role: 'membre', matrice: { membre: ['veille'] }, plateformeAdmissible });
 
 async function rendre(session: unknown): Promise<string> {
   h.session = session;
