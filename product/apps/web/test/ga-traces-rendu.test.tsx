@@ -39,8 +39,9 @@ import { db, schema } from '@tiktrends/db';
 import RegistreSpatial from '../app/(spatial)/sp/admin/prompts/registre/page';
 import { avecSpatial } from './spatial/fournisseur';
 import { expurgerRun, type LigneRun } from '../lib/studios/prompts/traces';
+import { sessionEquipeTest } from './helpers/face-equipe';
 
-const EQUIPE = () => ({ user: { id: ids.user, email: 'quelquun@client.test', name: null }, workspaceId: ids.ws, workspaceName: 'Démo', plan: 'business', role: 'owner', equipe: { role: 'adminplus', matrice: {}, plateformeAdmissible: true } });
+const EQUIPE = () => ({ user: { id: ids.user, email: 'quelquun@client.test', name: null }, workspaceId: ids.ws, workspaceName: 'Démo', plan: 'business', role: 'owner', equipe: sessionEquipeTest({ role: 'adminplus', matrice: {}, plateformeAdmissible: true }) });
 const page = async (sp: Record<string, string>) => renderToStaticMarkup(avecSpatial(await RegistreSpatial({ searchParams: Promise.resolve(sp) })));
 
 const SHA_SORTIE = 'a1'.repeat(32);

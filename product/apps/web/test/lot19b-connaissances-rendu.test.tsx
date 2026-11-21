@@ -36,6 +36,7 @@ import { avecSpatial } from './spatial/fournisseur';
 import type { VueAdminConnaissances } from '../app/actions/connaissances';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { sessionEquipeTest } from './helpers/face-equipe';
 
 const ConnaissancesPage = async () => avecSpatial(await ConnaissancesSpatial());
 
@@ -167,9 +168,9 @@ describe('page · le garde lit le rôle d’ÉQUIPE, jamais le rôle d’espace'
   });
   // M4 · la page REND la redirection pour un Admin d'équipe non admissible (compte créé après son inscription).
   it('Admin plateforme NON admissible → /dashboard, rien n’est rendu', async () => {
-    h.session = { ...base, role: 'member', equipe: { role: 'admin', matrice: {}, plateformeAdmissible: false } };
+    h.session = { ...base, role: 'member', equipe: sessionEquipeTest({ role: 'admin', matrice: {}, plateformeAdmissible: false }) };
     expect(await url()).toBe('/dashboard');
-    h.session = { ...base, role: 'owner', equipe: { role: 'adminplus', matrice: {} } };
+    h.session = { ...base, role: 'owner', equipe: sessionEquipeTest({ role: 'adminplus', matrice: {} }) };
     expect(await url(), 'admissibilité absente = non admissible').toBe('/dashboard');
   });
   it('sans session → /login', async () => {
@@ -177,7 +178,7 @@ describe('page · le garde lit le rôle d’ÉQUIPE, jamais le rôle d’espace'
     expect(await url()).toBe('/login');
   });
   it('Admin plateforme · la page se rend avec ses connaissances', async () => {
-    h.session = { ...base, role: 'member', equipe: { role: 'admin', matrice: {}, plateformeAdmissible: true } };
+    h.session = { ...base, role: 'member', equipe: sessionEquipeTest({ role: 'admin', matrice: {}, plateformeAdmissible: true }) };
     const html = renderToStaticMarkup(await ConnaissancesPage());
     expect(html).toContain('<h1');
     expect(html).toContain('Connaissances');

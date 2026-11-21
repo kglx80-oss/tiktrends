@@ -28,6 +28,8 @@ export interface EquipeSession {
    * lecture). Le lisent · le nouveau studio (`lib/studios/garde.ts`),
    * l'écriture de l'équipe (`peutEcrireEquipe`), la gestion des connaissances
    * (`peutGererConnaissances`) et les crédits illimités (`accesTotalAdmissible`).
+   * Tous par `equipeAuthentique` (lib/registre-equipe-session.ts) · une
+   * session reconstruite à la main ne fait croire ce champ à personne.
    */
   plateformeAdmissible?: boolean;
   /**

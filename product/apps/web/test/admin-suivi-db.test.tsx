@@ -60,6 +60,7 @@ import { semer, session, type IdsStudios } from './studios-semis';
 import { ctxDe } from './l3-harnais';
 import { projetAvecBrief, lancerLot, executer, KEYFRAMES } from './l4c-harnais';
 import { cloreRapprochementAction, exporterTourAction, ouvrirIncidentAction } from '../app/actions/tour-controle';
+import { sessionEquipeTest } from './helpers/face-equipe';
 
 vi.setConfig({ testTimeout: 120_000, hookTimeout: 120_000 });
 
@@ -284,7 +285,7 @@ describe('Registre d’audit · portée, actions sensibles, recherche, export', 
   });
 
   it('« Rôles & droits » · « Journal complet » mène au registre, seulement quand la session en ouvre la porte', async () => {
-    const equipe = { role: 'adminplus', matrice: {}, plateformeAdmissible: true };
+    const equipe = sessionEquipeTest({ role: 'adminplus', matrice: {}, plateformeAdmissible: true });
     h.session = fondateur(equipe);
     expect((await page('equipe')).querySelector('[data-journal]')!.getAttribute('href')).toBe('/admin/audit');
     h.session = { ...fondateur(equipe), user: { id: ids.uE, email: 'elodie@exemple.invalid', name: 'Élodie' } };

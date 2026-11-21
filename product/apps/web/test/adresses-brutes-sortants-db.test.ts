@@ -103,6 +103,7 @@ import { cleFournisseurDuJob, empreinteContenu, contenuVide, idLogoMarque, OPERA
 import { semer } from './studios-semis';
 import { DUREE_LIEN_FOURNISSEUR_MAX_S } from '@tiktrends/integrations';
 import type { BaseStudio } from '../../workers/src/studios/types';
+import { sessionEquipeTest } from './helpers/face-equipe';
 
 vi.setConfig({ testTimeout: 120_000, hookTimeout: 120_000 });
 
@@ -354,7 +355,7 @@ beforeAll(async () => {
   const c = contenuVide();
   const [v] = await db.insert(schema.studioProjectVersions).values({ projectId: p!.id, workspaceId: ids.wsA, brandId: ids.brandA1, n: 1, schemaVersion: SCHEMA_VERSION_CONTENU, content: c, contentHash: empreinteContenu(c), authorId: ids.ua }).returning();
   s.projet = p!.id; s.version = v!.id;
-  h.session = { user: { id: ids.ua, email: 'ua@studios.test', name: 'Kevin' }, workspaceId: ids.wsA, workspaceName: 'Espace A', role: 'owner', plan: 'business', equipe: { role: 'adminplus', matrice: {}, plateformeAdmissible: true } as SessionTest['equipe'] };
+  h.session = { user: { id: ids.ua, email: 'ua@studios.test', name: 'Kevin' }, workspaceId: ids.wsA, workspaceName: 'Espace A', role: 'owner', plan: 'business', equipe: sessionEquipeTest({ role: 'adminplus', matrice: {}, plateformeAdmissible: true }) as SessionTest['equipe'] };
   h.cookie = ids.brandA1;
 });
 afterAll(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });

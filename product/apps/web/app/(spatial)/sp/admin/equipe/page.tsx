@@ -6,6 +6,7 @@ import {
   admissibiliteMembre, caseDroit, initialesAvatar, messageNonAdmissible, rubriquesApresBascule, texteAudit, vueEquipeAdmin, type MatriceDroits, type RolePlateforme,
 } from '@tiktrends/core';
 import { getSession } from '../../../../../lib/auth';
+import { equipeAuthentique } from '../../../../../lib/registre-equipe-session';
 import { estFondateurCode } from '../../../../../lib/founder';
 import { Droits, DroitsNonAdmissible } from '../../../../../spatial/vues/admin/Droits';
 import { bandeauSeul } from '../donnees';
@@ -39,9 +40,11 @@ const ERR: Record<string, string> = {
 export default async function DroitsSpatial({ searchParams }: { searchParams: Promise<{ ok?: string; e?: string }> }) {
   const s = await getSession();
   if (!s) redirect('/login');
-  const vue = vueEquipeAdmin(s.equipe);
+  // L'équipe AUTHENTIQUE seule (suite de #1124) · reconstruite à la main, elle vaut absente · refus.
+  const equipe = equipeAuthentique(s);
+  const vue = vueEquipeAdmin(equipe);
   if (vue === 'refus') redirect('/dashboard');
-  if (vue === 'message') return <DroitsNonAdmissible message={messageNonAdmissible(s.equipe)!} />;
+  if (vue === 'message') return <DroitsNonAdmissible message={messageNonAdmissible(equipe)!} />;
   const { ok, e } = await searchParams;
 
   const [b, staffRows, rightsRows, auditRows] = await Promise.all([

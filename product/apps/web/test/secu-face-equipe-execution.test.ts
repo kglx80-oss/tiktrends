@@ -88,7 +88,8 @@ describe('Face équipe · le contrôle à l’exécution', () => {
   });
 
   it('un compte d’équipe NON admissible n’a pas de face équipe du tout', () => {
-    const capte = effectiveAccess({ role, plan, user: { email: 'capte@tiktrends.invalid' }, equipe: { role: 'membre', matrice: { membre: ['veille'] }, plateformeAdmissible: false } });
+    // AUTHENTIFIÉE (comme getSession la rend) · sinon elle vaudrait absente et le cas passerait sans éprouver l'admissibilité.
+    const capte = effectiveAccess({ role, plan, user: { email: 'capte@tiktrends.invalid' }, equipe: sessionEquipeTest({ role: 'membre', matrice: { membre: ['veille'] }, plateformeAdmissible: false }) });
     expect(capte.equipe).toBeUndefined();
     expect(canAccess(capte, VEILLE)).toBe(false);
   });

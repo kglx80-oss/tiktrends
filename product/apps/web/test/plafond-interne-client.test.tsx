@@ -48,13 +48,14 @@ import { radarViewAction } from '../app/actions/adsmap-radar';
 import { POST } from '../app/api/jarvis/chat/route';
 import { FournisseurSpatial, type CtxSpatial } from '../spatial/coquille/contexte';
 import { RadarAdsmap } from '../spatial/vues/resultats/RadarAdsmap';
+import { sessionEquipeTest } from './helpers/face-equipe';
 
 /** Admin d'un espace client sur Plus · le cas de l'audit. */
 const client = () => ({ user: { id: ids.user, email: 'admin@client.test', name: null }, workspaceId: ids.ws, workspaceName: 'Démo', role: 'admin', plan: 'plus', equipe: null });
 /** Équipe de la plateforme à accès total, ADMISSIBLE (compte antérieur à son inscription · `privilegesEquipe`). */
-const personnel = () => ({ user: { id: ids.user, email: 'equipe@agence.test', name: null }, workspaceId: ids.ws, workspaceName: 'Démo', role: 'owner', plan: 'plus', equipe: { role: 'adminplus', matrice: {}, plateformeAdmissible: true } });
+const personnel = () => ({ user: { id: ids.user, email: 'equipe@agence.test', name: null }, workspaceId: ids.ws, workspaceName: 'Démo', role: 'owner', plan: 'plus', equipe: sessionEquipeTest({ role: 'adminplus', matrice: {}, plateformeAdmissible: true }) });
 /** Équipe de la plateforme SANS accès total · traitée comme un client. */
-const equipeRestreinte = () => ({ ...personnel(), equipe: { role: 'manager', matrice: {} } });
+const equipeRestreinte = () => ({ ...personnel(), equipe: sessionEquipeTest({ role: 'manager', matrice: {} }) });
 
 const CTX: CtxSpatial = {
   utilisateur: { nom: 'Admin', initiales: 'AD', email: 'admin@client.test', role: 'Administrateur' },

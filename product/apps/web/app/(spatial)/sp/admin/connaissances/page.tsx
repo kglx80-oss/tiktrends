@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { peutGererConnaissances } from '@tiktrends/core';
 import { getSession } from '../../../../../lib/auth';
+import { equipeAuthentique } from '../../../../../lib/registre-equipe-session';
 import { chargerConnaissancesAction } from '../../../../actions/connaissances';
 import { Connaissances } from '../../../../../spatial/vues/admin/Connaissances';
 import { bandeauSeul } from '../donnees';
@@ -11,14 +12,14 @@ export const dynamic = 'force-dynamic';
 
 /**
  * « Connaissances » · porte de l'ancien `/admin/connaissances` · l'ACCÈS TOTAL
- * d'équipe plateforme (Admin+ / Admin, lu sur `s.equipe`, jamais sur le rôle
+ * d'équipe plateforme (Admin+ / Admin, lu sur `equipeAuthentique(s)`, jamais sur le rôle
  * d'espace), AVANT toute lecture. Un owner ou un admin d'espace client est
  * renvoyé au tableau de bord · la même garde est reposée dans chaque action.
  */
 export default async function ConnaissancesSpatial() {
   const s = await getSession();
   if (!s) redirect('/login');
-  if (!peutGererConnaissances(s.equipe)) redirect('/dashboard');
+  if (!peutGererConnaissances(equipeAuthentique(s))) redirect('/dashboard');
   const [r, b, marques] = await Promise.all([
     chargerConnaissancesAction(),
     bandeauSeul(),
