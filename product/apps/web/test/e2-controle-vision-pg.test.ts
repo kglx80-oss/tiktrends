@@ -29,6 +29,7 @@ vi.mock('../lib/auth', () => ({ getSession: async () => etat.session }));
 vi.mock('next/cache', () => ({ revalidatePath: () => {} }));
 
 import { fauxAnthropic, type FauxServeur } from './helpers/faux-anthropic';
+import { attendreEtat } from './helpers/attendre-etat';
 
 let srv: FauxServeur;
 const env = { cle: process.env.ANTHROPIC_API_KEY, url: process.env.ANTHROPIC_BASE_URL, modele: process.env.ANTHROPIC_GEN_MODEL, cap: process.env.AI_SPEND_CAP_USD };
@@ -94,13 +95,20 @@ describe.skipIf(!LOCALE)('Postgres réel · deux connexions · contrôle visuel 
     });
     const pidA = await pris;
     // Connexion B · le lancement du produit, pendant que A tient la ligne.
-    const b = m.qualite.controlerSortieParVision(m.outils4a.ctxDe(ids, 'ua'), { jobId }, deps());
+    let bFini = false;
+    const b = m.qualite.controlerSortieParVision(m.outils4a.ctxDe(ids, 'ua'), { jobId }, deps()).finally(() => { bFini = true; });
     const pidB = await m.db.transaction(async (tx) => {
       const r = await tx.execute(m.sql`select pg_backend_pid() as pid`);
       return Number(((Array.isArray(r) ? r : (r as { rows: unknown[] }).rows) as Array<{ pid: number }>)[0]!.pid);
     });
     expect(pidB, 'les deux connexions sont la même session').not.toBe(pidA);
-    await new Promise((r) => setTimeout(r, 400));
+    // L'état attendu · B est BLOQUÉ sur le verrou de ligne de A (vu par Postgres), jamais « 400 ms ont passé ».
+    // « B déjà fini » conclut aussi · sans attendre la borne, les constats ci-dessous disent ce que B a fait sans attendre A.
+    await attendreEtat('B attend le verrou de ligne de A (ou son lancement est déjà fini)', async () => {
+      const r = await m.db.execute(m.sql`select count(*)::int as n from pg_stat_activity where ${pidA} = any(pg_blocking_pids(pid))`);
+      const n = Number(((Array.isArray(r) ? r : (r as { rows: unknown[] }).rows) as Array<{ n: number }>)[0]!.n);
+      return n > 0 || bFini;
+    });
     lacher();
     await a;
     const r = await b;

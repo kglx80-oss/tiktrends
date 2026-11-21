@@ -33,7 +33,7 @@
  * session ouverte sur le compte.
  */
 
-import { plateformeAdmissible } from './studios/securite';
+import { plateformeAdmissible, type EquipeAdmissible } from './studios/securite';
 import { ROLES_ACCES_TOTAL } from './equipe-plateforme';
 import { peutGererConnaissances } from './connaissances';
 import { adminDateCourte } from './spatial/admin/format';
@@ -43,7 +43,7 @@ import { adminDateCourte } from './spatial/admin/format';
  * l'ENVIRONNEMENT (`FOUNDER_EMAILS`) sans ligne `platform_staff` · aucune
  * inscription, donc jamais « créé après ton inscription ».
  */
-type EquipeLue = { role: string; plateformeAdmissible?: boolean; inscritEquipe?: boolean } | null | undefined;
+type EquipeLue = (EquipeAdmissible & { readonly inscritEquipe?: boolean }) | null | undefined;
 
 const estAccesTotal = (role: string) => (ROLES_ACCES_TOTAL as readonly string[]).includes(role);
 

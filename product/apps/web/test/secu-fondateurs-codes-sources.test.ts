@@ -87,8 +87,9 @@ function toutesSources(dir: string, out: string[] = []): string[] {
  *    une règle `tiktrends/`, une directive sans liste (elle les coupe toutes),
  *    ou une configuration en ligne qui en nomme une, échoue ici et dit où.
  *    Modifier eslint.config.mjs reste possible, c'est la relecture qui le voit ;
- *  · le NOM de la marque · hors de sa définition (rbac.ts), de la construction
- *    de production (access.ts) et du helper de test, personne n'a à l'écrire ·
+ *  · le NOM de la marque · hors de sa définition et de sa construction
+ *    (rbac.ts · `inscrireFaceEquipe`, appelée par access.ts seul, rend le
+ *    jeton depuis suite de #1128) et du helper de test, personne n'a à l'écrire ·
  *    lire `Access.equipe` suffit. Ce filet ne coûte rien et attrape par
  *    construction toute forme qui l'écrit en toutes lettres.
  */
@@ -138,12 +139,12 @@ describe('Face équipe · la règle ESLint qui la garde n’est désactivée nul
 
 /** Le nom de la marque, recomposé · ce fichier, lu par le recensement, ne l'écrit pas lui-même. */
 const MARQUE = ['Face', 'Equipe'].join('');
-const NOMMENT_LA_MARQUE = ['apps/web/lib/rbac.ts', 'apps/web/lib/access.ts', 'apps/web/test/helpers/face-equipe.ts'];
+const NOMMENT_LA_MARQUE = ['apps/web/lib/rbac.ts', 'apps/web/test/helpers/face-equipe.ts'];
 /** Le code sans ses commentaires (blocs, puis lignes hors chaînes d'URL) · citer la marque pour expliquer reste permis. */
 const FICHIERS_WEB_SANS_COMMENTAIRES = FICHIERS_WEB.map((f) => ({ chemin: f.chemin, code: sansCommentaires(f.code) }));
 
-describe('Face équipe · la marque n’est nommée que par sa définition et ses deux constructions', () => {
-  it('le recensement lit bien la définition et les deux constructions (sinon il ne garde rien)', () => {
+describe('Face équipe · la marque n’est nommée que par sa définition (qui la construit) et le helper de test', () => {
+  it('le recensement lit bien la définition et le helper de test (sinon il ne garde rien)', () => {
     for (const chemin of NOMMENT_LA_MARQUE) {
       expect(FICHIERS_WEB_SANS_COMMENTAIRES.some((f) => f.chemin === chemin && new RegExp(`\\b${MARQUE}\\b`).test(f.code)), `${chemin} ne nomme plus la marque · le motif regarde ailleurs`).toBe(true);
     }
@@ -151,7 +152,7 @@ describe('Face équipe · la marque n’est nommée que par sa définition et se
 
   it('personne d’autre ne la nomme (pages, actions, lib, tests)', () => {
     const hors = FICHIERS_WEB_SANS_COMMENTAIRES.filter((f) => new RegExp(`\\b${MARQUE}\\b`).test(f.code) && !NOMMENT_LA_MARQUE.includes(f.chemin)).map((f) => f.chemin);
-    expect(hors, `${MARQUE} est nommée hors de rbac.ts, access.ts et du helper de test · seule effectiveAccess construit une face équipe (privilegesEquipe), lis Access.equipe sans nommer la marque`).toEqual([]);
+    expect(hors, `${MARQUE} est nommée hors de rbac.ts et du helper de test · seule effectiveAccess construit une face équipe (privilegesEquipe), lis Access.equipe sans nommer la marque`).toEqual([]);
   });
 });
 

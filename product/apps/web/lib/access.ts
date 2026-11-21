@@ -3,7 +3,7 @@ import { privilegesEquipe } from '@tiktrends/core';
 import { estFondateurCode } from './founder';
 import { equipeAuthentique, type JetonEquipe } from './registre-equipe-session';
 import type { MatriceDroits, RolePlateforme } from '@tiktrends/core';
-import { inscrireFaceEquipe, type Access, type FaceEquipe, type Plan, type Role } from './rbac';
+import { inscrireFaceEquipe, type Access, type Plan, type Role } from './rbac';
 
 /**
  * Accès effectif d'une session.
@@ -54,9 +54,8 @@ export function effectiveAccess(
   const p = privilegesEquipe({ fondateurCode: estFondateurCode(s.user.email), equipe });
   const plan: Plan = p.formuleBusiness ? 'business' : s.plan;
   if (!equipe || !p.faceEquipe) return { role: s.role, plan };
-  // Le SEUL endroit où une face équipe est construite (`FaceEquipe`, marque de type) et inscrite.
-  const face = Object.freeze({ role: equipe.role, matrice: matriceGelee(equipe.matrice) }) as FaceEquipe;
-  return { role: s.role, plan, equipe: inscrireFaceEquipe(face) };
+  // Le SEUL endroit où une face équipe est construite puis inscrite · rbac la gèle et rend son jeton opaque (`FaceEquipe`).
+  return { role: s.role, plan, equipe: inscrireFaceEquipe({ role: equipe.role, matrice: matriceGelee(equipe.matrice) }) };
 }
 
 /** Une copie gelée de la matrice · la session reste à elle, la face ne partage rien de modifiable. */

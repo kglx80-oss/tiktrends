@@ -75,7 +75,7 @@ import { db, schema } from '@tiktrends/db';
 import { MESSAGE_NON_ADMISSIBLE, MESSAGE_FONDATEUR_HORS_CODE, MESSAGE_GRADE_NON_ADMISSIBLE, sortieTagging } from '@tiktrends/core';
 import { getSession } from '../lib/auth';
 import { effectiveAccess } from '../lib/access';
-import { railNav } from '../lib/rbac';
+import { faceEquipeReconnue, railNav } from '../lib/rbac';
 import { unlimitedCredits } from '../lib/credits';
 import { personnelPlateforme } from '../lib/personnel-plateforme';
 import { porteDepenses } from '../lib/porte-depenses';
@@ -274,7 +274,7 @@ describe('1 · l’équipe à accès total admissible et le client · inchangés
       const s = await connecter(qui);
       const a = effectiveAccess(s);
       expect(a.plan).toBe('business');
-      expect(a.equipe?.role).toBe(qui === 'admin' ? 'admin' : 'adminplus');
+      expect(faceEquipeReconnue(a)?.role).toBe(qui === 'admin' ? 'admin' : 'adminplus');
       expect(railNav(a).flatMap((g) => g.items).filter((i) => i.locked), 'aucune entrée verrouillée').toEqual([]);
       expect(personnelPlateforme(s)).toBe(true);
       expect(unlimitedCredits(s.user.email)).toBe(true);
@@ -285,7 +285,7 @@ describe('1 · l’équipe à accès total admissible et le client · inchangés
   it('fondateur codé · Business, face équipe, dépense, Connaissances, équipe', async () => {
     const s = await connecter('code');
     expect(effectiveAccess(s).plan).toBe('business');
-    expect(effectiveAccess(s).equipe?.role).toBe('adminplus');
+    expect(faceEquipeReconnue(effectiveAccess(s))?.role).toBe('adminplus');
     expect(personnelPlateforme(s)).toBe(true);
     expect(droitsSousNavAdmin(s)).toEqual({ tour: true, connaissances: true, equipe: true, promptRead: true, providerConfigure: true });
   });
@@ -311,7 +311,7 @@ describe('2 · Manager dont le compte est postérieur à sa préinscription · f
   it('Manager admissible · inchangé (face équipe, sa matrice ouvre « Résultats »)', async () => {
     const s = await connecter('gradeOk');
     expect(s.equipe).toMatchObject({ role: 'manager', plateformeAdmissible: true });
-    expect(effectiveAccess(s).equipe?.role).toBe('manager');
+    expect(faceEquipeReconnue(effectiveAccess(s))?.role).toBe('manager');
     expect(effectiveAccess(s).plan).toBe('core');
     expect(resultatsAuRail(s)).toBe(false);
     expect((await gardeResultats()).ok).toBe(true);

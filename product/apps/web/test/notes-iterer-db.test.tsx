@@ -70,6 +70,7 @@ import { semer, session } from './studios-semis';
 import { ctxDe } from './l3-harnais';
 import { projetAvecBrief, lancerLot, executer, sortiesDuJob, KEYFRAMES, saisieTest } from './l4c-harnais';
 import { avecSpatial } from './spatial/fournisseur';
+import { attendreEtat, attendreMontageStable, pasDansAct } from './helpers/attendre-etat';
 import { creerVariante } from '../lib/studios/variantes/variantes';
 import { rattacherVarianteAuTest } from '../lib/studios/variantes/tests';
 import { lireNotesLignee, modifierNoteLignee, noterNoeudLignee } from '../app/actions/studios/notes-lignee';
@@ -207,7 +208,9 @@ async function monter(el: ReactElement) {
   document.body.innerHTML = '<div id="app"></div><div id="orn" hidden></div>';
   root = createRoot(document.getElementById('app')!);
   await act(async () => { root!.render(avecSpatial(el)); });
-  await act(async () => { await new Promise((r) => setTimeout(r, 80)); });
+  // Rien d'asynchrone n'est attendu au montage (mesuré · sans aucune attente, le fichier passe) ·
+  // l'état attendu est un arbre RENDU qui ne bouge plus, jamais une durée.
+  await attendreMontageStable();
 }
 async function cliquer(el: Element | null, nom: string) {
   expect(el, nom).toBeTruthy();
@@ -305,7 +308,7 @@ describe('l’écran Itérer EXISTANT depuis une note · la pub du nœud, le tex
     await saisir(document.querySelector('[data-champ="hypothese"]') as HTMLTextAreaElement, `${TEXTE_G()} Si on le fait, le coût par achat baisse.`);
     expect(await traces(), 'rien de créé avant le clic').toEqual(avant);
     await cliquer(document.querySelector('#orn [data-geste="creer-iteration"]'), 'créer l’itération');
-    for (let i = 0; i < 50 && (await traces()).ads === avant.ads; i += 1) await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
+    await attendreEtat('l’itération créée est écrite (le compte des fiches a bougé)', async () => (await traces()).ads !== avant.ads, { pas: pasDansAct });
     const [e] = await db.select().from(schema.iterationEdges).where(eq(schema.iterationEdges.parentAdId, S.adGagnante));
     expect(e, 'une itération depuis la pub du nœud').toBeTruthy();
     const [enfant] = await db.select().from(schema.ads).where(eq(schema.ads.id, e!.childAdId));

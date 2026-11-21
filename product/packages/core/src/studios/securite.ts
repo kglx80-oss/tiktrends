@@ -311,6 +311,25 @@ function dateOuNull(d: Date | string | null | undefined): number | null {
 }
 
 /**
+ * ── L'équipe que le noyau LIT (suite de #1128) ──────────────────────────────
+ * Le SEUL type des paramètres `equipe` du noyau · `peutEcrireEquipe`,
+ * `roleEffectifAudit`, `permissionsPlateformeEquipe`, `accesTotalAdmissible`,
+ * `privilegesEquipe`, `voitDepensePlateforme`, `peutGererConnaissances`, et la
+ * vue de l'admissibilité (`messageNonAdmissible`, `refusConnaissances`,
+ * `vueEquipeAdmin`).
+ *
+ * `role` est REQUIS · c'est ce qui ferme le passage structurel d'une session ·
+ * côté apps/web, `Session.equipe` est un jeton opaque sans aucun champ
+ * (`JetonEquipe`), donc `roleEffectifAudit({ equipe: null, ...s, roleEspace })`
+ * ne compile pas, même si le paramètre devient optionnel (`equipe?:
+ * EquipeAdmissible`). Un paramètre écrit `equipe?: unknown`, `object` ou `{}`
+ * accepterait le jeton et rouvrirait ce passage en silence · le recensement
+ * `test/equipe-admissible-sources.test.ts` refuse tout paramètre `equipe` du
+ * noyau qui accepte un jeton opaque ou qui recopie ce type à la main.
+ */
+export type EquipeAdmissible = { readonly role: string; readonly plateformeAdmissible?: boolean };
+
+/**
  * Écrire l'équipe interne (`/admin/equipe` : inscrire, changer de rôle,
  * retirer, éditer la matrice) exige l'accès total ET l'admissibilité.
  *
@@ -322,7 +341,7 @@ function dateOuNull(d: Date | string | null | undefined): number | null {
  * Les fondateurs codés restent admissibles ; un admin légitime dont le compte
  * est postérieur à son inscription se fait réinscrire par un fondateur.
  */
-export function peutEcrireEquipe(equipe: { role: string; plateformeAdmissible?: boolean } | null | undefined, accesTotalDuRole: (role: string) => boolean): boolean {
+export function peutEcrireEquipe(equipe: EquipeAdmissible | null | undefined, accesTotalDuRole: (role: string) => boolean): boolean {
   return !!equipe && accesTotalDuRole(equipe.role) && equipe.plateformeAdmissible === true;
 }
 
@@ -338,7 +357,7 @@ export function peutEcrireEquipe(equipe: { role: string; plateformeAdmissible?: 
  */
 export function roleEffectifAudit(p: {
   roleEspace: string;
-  equipe: { role: string; plateformeAdmissible?: boolean } | null | undefined;
+  equipe: EquipeAdmissible | null | undefined;
 }): string {
   return p.equipe?.plateformeAdmissible === true ? `equipe:${p.equipe.role}/espace:${p.roleEspace}` : `espace:${p.roleEspace}`;
 }
@@ -355,7 +374,7 @@ export function restreindrePlateforme(p: PermissionsStudio, admissible: boolean)
  * (`plateformeAdmissible === true`, règle d'antériorité de `equipeDeSession`).
  * Elles ne dépendent ni du rôle d'espace ni des marques.
  */
-export function permissionsPlateformeEquipe(equipe: { role: string; plateformeAdmissible?: boolean } | null | undefined): ReadonlySet<PermissionPlateforme> {
+export function permissionsPlateformeEquipe(equipe: EquipeAdmissible | null | undefined): ReadonlySet<PermissionPlateforme> {
   return restreindrePlateforme(
     permissionsStudio({ roleEspace: 'client_viewer', studioOuvert: false, roleEquipe: equipe?.role ?? null }),
     equipe?.plateformeAdmissible === true,
@@ -374,7 +393,7 @@ export function permissionsPlateformeEquipe(equipe: { role: string; plateformeAd
  * (`test/acces-total-admissible.test.ts` le vide et vérifie que la réponse ne
  * bouge pas).
  */
-export function accesTotalAdmissible(equipe: { role: string; plateformeAdmissible?: boolean } | null | undefined): boolean {
+export function accesTotalAdmissible(equipe: EquipeAdmissible | null | undefined): boolean {
   return !!equipe && (ROLES_ACCES_TOTAL as readonly string[]).includes(equipe.role) && equipe.plateformeAdmissible === true;
 }
 
@@ -415,7 +434,7 @@ export interface PrivilegesEquipe {
 export function privilegesEquipe(p: {
   /** Fondateur de la liste CODÉE (`estFondateurCode`), jamais `FOUNDER_EMAILS`. */
   fondateurCode: boolean;
-  equipe: { role: string; plateformeAdmissible?: boolean } | null | undefined;
+  equipe: EquipeAdmissible | null | undefined;
 }): PrivilegesEquipe {
   const total = p.fondateurCode || accesTotalAdmissible(p.equipe);
   const admissible = p.fondateurCode || p.equipe?.plateformeAdmissible === true;

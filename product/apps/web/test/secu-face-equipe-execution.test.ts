@@ -73,17 +73,20 @@ describe('Face équipe · le contrôle à l’exécution', () => {
   });
 
   it('une vraie face est gelée · on ne peut pas élargir son rôle ni sa matrice après coup', () => {
-    const face = vraie.equipe as unknown as { role: string; matrice: Record<string, string[]> };
+    const face = faceEquipeReconnue(vraie) as unknown as { role: string; matrice: Record<string, string[]> };
+    expect(face, 'la vraie face n’est plus reconnue · le cas ne prouve rien').not.toBeNull();
+    expect(() => { (vraie.equipe as unknown as Record<string, unknown>).role = 'adminplus'; }, 'le jeton se modifie').toThrow(TypeError);
     const GEL = 'une face reconnue se modifie · on élargirait après coup son rôle ou sa matrice, sans privilegesEquipe';
     expect(() => { face.role = 'adminplus'; }, `${GEL} (rôle)`).toThrow(TypeError);
     expect(() => { face.matrice.membre!.push('adsmap'); }, `${GEL} (rubriques d’un rôle)`).toThrow(TypeError);
     expect(() => { face.matrice.dev = ['adsmap']; }, `${GEL} (nouveau rôle dans la matrice)`).toThrow(TypeError);
-    expect(vraie.equipe!.role).toBe('membre');
+    expect(faceEquipeReconnue(vraie)?.role).toBe('membre');
   });
 
   it('un accès qui garde la MÊME face (spread de l’Access) reste reconnu · les pages qui recomposent un Access ne perdent rien', () => {
     const recompose: Access = { ...vraie, plan: 'core' };
-    expect(faceEquipeReconnue(recompose)).toBe(vraie.equipe);
+    expect(faceEquipeReconnue(recompose)).toBe(faceEquipeReconnue(vraie));
+    expect(faceEquipeReconnue(recompose), 'la face recomposée n’est plus reconnue').not.toBeNull();
     expect(canAccess(recompose, VEILLE)).toBe(true);
   });
 
