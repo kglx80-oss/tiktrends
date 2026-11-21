@@ -25,7 +25,7 @@
  * Pur : ni base, ni réseau, ni horloge.
  */
 
-import { privilegesEquipe } from './studios/securite';
+import { privilegesEquipe, type EquipeAdmissible } from './studios/securite';
 
 /* ============ Qui voit le plafond ============ */
 
@@ -38,7 +38,7 @@ import { privilegesEquipe } from './studios/securite';
  * (audit crédits du 29/10, surfaces 22 et 30) ; un compte d'accès total non
  * admissible non plus (e-mail staff capté).
  */
-export function voitDepensePlateforme(p: { fondateurCode: boolean; equipe: { role: string; plateformeAdmissible?: boolean } | null | undefined }): boolean {
+export function voitDepensePlateforme(p: { fondateurCode: boolean; equipe: EquipeAdmissible | null | undefined }): boolean {
   return privilegesEquipe(p).depensePlateforme;
 }
 
