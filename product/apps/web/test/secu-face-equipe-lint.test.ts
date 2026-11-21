@@ -65,6 +65,27 @@ const CAS: Array<{ quoi: string; code: string; regle: string; phrase: RegExp }> 
     code: page('((a) => { (a as any).equipe = s.equipe; return canAccess(a, studio); })(effectiveAccess(s))') },
   { quoi: '@ts-expect-error sur equipe', regle: 'tiktrends/pas-de-ts-ignore', phrase: /« @ts-expect-error » fait taire le compilateur/,
     code: page('canAccess({ role: s.role, plan,\n        // @ts-expect-error session brute\n        equipe: s.equipe }, studio)') },
+  // Relecture de #1122 · chacun compilait et passait la règle sur 1f06d0f4.
+  { quoi: 'garde de type x is Access[\'equipe\']', regle: 'tiktrends/face-equipe-forcee', phrase: /Garde de type vers la face équipe \(Access\.equipe\) \(« _x is NonNullable<Access\['equipe'\]> »\)/,
+    code: page('((e: unknown) => estFace(e) && canAccess({ role: s.role, plan, equipe: e }, studio))(s.equipe)', ACCES, "function estFace(_x: unknown): _x is NonNullable<Access['equipe']> { return true; }") },
+  { quoi: 'garde d’assertion asserts x is …', regle: 'tiktrends/face-equipe-forcee', phrase: /Garde de type vers la face équipe \(Access\.equipe\) \(« asserts _x is/,
+    code: page('((e: unknown) => { verifierFace(e); return canAccess({ role: s.role, plan, equipe: e }, studio); })(s.equipe)', ACCES, "function verifierFace(_x: unknown): asserts _x is NonNullable<Access['equipe']> {}") },
+  { quoi: 'surcharge qui rend un Access', regle: 'tiktrends/face-equipe-forcee', phrase: /Signature de surcharge qui rend un Access \(« Access »\)/,
+    code: page('canAccess(vers({ role: s.role, plan, equipe: s.equipe }), studio)', ACCES, 'function vers(x: unknown): Access;\nfunction vers(x: unknown): unknown { return x; }') },
+  { quoi: 'générique à paramètre muet forcer<Access>(x)', regle: 'tiktrends/face-equipe-forcee', phrase: /« forcer<Access> » · un argument de type explicite qui porte un Access/,
+    code: page('canAccess(forcer<Access>({ role: s.role, plan, equipe: s.equipe }), studio)', ACCES, 'function forcer<T>(x: unknown, _?: T): T { return x as T; }') },
+  { quoi: '[{…}] as any[] vers Access[]', regle: 'tiktrends/face-equipe-forcee', phrase: /« as any\[\] » là où on attend un Access/,
+    code: page('((l: Access[]) => l.some((a) => canAccess(a, studio)))([{ role: s.role, plan, equipe: s.equipe }] as any[])', ACCES) },
+  { quoi: 'Promise<Access> rendue par res.json()', regle: 'tiktrends/face-equipe-forcee', phrase: /Valeur de type any là où on attend un Access/,
+    code: page("canAccess(await lire('/api/acces'), studio)", ACCES, 'async function lire(u: string): Promise<Access> { return (await fetch(u)).json(); }') },
+  { quoi: 'Record<string, any> affecté à Record<string, Access>', regle: 'tiktrends/face-equipe-forcee', phrase: /Valeur de type any là où on attend un Access/,
+    code: page('canAccess(lireCache()!, studio)', ACCES, 'const cacheAny: Record<string, any> = {};\nfunction lireCache(): Access | undefined { const c: Record<string, Access> = cacheAny; return c.x; }') },
+  { quoi: '/** @ts-expect-error */ (forme JSDoc)', regle: 'tiktrends/pas-de-ts-ignore', phrase: /« @ts-expect-error » fait taire le compilateur/,
+    code: page('canAccess({ role: s.role, plan,\n        /** @ts-expect-error session brute */\n        equipe: s.equipe }, studio)') },
+  { quoi: 'détour @/lib/../test/helpers', regle: 'tiktrends/pas-de-test-en-production', phrase: /Import de « @\/lib\/\.\.\/test\/helpers\/face-equipe »/,
+    code: page("canAccess({ role: s.role, plan, equipe: faceEquipeTest('admin') }, studio)", "import { faceEquipeTest } from '@/lib/../test/helpers/face-equipe';") },
+  { quoi: 'relais par un module lib/x.test', regle: 'tiktrends/pas-de-test-en-production', phrase: /Import de « \.\.\/\.\.\/\.\.\/\.\.\/lib\/relais\.test » depuis du code de production · un module en \.test/,
+    code: page('canAccess({ role: s.role, plan }, studio) || !!relais', "import * as relais from '../../../../lib/relais.test';") },
 ];
 
 let eslint: ESLint;
@@ -87,8 +108,7 @@ describe('Face équipe · la règle ESLint typée refuse chaque contournement re
   }
 
   it('les deux constructions permises restent hors de la règle, et la page est dessous', async () => {
-    const regle = 'tiktrends/face-equipe-forcee';
-    const severite = async (rel: string) => {
+    const severite = async (rel: string, regle = 'tiktrends/face-equipe-forcee') => {
       const r = (await eslint.calculateConfigForFile(join(WEB, rel)))?.rules?.[regle];
       return Array.isArray(r) ? r[0] : r;
     };
@@ -96,6 +116,21 @@ describe('Face équipe · la règle ESLint typée refuse chaque contournement re
     expect(await severite('test/team-acces-garde.test.tsx'), 'la règle n’est plus en erreur sur les tests').toBe(2);
     expect(await severite('lib/access.ts'), 'effectiveAccess est sous la règle · il ne pourrait plus construire la face équipe').toBeUndefined();
     expect(await severite('test/helpers/face-equipe.ts'), 'le helper des tests de rbac est sous la règle').toBeUndefined();
+    // lib/access.ts n'est exempté que de face-equipe-forcee · ni import de test ni @ts-ignore n'y passent.
+    for (const regle of ['tiktrends/pas-de-test-en-production', 'tiktrends/pas-de-ts-ignore']) {
+      expect(await severite('lib/access.ts', regle), `${regle} ne garde plus lib/access.ts`).toBe(2);
+      expect(await severite('app/(spatial)/sp/settings/page.tsx', regle), `${regle} ne garde plus les pages`).toBe(2);
+    }
+  });
+
+  it('le lint tourne en CI · script `eslint .` et étape `pnpm lint` (sinon la règle ne garde rien)', () => {
+    const pkg = JSON.parse(readFileSync(join(WEB, 'package.json'), 'utf8')) as { scripts?: Record<string, string> };
+    expect(pkg.scripts?.lint, 'apps/web · le script lint n’est plus « eslint . » · la règle ne tourne plus sur tout le paquet').toBe('eslint .');
+    const racine = JSON.parse(readFileSync(join(WEB, '..', '..', 'package.json'), 'utf8')) as { scripts?: Record<string, string> };
+    expect(racine.scripts?.lint, 'product · le script lint ne passe plus par turbo').toBe('turbo run lint');
+    const ci = readFileSync(join(WEB, '..', '..', '..', '.github', 'workflows', 'ci.yml'), 'utf8');
+    expect(ci, 'la CI ne travaille plus dans product/').toMatch(/defaults:\s*\n\s*run:\s*\n\s*working-directory:\s*product\b/);
+    expect(ci, 'la CI ne lance plus « pnpm lint »').toMatch(/^\s*run:\s*pnpm lint\s*$/m);
   });
 
   it('un test garde le droit d’éprouver la face CLIENT par `as Access`, jamais d’y glisser equipe', async () => {

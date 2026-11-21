@@ -76,17 +76,21 @@ function toutesSources(dir: string, out: string[] = []): string[] {
  * que par `effectiveAccess`. La garde est désormais une règle ESLint TYPÉE du
  * dépôt (`eslint-rules/face-equipe.mjs`, éprouvée au résultat par
  * `secu-face-equipe-lint.test.ts`) · elle voit à travers un alias, un
- * générique, un `as any` ou un `as never`. Le recensement par expression
- * régulière qui la précédait ne voyait que les casts écrits en toutes lettres ·
- * il est retiré.
+ * générique, un `as any` ou un `as never`. Les motifs de cast par expression
+ * régulière qui la précédaient ne voyaient que les casts écrits en toutes
+ * lettres · ils sont retirés.
  *
- * Reste ici ce qu'une règle ESLint ne peut pas garder elle-même · sa propre
- * désactivation. Dans apps/web (code et tests), une directive qui coupe une
- * règle `tiktrends/`, une directive sans liste (elle les coupe toutes), ou
- * une configuration en ligne qui en nomme une,
- * échoue ici et dit où. Protection contre une ERREUR (un « disable » collé
- * pour faire passer la CI), pas contre la malveillance · modifier
- * eslint.config.mjs reste possible, c'est la relecture qui le voit.
+ * Restent ici deux filets, contre une ERREUR (un raccourci pris de bonne foi),
+ * pas contre la malveillance :
+ *  · ce qu'une règle ESLint ne peut pas garder elle-même, sa propre
+ *    désactivation · dans apps/web (code et tests), une directive qui coupe
+ *    une règle `tiktrends/`, une directive sans liste (elle les coupe toutes),
+ *    ou une configuration en ligne qui en nomme une, échoue ici et dit où.
+ *    Modifier eslint.config.mjs reste possible, c'est la relecture qui le voit ;
+ *  · le NOM de la marque · hors de sa définition (rbac.ts), de la construction
+ *    de production (access.ts) et du helper de test, personne n'a à l'écrire ·
+ *    lire `Access.equipe` suffit. Ce filet ne coûte rien et attrape par
+ *    construction toute forme qui l'écrit en toutes lettres.
  */
 const WEB = join(PRODUIT, 'apps/web');
 const GARDEES = (r: string) => r.startsWith('tiktrends/');
@@ -129,5 +133,24 @@ describe('Face équipe · la règle ESLint qui la garde n’est désactivée nul
       .filter((d) => (d.motCle !== 'eslint' && d.regles.length === 0) || d.regles.some(GARDEES))
       .map((d) => `${f.chemin}:${d.ligne} · ${d.motCle} ${d.regles.join(', ') || '(toutes les règles)'}`));
     expect(hors, 'une directive ESLint coupe la garde de la face équipe · seul effectiveAccess construit un Access (privilegesEquipe), corrige le code au lieu de couper la règle').toEqual([]);
+  });
+});
+
+/** Le nom de la marque, recomposé · ce fichier, lu par le recensement, ne l'écrit pas lui-même. */
+const MARQUE = ['Face', 'Equipe'].join('');
+const NOMMENT_LA_MARQUE = ['apps/web/lib/rbac.ts', 'apps/web/lib/access.ts', 'apps/web/test/helpers/face-equipe.ts'];
+/** Le code sans ses commentaires (blocs, puis lignes hors chaînes d'URL) · citer la marque pour expliquer reste permis. */
+const FICHIERS_WEB_SANS_COMMENTAIRES = FICHIERS_WEB.map((f) => ({ chemin: f.chemin, code: sansCommentaires(f.code) }));
+
+describe('Face équipe · la marque n’est nommée que par sa définition et ses deux constructions', () => {
+  it('le recensement lit bien la définition et les deux constructions (sinon il ne garde rien)', () => {
+    for (const chemin of NOMMENT_LA_MARQUE) {
+      expect(FICHIERS_WEB_SANS_COMMENTAIRES.some((f) => f.chemin === chemin && new RegExp(`\\b${MARQUE}\\b`).test(f.code)), `${chemin} ne nomme plus la marque · le motif regarde ailleurs`).toBe(true);
+    }
+  });
+
+  it('personne d’autre ne la nomme (pages, actions, lib, tests)', () => {
+    const hors = FICHIERS_WEB_SANS_COMMENTAIRES.filter((f) => new RegExp(`\\b${MARQUE}\\b`).test(f.code) && !NOMMENT_LA_MARQUE.includes(f.chemin)).map((f) => f.chemin);
+    expect(hors, `${MARQUE} est nommée hors de rbac.ts, access.ts et du helper de test · seule effectiveAccess construit une face équipe (privilegesEquipe), lis Access.equipe sans nommer la marque`).toEqual([]);
   });
 });

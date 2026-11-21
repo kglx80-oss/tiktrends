@@ -1,3 +1,5 @@
+import { dirname, resolve, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 
 /**
@@ -19,17 +21,30 @@ import ts from 'typescript';
  *     `Access` ou la marque (union, intersection, propriété, argument de type),
  *     alias compris. `as const` et `satisfies` ne sont pas concernés.
  *  2. `echappement` · un `as any` ou `as never` posé là où le compilateur attend
- *     un `Access` ou la marque (propriété `equipe`, argument de `canAccess`…), et
- *     un `as any | unknown | never` qui EFFACE le type d'un `Access` (pour le
+ *     un `Access` ou la marque (propriété `equipe`, argument de `canAccess`…),
+ *     `any` caché dans un conteneur compris (`as any[]`, `as Record<string, any>`),
+ *     et un `as any | unknown | never` qui EFFACE le type d'un `Access` (pour le
  *     muter ensuite, `(a as any).equipe = …`).
- *  3. `valeurAny` · une valeur de type `any` (`JSON.parse`, une variable `any`)
- *     posée là où on attend un `Access` ou la marque.
+ *  3. `valeurAny` · une valeur `any` posée là où on attend un `Access` ou la
+ *     marque · `JSON.parse`, une variable `any`, et un `any` CACHÉ dans un
+ *     argument de type ou une promesse (`Promise<any>` de `res.json()` rendu
+ *     par une fonction `Promise<Access>`, un `Record<string, any>` affecté à un
+ *     `Record<string, Access>`).
  *  4. `generique` · un appel dont le type de retour est choisi par l'appelant
  *     (paramètre de type absent des paramètres, `forcer<T>(x: unknown): T`) et
  *     rend ici un `Access` ou la marque, explicite (`forcer<Access>(x)`) ou
- *     inféré.
+ *     inféré · et `argumentDeType` · tout appel dont un argument de type
+ *     EXPLICITE porte la marque et dont le retour la porte (`forcer<T>(x:
+ *     unknown, _?: T): T` appelé `forcer<Access>(…)`, où T n'est présent que
+ *     dans un paramètre muet).
  *  5. `assign` · `Object.assign(a, …)` sur un `Access` · il le mute sans
  *     contrôle de type.
+ *  6. `predicat` · une garde de type (`x is T`) ou d'assertion (`asserts x is
+ *     T`) dont le type porte `Access` ou la marque · elle forge la face équipe
+ *     sans cast (`function estFace(x: unknown): x is NonNullable<Access['equipe']>`).
+ *  7. `surcharge` · une signature de surcharge (ou un `declare function`) qui
+ *     rend `Access` ou la marque · l'implémentation, elle, peut rendre
+ *     `unknown`, et le compilateur ne vérifie pas l'écart.
  *
  * Ce qu'elle laisse passer (à dire, pas à taire) :
  *  · un `// eslint-disable` · le recensement (`test/secu-fondateurs-codes-sources.test.ts`)
@@ -39,7 +54,18 @@ import ts from 'typescript';
  *  · une valeur `any` qui arrive par un chemin non listé (paramètre par défaut,
  *    champ de classe, déstructuration), une mutation par `Reflect` ou
  *    `Object.defineProperty`, un `.js` sans types ;
+ *  · un générique dont T est INFÉRÉ d'un vrai `Access` passé en paramètre muet
+ *    (`forcer(x, effectiveAccess(s))`) ;
  *  · tout ce qui contourne le compilateur lui-même.
+ *
+ * Faux positifs acceptés (aucun aujourd'hui, mesuré · 0) · les formes 1 et 4
+ * refusent aussi des écritures sans danger, à réécrire ainsi :
+ *  · `useState<Access>(…)` → laisser l'inférence le déduire de la valeur
+ *    initiale, qui vient de `effectiveAccess(s)` (`useState(effectiveAccess(s))`) ;
+ *  · `[] as Access[]` → annoter la variable plutôt que la valeur
+ *    (`const acces: Access[] = []`) ;
+ *  · un `Access` reçu d'un autre module · le typer à la frontière
+ *    (`function f(a: Access)`), sans cast.
  */
 
 const RBAC = /[\\/]apps[\\/]web[\\/]lib[\\/]rbac\.ts$/;
@@ -110,6 +136,9 @@ export const faceEquipeForcee = {
       efface: '« as {{cible}} » efface le type d’{{quoi}} · une mutation derrière (equipe = …) forcerait la face équipe · {{suite}}',
       valeurAny: 'Valeur de type any là où on attend {{quoi}} · elle force le type sans contrôle · {{suite}}',
       generique: '« {{nom}} » rend un type choisi par l’appelant (paramètre de type absent de ses paramètres), ici {{quoi}} · c’est un transtypage déguisé · {{suite}}',
+      argumentDeType: '« {{nom}}<{{texte}}> » · un argument de type explicite qui porte {{quoi}} fixe le type rendu sans contrôle · c’est un transtypage déguisé. Laisse l’inférence le déduire d’une valeur venue d’effectiveAccess · {{suite}}',
+      predicat: 'Garde de type vers {{quoi}} (« {{texte}} ») · elle forge le type sans cast et sans contrôle · {{suite}}',
+      surcharge: 'Signature de surcharge qui rend {{quoi}} (« {{texte}} ») · l’implémentation n’est pas tenue de le rendre, c’est un transtypage déguisé · {{suite}}',
       assign: 'Object.assign sur {{quoi}} · il le mute sans contrôle de type · {{suite}}',
     },
   },
@@ -125,6 +154,17 @@ export const faceEquipeForcee = {
       return c ? porteMarque(checker, c) : null;
     };
     const estAny = (t) => !!(t.flags & ts.TypeFlags.Any);
+    /** `any`, ou `any` caché dans un argument de type (`any[]`, `Record<string, any>`, `Promise<any>`). */
+    function contientAny(t, prof = 0) {
+      if (!t || prof > 4) return false;
+      if (estAny(t)) return true;
+      const fils = [...(t.aliasTypeArguments ?? [])];
+      if (t.flags & ts.TypeFlags.Object && t.objectFlags & ts.ObjectFlags.Reference) fils.push(...checker.getTypeArguments(t));
+      if (t.isUnion()) fils.push(...t.types);
+      if (fils.some((f) => contientAny(f, prof + 1))) return true;
+      const attendu = checker.getAwaitedType(t);
+      return !!attendu && attendu !== t && contientAny(attendu, prof + 1);
+    }
     const ECHAPPE = ts.TypeFlags.Any | ts.TypeFlags.Never;
     const EFFACE = ECHAPPE | ts.TypeFlags.Unknown;
 
@@ -144,7 +184,7 @@ export const faceEquipeForcee = {
         context.report({ node, messageId: 'transtypage', data: { quoi: nomDuType(r), texte, suite: SUITE } });
         return;
       }
-      if (tCible.flags & ECHAPPE) {
+      if (tCible.flags & ECHAPPE || contientAny(tCible)) {
         const a = attendu(node);
         if (a) { context.report({ node, messageId: 'echappement', data: { cible: texte, quoi: nomDuType(a), suite: SUITE } }); return; }
       }
@@ -156,7 +196,7 @@ export const faceEquipeForcee = {
 
     function valeur(n) {
       if (!n || n.type === 'TSAsExpression' || n.type === 'TSTypeAssertion' || n.type === 'SpreadElement') return;
-      if (!estAny(typeDe(n))) return;
+      if (!contientAny(typeDe(n))) return;
       const a = attendu(n);
       if (a) context.report({ node: n, messageId: 'valeurAny', data: { quoi: nomDuType(a), suite: SUITE } });
     }
@@ -172,7 +212,14 @@ export const faceEquipeForcee = {
         for (const p of decl.parameters) nomsReferences(p.type, noms, enParam);
         if ([...auRetour].some((n) => !enParam.has(n))) {
           const r = porteMarque(checker, sig.getReturnType());
-          if (r) context.report({ node, messageId: 'generique', data: { nom: context.sourceCode.getText(node.callee), quoi: nomDuType(r), suite: SUITE } });
+          if (r) { context.report({ node, messageId: 'generique', data: { nom: context.sourceCode.getText(node.callee), quoi: nomDuType(r), suite: SUITE } }); return; }
+        }
+      }
+      for (const arg of node.typeArguments?.params ?? []) {
+        const r = porteMarque(checker, checker.getTypeFromTypeNode(tsDe(arg)));
+        if (r && sig && porteMarque(checker, sig.getReturnType())) {
+          context.report({ node, messageId: 'argumentDeType', data: { nom: context.sourceCode.getText(node.callee), texte: context.sourceCode.getText(arg), quoi: nomDuType(r), suite: SUITE } });
+          return;
         }
       }
       const c = node.callee;
@@ -182,7 +229,24 @@ export const faceEquipeForcee = {
       }
     }
 
+    function predicat(node) {
+      const t = node.typeAnnotation?.typeAnnotation;
+      if (!t) return;
+      const r = porteMarque(checker, checker.getTypeFromTypeNode(tsDe(t)));
+      if (r) context.report({ node, messageId: 'predicat', data: { quoi: nomDuType(r), texte: context.sourceCode.getText(node), suite: SUITE } });
+    }
+
+    function surcharge(node) {
+      const t = node.returnType?.typeAnnotation;
+      if (!t) return;
+      const r = porteMarque(checker, checker.getTypeFromTypeNode(tsDe(t)));
+      if (r) context.report({ node: node.returnType, messageId: 'surcharge', data: { quoi: nomDuType(r), texte: context.sourceCode.getText(t), suite: SUITE } });
+    }
+
     return {
+      TSTypePredicate: predicat,
+      TSDeclareFunction: surcharge,
+      TSEmptyBodyFunctionExpression: surcharge,
       TSAsExpression: transtypage,
       TSTypeAssertion: transtypage,
       CallExpression: appel,
@@ -202,10 +266,25 @@ export const faceEquipeForcee = {
  * Règle `tiktrends/pas-de-test-en-production` · le code de production n'importe
  * rien de `test/` (le helper `faceEquipeTest` y construit une face équipe sans
  * `privilegesEquipe`, c'est son rôle · en production, ce serait une porte).
- * Import statique, `export … from`, `import()` et `require()`, relatif ou par
- * l'alias `@/`. Erreur, pas malveillance · un chemin calculé passe.
+ * Import statique, `export … from`, `import()` et `require()`. Le chemin est
+ * RÉSOLU (relatif au fichier, ou `@/` à la racine d'apps/web) · un détour
+ * `@/lib/../test/…` arrive au même endroit. Elle refuse aussi tout module qui
+ * finit en `.test` · un fichier `lib/x.test.ts` est lu comme un test (hors des
+ * règles de production) et pourrait relayer le helper. Erreur, pas
+ * malveillance · un chemin calculé passe.
  */
-export const CHEMIN_DE_TEST = /^(?:(?:\.{1,2}\/)+(?:[^'"]*\/)?|@\/)test(?:\/|$)/;
+const RACINE_WEB = fileURLToPath(new URL('..', import.meta.url)).replace(/[\\/]$/, '');
+const DOSSIER_TEST = resolve(RACINE_WEB, 'test');
+export function cheminResolu(source, fichier) {
+  if (source.startsWith('@/')) return resolve(RACINE_WEB, source.slice(2));
+  if (source.startsWith('.')) return resolve(dirname(fichier), source);
+  return null;
+}
+export const versTest = (source, fichier) => {
+  const r = cheminResolu(source, fichier);
+  return !!r && (r === DOSSIER_TEST || r.startsWith(DOSSIER_TEST + sep));
+};
+export const MODULE_DE_TEST = /\.test(?:\.[cm]?[jt]sx?)?$/;
 export const pasDeTestEnProduction = {
   meta: {
     type: 'problem',
@@ -213,13 +292,14 @@ export const pasDeTestEnProduction = {
     schema: [],
     messages: {
       importTest: 'Import de « {{chemin}} » depuis du code de production · test/ ne part pas en production, et faceEquipeTest y construit une face équipe sans privilegesEquipe. En production, passe par effectiveAccess (lib/access.ts).',
+      importModuleTest: 'Import de « {{chemin}} » depuis du code de production · un module en .test est lu comme un test, hors des règles de production, et peut relayer faceEquipeTest. Renomme le module, ou passe par effectiveAccess (lib/access.ts).',
     },
   },
   create(context) {
     const verifier = (src) => {
-      if (src?.type === 'Literal' && typeof src.value === 'string' && CHEMIN_DE_TEST.test(src.value)) {
-        context.report({ node: src, messageId: 'importTest', data: { chemin: src.value } });
-      }
+      if (src?.type !== 'Literal' || typeof src.value !== 'string') return;
+      if (versTest(src.value, context.filename)) context.report({ node: src, messageId: 'importTest', data: { chemin: src.value } });
+      else if (MODULE_DE_TEST.test(src.value)) context.report({ node: src, messageId: 'importModuleTest', data: { chemin: src.value } });
     };
     return {
       ImportDeclaration: (n) => verifier(n.source),
@@ -250,7 +330,8 @@ export const pasDeTsIgnore = {
     return {
       Program() {
         for (const c of context.sourceCode.getAllComments()) {
-          const m = /^\s*\/?\s*@(ts-ignore|ts-expect-error|ts-nocheck)\b/m.exec(c.value);
+          // N'importe où dans le commentaire · TypeScript honore aussi `/** @ts-expect-error */`.
+          const m = /@(ts-ignore|ts-expect-error|ts-nocheck)\b/.exec(c.value);
           if (m) context.report({ loc: c.loc, messageId: 'tsCommentaire', data: { directive: m[1] } });
         }
       },

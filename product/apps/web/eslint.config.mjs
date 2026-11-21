@@ -20,12 +20,14 @@ const compat = new FlatCompat({ baseDirectory: ICI });
 
 /**
  * Face équipe (suite de #1117 et #1119) · seul `effectiveAccess` construit un
- * `Access`. Ces deux fichiers en ont le droit · la construction de production et
- * le helper des tests de `rbac`. Voir eslint-rules/face-equipe.mjs pour ce que
- * la règle attrape et ce qu'elle laisse passer. Elle protège contre une erreur,
- * pas contre la malveillance.
+ * `Access`. Deux fichiers ont le droit d'en forcer un · la construction de
+ * production (exemptée de `face-equipe-forcee` SEULEMENT · ni import de test ni
+ * `@ts-ignore` n'y sont permis) et le helper des tests de `rbac`. Voir
+ * eslint-rules/face-equipe.mjs pour ce que la règle attrape et ce qu'elle laisse
+ * passer. Elle protège contre une erreur, pas contre la malveillance.
  */
-const CONSTRUCTEURS_FACE_EQUIPE = ['lib/access.ts', 'test/helpers/face-equipe.ts'];
+const CONSTRUCTION_PRODUCTION = 'lib/access.ts';
+const HELPER_TEST = 'test/helpers/face-equipe.ts';
 const TESTS = ['test/**', '**/*.test.*'];
 
 export default [
@@ -53,18 +55,22 @@ export default [
   },
   {
     files: ['**/*.{ts,tsx}'],
-    ignores: [...CONSTRUCTEURS_FACE_EQUIPE, ...TESTS],
+    ignores: TESTS,
     rules: {
-      'tiktrends/face-equipe-forcee': 'error',
       'tiktrends/pas-de-test-en-production': 'error',
       // Un `@ts-expect-error` poserait une session brute dans `equipe` sans cast · aucun en production.
       'tiktrends/pas-de-ts-ignore': 'error',
     },
   },
   {
+    files: ['**/*.{ts,tsx}'],
+    ignores: [CONSTRUCTION_PRODUCTION, ...TESTS],
+    rules: { 'tiktrends/face-equipe-forcee': 'error' },
+  },
+  {
     // Les tests de rbac éprouvent la face CLIENT par `{ role, plan } as Access` · permis, sans equipe.
     files: ['test/**/*.{ts,tsx}', '**/*.test.{ts,tsx}'],
-    ignores: CONSTRUCTEURS_FACE_EQUIPE,
+    ignores: [HELPER_TEST],
     rules: { 'tiktrends/face-equipe-forcee': ['error', { accesSansEquipe: true }] },
   },
   {
