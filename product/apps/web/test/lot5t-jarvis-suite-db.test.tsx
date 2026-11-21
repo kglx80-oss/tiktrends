@@ -61,6 +61,7 @@ import { semer, session } from './studios-semis';
 import { ctxDe } from './l3-harnais';
 import { projetAvecBrief, lancerLot, executer, sortiesDuJob, KEYFRAMES, saisieTest } from './l4c-harnais';
 import { avecSpatial } from './spatial/fournisseur';
+import { attendreAbsence, attendreEtat, attendreMontageStable, pasDansAct } from './helpers/attendre-etat';
 import { demarrerMockFournisseur } from './lot19b-mock-fournisseur';
 import { creerVariante } from '../lib/studios/variantes/variantes';
 import { rattacherVarianteAuTest } from '../lib/studios/variantes/tests';
@@ -234,7 +235,9 @@ async function monter(el: ReactElement) {
   document.body.innerHTML = '<div id="app"></div><div id="orn" hidden></div>';
   root = createRoot(document.getElementById('app')!);
   await act(async () => { root!.render(avecSpatial(el)); });
-  await act(async () => { await new Promise((r) => setTimeout(r, 80)); });
+  // Rien d'asynchrone n'est attendu au montage · l'état attendu est un arbre RENDU qui ne bouge
+  // plus (une relecture tardive remet le compte à zéro), jamais une durée.
+  await attendreMontageStable();
 }
 async function cliquer(el: Element | null, nom: string) {
   expect(el, nom).toBeTruthy();
@@ -287,6 +290,7 @@ describe('lot 5 ter · panneau Jarvis d’un projet · « Créer l’itération 
       await message({ contenu, conversationId: S.fil1 });
       await monter(<Projet {...await fiche()} />);
       expect(document.querySelector('aside.jpanel p')?.textContent, `la réponse est affichée · ${contenu}`).toBeTruthy();
+      await attendreAbsence(`aucun geste sous la réponse · ${contenu}`, () => !gesteProjet());
       expect(gesteProjet(), contenu).toBeNull();
     }
   });
@@ -324,9 +328,15 @@ async function demander(href: string, reponse: string) {
   }) as unknown as typeof fetch;
   if (!document.querySelector<HTMLInputElement>('#jin')!.value) await saisir('#jin', 'Que me conseilles-tu ?');
   await act(async () => { document.querySelector<HTMLButtonElement>('#jform button[type="submit"]')!.click(); });
-  await act(async () => { await new Promise((r) => setTimeout(r, 400)); });
-  const [m] = await db.select({ id: schema.jarvisMessages.id }).from(schema.jarvisMessages).where(eq(schema.jarvisMessages.content, reponse));
-  return m!.id;
+  // L'état attendu · la réponse ÉCRITE en base (le faux de la route l'insère) ET le fil RELU · l'écran
+  // ne rend le champ qu'une fois la conversation rechargée (`finally` de l'envoi). Jamais une durée.
+  let id: string | undefined;
+  await attendreEtat('la réponse de Jarvis est en base et le fil relu (champ rendu)', async () => {
+    const [m] = await db.select({ id: schema.jarvisMessages.id }).from(schema.jarvisMessages).where(eq(schema.jarvisMessages.content, reponse));
+    id = m?.id;
+    return !!id && !document.querySelector<HTMLInputElement>('#jin')!.disabled;
+  }, { pas: pasDansAct });
+  return id!;
 }
 const geste = (cle: string) => document.querySelector<HTMLElement>(`[data-gestes-jarvis] [data-geste-jarvis="${cle}"]`);
 
@@ -446,7 +456,8 @@ describe('lot 5 ter · autre marque, autre projet, autre personne, fil principal
     const avant = await traces();
     await saisir('[data-champ="valeur"]', 'Une valeur nouvelle et précise');
     await cliquer(document.querySelector('#orn [data-geste="creer-iteration"]'), 'créer');
-    await act(async () => { await new Promise((r) => setTimeout(r, 100)); });
+    // L'état attendu · l'écran passe à l'étape « créée » (l'action a répondu, l'écriture est faite).
+    await attendreEtat('l’itération est créée (étape « Préparer » affichée)', () => document.querySelector('[data-geste="preparer-iteration"]'), { pas: pasDansAct });
     const [e] = await db.select().from(schema.iterationEdges).where(eq(schema.iterationEdges.parentAdId, S.adGagnante));
     expect(e?.changedVariable, 'au clic, l’itération porte la variable de la réponse').toBe(admiseProjet);
     const apres = await traces();
