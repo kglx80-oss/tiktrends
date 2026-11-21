@@ -5,7 +5,7 @@ import {
   accesTestsPersona, bilanTestsPersona, choixRangPersona, entreesLecturePersonas, lecturePersonas, libelleAttribution, libelleRangPersona,
   lienNouveauProjet, lireContexteNouveauProjet, niveauLecturePersonas, notesContexte, ordonnerPersonas, personaDuTest, rangsAEcrire, rangsApres,
   regleLecturePersonas, testsDuPersona, validerPersona, wilsonInterval,
-  type EntreeLecturePersona, type FaitsAdSpatial, type FaitsLotSpatial, type PersonaRef,
+  type EntreeLecturePersona, type FaitsAdSpatial, type FaitsLotSpatialEntier, type PersonaRef,
 } from '../src';
 
 /**
@@ -217,7 +217,7 @@ const ad = (id: string, v: 'winner' | 'loser' | null, o: Partial<FaitsAdSpatial>
   id, variante: id, statut: 'live', hypothese: 'h', variable: 'hook', plateforme: 'meta', texte: null, image: null, manques: [],
   verdict: v ? { calcule: v, retenu: null, statut: 'computed', comparable: true, raison: null, depense: 1, impressions: 1, achats: 1, cpa: 1 } : null, ...o,
 });
-const lot = (id: string, ads: FaitsAdSpatial[], o: Partial<FaitsLotSpatial> = {}): FaitsLotSpatial => ({ id, numero: 1, but: null, statut: 'testing', lanceLe: '2026-10-01T00:00:00Z', ads, protocole: null, ...o });
+const lot = (id: string, ads: FaitsAdSpatial[], o: Partial<FaitsLotSpatialEntier> = {}): FaitsLotSpatialEntier => ({ id, numero: 1, but: null, statut: 'testing', lanceLe: '2026-10-01T00:00:00Z', ads, protocole: null, ...o });
 
 describe('entrées et bilan · lots suivis seulement, témoin exclu', () => {
   const lots = [

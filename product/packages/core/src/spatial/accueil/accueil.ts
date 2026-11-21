@@ -124,10 +124,12 @@ export interface LotAccueil {
  * Le lot est-il CONCLU pour l'Accueil · la lecture des états le dit conclu
  * (`lotsConclusLus`) ET elle a vu exactement autant de variantes que l'Accueil
  * en compte (`variantes`, un `count` en base, sans borne). La lecture des
- * états est bornée (`LIMITE_ADS_LOTS`, 2 000 variantes par marque, ordre par
- * code) · au-delà, les derniers codes d'un lot sont coupés · un lot dont
+ * états était bornée globalement (2 000 variantes par marque, ordre par
+ * code) · au-delà, les derniers codes d'un lot étaient coupés · un lot dont
  * toutes les variantes LUES sont arbitrées mais dont une variante non arbitrée
  * a été coupée sortait conclu, et disparaissait de l'Accueil sans trace.
+ * Désormais chaque lot est lu en entier ou dit `illisible` (`lotLuEnEntier`) ·
+ * la comparaison reste · deux lectures, deux instants.
  * Lecture partielle, illisible ou absente · `false` · rien n'est caché.
  */
 export function lotConcluAccueil(l: Pick<LotAccueil, 'id' | 'variantes'>, conclus: ReadonlyMap<string, number> | null | undefined): boolean {

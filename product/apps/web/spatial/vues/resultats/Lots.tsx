@@ -34,7 +34,7 @@ import { Hypothese, Pub, type SousNavResultats } from './communs';
  * Les lots reçus sont déjà ceux qu'il peut conclure · même parcours ↓ ↑.
  */
 
-export interface LigneLot extends Pick<PresentationLot, 'id' | 'etat' | 'titre' | 'hypothese' | 'categorie' | 'statut' | 'anneau' | 'action'> {
+export interface LigneLot extends Pick<PresentationLot, 'id' | 'etat' | 'titre' | 'hypothese' | 'categorie' | 'statut' | 'anneau' | 'action'>, Partial<Pick<PresentationLot, 'sansHypothese'>> {
   /** `r916` · format vertical, seulement s'il est connu (aucune source aujourd'hui · toujours faux). */
   pubs: Array<{ texte: string; image: string | null; r916?: boolean }>;
   mesure: string;
@@ -48,6 +48,8 @@ export interface PropsLots {
   /** Ce que la liste montre (`gestesListeLots`) · absent, la liste complète. */
   gestes?: GestesListeLots;
   note: string;
+  /** Des lots sont lus en partie (`noteLectureLots`) · la phrase, sous la liste · absente ou `null`, rien n'est ajouté. */
+  lecture?: string | null;
   /** « Itérer · N itérations conseillées » · `boucleIterationLots` · absent, la barre n'est pas posée. */
   boucle?: { libelle: string; href: string; raison: null } | { libelle: string; href: null; raison: string };
 }
@@ -130,7 +132,7 @@ export function Lots(p: PropsLots) {
             <span className="stack">{l.pubs.map((x, i) => <Pub key={i} texte={x.texte} image={x.image} r916={x.r916} />)}</span>
             <span style={{ minWidth: 0 }}>
               <h3 id={`lot-titre-${l.id}`}>{l.titre}</h3>
-              <p className="muted" style={{ fontSize: '12.5px', marginTop: 4 }}>{l.hypothese ? <Hypothese texte={l.hypothese} /> : 'Aucune hypothèse écrite sur ses variantes.'}</p>
+              <p className="muted" style={{ fontSize: '12.5px', marginTop: 4 }}>{l.hypothese ? <Hypothese texte={l.hypothese} /> : (l.sansHypothese ?? 'Aucune hypothèse écrite sur ses variantes.')}</p>
               <span className="meta"><span className="pill c"><Ic n="loop" />{l.categorie}</span><span className={`pill ${l.statut.classe}`}>{l.statut.libelle}</span><span className="faint" style={{ fontSize: '11.5px' }}>{l.mesure}</span></span>
             </span>
             <Anneau part={l.anneau.part} taille={54} libelle={l.anneau.libelle} classe={l.anneau.classe} />
@@ -139,7 +141,10 @@ export function Lots(p: PropsLots) {
         ))}
         {liste.length === 0 && <p className="faint">{gestes.raison ? VIDE_LISTE_A_CONCLURE : p.lots.length ? 'Aucun lot dans ce filtre.' : 'Aucun lot pour cette marque · ouvre le premier pour composer un test.'}</p>}
       </div>
-      <p className="faint" style={{ fontSize: '11.5px', marginTop: 12 }}>{p.note}</p>
+      {/* La note de lecture partage la place de la note des seuils · un enfant de plus décalerait les identifiants (`useId`) plus bas. */}
+      {p.lecture
+        ? <><p className="faint" role="note" data-lecture-incomplete="" style={{ fontSize: '11.5px', marginTop: 12 }}>{p.lecture}</p><p className="faint" style={{ fontSize: '11.5px', marginTop: 12 }}>{p.note}</p></>
+        : <p className="faint" style={{ fontSize: '11.5px', marginTop: 12 }}>{p.note}</p>}
       {liste.length > 1 && suivant && precedent && (
         <p className="faint" data-aide-liste-lots="" style={{ fontSize: '11.5px', marginTop: 6 }}>
           Au clavier, depuis un lot de la liste<Touche t={suivant} lue /><Touche t={precedent} lue /> lot suivant ou précédent · {touchesAffichees('Enter').join(' ')} l’ouvre.

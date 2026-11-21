@@ -193,7 +193,7 @@ describe('témoin · avant tout import, aucune mesure, le lot ne conclut pas', (
     const d = await ficheLot(S.lot2);
     expect(d.textContent, 'le lot conclut sans aucune mesure').not.toContain('Hypothèse confirmée');
     const l = (await chargerLots(ids.ws, ids.brandA)).lots.find((x) => x.id === S.lot2)!;
-    expect(l.ads.every((a) => a.verdict === null)).toBe(true);
+    expect(l.ads!.every((a) => a.verdict === null)).toBe(true);
   });
 });
 
@@ -235,7 +235,7 @@ describe('export Meta en français · aperçu, puis écriture sur les bonnes ads
     expect(new Map(pins.map((p) => [p.id, (p.ext as { ad_id?: string } | null)?.ad_id]))).toEqual(new Map(S.a1.map((id, k) => [id, ID_META(k)])));
     // Le verdict est calculé sur ces mesures · visible dans la fiche du lot.
     const l1 = (await chargerLots(ids.ws, ids.brandA)).lots.find((x) => x.id === S.lot1)!;
-    expect(l1.ads.map((a) => [a.verdict?.calcule, a.verdict?.depense])).toEqual([0, 1, 2, 3].map(() => ['loser', 150]));
+    expect(l1.ads!.map((a) => [a.verdict?.calcule, a.verdict?.depense])).toEqual([0, 1, 2, 3].map(() => ['loser', 150]));
   });
 
   it('réimporter le même fichier · rien n’est doublé, l’écran le dit', async () => {
@@ -270,7 +270,7 @@ describe('export Meta en anglais (par jour) · le lot 2 mesuré, sa conclusion p
   it('la fiche du lot 2 · dépenses mesurées et « Hypothèse confirmée » contre la référence du lot 1', async () => {
     const d = await chargerLots(ids.ws, ids.brandA);
     const l2 = d.lots.find((x) => x.id === S.lot2)!;
-    expect(l2.ads.map((a) => [a.verdict?.calcule, a.verdict?.comparable, Math.round(a.verdict?.depense ?? 0)]), 'verdicts du lot 2 · pas gagnants, pas comparables au protocole, ou dépense non mesurée').toEqual([0, 1, 2, 3].map(() => ['winner', true, 300]));
+    expect(l2.ads!.map((a) => [a.verdict?.calcule, a.verdict?.comparable, Math.round(a.verdict?.depense ?? 0)]), 'verdicts du lot 2 · pas gagnants, pas comparables au protocole, ou dépense non mesurée').toEqual([0, 1, 2, 3].map(() => ['winner', true, 300]));
     const etat = etatLotSpatial(l2, d.ctx);
     expect(etat).toBe('a_conclure');
     expect(conclusionLot(l2, etat, referenceConclusion(d.lots, l2.id)).conclusion).toBe('confirmee');

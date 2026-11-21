@@ -5,7 +5,7 @@ import {
   lireDemandeProvenanceNote, lireGagnanteDemandee, lireGagnanteDuFil, lireGesteFil, lireProvenanceCommentaire, lireProvenanceNote, phraseNeeDeGagnante,
   provenanceFilDepuisGagnanteAdmise, referenceConclusion, refProvenanceCommentaire, refProvenanceFilGagnante, refProvenanceNote, resultatsCommentaire, resultatsFil,
   choixIterationSpatial, MAX_CHOIX_ITERATION,
-  type ChoixVariablesIteration, type FaitsAdSpatial, type LignePlanSpatial, type FaitsLotSpatial, type IterationDuFil, type ResultatFil,
+  type ChoixVariablesIteration, type FaitsAdSpatial, type LignePlanSpatial, type FaitsLotSpatialEntier, type IterationDuFil, type ResultatFil,
 } from '../src';
 
 /**
@@ -28,12 +28,12 @@ const ad = (id: string, v: 'winner' | 'loser' | null): FaitsAdSpatial => ({
   id, variante: id, statut: 'done', hypothese: 'Si on teste, alors ça baisse, parce que.', variable: 'hook', plateforme: 'meta', texte: null, image: null, manques: [],
   verdict: v ? { calcule: v, retenu: v, statut: 'validated', comparable: true, raison: null, depense: 1, impressions: 1, achats: 1, cpa: 1 } : null,
 });
-const lot = (id: string, numero: number, ads: FaitsAdSpatial[]): FaitsLotSpatial => ({ id, numero, but: null, statut: 'testing', lanceLe: '2026-09-01T00:00:00Z', ads, protocole: null });
+const lot = (id: string, numero: number, ads: FaitsAdSpatial[]): FaitsLotSpatialEntier => ({ id, numero, but: null, statut: 'testing', lanceLe: '2026-09-01T00:00:00Z', ads, protocole: null });
 const CTX = { maintenant: new Date('2026-11-09T00:00:00Z'), fenetreJours: 14 };
 const REF = lot('r', 1, Array.from({ length: 8 }, (_, i) => ad(`r${i}`, i === 0 ? 'winner' : 'loser')));
 const REF_HAUTE = lot('r', 1, Array.from({ length: 8 }, (_, i) => ad(`r${i}`, i === 0 ? 'loser' : 'winner')));
 const GAGNE = { validated: 'winner' as const, comparable: true };
-function iteration(l: FaitsLotSpatial, autres: FaitsLotSpatial[], adId: string, variante: string, plus: Partial<IterationDuFil> = {}): IterationDuFil {
+function iteration(l: FaitsLotSpatialEntier, autres: FaitsLotSpatialEntier[], adId: string, variante: string, plus: Partial<IterationDuFil> = {}): IterationDuFil {
   const etat = etatLotSpatial(l, CTX);
   return { adId, variante, lot: { id: l.id, numero: l.numero, etat }, conclusion: conclusionLot(l, etat, referenceConclusion([l, ...autres], l.id)), ...plus };
 }

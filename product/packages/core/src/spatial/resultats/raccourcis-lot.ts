@@ -1,6 +1,7 @@
 import { ANCRE_CONCLURE_LOT, RAISON_GESTE_RIEN_A_CONCLURE, RAISON_GESTE_SANS_GAGNANTE_LOT, gagnanteArbitree } from '../jarvis/gestes';
 import { lienIterationVariable } from '../studios/iterer-variable';
 import { lotConcluable, type EtatLotSpatial, type FaitsAdSpatial } from './lots';
+import { RAISON_GESTE_LECTURE_INCOMPLETE, type VariantesDuLot } from './lecture-lot';
 import type { GesteGagnante } from '../../studios/activite/iterer-gagnante';
 
 /**
@@ -44,9 +45,10 @@ export interface GesteClavierLot {
   raison: string | null;
 }
 
-export interface FaitsClavierLot {
+/** Les variantes du lot · TOUTES (`ads`) ou AUCUNE (`partielle`, `variantesDe`) · jamais un `[]` à la place d'un lot lu en partie. */
+export type FaitsClavierLot = FaitsClavierLotSansVariantes & VariantesDuLot<readonly FaitsAdSpatial[]>;
+interface FaitsClavierLotSansVariantes {
   etat: EtatLotSpatial;
-  ads: readonly FaitsAdSpatial[];
   /** La gagnante du verdict du lot (`syntheseLot`) · essayée la première. */
   gagnante?: string | null;
   /** Les pubs que le plan d'itération propose (sélectionnables). */
@@ -65,7 +67,7 @@ const verdictDAbord = (ids: readonly string[], gagnante: string | null | undefin
   (gagnante && ids.includes(gagnante) ? [gagnante, ...ids.filter((id) => id !== gagnante)] : [...ids]);
 
 /** T sur un lot CONCLU · le geste d'une de ses gagnantes, tel quel · `null` sans geste (T reste celui du lot 13 bis). */
-function itererDepuisGagnante(f: FaitsClavierLot): GesteClavierIterer | null {
+function itererDepuisGagnante(f: FaitsClavierLot & { ads: readonly FaitsAdSpatial[] }): GesteClavierIterer | null {
   const gestes = f.depuisGagnante;
   if (!gestes) return null;
   const ordre = verdictDAbord(f.ads.map((a) => a.id).filter((id) => !!gestes[id]), f.gagnante);
@@ -76,6 +78,8 @@ function itererDepuisGagnante(f: FaitsClavierLot): GesteClavierIterer | null {
 }
 
 export function gestesClavierLot(f: FaitsClavierLot): { conclure: GesteClavierLot; iterer: GesteClavierIterer } {
+  // Lu en partie · ni « aucun verdict n'attend », ni « aucune gagnante » · rien n'est calculé · le recours est la fiche de test d'une variante.
+  if (f.partielle) return { conclure: { href: null, raison: RAISON_GESTE_LECTURE_INCOMPLETE }, iterer: { href: null, adId: null, raison: RAISON_GESTE_LECTURE_INCOMPLETE } };
   const concluable = lotConcluable(f.etat, f.ads);
   const gagnantes = f.ads.filter(gagnanteArbitree).map((a) => a.id);
   const ordre = verdictDAbord(gagnantes, f.gagnante);

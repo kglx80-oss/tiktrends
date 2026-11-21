@@ -5,7 +5,7 @@ import {
   gestesGagnantesFil, gestesGagnantesHypotheses, gestesGagnantesLot, lienIterationDepuis, lireDemandeProvenanceGagnante, lireDepartGagnante, lireDepuisGagnante,
   lireProvenanceCommentaire, lireProvenanceJarvis, lireProvenanceNote, peutCreerIteration, permissionsStudio, phraseSuiteEnTest, provenanceDuTest, provenanceGagnanteAdmise,
   referenceConclusion, refProvenanceGagnante, resultatsFil,
-  type FaitsAdSpatial, type FaitsHypotheseAd, type FaitsLotSpatial, type IterationDuFil, type LignePlanSpatial, type LotPourGagnante,
+  type FaitsAdSpatial, type FaitsHypotheseAd, type FaitsLotSpatialEntier, type IterationDuFil, type LignePlanSpatial, type LotPourGagnante,
 } from '../src';
 
 /**
@@ -26,11 +26,11 @@ const ad = (id: string, variante: string, v: 'winner' | 'loser' | null, statut: 
   id, variante, statut: 'done', hypothese: `Si on teste ${variante}, alors ça baisse, parce que.`, variable: 'hook', plateforme: 'meta', texte: null, image: null, manques: [],
   verdict: v ? { calcule: v, retenu: statut === 'validated' ? v : null, statut, comparable: true, raison: null, depense: 1, impressions: 1, achats: 1, cpa: 1 } : null,
 });
-const brut = (id: string, numero: number, ads: FaitsAdSpatial[]): FaitsLotSpatial => ({ id, numero, but: null, statut: 'testing', lanceLe: '2026-09-01T00:00:00Z', ads, protocole: null });
+const brut = (id: string, numero: number, ads: FaitsAdSpatial[]): FaitsLotSpatialEntier => ({ id, numero, but: null, statut: 'testing', lanceLe: '2026-09-01T00:00:00Z', ads, protocole: null });
 const CTX = { maintenant: new Date('2026-11-09T00:00:00Z'), fenetreJours: 14 };
 const REF = brut(u(900), 1, Array.from({ length: 8 }, (_, i) => ad(u(800 + i), `r${i}`, i === 0 ? 'winner' : 'loser')));
 const REF_HAUTE = brut(u(900), 1, Array.from({ length: 8 }, (_, i) => ad(u(800 + i), `r${i}`, i === 0 ? 'loser' : 'winner')));
-function lu(l: FaitsLotSpatial, ref: FaitsLotSpatial): LotPourGagnante {
+function lu(l: FaitsLotSpatialEntier, ref: FaitsLotSpatialEntier): LotPourGagnante {
   const etat = etatLotSpatial(l, CTX);
   return { id: l.id, numero: l.numero, etat, conclusion: conclusionLot(l, etat, referenceConclusion([l, ref], l.id)), ads: l.ads };
 }

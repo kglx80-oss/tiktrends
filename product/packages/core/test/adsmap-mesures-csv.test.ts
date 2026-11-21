@@ -6,7 +6,7 @@ import {
   lireMesuresMeta, lireEnteteMesures, nombreExport, dateExport, identifiantMeta, rattacherAnnonces, annoncesDuFichier,
   retenirMesures, planImportMesures, verdictsDesMesures, MIN_JETONS_APPROCHE, PRIORITE_MESURES,
   etatRemontee, prochaineRemontee, motifEchecRemontee, bilanRattachement, texteRemontee, MOTIF_REMONTEE_ADSMAP, HEURE_REMONTEE_UTC, RETARD_REMONTEE_MS,
-  type CandidatMesure, type EntreeMesure, type AdAMesurer, type FaitsLotSpatial,
+  type CandidatMesure, type EntreeMesure, type AdAMesurer, type FaitsLotSpatialEntier,
 } from '../src';
 
 /**
@@ -299,7 +299,7 @@ describe('des mesures au verdict · la conclusion du lot parle une fois les mesu
     ...[0, 1, 2, 3].map((k) => ad(`r${k}`, 'L1', 1, 150, 0)),
     ...[0, 1, 2, 3].map((k) => ad(`g${k}`, 'L2', 2, 300, 20)),
   ];
-  const lot = (id: string, numero: number, verdicts: Map<string, { computed: string; comparable: boolean }>, ids: string[]): FaitsLotSpatial => ({
+  const lot = (id: string, numero: number, verdicts: Map<string, { computed: string; comparable: boolean }>, ids: string[]): FaitsLotSpatialEntier => ({
     id, numero, but: null, statut: 'testing', lanceLe: '2026-10-01T00:00:00.000Z', protocole: null,
     ads: ids.map((x) => ({ id: x, variante: x, statut: 'live', hypothese: 'Si… alors… parce que…', variable: 'hook', plateforme: 'meta', texte: null, image: null, manques: [],
       verdict: verdicts.has(x) ? { calcule: verdicts.get(x)!.computed as never, retenu: null, statut: 'computed', comparable: verdicts.get(x)!.comparable, raison: null, depense: null, impressions: null, achats: null, cpa: null } : null })),

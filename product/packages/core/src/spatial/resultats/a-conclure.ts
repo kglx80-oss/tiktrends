@@ -1,4 +1,5 @@
 import { CHEMIN_LOTS } from '../../parcours-boucle';
+import { nombreVariantes } from './lecture-lot';
 import type { EntreeRail } from '../rail';
 import { FILTRES_LOTS, etatLotSpatial, lienLotSpatial, lotConcluable, type ContexteLots, type FaitsEtatLot, type FiltreLots, type PresentationLot } from './lots';
 
@@ -34,7 +35,8 @@ export function porteeListeLots(o: { lotsOuverts: boolean; arbitrageOuvert: bool
 
 /** Les lots qu'on peut conclure, dans l'ordre reçu (celui de la liste · le plus récent d'abord). */
 export function selectionAConclure<L extends FaitsEtatLot>(lots: readonly L[], c: ContexteLots): L[] {
-  return lots.filter((l) => lotConcluable(etatLotSpatial(l, c), l.ads));
+  // Un lot lu en partie est `illisible` · jamais concluable (aucune variante exposée).
+  return lots.filter((l) => !l.partielle && lotConcluable(etatLotSpatial(l, c), l.ads));
 }
 
 /* ───────────── UN compte « à conclure » partout · rail, Accueil, liste ───────────── */
@@ -69,11 +71,12 @@ export function compteAConclure(lots: ReadonlyArray<FaitsEtatLot & { id: string;
  * lecture a vues pour chacun. Un tel lot reste `testing` en base (aucun écran
  * ne le passe `analyzed`) · l'Accueil l'écarte de « En diffusion » et de « fin
  * prévue passée » (`LotAccueil.conclu`) · seulement si la lecture l'a vu en
- * entier (`lotConcluAccueil`) · la lecture des lots est bornée
- * (`LIMITE_ADS_LOTS`), une variante coupée n'est pas une variante arbitrée.
+ * entier (`lotConcluAccueil`) · un lot lu en partie n'est jamais `conclu`
+ * (`illisible`, `lotLuEnEntier`), une variante non lue n'est pas une variante arbitrée.
  */
 export function lotsConclusLus(lots: ReadonlyArray<FaitsEtatLot & { id: string }>, c: ContexteLots): Map<string, number> {
-  return new Map(lots.filter((l) => etatLotSpatial(l, c) === 'conclu').map((l) => [l.id, l.ads.length]));
+  // `conclu` exige un lot lu en entier (`etatLotSpatial` · `illisible` sinon) · `nombreVariantes` le dit sans parcourir.
+  return new Map(lots.filter((l) => etatLotSpatial(l, c) === 'conclu').map((l) => [l.id, nombreVariantes(l)]));
 }
 
 /** Le paramètre d'adresse qui ouvre « Lots de test » sur un filtre (`?filtre=conclure`). */

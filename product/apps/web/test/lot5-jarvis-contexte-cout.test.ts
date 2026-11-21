@@ -38,7 +38,7 @@ describe('lot 5 · le contexte joint ne rend pas l’estimation du message fauss
   const entrees: EntreeContexteJarvis[] = [
     { type: 'lot', brandId: B, lot: lots[0]!, lots, ctx, cibleCpa: 18 },
     { type: 'hypothese', brandId: B, ad: { ...ad(1), concept: fr(300), lotId: lots[0]!.id }, lot: lots[0]!, ctx },
-    { type: 'resultats', brandId: B, page: 'hypotheses', lots, horsLot: lots[1]!.ads, ctx, cibleCpa: 18 },
+    { type: 'resultats', brandId: B, page: 'hypotheses', lots, horsLot: lots[1]!.ads!, ctx, cibleCpa: 18 },
   ];
 
   it('chaque résumé, même nourri au-delà de toutes les bornes, tient sous `bloc`', () => {

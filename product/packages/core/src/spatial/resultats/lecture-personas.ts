@@ -3,6 +3,7 @@ import { NOM_PERSONA_PROVISOIRE } from '../marque/personas-edition';
 import { estLotImporte } from '../../adsmap/lot-nature';
 import { issueVariante, type Compte } from './conclusion-lot';
 import { lienLotSpatial, type FaitsLotSpatial } from './lots';
+import { estLuEnEntier } from './lecture-lot';
 
 /**
  * Résultats · QUEL PERSONA fait gagner une créative (lot 9 V5 · VB P06).
@@ -319,14 +320,15 @@ export function entreesLecturePersonas(lots: readonly FaitsLotSpatial[], attribu
 /** Les entrées de `lectureParGroupe` · les variantes des lots SUIVIS, chacune avec son groupe et son issue. */
 export function entreesLectureGroupes(lots: readonly FaitsLotSpatial[], attribution: (adId: string) => PersonaRef | null): EntreeLectureGroupe[] {
   return lots.filter((l) => !estLotImporte({ status: l.statut, launchedAt: l.lanceLe }))
-    .flatMap((l) => l.ads.map((a) => ({ groupe: attribution(a.id), issue: issueVariante(a) })));
+    // Un lot lu en partie n'apporte aucune variante · la lecture par groupe ne se tire pas d'une partie d'un lot.
+    .filter(estLuEnEntier).flatMap((l) => l.ads.map((a) => ({ groupe: attribution(a.id), issue: issueVariante(a) })));
 }
 
 /** Combien de tests ciblent ce persona, et dans combien de lots (« N tests · N lots » de la fiche). */
 export function bilanTestsPersona(lots: readonly FaitsLotSpatial[], attribution: (adId: string) => PersonaRef | null, personaId: string): { tests: number; lots: number } {
   let tests = 0, n = 0;
   for (const l of lots) {
-    const k = l.ads.filter((a) => attribution(a.id)?.id === personaId).length;
+    const k = l.partielle ? 0 : l.ads.filter((a) => attribution(a.id)?.id === personaId).length;
     tests += k;
     if (k) n++;
   }
@@ -373,7 +375,7 @@ export interface LotDuGroupe { id: string; numero: number; href: string; tests: 
  */
 export function lotsDuGroupe(lots: readonly FaitsLotSpatial[], attribution: (adId: string) => PersonaRef | null, groupeId: string): LotDuGroupe[] {
   return lots.flatMap((l) => {
-    const tests = l.ads.filter((a) => attribution(a.id)?.id === groupeId).length;
+    const tests = l.partielle ? 0 : l.ads.filter((a) => attribution(a.id)?.id === groupeId).length;
     if (!tests) return [];
     const but = l.but?.replace(/\s+/g, ' ').trim();
     return [{ id: l.id, numero: l.numero, href: lienLotSpatial(l.id), tests, libelle: `Lot #${l.numero}${but ? ` · ${but}` : ''} · ${pl(tests, 'test', 'tests')}` }];

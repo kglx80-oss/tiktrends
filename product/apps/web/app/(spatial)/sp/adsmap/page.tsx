@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import {
   outilsResultats, redirectionTestProfond, redirectionVueAdsmap,
-  accrocheResultats, sousKpisResultats, barresCpa, categorieVariable, compteLotsEnAttente, indexAutresLots, indexLotVedette, kpisResultats,
+  accrocheResultats, videVedetteResultats, sousKpisResultats, barresCpa, categorieVariable, compteLotsEnAttente, indexAutresLots, indexLotVedette, kpisResultats,
   phraseLot, plateformesLot, lienLotSpatial, LIBELLE_NIVEAU, presentationLot, sousNavResultats, suiteLot, syntheseLot, volumeMinimumLot, etatLotSpatial,
   analyseJarvisEnsemble, PRESENTATION_ETAT_LOT,
 } from '@tiktrends/core';
@@ -36,22 +36,28 @@ export default async function ResultatsSpatial({ searchParams }: { searchParams:
   const cur = mesures[0]!, prec = mesures[1]!;
   const vides = (a: typeof prec) => a.impressions === 0 && a.depense === 0;
 
-  const lus = d.lots.map((l) => ({ l, etat: etatLotSpatial(l, d.ctx), pres: presentationLot(l, d.ctx), syn: syntheseLot(l, d.config.targetCpa), aDesVerdicts: l.ads.some((a) => a.verdict) }));
+  const lus = d.lots.map((l) => ({ l, etat: etatLotSpatial(l, d.ctx), pres: presentationLot(l, d.ctx), syn: syntheseLot(l, d.config.targetCpa), aDesVerdicts: !l.partielle && l.ads.some((a) => a.verdict) }));
   const iv = indexLotVedette(lus);
+  // Les lots lus en partie · leurs verdicts ne sont pas lus · l'accroche sans vedette le dit (jamais « aucun lot n'a de verdict »).
+  const nonLus = d.lots.filter((l) => l.partielle).length;
   const autres = indexAutresLots(lus, iv).map((i) => lus[i]!);
   const enAttente = compteLotsEnAttente(lus.filter((_, i) => i !== iv).map((x) => x.etat));
 
   let vedette: LotVedette | null = null;
-  if (iv >= 0) {
-    const { l, etat, pres, syn } = lus[iv]!;
-    const barres = barresCpa(l.ads);
+  // Un lot lu en partie n'a ni verdict ni état « à conclure » · il n'est jamais en vedette (`indexLotVedette`) · et s'il l'était, aucune vedette.
+  const enVedette = iv >= 0 ? lus[iv]! : null;
+  if (enVedette && !enVedette.l.partielle) {
+    const { etat, pres, syn } = enVedette;
+    const l = enVedette.l;
+    const ads = l.ads;
+    const barres = barresCpa(ads);
     const volume = volumeMinimumLot(l);
-    const lecons = appris.filter((a) => a.adId && l.ads.some((x) => x.id === a.adId) && a.statut === 'validated' && !a.refute);
+    const lecons = appris.filter((a) => a.adId && ads.some((x) => x.id === a.adId) && a.statut === 'validated' && !a.refute);
     vedette = {
       statut: etat === 'a_conclure' ? { libelle: 'À conclure', classe: 'g' } : { libelle: pres.statut.libelle, classe: pres.statut.classe },
       meta: [`Lot #${l.numero}`, `${d.ctx.fenetreJours} jours`, plateformesLot(l), volume !== null ? `${volume.toLocaleString('fr-FR')} impressions minimum par variante` : null].filter(Boolean).join(' · '),
       titre: l.but?.trim() || pres.titre,
-      variantes: l.ads.map((a, i) => ({
+      variantes: ads.map((a, i) => ({
         id: a.id, texte: a.texte ?? ' ', image: a.image, variante: a.variante, categorie: categorieVariable(a.variable),
         gagnante: syn.gagnante === a.id, barre: barres[i]!,
       })),
@@ -71,22 +77,24 @@ export default async function ResultatsSpatial({ searchParams }: { searchParams:
     alerte: etat === 'a_importer',
     statut: etat === 'diffusion' ? { libelle: `En cours · jour ${pres.jour ?? 1} sur ${pres.fenetre}`, classe: 'c' } : etat === 'a_importer' ? { libelle: 'Terminé · mesures à importer', classe: 'w' } : pres.statut,
     titre: pres.titre,
-    pubs: l.ads.slice(0, 2).map((a) => ({ texte: a.texte ?? ' ', image: a.image })),
+    // Lu en partie · aucune vignette tirée de rien, et la phrase le dit (`phraseLot` · « Non lu · 0 variante lue sur … »).
+    pubs: l.partielle ? [] : l.ads.slice(0, 2).map((a) => ({ texte: a.texte ?? ' ', image: a.image })),
     progression: etat === 'diffusion' ? pres.anneau.part : null,
-    texte: phraseLot(pres, syn, l.ads.length),
+    texte: phraseLot(pres, syn, l),
     // Un membre n'importe pas (page réservée) · il suit le lot.
     action: PRESENTATION_ETAT_LOT[pres.etat].versImport && !g.admin ? { libelle: 'Voir le lot', href: lienLotSpatial(l.id) } : pres.action,
   }));
 
   // R03 · « Analyser avec Jarvis » · la vue d'ensemble jointe, « Pourquoi la V… » sur la gagnante RÉELLE du lot vedette seulement.
   const v = iv >= 0 ? lus[iv]! : null;
-  const jarvis = g.jarvis ? analyseJarvisEnsemble(v ? { gagnante: v.l.ads.find((a) => a.id === v.syn.gagnante)?.variante ?? null, numero: v.l.numero } : null) : null;
+  const jarvis = g.jarvis ? analyseJarvisEnsemble(v ? { gagnante: v.l.partielle ? null : v.l.ads.find((a) => a.id === v.syn.gagnante)?.variante ?? null, numero: v.l.numero } : null) : null;
 
   return (
     <VueEnsemble
       sousNav={sousNavResultats({ admin: g.admin })}
       sous={sousKpisResultats({ jours: PERIODE_JOURS, metaConnecte: connexion.metaConnecte, importees: cur.importees ?? 0 })}
-      accroche={accrocheResultats(iv >= 0 ? { numero: lus[iv]!.l.numero, synthese: lus[iv]!.syn, aConclure: lus[iv]!.etat === 'a_conclure' } : null, enAttente)}
+      accroche={accrocheResultats(iv >= 0 ? { numero: lus[iv]!.l.numero, synthese: lus[iv]!.syn, aConclure: lus[iv]!.etat === 'a_conclure' } : null, enAttente, nonLus)}
+      videVedette={videVedetteResultats(nonLus)}
       kpis={kpisResultats(cur, vides(prec) ? null : prec)}
       vedette={vedette}
       autres={cartes}

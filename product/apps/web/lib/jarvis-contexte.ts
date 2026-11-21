@@ -1,5 +1,5 @@
 import 'server-only';
-import { resumerContexteJarvis, type ContexteJarvisResolu, type DemandeContexteJarvis } from '@tiktrends/core';
+import { variantesDesLotsLus, resumerContexteJarvis, type ContexteJarvisResolu, type DemandeContexteJarvis } from '@tiktrends/core';
 import type { Session } from './auth';
 import { effectiveAccess } from './access';
 import { canAccess, FEATURES } from './rbac';
@@ -41,14 +41,15 @@ export async function resoudreContexteJarvis(s: SessionLue, brand: { id: string 
       return resumerContexteJarvis({ type: 'projet', brandId: c.brandId, id: c.id, titre: c.titre, etape: c.etape, bloc: c.bloc }, { brandId: brand.id });
     }
     if (!canAccess(effectiveAccess(s), ADSMAP)) return null;
-    const d = await chargerLots(s.workspaceId, brand.id, maintenant);
+    // Le lot joint est lu en entier, hors budget (`lotEntier`), comme sa fiche · Jarvis ne dit pas « 0 variante lue » d'un lot que la fiche montre.
+    const d = await chargerLots(s.workspaceId, brand.id, maintenant, demande.type === 'lot' ? { lotEntier: demande.id } : {});
     const cibleCpa = d.config.targetCpa ?? null;
     if (demande.type === 'lot') {
       const lot = d.lots.find((l) => l.id === demande.id);
       return lot ? resumerContexteJarvis({ type: 'lot', brandId: brand.id, lot, lots: d.lots, ctx: d.ctx, cibleCpa }, { brandId: brand.id }) : null;
     }
     if (demande.type === 'hypothese') {
-      const ad = [...d.lots.flatMap((l) => l.ads), ...d.horsLot].find((a) => a.id === demande.id);
+      const ad = [...variantesDesLotsLus(d.lots), ...d.horsLot].find((a) => a.id === demande.id);
       if (!ad) return null;
       const lot = ad.lotId ? d.lots.find((l) => l.id === ad.lotId) ?? null : null;
       return resumerContexteJarvis({ type: 'hypothese', brandId: brand.id, ad, lot, ctx: d.ctx }, { brandId: brand.id });

@@ -50,6 +50,8 @@ export interface AdDetail {
   manques: string[];
   variableValue: string | null;
   launchedAt: string | null;
+  /** Le lot de la variante (`ads.batch_id`, joint au lot) · `null` hors lot · lu ici, sans dépendre de la lecture des lots (bornée). */
+  batchId: string | null;
   batchNumber: number | null;
   /** Résumé du contrôle de protocole du lot · dit ce que le verdict peut affirmer. */
   protocolSummary: string | null;
@@ -177,6 +179,7 @@ export async function adDetailAction(adId: string): Promise<{ detail?: AdDetail;
         manques: manquesAvantTest({ adType: row.ad.adType, hypothesis: row.ad.hypothesis, testedVariable: row.ad.testedVariable, offerId: row.ad.offerId, landingPageId: row.ad.landingPageId }),
         variableValue: row.ad.variableValue,
         launchedAt: row.ad.launchedAt ? (row.ad.launchedAt as Date).toISOString() : null,
+        batchId: row.batchNumber != null ? row.ad.batchId : null,
         batchNumber: row.batchNumber ?? null,
         protocolSummary: proto?.summary ?? null,
         computed: (row.verdict?.computed ?? null) as VerdictValue | null,

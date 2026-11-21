@@ -5,7 +5,7 @@ import {
   kpisResultats, cartesHypotheses, categoriesHypotheses, niveauPreuveApprentissage, etatApprentissage, preuveApprentissage,
   garantiesProtocole, lireVolume, optionsPeriode, kpisBoucle, sousNavResultats, quandCourt, remontees, accrocheResultats,
   buildDecisions, ECRANS_SPATIAUX, ecranSpatial,
-  type FaitsAdSpatial, type FaitsLotSpatial, type FaitsVerdictSpatial, type EtatLotSpatial, type VerdictValue,
+  type FaitsAdSpatial, type FaitsLotSpatialEntier, type FaitsVerdictSpatial, type EtatLotSpatial, type VerdictValue,
 } from '../src';
 
 const MAINTENANT = new Date('2026-10-27T12:00:00Z');
@@ -19,7 +19,7 @@ const ad = (id: string, v: FaitsVerdictSpatial | null, o: Partial<FaitsAdSpatial
   id, variante: id, statut: 'live', hypothese: 'Si on change l’accroche, alors on retient plus.', variable: 'hook', plateforme: 'meta',
   texte: 't', image: null, manques: [], verdict: v, ...o,
 });
-const lot = (o: Partial<FaitsLotSpatial> = {}): FaitsLotSpatial => ({
+const lot = (o: Partial<FaitsLotSpatialEntier> = {}): FaitsLotSpatialEntier => ({
   id: 'l1', numero: 1, but: 'Accroche', statut: 'testing', lanceLe: ilYa(8), protocole: { conforme: true, resume: 'ok' },
   ads: [ad('v1', verdict('winner')), ad('v2', verdict('loser'))], ...o,
 });
@@ -69,7 +69,7 @@ describe('Spatial · Résultats · état d’un lot (quand est-il prêt à concl
   });
 
   it('même règle que la file de décisions · un lot « à conclure » y produit un `validate_verdict`, un lot en diffusion aucun', () => {
-    const decisions = (l: FaitsLotSpatial) => buildDecisions({
+    const decisions = (l: FaitsLotSpatialEntier) => buildDecisions({
       ads: l.ads.map((a) => ({
         id: a.id, label: a.variante, status: a.statut, verdict: a.verdict?.calcule ?? null, verdictStatus: a.verdict?.statut ?? null,
         killFlag: null, spend: a.verdict?.depense ?? null, matched: true, hasIteration: false,
@@ -88,7 +88,7 @@ describe('Spatial · Résultats · état d’un lot (quand est-il prêt à concl
 
 describe('Spatial · Résultats · la pastille du rail', () => {
   // Le compte est celui de la liste « À conclure » (`compteAConclure`) · gardé en entier dans `compte-a-conclure.test.ts`.
-  const pastille = (ls: FaitsLotSpatial[]) => pastilleAConclure(compteAConclure(ls, CTX));
+  const pastille = (ls: FaitsLotSpatialEntier[]) => pastilleAConclure(compteAConclure(ls, CTX));
   it('absente sans lot à conclure', () => {
     expect(pastille([])).toBeNull();
     expect(pastille([lot({ statut: 'planned', lanceLe: null }), lot({ lanceLe: ilYa(2) }), lot({ ads: [ad('v1', verdict('winner', { statut: 'validated', retenu: 'winner' }))] })])).toBeNull();
@@ -156,12 +156,12 @@ describe('Spatial · Résultats · présentation et synthèse', () => {
 
   it('préparation en quatre étapes réelles', () => {
     expect(preparationLot(lot({ statut: 'planned', ads: [] }), 0)).toEqual({ fait: 0, sur: 4 });
-    expect(preparationLot(lot({ statut: 'planned', ads: [ad('a', null, { manques: ['l’offre'] })] }), 0).fait).toBe(1);
-    expect(preparationLot(lot({ statut: 'ready', ads: [ad('a', null)] }), 1).fait).toBe(4);
+    expect(preparationLot(lot({ statut: 'planned', ads: [ad('a', null, { manques: ['l’offre'] })] }), 0)?.fait).toBe(1);
+    expect(preparationLot(lot({ statut: 'ready', ads: [ad('a', null)] }), 1)?.fait).toBe(4);
   });
 
   it('prochaine action · conclure d’abord, puis importer, lancer, préparer, suites, hypothèses', () => {
-    const pl = (l: FaitsLotSpatial) => ({ presentation: presentationLot(l, CTX), synthese: syntheseLot(l, 35) });
+    const pl = (l: FaitsLotSpatialEntier) => ({ presentation: presentationLot(l, CTX), synthese: syntheseLot(l, 35) });
     expect(prochaineActionBoucle([pl(lot({ statut: 'ready', lanceLe: null })), pl(lot({ id: 'l2', numero: 2 }))], true)).toMatchObject({ titre: 'Conclure le lot #2', href: '/adsmap/lots/l2' });
     expect(prochaineActionBoucle([pl(lot({ statut: 'ready', lanceLe: null }))], true).titre).toBe('Lancer le lot #1');
     expect(prochaineActionBoucle([], true).href).toBe('/adsmap/suites');
