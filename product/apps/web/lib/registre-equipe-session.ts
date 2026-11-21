@@ -32,19 +32,34 @@ declare const JETON_EQUIPE: unique symbol;
 /**
  * ── `Session.equipe` est OPAQUE au niveau du type (suite de #1125) ──────────
  * Le champ porte ce jeton, pas une `EquipeSession` · un objet marqué d'un
- * `unique symbol` (jamais posé à l'exécution), sans AUCUN champ lisible. Lire
- * `s.equipe.plateformeAdmissible`, passer la session au noyau par sa forme
- * (`roleEffectifAudit({ equipe: null, ...s, roleEspace })`,
- * `voitDepensePlateforme`, `privilegesEquipe`), la recevoir dans un type local
- * (`{ equipe?: { role } }`, `Readonly<EquipeSession>`, `Pick<…>`), la
- * déstructurer (`({ equipe } = s)`) ou la forger (`{ ...s, equipe: { … } }`)
- * ne COMPILE plus · le noyau attend `role` et `plateformeAdmissible`, le jeton
- * n'en a pas. Seul `equipeAuthentique` (plus bas) rend une `EquipeSession`,
- * après le registre. Éprouvé par `test/secu-equipe-opaque.types.test.ts`.
+ * `unique symbol` (jamais posé à l'exécution), sans AUCUN champ lisible.
  *
- * Ce que le type ne ferme pas · un cast, un `any` (`Reflect.get` à clé non
- * littérale, `Object.entries`), `Object.assign` · la barrière reste le
- * registre, à l'exécution. À l'exécution, le jeton EST l'objet gelé et inscrit.
+ * Fermé par le TYPE (éprouvé par `test/secu-equipe-opaque.types.test.ts`) ·
+ * lire un champ du jeton (`s.equipe.plateformeAdmissible`), passer la session
+ * au noyau par sa forme (`roleEffectifAudit({ equipe: null, ...s, roleEspace
+ * })`, `voitDepensePlateforme`, `privilegesEquipe`, et tout paramètre `equipe`
+ * du noyau · typé `EquipeAdmissible`, `role` requis, même optionnel), la
+ * recevoir dans un type local qui NOMME un champ (`{ equipe?: { role } }`,
+ * `Readonly<EquipeSession>`, `Pick<…>`), la déstructurer vers une équipe
+ * (`({ equipe } = s)`) ou la forger (`{ ...s, equipe: { … } }`).
+ *
+ * PAS fermé par le type · le jeton est assignable à `unknown`, `object` et
+ * `{}`, et `in` rétrécit · `(x: { equipe?: unknown }) => { const e =
+ * x.equipe; return typeof e === 'object' && e !== null &&
+ * 'plateformeAdmissible' in e && e.plateformeAdmissible === true }` compile
+ * sans cast ni `any`. Ni `Reflect.get` à clé non littérale, ni
+ * `Object.values` / `Object.entries` (`any`), ni un nom calculé au prix d'un
+ * `any`, ni `Object.assign`, ni un cast. Ces formes, le RECENSEMENT
+ * `test/secu-equipe-authentique-sources.test.ts` les refuse en production ·
+ * toute lecture de `.equipe` sur un objet qui a reçu une session (quel que
+ * soit son type local), les lecteurs réflexifs et les casts qui exposent
+ * l'équipe.
+ *
+ * Ce qui reste · ce que le recensement ne suit pas (une session rendue sous
+ * `unknown` par une fonction, rangée dans un tableau élargi, un `.js`) · là,
+ * la barrière est le registre, à l'exécution · le jeton EST l'objet gelé et
+ * inscrit, toute copie vaut absente. Un lecteur qui DÉCIDERAIT lui-même sur
+ * une valeur ainsi lue, sans `equipeAuthentique`, ne serait arrêté par rien.
  */
 export type JetonEquipe = { readonly [JETON_EQUIPE]: true };
 
@@ -66,9 +81,10 @@ export function authentifierEquipeSession(e: EquipeSession): JetonEquipe {
  * d'administration passent tous par lui. Une `equipe` reconstruite à la main ·
  * littéral, copie, JSON · vaut ABSENTE pour chacun, quel que soit son
  * `plateformeAdmissible`. Le seul passage du jeton opaque (`JetonEquipe`) à
- * l'`EquipeSession` · le type refuse toute autre lecture, le recensement
- * `secu-equipe-authentique-sources` refuse en plus la lecture brute du jeton
- * (prélude d'un cast).
+ * l'`EquipeSession` · le type refuse les lectures qui nomment un champ, le
+ * recensement `secu-equipe-authentique-sources` refuse en plus la lecture
+ * brute du jeton (prélude d'un cast), les lectures sous un type élargi
+ * (`unknown`, `object`, `{}`), les lecteurs réflexifs et les casts.
  */
 export function equipeAuthentique(s: { equipe?: JetonEquipe | null } | null | undefined): EquipeSession | null {
   // `unknown` · une session venue d'un `any` peut porter n'importe quoi ici, le registre seul décide.

@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeEach } from 'vitest';
 import { equipeDepuisLignes } from '../lib/equipe-plateforme';
 import { effectiveAccess } from '../lib/access';
+import { faceEquipeReconnue } from '../lib/rbac';
 import { unlimitedCredits, noterCreditsStaff } from '../lib/credits';
 import { sessionEquipeTest } from './helpers/face-equipe';
 
@@ -56,7 +57,7 @@ describe('effectiveAccess · equipe prime, client inchangé', () => {
       role: 'client_viewer', plan: 'starter', user: { email: AUTRE },
       equipe: sessionEquipeTest({ role: 'admin', matrice: {}, plateformeAdmissible: true }),
     });
-    expect(a.equipe, 'la face équipe ne porte que le rôle et la matrice').toEqual({ role: 'admin', matrice: {} });
+    expect(faceEquipeReconnue(a), 'la face équipe ne porte que le rôle et la matrice').toEqual({ role: 'admin', matrice: {} });
     expect(a.plan).toBe('business');
   });
 
@@ -74,7 +75,7 @@ describe('effectiveAccess · equipe prime, client inchangé', () => {
       role: 'client_viewer', plan: 'starter', user: { email: AUTRE },
       equipe: sessionEquipeTest({ role: 'membre', matrice: {}, plateformeAdmissible: true }),
     });
-    expect(a.equipe).toEqual({ role: 'membre', matrice: {} });
+    expect(faceEquipeReconnue(a)).toEqual({ role: 'membre', matrice: {} });
     expect(a.plan).toBe('starter');
   });
 
