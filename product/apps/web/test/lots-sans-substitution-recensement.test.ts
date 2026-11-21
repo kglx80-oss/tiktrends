@@ -13,6 +13,15 @@ import { join, relative } from 'node:path';
  * lot lui-même (`variantesDe`) · les lectures de toute la marque passent par
  * `variantesDesLotsLus`. Ce recensement refuse le motif hors des exemptions
  * NOMMÉES ci-dessous, chacune avec sa raison.
+ *
+ * Il ne garde que la SYNTAXE, contre l'erreur la plus courante · le ternaire
+ * inversé, `|| []`, un `variantes: []` littéral, une forme sur plusieurs lignes
+ * lui échappent, et il n'est pas complexifié pour les suivre. La vraie barrière,
+ * ce sont le TYPE (`VariantesDuLot` · `l.ads` absent d'un lot partiel) et les
+ * gardes sur le HTML et les raisons (`lots-lus-en-entier-db.test.tsx` · aucune
+ * phrase tirée de rien). Repli connu, hors motif · `?? AUCUNE_VARIANTE`
+ * (`variantesDesLotsEntiers`, `donnees.ts`) · inatteignable · les lots de
+ * `faitsHypotheses` sont tous lus en entier, tirés de la même lecture.
  */
 
 const RACINE = join(process.cwd(), '../..');

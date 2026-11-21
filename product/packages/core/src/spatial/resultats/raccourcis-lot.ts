@@ -78,8 +78,12 @@ function itererDepuisGagnante(f: FaitsClavierLot & { ads: readonly FaitsAdSpatia
 }
 
 export function gestesClavierLot(f: FaitsClavierLot): { conclure: GesteClavierLot; iterer: GesteClavierIterer } {
-  // Lu en partie · ni « aucun verdict n'attend », ni « aucune gagnante » · rien n'est calculé · le recours est la fiche de test d'une variante.
-  if (f.partielle) return { conclure: { href: null, raison: RAISON_GESTE_LECTURE_INCOMPLETE }, iterer: { href: null, adId: null, raison: RAISON_GESTE_LECTURE_INCOMPLETE } };
+  // Lu en partie · LANCÉ (`illisible`) · ni « aucun verdict n'attend », ni « aucune gagnante » · rien n'est calculé, le recours est la fiche de
+  // test d'une variante · NON lancé (préparation, prêt, historique) · aucun verdict ne peut attendre · la raison ordinaire est vraie.
+  if (f.partielle) {
+    const r = f.etat === 'illisible' ? RAISON_GESTE_LECTURE_INCOMPLETE : null;
+    return { conclure: { href: null, raison: r ?? RAISON_GESTE_RIEN_A_CONCLURE }, iterer: { href: null, adId: null, raison: r ?? RAISON_GESTE_SANS_GAGNANTE_LOT } };
+  }
   const concluable = lotConcluable(f.etat, f.ads);
   const gagnantes = f.ads.filter(gagnanteArbitree).map((a) => a.id);
   const ordre = verdictDAbord(gagnantes, f.gagnante);

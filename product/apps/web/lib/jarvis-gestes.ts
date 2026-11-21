@@ -200,8 +200,9 @@ export async function lireVariantesEssai(s: SessionLue, brandId: string, demande
     }
     const c = await lireContexteGestes(s, brandId, demande, maintenant);
     if (!c) return null;
-    // Lu en partie · aucune variante Studio ne se cherche parmi des pubs non lues · la liste fermée est vide, et dite telle.
-    if (c.variantes.partielle) return { variantes: [], exclus: [] };
+    // Lu en partie · on ne sait pas quelles pubs viennent d'un projet Studio · une liste vide ferait dire « aucune pub de ce contexte ne vient
+    // d'un projet Studio », ce qui est faux · `null` · l'écran ne pose pas l'essai (comme hors portée).
+    if (c.variantes.partielle) return null;
     const ads = c.variantes.ads;
     const g = await gardeStudio('studio.read');
     const ids = ads.map((a) => a.id);
