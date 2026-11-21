@@ -45,6 +45,7 @@ import { disponibiliteImage } from '@tiktrends/core';
 import type { ConsigneVue, VueParcoursImage } from '../lib/studios/image/parcours';
 import { ParcoursImage } from '../spatial/vues/projet/ParcoursImage';
 import { avecSpatial } from './spatial/fournisseur';
+import { attendreEtat } from './helpers/attendre-etat';
 
 // ── Montage, lecture ──────────────────────────────────────────────────────────
 let hote: HTMLDivElement; let racine: Root;
@@ -81,6 +82,14 @@ function differe<T>() { let resoudre!: (v: T) => void; let rejeter!: (e: unknown
  */
 const ATTENTE_FOCUS_MS = 10_000;
 
+/**
+ * Stabilité · l'état final doit tenir plus de trois rendus retardés (3 × 20 ms, le `setImmediate` de
+ * ce test) · 25 sondages toutes les 5 ms, soit au moins 120 ms hors `act`, deux fois la fenêtre.
+ * Éprouvé par une mutation qui fait retomber le focus 40 ms APRÈS l'avoir posé · l'ancienne fin
+ * (`act` de 5 ms puis deux `expect`) passait au vert, celle-ci tombe.
+ */
+const SONDAGES_FOCUS_STABLE = 25;
+
 // ── Parcours image ────────────────────────────────────────────────────────────
 const TOUT = { peutGenerer: true, peutProposer: true, briefPresent: true, preparationOk: true, releasePubliee: true, fournisseurTexte: true, plafondAtteint: false, fournisseurImage: true };
 const CONSIGNE: ConsigneVue = {
@@ -115,13 +124,15 @@ describe('Parcours image · le focus survit à un rendu tardif de la vue relue',
     expect(actif(), 'le focus a quitté le bouton pressé').toBe(b);
     await act(async () => { d.resoudre({ ok: true }); await d.p; });
     // Hors `act` · la relecture (10 ms), le rendu retardé (20 ms) puis l'effet. On attend l'ÉTAT FINAL
-    // (proposition retirée, focus posé), sondé toutes les 5 ms, borné par ATTENTE_FOCUS_MS.
-    await vi.waitFor(() => {
+    // (proposition retirée, focus posé), sondé toutes les 5 ms, borné par ATTENTE_FOCUS_MS · et il doit
+    // TENIR `SONDAGES_FOCUS_STABLE` sondages d'affilée, hors `act` · un focus qui passe par « Générer »
+    // puis retombe (un rendu tardif de plus, retardé de 20 ms par ce test) remet le compte à zéro.
+    await attendreEtat('la proposition retirée et le focus sur « Générer », tenus au-delà de trois rendus retardés', () => {
       expect(q('[data-bouton="retenir"]'), 'la proposition retenue devait disparaître').toBeNull();
       expect(actif(), 'le focus est tombé sur <body> quand la vue relue est rendue après le replacement').toBe(q('[data-bouton="lancer"]'));
-    }, { timeout: ATTENTE_FOCUS_MS, interval: 5 });
-    // L'état tient · rien de ce qui reste en file ne le défait.
-    await act(async () => { await new Promise((r) => setTimeout(r, 5)); });
+      return true;
+    }, { borneMs: ATTENTE_FOCUS_MS, intervalleMs: 5, stabilite: SONDAGES_FOCUS_STABLE });
+    // L'état a tenu toute la fenêtre · on le relit une dernière fois.
     expect(q('[data-bouton="retenir"]'), 'la proposition retenue devait disparaître').toBeNull();
     expect(actif(), 'le focus est tombé sur <body> quand la vue relue est rendue après le replacement').toBe(q('[data-bouton="lancer"]'));
   });

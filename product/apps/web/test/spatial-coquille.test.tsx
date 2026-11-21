@@ -5,6 +5,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { entreesRail, entreesRailEspace, modulesMobiles, type GroupePalette } from '@tiktrends/core';
 import { squelette, fragmentReference } from './spatial/parite';
+import { attendreEtat, pasDansAct, SONDAGES_ABSENCE } from './helpers/attendre-etat';
 
 /**
  * Spatial · les SURCOUCHES de la coquille (rubrique A) · parité de structure
@@ -263,7 +264,11 @@ afterEach(() => { act(() => racine?.unmount()); racine = null; hote.remove(); do
 const monter = async (n: React.ReactNode) => { await act(async () => { racine = createRoot(hote); racine.render(n); }); };
 const touche = async (key: string, o: KeyboardEventInit = {}) => { await act(async () => { window.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, ...o })); }); };
 const clic = async (el: Element | null) => { if (!el) throw new Error('élément absent'); await act(async () => { (el as HTMLElement).click(); }); };
-const attendre = () => act(async () => { await new Promise((r) => setTimeout(r, 80)); });
+/** L'état attendu après un geste · sondé dans `act`, jamais une durée. */
+const attendreQue = (condition: string, sonde: () => unknown) => attendreEtat(condition, sonde, { pas: pasDansAct });
+/** Une ABSENCE · l'état doit tenir toute la fenêtre mesurée (`SONDAGES_ABSENCE`). */
+const rienNeBouge = (condition: string, sonde: () => unknown) => attendreEtat(condition, sonde, { pas: pasDansAct, stabilite: SONDAGES_ABSENCE, echecImmediat: true });
+const id = (x: string) => document.activeElement?.id === x;
 
 function donnees(): DonneesCoquille {
   const ouverts = new Set(['/studio/projets', '/veille', '/adsmap', '/assets', '/jarvis', '/brands', '/settings', '/team', '/billing']);
@@ -296,7 +301,7 @@ describe('Spatial · coquille · comportement des surcouches', () => {
     await monter(<Coquille donnees={donnees()}><button id="avant">x</button></Coquille>);
     (document.getElementById('avant') as HTMLElement).focus();
     await touche('k', { metaKey: true });
-    await attendre();
+    await attendreQue('la palette est ouverte, focus dans le champ, projets lus', () => document.getElementById('pal') && id('palin') && document.querySelector('#palres a.on') && document.body.textContent?.includes('Collection été'));
     expect(document.getElementById('pal')).not.toBeNull();
     expect(document.activeElement?.id).toBe('palin');
     expect(h.projets).toHaveBeenCalledWith({ brandId: 'b1', limite: 6 });
@@ -305,7 +310,7 @@ describe('Spatial · coquille · comportement des surcouches', () => {
     await act(async () => { document.getElementById('palin')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true })); });
     expect(document.querySelector('#palres a.on')?.textContent).toContain('Studios');
     await touche('Escape');
-    await attendre();
+    await attendreQue('la palette est fermée, focus rendu', () => !document.getElementById('pal') && id('avant'));
     expect(document.getElementById('pal')).toBeNull();
     expect(document.activeElement?.id).toBe('avant');
   });
@@ -315,7 +320,7 @@ describe('Spatial · coquille · comportement des surcouches', () => {
     try {
       await monter(<Coquille donnees={donnees()}><button id="avant">x</button></Coquille>);
       await touche('k', { metaKey: true });
-      await attendre();
+      await attendreQue('la palette est ouverte, focus dans le champ', () => id('palin'));
       const champ = document.getElementById('palin') as HTMLInputElement;
       const saisir = async (v: string) => {
         await act(async () => {
@@ -346,11 +351,11 @@ describe('Spatial · coquille · comportement des surcouches', () => {
     h.fetchNotifications.mockResolvedValue({ items: [NOTIFS[0]!, NOTIFS[3]!], unread: 1 });
     const { EnTete } = await import('../spatial/communs');
     await monter(<Coquille donnees={donnees()}><EnTete titre="T" /></Coquille>);
-    await attendre();
+    await attendreQue('les notifications sont lues · la cloche annonce la non lue', () => document.getElementById('bell')?.getAttribute('aria-label') === 'Notifications · 1 non lue');
     const bell = document.getElementById('bell')!;
     bell.focus();
     await clic(bell);
-    await attendre();
+    await attendreQue('le panneau des notifications est ouvert, rendu, et a le focus', () => !document.getElementById('notif')!.hidden && document.activeElement === document.getElementById('notif') && document.querySelectorAll('#notif article.nit').length > 0);
     const panneau = document.getElementById('notif')!;
     expect(panneau.hidden).toBe(false);
     expect(document.activeElement).toBe(panneau);
@@ -359,7 +364,7 @@ describe('Spatial · coquille · comportement des surcouches', () => {
     await clic(document.getElementById('nall'));
     expect(h.markAll).toHaveBeenCalledTimes(1);
     await touche('Escape');
-    await attendre();
+    await attendreQue('le panneau des notifications est fermé, focus rendu à la cloche', () => panneau.hidden && document.activeElement === bell);
     expect(panneau.hidden).toBe(true);
     expect(document.activeElement).toBe(bell);
     // Même défaut que G17 (profil) · posée dans la fenêtre déjà floutée, la pop-up ne floute plus
@@ -401,12 +406,12 @@ describe('Spatial · coquille · comportement des surcouches', () => {
     vi.stubGlobal('fetch', fetchFactice);
     try {
       await monter(<Coquille donnees={donnees()}><EnTeteFactice /></Coquille>);
-      await attendre();
+      await rienNeBouge('tiroir fermé · aucune lecture du fil', () => h.thread.mock.calls.length === 0 && document.getElementById('jdraw')!.hidden);
       expect(h.thread).not.toHaveBeenCalled(); // rien n'est lu tant que le tiroir est fermé
       const jv = document.getElementById('jv')!;
       jv.focus();
       await clic(jv);
-      await attendre();
+      await attendreQue('le tiroir est ouvert, le fil lu, focus dans le champ', () => !document.getElementById('jdraw')!.hidden && h.thread.mock.calls.length > 0 && document.querySelector('[data-jdq]') && id('jdin'));
       const tiroir = document.getElementById('jdraw')!;
       expect(tiroir.hidden).toBe(false);
       expect(document.body.classList.contains('jd-open')).toBe(true);
@@ -418,12 +423,13 @@ describe('Spatial · coquille · comportement des surcouches', () => {
       expect((document.getElementById('jdin') as HTMLInputElement).value).toBe('Propose trois angles');
       expect(fetchFactice).not.toHaveBeenCalled(); // une suggestion n'envoie rien
       await act(async () => { (document.getElementById('jdform') as HTMLFormElement).requestSubmit(); });
-      await attendre();
+      await attendreQue('la question est partie et l’envoi fini (champ rendu)', () => appels.length > 0 && !(document.getElementById('jdin') as HTMLInputElement).disabled);
+      await rienNeBouge('plus aucune requête du tiroir après l’envoi', () => appels.length === 1);
       expect(appels).toHaveLength(1);
       expect(appels[0]!.url).toBe('/api/jarvis/chat');
       expect(appels[0]!.corps).toMatchObject({ message: 'Propose trois angles', brandId: 'b1' });
       await touche('Escape');
-      await attendre();
+      await attendreQue('le tiroir est fermé, focus rendu à la bulle', () => tiroir.hidden && document.activeElement === jv);
       expect(tiroir.hidden).toBe(true);
       expect(document.activeElement).toBe(jv);
     } finally { vi.unstubAllGlobals(); }
@@ -449,7 +455,7 @@ describe('Spatial · parcours d’accueil · comportement', () => {
       set.call(champ, 'Neva'); champ.dispatchEvent(new Event('input', { bubbles: true }));
     });
     await clic(document.querySelector('[data-obnav="1"]'));
-    await attendre();
+    await attendreQue('la marque est enregistrée, l’étape suivante affichée', () => document.querySelector('#obtt')?.textContent === 'Branche tes outils');
     expect(h.save).toHaveBeenCalledWith(expect.objectContaining({ brandName: 'Neva', adLevel: 'teste', goals: ['ads', 'analyze'], profile: 'brand' }));
     expect(document.querySelector('#obtt')?.textContent).toBe('Branche tes outils');
   });
@@ -457,12 +463,12 @@ describe('Spatial · parcours d’accueil · comportement', () => {
   it('Échap ne ferme pas le parcours · « Passer tout » enregistre puis mène à l’accueil', async () => {
     await monter(<FournisseurSpatial value={CTX}><ParcoursAccueil {...PARCOURS} /></FournisseurSpatial>);
     await touche('Escape');
-    await attendre();
+    await rienNeBouge('le parcours reste ouvert · rien d’enregistré, aucune navigation', () => document.getElementById('onb') && h.save.mock.calls.length === 0 && h.push.mock.calls.length === 0);
     expect(document.getElementById('onb')).not.toBeNull();
     expect(h.save).not.toHaveBeenCalled();
     expect(h.push).not.toHaveBeenCalled();
     await clic(document.querySelector('[data-obclose]'));
-    await attendre();
+    await attendreQue('« Passer tout » a mené à l’accueil', () => h.push.mock.calls.length > 0);
     expect(h.save).toHaveBeenCalledTimes(1);
     expect(h.push).toHaveBeenCalledWith('/dashboard');
   });
