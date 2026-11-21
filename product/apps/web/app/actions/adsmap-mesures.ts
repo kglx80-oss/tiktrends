@@ -2,7 +2,8 @@
 
 import { db, schema, eq, and, sql } from '@tiktrends/db';
 import {
-  enteteDuFichier, lectureSeparateur, lireMesuresMeta, planImportMesures, preuveAEcrire, refusColonnes,
+  cleVerrouImportMesures, enteteDuFichier, lectureSeparateur, lireMesuresMeta, planImportMesures, preuveAEcrire, refusColonnes,
+  REFUS_IMPORT_MESURES_EN_COURS,
   LIBELLE_LIGNE_ECARTEE, LIBELLE_PAR, LIBELLE_RATTACHEMENT, PHRASE_PRIORITE_MESURES,
   type LectureMesures, type PlanMesures, type TotauxPlan,
 } from '@tiktrends/core';
@@ -174,24 +175,30 @@ export async function applyMesuresAction(csvText: string, confirmees: readonly s
       addToCart: e.mesures.addToCart ?? null, landingViews: e.mesures.landingViews ?? null,
       metaAdId: e.source.adIdMeta, nomAnnonce: e.source.nom, campagne: e.source.protocole.campagne, campagneId: e.source.protocole.campagneId,
       ensemble: e.source.protocole.ensemble, ensembleId: e.source.protocole.ensembleId, budgetJour: e.source.protocole.budgetJour, cbo: e.source.protocole.cbo,
-      fichier: nomFichier, importePar: g.s.user.id, importeLe: new Date(),
+      fichier: nomFichier, importePar: g.s.user.id,
     }));
     const T = schema.mesuresCsv;
-    await db!.transaction(async (tx) => {
-      // Deux imports de la même marque s'écrivent l'un APRÈS l'autre · chacun relit, sous ce verrou, les lignes qu'il
+    const issue = await db!.transaction(async (tx) => {
+      // Deux imports de la même marque ne s'écrivent jamais en même temps · chacun relit, sous ce verrou, les lignes qu'il
       // remplace · sans lui, un import muet calculait sa preuve sur une lecture périmée et écrasait le CBO d'un import
-      // concurrent (faux comparable). Verrou de transaction · relâché au commit ou à l'annulation.
-      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`adsmap-mesures-import:${brandId}`}))`);
+      // concurrent (faux comparable). Verrou de transaction, PREMIÈRE requête · relâché au commit ou à l'annulation.
+      // Il n'attend pas · tenu par un autre import, celui-ci est refusé, sans garder une connexion du pool en file.
+      const verrou = await tx.execute(sql`select pg_try_advisory_xact_lock(hashtext(${cleVerrouImportMesures(brandId)})) as pris`);
+      const [v] = (Array.isArray(verrou) ? verrou : (verrou as { rows?: unknown[] }).rows ?? []) as Array<{ pris?: unknown }>;
+      if (v?.pris !== true) return 'occupe' as const;
+      // Daté APRÈS la prise · l'attente d'une connexion ne vieillit pas la preuve (`preuveAEcrire` classe par date).
+      const importeLe = new Date();
       for (let i = 0; i < lignes.length; i += 200) {
         // La ligne que chaque entrée remplace (même ad, même période), relue DANS la transaction · un réimport MUET (sans
         // colonne budget) en garde la preuve, CBO ou budget du même ensemble, ET SA DATE (`preuveAEcrire`, noyau) · sans
         // elle, un réimport effaçait un CBO établi, ou rajeunissait une vieille preuve d'ABO devant un CBO plus récent.
-        const tranche = lignes.slice(i, i + 200);
+        const tranche = lignes.slice(i, i + 200).map((l) => ({ ...l, importeLe }));
         const cles = sql.join(tranche.map((l) => sql`(${l.adId}::uuid, ${l.dateDebut}::date, ${l.dateFin}::date)`), sql`, `);
+        // Sur la clé du CONFLIT seule (clé primaire), sans filtre de marque · la ligne relue est celle que l'upsert remplace.
         const anciennes = await tx.select({
           adId: T.adId, debut: T.dateDebut, fin: T.dateFin, metaAdId: T.metaAdId, campagne: T.campagne, campagneId: T.campagneId,
           ensemble: T.ensemble, ensembleId: T.ensembleId, cbo: T.cbo, budgetJour: T.budgetJour, importeLe: T.importeLe,
-        }).from(T).where(and(eq(T.brandId, brandId), sql`(${T.adId}, ${T.dateDebut}, ${T.dateFin}) in (${cles})`));
+        }).from(T).where(sql`(${T.adId}, ${T.dateDebut}, ${T.dateFin}) in (${cles})`);
         const parCle = new Map(anciennes.map((r) => [`${r.adId}|${r.debut}|${r.fin}`, r]));
         const ecrites = tranche.map((l) => ({ ...l, ...preuveAEcrire(parCle.get(`${l.adId}|${l.dateDebut}|${l.dateFin}`), l) }));
         await tx.insert(schema.mesuresCsv).values(ecrites).onConflictDoUpdate({
@@ -215,7 +222,10 @@ export async function applyMesuresAction(csvText: string, confirmees: readonly s
           .set({ externalIds: sql`coalesce(${schema.ads.externalIds}, '{}'::jsonb) || ${JSON.stringify({ ad_id: e.idMeta })}::jsonb` })
           .where(and(eq(schema.ads.id, e.adId), eq(schema.ads.workspaceId, ws), sql`(${schema.ads.externalIds} ->> 'ad_id') is null`));
       }
+      return 'ecrit' as const;
     });
+    // Rien n'est écrit, rien n'est journalisé · ce n'est pas une remontée en échec, l'autre import est en train d'écrire.
+    if (issue === 'occupe') return { error: REFUS_IMPORT_MESURES_EN_COURS };
 
     const touchees = new Set(p.plan.aEcrire.map((e) => e.adId));
     const v = await recalculerVerdicts({ id: brandId, name: g.brand.name, workspaceId: ws }, p.ads, touchees);
