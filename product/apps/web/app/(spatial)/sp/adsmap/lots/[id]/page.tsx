@@ -6,7 +6,7 @@ import {
   entreesLectureOffres, lectureOffres, libelleAttributionOffre, regleLectureOffres, SANS_OFFRE_TEST,
   apprentissagesDepuisReponse, lireGesteConclusion, REFUS_GESTE_JARVIS, gestesPersonaLot, choixIterationSpatial,
   accesHypothese, gestesLectureGroupe, noteDepartLectureOffre, gagnanteArbitree, gestesClavierLot,
-  importFicheLot, reserveFenetreIncomplete, TITRE_FENETRE_INCOMPLETE,
+  importFicheLot, reserveFenetreIncomplete, TITRE_FENETRE_INCOMPLETE, phraseLotLuEnPartie, TITRE_LECTURE_INCOMPLETE,
 } from '@tiktrends/core';
 import { gagnantesDuLot, gestesGagnantesLot } from '@tiktrends/core';
 import { roleAtLeast } from '../../../../../../lib/rbac';
@@ -79,6 +79,8 @@ export default async function LotSpatial({ params, searchParams }: { params: Pro
   const hypothese = accesHypothese({ adsmap: roleAtLeast(g.s.role, 'member') ? 'ok' : 'role', marqueActive: true });
 
   const pres = presentationLot(l, d.ctx);
+  // Lu en partie · dit en tête de fiche · un lot lancé n'a alors aucun état (`illisible`), donc ni arbitrage ni import proposé.
+  const lu = phraseLotLuEnPartie(l, { etatCalcule: pres.etat !== 'illisible' });
   const syn = syntheseLot(l, d.config.targetCpa);
   const barres = barresCpa(l.ads);
   const conclusion = conclusionLot(l, pres.etat, referenceConclusion(d.lots, l.id));
@@ -171,6 +173,7 @@ export default async function LotSpatial({ params, searchParams }: { params: Pro
         {actions && <ActionsLot {...actions} />}
         <DupliquerLot lotId={l.id} numero={l.numero} variantes={l.ads.length} raison={g.admin ? null : 'Dupliquer un lot est réservé aux admins de l’espace, comme en créer un.'} />
       </>}
+      lecture={lu ? { lotId: l.id, titre: TITRE_LECTURE_INCOMPLETE, phrase: lu } : null}
       reserves={[LIBELLE_NATURE_LOT[natureLot({ status: l.statut, launchedAt: l.lanceLe })].phrase, l.protocole?.resume ?? null].filter((x): x is string => !!x)}
       fiches={l.ads.map((a) => {
         const v = verdictAffiche(a.verdict);

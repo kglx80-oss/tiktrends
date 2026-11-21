@@ -124,10 +124,11 @@ async function lot(cle: string, o: { ws?: string; brand?: string; numero: number
 
 /**
  * La borne · 3 lots × 700 variantes (codes v0001…v0700 dans CHAQUE lot), en diffusion · v0001…v0666 mesurées
- * au-dessus du minimum, v0667…v0700 sans mesure. `LIMITE_ADS_LOTS` (2 000) coupe après 666 codes × 3 = 1 998,
- * puis DEUX des trois v0667 · départagées par l'identifiant. Seuls les deux lots dont la v0667 est lue attendent ·
- * une lecture sans la borne en verrait trois, un autre départage choisirait d'autres lots. Leur fin prévue est
- * passée (31 janvier) · leurs mesures MANQUENT, le compte les voit (sans elle, « en cours », il se tairait).
+ * au-dessus du minimum, v0667…v0700 sans mesure. L'ancienne borne globale (2 000 par code) coupait après
+ * 666 codes × 3 = 1 998, puis DEUX des trois v0667 · deux lots comptés sur une partie de leurs variantes, le
+ * troisième oublié. Chaque lot est désormais lu en entier ou pas du tout (`lotsALire`) · 700 variantes passent
+ * le plafond d'un lot (`BORNES_LECTURE_LOTS.plafondParLot`) · aucun n'est lu, chacun garde son compte en base ·
+ * « Lecture incomplète », compté nulle part · le rail et la liste le disent pareil.
  */
 async function borne() {
   const ws = I.wsA!, brand = I.bBorne!;
@@ -322,16 +323,16 @@ describe('qui voit la pastille', () => {
 });
 
 describe('LA lecture du rail · la MÊME portée, le MÊME ordre, la MÊME borne que `chargerLots`', () => {
-  it('à la borne (2 000 variantes atteintes, départage par l’identifiant) · mêmes lots retenus, mêmes variantes par lot', async () => {
+  it('à la borne (lots au-delà du plafond d’un lot) · mêmes lots retenus, mêmes variantes et mêmes comptes en base par lot', async () => {
     const liste = await chargerLots(I.wsA!, I.bBorne!, MAINTENANT);
     const legere = await chargerFaitsRail(I.wsA!, I.bBorne!, MAINTENANT);
-    expect(liste.lots.reduce((s, l) => s + l.ads.length, 0), 'préalable · la borne est atteinte').toBe(2000);
-    expect(legere.lots.map((l) => [l.id, l.ads.length]), 'la lecture légère ne lit pas les mêmes variantes que la liste').toEqual(liste.lots.map((l) => [l.id, l.ads.length]));
+    expect(liste.lots.map((l) => [l.ads.length, l.variantesEnBase]), 'préalable · chaque lot passe le plafond, aucun n’est lu en partie').toEqual([[0, 700], [0, 700], [0, 700]]);
+    expect(legere.lots.map((l) => [l.id, l.ads.length, l.variantesEnBase]), 'la lecture légère ne lit pas les mêmes variantes que la liste').toEqual(liste.lots.map((l) => [l.id, l.ads.length, l.variantesEnBase]));
     const attendu = compteAImporter(liste.lots, liste.ctx, liste.config);
     const lu = await compterAImporter(I.wsA!, I.bBorne!, MAINTENANT);
     expect(lu, 'la lecture légère ne retient pas les mêmes lots que `chargerLots`').toEqual(attendu);
-    // Seuls deux des trois lots ont leur v0667 lue (sans mesure) · lesquels · les plus petits identifiants de v0667.
-    expect(lu.n, 'la borne ne coupe pas où il faut').toBe(2);
+    // Lus en partie · aucun n'est compté sur une partie de ses variantes (l'ancienne borne en comptait deux sur trois).
+    expect(lu.n, 'un lot lu en partie est compté « à importer »').toBe(0);
   });
 
   it('chaque marque du semis · mêmes lots que `chargerLots` + la règle, et ce que la liste « Lot » montre', async () => {

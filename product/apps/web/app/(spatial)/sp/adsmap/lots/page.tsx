@@ -1,6 +1,6 @@
 import {
   PARAM_FILTRE_LOTS, actionAConclure, boucleIterationLots, compteLotsEnAttente, dansFiltreLots, filtreInitialLots, gestesListeLots, porteeListeLots, presentationLot,
-  selectionAConclure, sousListeAConclure, sousNavResultats,
+  selectionAConclure, sousListeAConclure, sousNavResultats, noteLectureLots,
 } from '@tiktrends/core';
 import { iterationPlanAction } from '../../../../actions/adsmap-iterate';
 import { Lots } from '../../../../../spatial/vues/resultats/Lots';
@@ -53,6 +53,7 @@ export default async function LotsSpatial({ searchParams }: { searchParams: Prom
         peutCreer={false}
         gestes={gestes}
         note={note}
+        lecture={noteLectureLots(d.lots)}
       />
     );
   }
@@ -72,6 +73,7 @@ export default async function LotsSpatial({ searchParams }: { searchParams: Prom
       gestes={gestes}
       boucle={boucle}
       note={note}
+      lecture={noteLectureLots(d.lots)}
     />
   );
 }

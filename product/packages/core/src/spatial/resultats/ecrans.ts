@@ -175,7 +175,7 @@ function conclusionHypothese(v: FaitsVerdictSpatial | null): CarteHypothese['con
   return { libelle: 'Non tranchée', classe: '', icone: 'q' };
 }
 
-const LANCE: ReadonlySet<EtatLotSpatial> = new Set<EtatLotSpatial>(['diffusion', 'a_importer', 'a_conclure', 'non_concluant']);
+const LANCE: ReadonlySet<EtatLotSpatial> = new Set<EtatLotSpatial>(['diffusion', 'a_importer', 'a_conclure', 'non_concluant', 'illisible']);
 const BANDE: Record<string, 1 | 2 | 3> = { low: 1, med: 2, high: 3 };
 
 /**

@@ -15,3 +15,4 @@ export * from './a-conclure';
 export * from './fin-prevue';
 export * from './import-lot';
 export * from './mesure-arretee';
+export * from './lecture-lot';

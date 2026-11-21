@@ -145,11 +145,11 @@ async function accueil() {
 }
 
 describe('la lecture bornée ne fait plus passer un lot pour conclu', () => {
-  it('préalable · la borne coupe `z9` · la lecture du rail ne voit que `a1`, arbitrée', async () => {
+  it('préalable · #10 est lu EN ENTIER (`a1` arbitrée, `z9` sans verdict) · le remplissage, au-delà du plafond d’un lot, n’est pas lu', async () => {
     const f = await chargerFaitsRail(I.ws!, I.b!);
     const t = f.lots.find((l) => l.id === L.tronque);
-    expect(f.lots.reduce((k, l) => k + l.ads.length, 0), 'préalable · la borne n’est pas atteinte').toBe(BORNE);
-    expect(t?.ads.map((a) => a.verdict?.statut ?? null), 'préalable · la lecture n’est pas tronquée comme prévu').toEqual(['validated']);
+    expect(f.lots.reduce((k, l) => k + l.variantesEnBase, 0), 'préalable · la marque ne passe pas l’ancienne borne globale (les cinq `a…`, le remplissage, `z9`)').toBe(BORNE + 1);
+    expect(t?.ads.map((a) => a.verdict?.statut ?? null), 'le lot #10 est lu en partie').toEqual(['validated', null]);
   });
 
   it('l’Accueil · le lot #10, une variante coupée sans verdict · « fin prévue passée » et « En diffusion », jamais caché', async () => {

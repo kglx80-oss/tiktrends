@@ -3,6 +3,7 @@ import { verdictEffectif, type VerdictValue } from '../../adsmap/types';
 import { LIBELLE_VERDICT } from '../../adsmap/verdict-libelle';
 import { RAISON_IMPORT_FERME, lienImportLot } from './fin-prevue';
 import { joursEntiersDepuis, mesureArretee } from './mesure-arretee';
+import { TITRE_LECTURE_INCOMPLETE, lotLuEnEntier } from './lecture-lot';
 
 /**
  * Spatial · Résultats · les LOTS de test, lus sur leurs faits réels.
@@ -79,10 +80,13 @@ export interface FaitsLotSpatial {
   ads: FaitsAdSpatial[];
   /** Le dernier contrôle de protocole (`protocolCheck`) · `null` s'il n'a pas tourné. */
   protocole: { conforme: boolean | null; resume: string | null } | null;
+  /** Le nombre de variantes que la base compte pour ce lot (`FaitsEtatLot.variantesEnBase`). */
+  variantesEnBase?: number;
 }
 
+/** `illisible` · un lot lancé que la lecture n'a pas vu en entier (`lotLuEnEntier`) · aucun état n'est calculé sur une partie de ses variantes. */
 export type EtatLotSpatial =
-  | 'composition' | 'pret' | 'diffusion' | 'a_importer' | 'a_conclure' | 'non_concluant' | 'conclu' | 'importe';
+  | 'composition' | 'pret' | 'diffusion' | 'a_importer' | 'a_conclure' | 'non_concluant' | 'conclu' | 'importe' | 'illisible';
 
 /** Les deux verdicts qui ne disent rien à retenir · même liste que la file de décisions. */
 const NON_CONCLUANTS: ReadonlySet<VerdictValue> = new Set<VerdictValue>(['inconclusive', 'insufficient_delivery']);
@@ -110,6 +114,13 @@ export interface FaitsEtatLot {
   statut: string;
   lanceLe: string | null;
   ads: ReadonlyArray<FaitsVerdictVariante>;
+  /**
+   * Combien de variantes la base compte pour ce lot (même portée que la
+   * lecture) · moins de variantes lues · le lot est `illisible` dès que son
+   * état dépend de ses variantes (`lotLuEnEntier`). Absent · le lecteur n'a
+   * posé aucune borne, le lot est lu en entier par construction.
+   */
+  variantesEnBase?: number;
 }
 /** Une variante, vue par l'état de son lot · seulement son verdict (statut, valeur calculée, instant du calcul). */
 export interface FaitsVerdictVariante {
@@ -125,6 +136,8 @@ export function etatLotSpatial(l: FaitsEtatLot, c: ContexteLots): EtatLotSpatial
   if (estLotImporte({ status: l.statut, launchedAt: l.lanceLe })) return 'importe';
   if (l.statut === 'planned' || l.statut === 'in_production') return 'composition';
   if (l.statut === 'ready') return 'pret';
+  // Au-delà, l'état se lit sur les variantes · jamais sur une partie d'entre elles.
+  if (!lotLuEnEntier(l)) return 'illisible';
   const ads = l.ads;
   if (ads.length > 0 && ads.every((a) => a.verdict?.statut === 'validated')) return 'conclu';
   const jours = joursEntiersDepuis(l.lanceLe, c.maintenant);
@@ -219,6 +232,7 @@ export const PRESENTATION_ETAT_LOT: Record<EtatLotSpatial, { statut: string; pil
   non_concluant: { statut: 'Non concluant', pill: '', anneau: 'w', action: 'Voir le lot', primaire: false },
   conclu: { statut: 'Conclu', pill: 'g', anneau: 'g', action: 'Voir le lot', primaire: false },
   importe: { statut: 'Historique importé', pill: '', anneau: '', action: 'Voir le lot', primaire: false },
+  illisible: { statut: TITRE_LECTURE_INCOMPLETE, pill: 'w', anneau: '', action: 'Voir le lot', primaire: false },
 };
 
 export interface PresentationLot {
@@ -434,11 +448,13 @@ export function phraseLot(p: PresentationLot, s: SyntheseLot, variantes: number)
     case 'non_concluant': return 'Aucune variante n’a tranché · sans volume suffisant, rien n’est à retenir.';
     case 'conclu': return s.titre;
     case 'importe': return 'Historique repris du tableau · ses verdicts ne sont pas comparables aux tests suivis ici.';
+    case 'illisible': return 'Lu en partie · son état n’est pas calculé sur une partie de ses variantes.';
   }
 }
 
 /** « Et maintenant » · la suite que les règles autorisent (on n'itère que sur une gagnante, §2.4). */
 export function suiteLot(etat: EtatLotSpatial, s: SyntheseLot): string {
+  if (etat === 'illisible') return 'Ouvre la fiche du lot · elle dit combien de ses variantes ont pu être lues.';
   if (etat === 'a_conclure') return 'Conclure le lot enregistre ce qu’il t’apprend et débloque l’itération sur la gagnante.';
   if (etat === 'non_concluant') return 'Arbitre-le quand même : écrire pourquoi rien n’a tranché évite de relancer le même test.';
   if (s.gagnante) return 'Prépare la suite depuis la gagnante · une seule variable change, le reste est gardé.';
@@ -454,7 +470,7 @@ export function indexLotVedette(lots: ReadonlyArray<{ etat: EtatLotSpatial; aDes
   return c >= 0 ? c : lots.findIndex((l) => l.aDesVerdicts);
 }
 
-const URGENCE: Record<EtatLotSpatial, number> = { a_conclure: 0, a_importer: 1, pret: 2, composition: 3, diffusion: 4, non_concluant: 5, conclu: 6, importe: 7 };
+const URGENCE: Record<EtatLotSpatial, number> = { a_conclure: 0, a_importer: 1, pret: 2, composition: 3, diffusion: 4, illisible: 5, non_concluant: 6, conclu: 7, importe: 8 };
 
 /** Les « autres tests » · au plus `max`, ceux qui attendent une action d'abord (ordre stable sinon). */
 export function indexAutresLots(lots: ReadonlyArray<{ etat: EtatLotSpatial }>, vedette: number, max = 3): number[] {
@@ -507,5 +523,6 @@ export function coachLot(p: PresentationLot, s: SyntheseLot, variantes: number):
     case 'composition': return { avant: 'Lot en préparation :', fort: `${variantes} variante${variantes > 1 ? 's' : ''}`, apres: '· range, complète et prépare avant de lancer.' };
     case 'pret': return { avant: 'Toutes les variantes sont prêtes :', fort: 'lance-les dans Meta avec les noms générés', apres: '· puis marque le lot lancé ici.' };
     case 'importe': return { avant: 'Historique importé :', fort: s.titre, apres: '· ses verdicts ne sont pas comparables aux tests suivis ici.' };
+    case 'illisible': return { avant: 'Lecture incomplète :', fort: `${variantes} variante${variantes > 1 ? 's' : ''} lue${variantes > 1 ? 's' : ''}`, apres: '· une partie seulement du lot · aucun verdict d’ensemble n’en est tiré.' };
   }
 }

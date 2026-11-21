@@ -15,7 +15,7 @@ export const dynamic = 'force-dynamic';
  * (`lotCibleImport`). Rien n'est écrit à l'affichage.
  * La liste « Lot » (I06 · `listeLotImport`) · les lots de la marque qui
  * attendent des mesures, parmi ceux DÉJÀ lus ici (`chargerLots` · même ordre,
- * même borne), regroupés par cas (`casMesuresLot` · « mesures manquantes »,
+ * mêmes lots lus en entier), regroupés par cas (`casMesuresLot` · « mesures manquantes »,
  * que la pastille du rail compte, puis « mesures en cours ») · la sélection
  * est l'adresse (`?lot=`) · « Tous les lots », l'écran tel qu'il était. Aucun
  * lot à choisir · aucune liste. La section du lot dit son cas (`mesuresDuLot`, la même règle).

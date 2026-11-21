@@ -48,6 +48,8 @@ export interface PropsLots {
   /** Ce que la liste montre (`gestesListeLots`) · absent, la liste complète. */
   gestes?: GestesListeLots;
   note: string;
+  /** Des lots sont lus en partie (`noteLectureLots`) · la phrase, sous la liste · absente ou `null`, rien n'est ajouté. */
+  lecture?: string | null;
   /** « Itérer · N itérations conseillées » · `boucleIterationLots` · absent, la barre n'est pas posée. */
   boucle?: { libelle: string; href: string; raison: null } | { libelle: string; href: null; raison: string };
 }
@@ -139,7 +141,10 @@ export function Lots(p: PropsLots) {
         ))}
         {liste.length === 0 && <p className="faint">{gestes.raison ? VIDE_LISTE_A_CONCLURE : p.lots.length ? 'Aucun lot dans ce filtre.' : 'Aucun lot pour cette marque · ouvre le premier pour composer un test.'}</p>}
       </div>
-      <p className="faint" style={{ fontSize: '11.5px', marginTop: 12 }}>{p.note}</p>
+      {/* La note de lecture partage la place de la note des seuils · un enfant de plus décalerait les identifiants (`useId`) plus bas. */}
+      {p.lecture
+        ? <><p className="faint" role="note" data-lecture-incomplete="" style={{ fontSize: '11.5px', marginTop: 12 }}>{p.lecture}</p><p className="faint" style={{ fontSize: '11.5px', marginTop: 12 }}>{p.note}</p></>
+        : <p className="faint" style={{ fontSize: '11.5px', marginTop: 12 }}>{p.note}</p>}
       {liste.length > 1 && suivant && precedent && (
         <p className="faint" data-aide-liste-lots="" style={{ fontSize: '11.5px', marginTop: 6 }}>
           Au clavier, depuis un lot de la liste<Touche t={suivant} lue /><Touche t={precedent} lue /> lot suivant ou précédent · {touchesAffichees('Enter').join(' ')} l’ouvre.

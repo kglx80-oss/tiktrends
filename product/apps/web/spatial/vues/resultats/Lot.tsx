@@ -48,6 +48,11 @@ export interface PropsLot {
   personas?: PropsPersonasLot;
   /** Lot 9 bis V5 · « Quelle offre » · l'offre de chaque variante et la lecture par offre (`OffresLot`) · absent, rien n'est ajouté. */
   offres?: PropsOffresLot;
+  /**
+   * Le lot est lu en partie (`phraseLotLuEnPartie`) · dit en tête de fiche,
+   * avant tout verdict · absent ou `null` (lu en entier), rien n'est ajouté à la maquette.
+   */
+  lecture?: { lotId: string; titre: string; phrase: string } | null;
 }
 
 const TON_CONCLUSION: Record<LectureConclusion['conclusion'], { pill: string; couleur: string; icone: string }> = {
@@ -73,13 +78,26 @@ function ConclusionDuLot({ c }: { c: LectureConclusion }) {
   );
 }
 
+function LectureIncomplete({ l }: { l: NonNullable<PropsLot['lecture']> }) {
+  return (
+    <section className="tile" role="note" aria-label={l.titre} data-lecture-incomplete={l.lotId} style={{ display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap', marginBottom: 16 }}>
+      <span className="ico" style={{ color: 'var(--warn)' }}><Ic n="q" /></span>
+      <div style={{ display: 'grid', gap: 4, flex: 1, minWidth: 220 }}>
+        <h2 style={{ margin: 0 }}>{l.titre}</h2>
+        <p className="muted" style={{ fontSize: '12.5px' }}>{l.phrase}</p>
+      </div>
+    </section>
+  );
+}
+
 export function Lot(p: PropsLot) {
   // « Fiche » sur chaque variante · le nom dit LAQUELLE (il commence par le mot affiché · `nomsDeLignes`).
   const nomsFiches = nomsDeLignes('Fiche', (p.fiches ?? []).map((f) => f.libelle));
   return (
     <Vue>
       <EnTete titre={p.titre} sous={p.sous} />
-      {p.conclusion && <ConclusionDuLot c={p.conclusion} />}
+      {/* Une seule place pour la lecture et la conclusion · ajouter un enfant à la vue décalerait les identifiants (`useId`) des gestes plus bas. */}
+      {p.lecture ? <><LectureIncomplete l={p.lecture} />{p.conclusion && <ConclusionDuLot c={p.conclusion} />}</> : p.conclusion && <ConclusionDuLot c={p.conclusion} />}
       <section className="tile verdict">
         <div className="ico" style={p.verdict.gagnant
           ? { width: 56, height: 56, borderRadius: 18, background: '#7ef0b01f', color: 'var(--good)' }

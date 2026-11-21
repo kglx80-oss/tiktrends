@@ -69,8 +69,8 @@ export function compteAConclure(lots: ReadonlyArray<FaitsEtatLot & { id: string;
  * lecture a vues pour chacun. Un tel lot reste `testing` en base (aucun écran
  * ne le passe `analyzed`) · l'Accueil l'écarte de « En diffusion » et de « fin
  * prévue passée » (`LotAccueil.conclu`) · seulement si la lecture l'a vu en
- * entier (`lotConcluAccueil`) · la lecture des lots est bornée
- * (`LIMITE_ADS_LOTS`), une variante coupée n'est pas une variante arbitrée.
+ * entier (`lotConcluAccueil`) · un lot lu en partie n'est jamais `conclu`
+ * (`illisible`, `lotLuEnEntier`), une variante non lue n'est pas une variante arbitrée.
  */
 export function lotsConclusLus(lots: ReadonlyArray<FaitsEtatLot & { id: string }>, c: ContexteLots): Map<string, number> {
   return new Map(lots.filter((l) => etatLotSpatial(l, c) === 'conclu').map((l) => [l.id, l.ads.length]));

@@ -19,7 +19,8 @@ import { jourCourt } from '../accueil/temps';
  *
  * La liste « Lot » ne lit RIEN de plus · les lots déjà lus par l'écran
  * (`chargerLots` · lots de la marque active, ads sous la portée de la marque,
- * même ordre et même borne que « Lots de test » et le compte « à conclure »).
+ * même ordre et mêmes lots lus en entier que « Lots de test » et le compte « à conclure »,
+ * `lotsALire` · un lot lu en partie est `illisible`, il n'attend rien d'ici).
  */
 
 /** Une variante telle que la liste la lit · l'état de son lot (statut, verdict calculé) et le diagnostic (plateforme, agrégat). */
@@ -34,12 +35,14 @@ export interface LotListeImport {
   /** `adsmap_batches.planned_end_at` (ISO) · posée au lancement (`launchBatchAction` · `finPrevueAuLancement`) · `null` pour un lot lancé avant, ou importé · la fenêtre du moteur prend alors le relais. */
   finPrevue: string | null;
   ads: ReadonlyArray<VarianteListeImport>;
+  /** Combien de variantes la base compte pour ce lot (`FaitsEtatLot.variantesEnBase`) · lu en partie, le lot n'attend rien d'ici (`illisible`). */
+  variantesEnBase?: number;
 }
 
 /** Ce que la règle `lotAttendDesMesures` lit d'un lot · son état (statut, lancement, verdicts) et ses variantes · ni son but, ni son identité, ni sa fin prévue. */
-export type FaitsLotEnMesure = Pick<LotListeImport, 'statut' | 'lanceLe' | 'ads'>;
+export type FaitsLotEnMesure = Pick<LotListeImport, 'statut' | 'lanceLe' | 'ads' | 'variantesEnBase'>;
 /** Ce que `casMesuresLot` lit · les mêmes faits, ET la fin prévue (obligatoire · l'oublier ferait taire la pastille sans le dire). */
-export type FaitsLotAImporter = Pick<LotListeImport, 'statut' | 'lanceLe' | 'finPrevue' | 'ads'>;
+export type FaitsLotAImporter = Pick<LotListeImport, 'statut' | 'lanceLe' | 'finPrevue' | 'ads' | 'variantesEnBase'>;
 
 /** Les états d'un lot qui reçoit encore des mesures · lancé, suivi dans l'outil, pas encore à arbitrer. */
 const ETATS_EN_MESURE: ReadonlySet<EtatLotSpatial> = new Set<EtatLotSpatial>(['diffusion', 'a_importer']);

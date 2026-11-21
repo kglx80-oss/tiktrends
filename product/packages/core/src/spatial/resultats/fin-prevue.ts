@@ -3,6 +3,7 @@ import type { VerdictValue } from '../../adsmap/types';
 import { sousLeMinimumDuMoteur, type SeuilMinimumMoteur } from '../../adsmap/verdict';
 import { jourCourt } from '../accueil/temps';
 import { mesuresArretees, type FenetreDuLot, type VerdictDate } from './mesure-arretee';
+import { lotLuEnEntier, phraseLotLuEnPartie } from './lecture-lot';
 
 /**
  * Spatial · Résultats · un lot en diffusion dont la FIN PRÉVUE est passée,
@@ -276,6 +277,8 @@ export interface LotImport {
   variantes: LigneVarianteImport[];
   /** À quel moment de sa vie le lot attend ses mesures (`mesuresDuLot`) · absent ou `null`, le lot n'attend rien. */
   mesures?: { cas: 'en-cours' | 'manquantes'; texte: string } | null;
+  /** Lu en partie (`lotLuEnEntier`) · la phrase (`phraseLotLuEnPartie`) · le diagnostic se tait alors · absent ou `null` lu en entier. */
+  lecture?: string | null;
 }
 
 /** L'état d'une variante · le même que le diagnostic lit (statut, plateforme, verdict calculé, minimum du moteur). */
@@ -288,18 +291,26 @@ export function etatVarianteImport(v: VarianteFinPrevue, seuil: SeuilMinimumMote
   return 'mesuree';
 }
 
+/**
+ * Le lot de l'écran d'import · `l.variantesEnBase` · le compte de ses variantes
+ * en base · lu en partie, aucun diagnostic n'est tiré des variantes lues (il
+ * dirait « 1 variante sur 2 » d'un lot de 600) · la section le dit (`lecture`).
+ */
 export function lotImport(
-  l: { id: string; numero: number; but: string | null },
+  l: { id: string; numero: number; but: string | null; variantesEnBase?: number },
   variantes: ReadonlyArray<VarianteFinPrevue & { code: string; nomRegie: string | null }>,
   seuil: SeuilMinimumMoteur,
   fenetre?: FenetreDuLot,
 ): LotImport {
   const sources = sourcesImportLot(variantes);
+  const lu = { ads: variantes, ...(l.variantesEnBase === undefined ? {} : { variantesEnBase: l.variantesEnBase }) };
+  const entier = lotLuEnEntier(lu);
   return {
     id: l.id,
     numero: l.numero,
     titre: l.but?.trim() ? `Lot #${l.numero} · ${l.but.trim()}` : `Lot #${l.numero}`,
-    diagnostic: phraseDiagnosticFinPrevue(l.numero, diagnosticFinPrevue(variantes, seuil, fenetre), seuil),
+    diagnostic: entier ? phraseDiagnosticFinPrevue(l.numero, diagnosticFinPrevue(variantes, seuil, fenetre), seuil) : null,
+    lecture: entier ? null : phraseLotLuEnPartie(lu, { etatCalcule: false }),
     sansSource: sources.ok ? null : `Lot #${l.numero} · ${sources.raison}`,
     variantes: variantes.map((v) => {
       const etat = etatVarianteImport(v, seuil);
