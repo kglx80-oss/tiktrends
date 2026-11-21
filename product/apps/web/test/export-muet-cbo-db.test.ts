@@ -34,7 +34,7 @@ import { describe, it, expect, vi, beforeAll } from 'vitest';
 
 const ids = vi.hoisted(() => {
   const { randomUUID } = require('node:crypto') as typeof import('node:crypto');
-  return { ws: randomUUID(), user: randomUUID(), marque: '', A: randomUUID(), P: randomUUID(), X: randomUUID(), V: randomUUID() };
+  return { ws: randomUUID(), user: randomUUID(), marque: '', A: randomUUID(), P: randomUUID(), X: randomUUID(), V: randomUUID(), W: randomUUID() };
 });
 const JOUR = 86_400_000;
 const J = (k: number) => new Date(Date.now() - k * JOUR).toISOString().slice(0, 10);
@@ -58,11 +58,12 @@ import { applyMesuresAction, previewMesuresAction } from '../app/actions/adsmap-
 
 vi.setConfig({ testTimeout: 180_000, hookTimeout: 180_000 });
 
-type Cle = 'A' | 'P' | 'X' | 'V';
+type Cle = 'A' | 'P' | 'X' | 'V' | 'W';
 /** Les identifiants Meta des deux ads de chaque marque · en chiffres (un export ne rattache qu'un identifiant Meta valide). */
 const ADS: Record<Cle, string[]> = {
   A: ['120200000000000901', '120200000000000902'], P: ['120200000000000911', '120200000000000912'],
   X: ['120200000000000921', '120200000000000922'], V: ['120200000000000931', '120200000000000932'],
+  W: ['120200000000000941', '120200000000000942'],
 };
 const JOURS = [7, 6, 5, 4, 3, 2, 1];
 const RELATIFS = { verdicts: 2, comparables: 0, winners: 0 };
@@ -220,6 +221,15 @@ describe('X · une ad rattachée par le NOM dans deux campagnes · le CBO de l�
     await importer(exportAds('50', [4, 3, 2, 1], '[ADSMAP] TEST Marque B1 Y', false, 'X'), 'y-abo.csv', 'X');
     expect((await lot('X')).codes, 'une partie de la dépense est sous CBO (campagne X) · l’ABO de la campagne la plus récente rend le lot comparable').toEqual(['cbo']);
     expect(await verdicts('X')).toEqual(RELATIFS);
+  });
+});
+
+describe('W · une ad rattachée par le NOM dans deux campagnes · l’une n’a que des lignes muettes · l’ABO de l’autre ne suffit pas', () => {
+  it('muette dans Y (J7-J5), puis budget 50 € dans X (J4-J1, plus récent) · « CBO non établi », pas comparable', async () => {
+    await importer(exportAds(null, [7, 6, 5], '[ADSMAP] TEST Marque B1 Y', false, 'W'), 'w-muet.csv', 'W');
+    await importer(exportAds('50', [4, 3, 2, 1], '[ADSMAP] TEST Marque B1 X', false, 'W'), 'w-abo.csv', 'W');
+    expect((await lot('W')).codes, 'la dépense de la campagne Y n’a aucune preuve de budget · l’ABO de X rend le lot comparable').toEqual(['cbo_inconnu']);
+    expect(await verdicts('W')).toEqual(RELATIFS);
   });
 });
 

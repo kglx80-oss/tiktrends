@@ -86,7 +86,7 @@ function notes(l: LectureMesures, plan: PlanMesures): string[] {
 }
 
 async function preparer(csvText: string, ws: string, brandId: string, confirmees: ReadonlySet<string>): Promise<
-  { error: string; guide?: ResultatApercuMesures['guide'] } | { lecture: LectureMesures; plan: PlanMesures; ads: AdDeLaMarque[]; lu: Awaited<ReturnType<typeof lireJourneesRetenues>> }
+  { error: string; guide?: ResultatApercuMesures['guide'] } | { lecture: LectureMesures; plan: PlanMesures; ads: AdDeLaMarque[] }
 > {
   const lecture = lireMesuresMeta(csvText);
   if (lecture.refus) {
@@ -103,7 +103,7 @@ async function preparer(csvText: string, ws: string, brandId: string, confirmees
   // LA lecture des mesures (connexion puis export) · ce qui est déjà en base et les jours que la connexion garde.
   const lu = await lireJourneesRetenues(brandId, { ads });
   const plan = planImportMesures(lecture, ads, { existantes: existantesParCle(lu.csv), joursMeta: lu.joursMeta, confirmees });
-  return { lecture, plan, ads, lu };
+  return { lecture, plan, ads };
 }
 
 /** Analyse l'export et rend ce qui serait écrit · n'écrit rien. */
@@ -166,31 +166,35 @@ export async function applyMesuresAction(csvText: string, confirmees: readonly s
     if (!p.plan.aEcrire.length) return { error: 'Aucune annonce rattachée à une ad de la marque · rien n’est écrit.' };
 
     const nomFichier = fichier?.trim().slice(0, 200) || null;
-    const maintenant = new Date();
-    // La ligne déjà en base que chaque entrée remplace (même ad, même période) · un réimport MUET (sans colonne budget) en garde
-    // la preuve, CBO ou budget d'ensemble, ET SA DATE (`preuveAEcrire`, noyau) · sans elle, un réimport effaçait un CBO établi,
-    // ou rajeunissait une vieille preuve d'ABO qui passait devant un CBO plus récent.
-    const remplacee = new Map([...p.lu.csv].flatMap(([adId, es]) => es.map((x) => [`${adId}|${x.debut}|${x.fin}`, x] as const)));
-    const lignes = p.plan.aEcrire.map((e) => {
-      const r = remplacee.get(`${e.adId}|${e.debut}|${e.fin}`);
-      const preuve = preuveAEcrire(
-        r && { metaAdId: r.metaAdId ?? null, campagne: r.protocole.campagne, campagneId: r.protocole.campagneId, cbo: r.protocole.cbo, budgetJour: r.protocole.budgetJour, importeLe: new Date(r.importeLe) },
-        { metaAdId: e.source.adIdMeta, campagne: e.source.protocole.campagne, campagneId: e.source.protocole.campagneId, cbo: e.source.protocole.cbo, budgetJour: e.source.protocole.budgetJour, importeLe: maintenant },
-      );
-      return {
-        adId: e.adId, workspaceId: ws, brandId, dateDebut: e.debut, dateFin: e.fin,
-        spend: e.mesures.spend, impressions: e.mesures.impressions, linkClicks: e.mesures.linkClicks, purchases: e.mesures.purchases,
-        reach: e.mesures.reach ?? null, clicks: e.mesures.clicks ?? null, purchaseValue: e.mesures.purchaseValue ?? null,
-        video3s: e.mesures.video3s ?? null, thruplays: e.mesures.thruplays ?? null, videoP50: e.mesures.videoP50 ?? null,
-        addToCart: e.mesures.addToCart ?? null, landingViews: e.mesures.landingViews ?? null,
-        metaAdId: e.source.adIdMeta, nomAnnonce: e.source.nom, campagne: e.source.protocole.campagne, campagneId: e.source.protocole.campagneId,
-        ensemble: e.source.protocole.ensemble, ensembleId: e.source.protocole.ensembleId, budgetJour: preuve.budgetJour, cbo: preuve.cbo,
-        fichier: nomFichier, importePar: g.s.user.id, importeLe: preuve.importeLe,
-      };
-    });
+    const lignes = p.plan.aEcrire.map((e) => ({
+      adId: e.adId, workspaceId: ws, brandId, dateDebut: e.debut, dateFin: e.fin,
+      spend: e.mesures.spend, impressions: e.mesures.impressions, linkClicks: e.mesures.linkClicks, purchases: e.mesures.purchases,
+      reach: e.mesures.reach ?? null, clicks: e.mesures.clicks ?? null, purchaseValue: e.mesures.purchaseValue ?? null,
+      video3s: e.mesures.video3s ?? null, thruplays: e.mesures.thruplays ?? null, videoP50: e.mesures.videoP50 ?? null,
+      addToCart: e.mesures.addToCart ?? null, landingViews: e.mesures.landingViews ?? null,
+      metaAdId: e.source.adIdMeta, nomAnnonce: e.source.nom, campagne: e.source.protocole.campagne, campagneId: e.source.protocole.campagneId,
+      ensemble: e.source.protocole.ensemble, ensembleId: e.source.protocole.ensembleId, budgetJour: e.source.protocole.budgetJour, cbo: e.source.protocole.cbo,
+      fichier: nomFichier, importePar: g.s.user.id, importeLe: new Date(),
+    }));
+    const T = schema.mesuresCsv;
     await db!.transaction(async (tx) => {
+      // Deux imports de la même marque s'écrivent l'un APRÈS l'autre · chacun relit, sous ce verrou, les lignes qu'il
+      // remplace · sans lui, un import muet calculait sa preuve sur une lecture périmée et écrasait le CBO d'un import
+      // concurrent (faux comparable). Verrou de transaction · relâché au commit ou à l'annulation.
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`adsmap-mesures-import:${brandId}`}))`);
       for (let i = 0; i < lignes.length; i += 200) {
-        await tx.insert(schema.mesuresCsv).values(lignes.slice(i, i + 200)).onConflictDoUpdate({
+        // La ligne que chaque entrée remplace (même ad, même période), relue DANS la transaction · un réimport MUET (sans
+        // colonne budget) en garde la preuve, CBO ou budget du même ensemble, ET SA DATE (`preuveAEcrire`, noyau) · sans
+        // elle, un réimport effaçait un CBO établi, ou rajeunissait une vieille preuve d'ABO devant un CBO plus récent.
+        const tranche = lignes.slice(i, i + 200);
+        const cles = sql.join(tranche.map((l) => sql`(${l.adId}::uuid, ${l.dateDebut}::date, ${l.dateFin}::date)`), sql`, `);
+        const anciennes = await tx.select({
+          adId: T.adId, debut: T.dateDebut, fin: T.dateFin, metaAdId: T.metaAdId, campagne: T.campagne, campagneId: T.campagneId,
+          ensemble: T.ensemble, ensembleId: T.ensembleId, cbo: T.cbo, budgetJour: T.budgetJour, importeLe: T.importeLe,
+        }).from(T).where(and(eq(T.brandId, brandId), sql`(${T.adId}, ${T.dateDebut}, ${T.dateFin}) in (${cles})`));
+        const parCle = new Map(anciennes.map((r) => [`${r.adId}|${r.debut}|${r.fin}`, r]));
+        const ecrites = tranche.map((l) => ({ ...l, ...preuveAEcrire(parCle.get(`${l.adId}|${l.dateDebut}|${l.dateFin}`), l) }));
+        await tx.insert(schema.mesuresCsv).values(ecrites).onConflictDoUpdate({
           target: [schema.mesuresCsv.adId, schema.mesuresCsv.dateDebut, schema.mesuresCsv.dateFin],
           set: {
             spend: sql`excluded.spend`, impressions: sql`excluded.impressions`, linkClicks: sql`excluded.link_clicks`, purchases: sql`excluded.purchases`,

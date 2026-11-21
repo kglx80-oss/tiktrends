@@ -138,6 +138,8 @@ describe('protocoleRetenu · la connexion d’abord, sinon la ligne d’export l
     expect(protocoleRetenu(null, [cboX, aboY]).protocole.cbo, 'une partie de la dépense est sous CBO (campagne X) · l’ABO de Y la rend comparable').toBe(true);
     expect(protocoleRetenu(null, [aboY, L({ campagneId: 'cy', budgetJour: null, cbo: true }, '2026-10-01T00:00:00Z', 0)]).protocole.cbo, 'export correctif de la MÊME campagne · l’ABO plus récent l’emporte').toBe(false);
     expect(protocoleRetenu(null, [L({ campagneId: 'cx', budgetJour: 50 }, '2026-10-01T00:00:00Z', 0), L({ campagneId: 'cy', budgetJour: null }, '2026-10-09T00:00:00Z', 4)]).protocole.cbo, 'l’ABO d’une AUTRE campagne que la plus récente établit l’ABO').toBeNull();
+    expect(protocoleRetenu(null, [L({ campagneId: 'cy', budgetJour: null }, '2026-10-01T00:00:00Z', 0), L({ campagneId: 'cx', budgetJour: 50 }, '2026-10-09T00:00:00Z', 4)]).protocole.cbo, 'une campagne de l’ad n’a que des lignes muettes (sa dépense compte) · l’ABO de la plus récente rend le lot comparable').toBeNull();
+    expect(protocoleRetenu(null, [L({ campagneId: 'cy', budgetJour: 40 }, '2026-10-01T00:00:00Z', 0), L({ campagneId: 'cx', budgetJour: 50 }, '2026-10-09T00:00:00Z', 4)]).protocole.cbo, 'chaque campagne dit ABO · l’ABO est établi').toBe(false);
     // Une ligne CBO plus ancienne de X, corrigée en ABO par X plus tard · X ne dit plus CBO.
     expect(protocoleRetenu(null, [L({ campagneId: 'cx', budgetJour: null, cbo: true }, '2026-10-01T00:00:00Z', 0), L({ campagneId: 'cx', budgetJour: 50 }, '2026-10-05T00:00:00Z', 1), aboY]).protocole.cbo).toBe(false);
   });
@@ -270,8 +272,8 @@ describe('verdict · les journées retenues donnent le verdict des journées att
 });
 
 describe('preuveAEcrire · un réimport MUET de la même période garde la preuve qu’il remplace, et sa date', () => {
-  const ancienne = { metaAdId: '120200000000000301', campagne: 'C1', campagneId: 'c1', cbo: true, budgetJour: null, importeLe: 'janvier' };
-  const muette = { metaAdId: '120200000000000301', campagne: 'C1', campagneId: 'c1', cbo: false, budgetJour: null, importeLe: 'octobre' };
+  const ancienne = { metaAdId: '120200000000000301', campagne: 'C1', campagneId: 'c1', ensemble: 'ES 1', ensembleId: 'as1', cbo: true, budgetJour: null, importeLe: 'janvier' };
+  const muette = { metaAdId: '120200000000000301', campagne: 'C1', campagneId: 'c1', ensemble: 'ES 1', ensembleId: 'as1', cbo: false, budgetJour: null, importeLe: 'octobre' };
   it('muette, même annonce · la preuve ET sa date restent', () => {
     expect(preuveAEcrire(ancienne, muette), 'la preuve gardée prend la date du réimport · elle passe devant une preuve plus récente').toEqual({ cbo: true, budgetJour: null, importeLe: 'janvier' });
     expect(preuveAEcrire({ ...ancienne, cbo: false, budgetJour: 50 }, muette)).toEqual({ cbo: false, budgetJour: 50, importeLe: 'janvier' });
@@ -287,5 +289,17 @@ describe('preuveAEcrire · un réimport MUET de la même période garde la preuv
     expect(preuveAEcrire({ ...ancienne, metaAdId: null }, { ...muette, metaAdId: null, campagne: ' c1 ' }).cbo, 'même identifiant de campagne').toBe(true);
     expect(preuveAEcrire({ ...ancienne, metaAdId: null, campagneId: null, campagne: null }, { ...muette, metaAdId: null, campagneId: null, campagne: null }).cbo, 'NULL et NULL · rien à comparer passe pour la même annonce').toBe(false);
     expect(preuveAEcrire({ ...ancienne, metaAdId: null, campagneId: null }, { ...muette, metaAdId: null, campagneId: null, campagne: '  c1 ' }).cbo, 'même nom, casse et espaces près').toBe(true);
+  });
+  it('le budget d’ensemble ne se garde que pour le MÊME ensemble · Ad ID, sinon identifiant d’ensemble, sinon nom · le CBO, lui, sur la campagne', () => {
+    const abo = { ...ancienne, metaAdId: null, cbo: false, budgetJour: 50 };
+    const m = { ...muette, metaAdId: null };
+    expect(preuveAEcrire(abo, { ...m, ensembleId: 'as2', ensemble: 'ES 2' }), 'un AUTRE ensemble de la même campagne · son budget est gardé (fausse `budget_variance`)').toEqual({ cbo: false, budgetJour: null, importeLe: 'octobre' });
+    expect(preuveAEcrire(abo, m), 'même identifiant d’ensemble · le budget est perdu').toEqual({ cbo: false, budgetJour: 50, importeLe: 'janvier' });
+    expect(preuveAEcrire({ ...abo, ensembleId: null }, { ...m, ensembleId: null, ensemble: ' es  1 ' }).budgetJour, 'sans identifiant · même nom d’ensemble (casse, espaces)').toBe(50);
+    expect(preuveAEcrire({ ...abo, ensembleId: null }, { ...m, ensembleId: null, ensemble: 'ES 2' }).budgetJour, 'sans identifiant · un autre nom d’ensemble garde le budget').toBeNull();
+    expect(preuveAEcrire({ ...abo, ensembleId: null, ensemble: null }, { ...m, ensembleId: null, ensemble: null }).budgetJour, 'NULL et NULL · rien à comparer passe pour le même ensemble').toBeNull();
+    expect(preuveAEcrire({ ...abo, ensembleId: 'as1' }, { ...m, ensembleId: 'as2', ensemble: 'ES 1' }).budgetJour, 'des identifiants d’ensemble différents tranchent « non », même nom').toBeNull();
+    expect(preuveAEcrire({ ...abo, metaAdId: '120200000000000301' }, { ...m, metaAdId: '120200000000000301', ensembleId: null, ensemble: 'renommé' }).budgetJour, 'même Ad ID · le même ensemble, même renommé').toBe(50);
+    expect(preuveAEcrire({ ...ancienne, metaAdId: null }, { ...m, ensembleId: 'as2', ensemble: 'ES 2' }), 'le CBO est de la campagne · un autre ensemble le perd').toEqual({ cbo: true, budgetJour: null, importeLe: 'janvier' });
   });
 });
