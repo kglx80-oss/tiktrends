@@ -86,8 +86,8 @@ describe('semis synthétiques', () => {
 
 /**
  * `verifier-migration.sh` contre de faux `psql` et `pnpm` (aucune base, aucun migrateur) · on lit
- * le RÉSULTAT : quelles tables le script a verrouillées pour interrompre le migrateur, et s'il va
- * jusqu'au VERDICT.
+ * le RÉSULTAT : quelles tables le script a interrompues (verrou, puis coupure ou échec du
+ * migrateur), et s'il va jusqu'au VERDICT.
  *
  * Le défaut réparé · deux tubes terminés par un lecteur qui s'arrête tôt, sous `pipefail` :
  *
@@ -173,17 +173,21 @@ describe('verifier-migration.sh · sorties bavardes, aucun point d’interruptio
       env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, JOURNAL_PSQL: journal, FAUX_MIGRATIONS: migrations, ...env },
     });
     const appels = readFileSync(journal, 'utf8');
+    const sortie = `${r.stdout}${r.stderr}`;
     return {
       code: r.status,
-      sortie: `${r.stdout}${r.stderr}`,
-      verrouillees: [...appels.matchAll(/lock table public\."([a-z_0-9]+)"/g)].map((m) => m[1]),
+      sortie,
+      // Les tables INTERROMPUES, lues dans la sortie du script (une étiquette par interruption).
+      // Pas dans le journal du faux psql : le verrou tourne en arrière-plan, et le script peut le
+      // tuer avant qu'il ait écrit sa ligne (constaté sous charge dans les portes).
+      interrompues: [...new Set([...sortie.matchAll(/interruption-\d+-(?:coupure|echec)-([a-z_0-9]+) · /g)].map((m) => m[1]))],
       appels,
     };
   }
 
   it('relevé des tables bavard · brands, modifiée par le lot en attente, est bien un point d’interruption', () => {
     const r = verifier([], { BAVARD_COLONNES });
-    expect(r.verrouillees, `point d’interruption SAUTÉ en silence · ${r.sortie.split('\n').slice(0, 6).join(' | ')}`).toEqual(['brands']);
+    expect(r.interrompues, `point d’interruption SAUTÉ en silence · ${r.sortie.split('\n').slice(0, 6).join(' | ')}`).toEqual(['brands']);
     expect(r.sortie).toMatch(/^VERDICT · /m);
   }, 120_000);
 
