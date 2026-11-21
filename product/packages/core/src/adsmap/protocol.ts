@@ -37,7 +37,7 @@ export interface ProtocolAd {
 export type ViolationCode =
   | 'campaign_name'      // le lot ne tourne pas dans la campagne attendue
   | 'cbo'                // budget piloté au niveau campagne
-  | 'cbo_inconnu'        // on ne sait pas si le budget est piloté par la campagne (ensembles non lus)
+  | 'cbo_inconnu'        // on ne sait pas si le budget est piloté par la campagne (ensembles non lus, export sans budget d'ensemble)
   | 'shared_adset'       // plusieurs annonces dans le même ad set
   | 'budget_variance'    // budgets d'ad sets trop dispersés
   | 'spend_share'        // une annonce n'a pas reçu sa part
@@ -132,7 +132,7 @@ export function checkProtocol(
   if (inconnu.length && rules.structure !== 'cbo_tolerated') {
     violations.push({
       code: 'cbo_inconnu',
-      message: `Le CBO de ${inconnu.length} annonce(s) n'est pas établi · leur ensemble n'a pas été lu chez Meta (droits ou quota, ensemble archivé, annonce terminée que la synchro ne relit plus) et aucune autre annonce de leur campagne ne le dit · on ne sait pas si leur budget est piloté par la campagne. Les verdicts de ce lot resteront relatifs tant qu'il n'est pas établi · par une lecture réussie des ensembles de cette campagne, ou par un export Ads Manager avec la colonne budget de l'ensemble.`,
+      message: `Le CBO de ${inconnu.length} annonce(s) n’est pas établi · ni la connexion Meta (ensemble non lu · droits ou quota, ensemble archivé, annonce terminée que la synchro ne relit plus · ou annonce jamais synchronisée) ni un export Ads Manager (sans colonne budget de l’ensemble, ou budget de l’ensemble à vie, que l’export ne permet pas encore de retenir) ne dit si leur budget est piloté par la campagne, et aucune autre annonce de leur campagne ne le dit. Les verdicts de ce lot resteront relatifs tant qu’il n’est pas établi · importe un export Ads Manager avec la colonne budget de l’ensemble, ou connecte Meta avec l’accès aux ensembles de publicités.`,
       adIds: inconnu.map((a) => a.adId),
     });
   }
@@ -196,8 +196,8 @@ const estBloquante = (v: { code: string }) => v.code !== 'campaign_name' && v.co
 
 /**
  * Vrai si la SEULE chose qui retire sa comparabilité au lot est un CBO inconnu ·
- * rien n'est à corriger dans la structure, c'est la lecture des ensembles qu'il
- * faut rétablir. Lit les violations telles qu'écrites (`protocol_check_json`).
+ * rien n'est à corriger dans la structure, c'est la preuve du budget qu'il faut
+ * apporter (lecture des ensembles chez Meta, ou export avec le budget d'ensemble). Lit les violations telles qu'écrites (`protocol_check_json`).
  */
 export function protocoleSeulementInconnu(violations: ReadonlyArray<{ code: string }> | null | undefined): boolean {
   const b = (violations ?? []).filter(estBloquante);
@@ -211,6 +211,6 @@ export function summarizeProtocol(check: ProtocolCheck): string {
   if (check.compliant) return 'Protocole respecté, avec des réserves mineures · les verdicts restent comparables.';
   const cbo = check.violations.find((v) => v.code === 'cbo');
   if (cbo) return 'Budget piloté par la campagne : les verdicts de ce lot ne seront que relatifs.';
-  if (protocoleSeulementInconnu(check.violations)) return 'CBO non établi · les verdicts de ce lot ne seront que relatifs tant qu’il ne l’est pas.';
+  if (protocoleSeulementInconnu(check.violations)) return 'CBO non établi · importe un export Ads Manager avec la colonne budget de l’ensemble, ou connecte Meta avec l’accès aux ensembles · d’ici là, les verdicts de ce lot ne sont que relatifs.';
   return `${check.violations.length} écart(s) au protocole · les verdicts de ce lot ne sont pas comparables entre eux.`;
 }
