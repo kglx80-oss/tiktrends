@@ -153,8 +153,15 @@ function lotsAvecComptes(workspaceId: string, brandId: string) {
   }).from(schema.batches).leftJoin(c, eq(c.lot, schema.batches.id)).where(eq(schema.batches.brandId, brandId)).orderBy(desc(schema.batches.number));
 }
 
-/** Les identifiants des lots à lire en entier (`lotsALire`, la règle du noyau), dans l'ordre des lots. */
-const lotsRetenus = (lots: ReadonlyArray<{ id: string; enBase: number }>) => [...lotsALire(lots.map((l) => ({ id: l.id, variantesEnBase: Number(l.enBase) })))];
+/**
+ * Les lots à lire en entier (`lotsALire`, la règle du noyau) · `ids` · ceux qui ont des variantes (un lot vide est lu
+ * en entier sans requête) · `n` · le total de leurs variantes, la borne de la lecture · `lotEntier` · le lot d'une fiche.
+ */
+function lotsRetenus(lots: ReadonlyArray<{ id: string; enBase: number }>, lotEntier?: string): { ids: string[]; n: number } {
+  const lus = lotsALire(lots.map((l) => ({ id: l.id, variantesEnBase: Number(l.enBase) })), BORNES_LECTURE_LOTS, lotEntier);
+  const retenus = lots.filter((l) => lus.has(l.id) && Number(l.enBase) > 0);
+  return { ids: retenus.map((l) => l.id), n: retenus.reduce((s, l) => s + Number(l.enBase), 0) };
+}
 
 /** Le verdict tel que l'état d'un lot le lit · sa valeur, son statut, et l'instant de son dernier calcul (`computed_at` · une mesure arrêtée avant la fin de la fenêtre · l'état, `mesureArretee` · la phrase, `mesuresArretees` → `mesureArreteeConstatee`). */
 const verdictLu = (v: { status: string | null; computed: string | null; computedAt: Date | null }): Pick<FaitsVerdictSpatial, 'statut' | 'calcule' | 'calculeLe'> => ({
@@ -195,17 +202,21 @@ function selectAdsLues(workspaceId: string, brandId: string, filtre: ReturnType<
  * Tous les lots de la marque, leurs variantes et leurs verdicts · chaque lot lu
  * en entier ou pas du tout (`lotsALire`), son compte en base à côté · les
  * annonces hors lot, bornées à part (aucun état n'est calculé sur elles).
+ * `o.lotEntier` · la fiche d'UN lot le lit en entier hors budget (jusqu'à
+ * `plafondLotSeul`) · un lot ancien, repoussé hors de la liste par les plus
+ * récents, reste lisible et arbitrable sur sa fiche · les autres lots sont lus
+ * comme dans la liste.
  */
-export async function chargerLots(workspaceId: string, brandId: string, maintenant = new Date()): Promise<DonneesLots> {
+export async function chargerLots(workspaceId: string, brandId: string, maintenant = new Date(), o: { lotEntier?: string } = {}): Promise<DonneesLots> {
   if (!db) return { lots: [], horsLot: [], config: DEFAULT_VERDICT_CONFIG, configEnregistree: false, structure: 'abo_one_adset_per_ad', ctx: { maintenant, fenetreJours: DEFAULT_VERDICT_CONFIG.evaluationWindowDays } };
   // `execute()` · une promesse, lue deux fois · un constructeur de requête relancerait la requête à chaque `then`.
   const lotsP = lotsAvecComptes(workspaceId, brandId).execute();
   const [lots, lignes, lignesHorsLot, [vc], [tp]] = await Promise.all([
     lotsP,
     lotsP.then((l) => {
-      const ids = lotsRetenus(l);
-      // Garde-fou · une écriture entre le compte et la lecture ne fait jamais lire plus que le budget · un lot coupé reste lu en partie.
-      return ids.length ? selectAdsLues(workspaceId, brandId, inArray(schema.ads.batchId, ids)).limit(BORNES_LECTURE_LOTS.budget) : [];
+      const { ids, n } = lotsRetenus(l, o.lotEntier);
+      // Garde-fou · une écriture entre le compte et la lecture ne fait jamais lire plus que ce qui a été compté · un lot coupé reste lu en partie.
+      return ids.length ? selectAdsLues(workspaceId, brandId, inArray(schema.ads.batchId, ids)).limit(n) : [];
     }),
     selectAdsLues(workspaceId, brandId, isNull(schema.ads.batchId)).limit(LIMITE_ADS_LOTS),
     db.select({ config: schema.verdictConfigs.config }).from(schema.verdictConfigs).where(eq(schema.verdictConfigs.brandId, brandId)).limit(1),
@@ -248,7 +259,12 @@ export async function chargerLots(workspaceId: string, brandId: string, maintena
   });
 
   const parLot = new Map<string, AdLue[]>();
-  for (const a of ads) if (a.lotId) parLot.set(a.lotId, [...(parLot.get(a.lotId) ?? []), a]);
+  // Une variante ajoutée à SON lot, sans recopier le lot · un lot lu en entier par sa fiche peut compter des milliers de variantes.
+  for (const a of ads) {
+    if (!a.lotId) continue;
+    const du = parLot.get(a.lotId);
+    if (du) du.push(a); else parLot.set(a.lotId, [a]);
+  }
 
   return {
     lots: lots.map((b) => {
@@ -307,7 +323,7 @@ export async function chargerFaitsRail(workspaceId: string, brandId: string, mai
   const [lots, lignes, [vc]] = await Promise.all([
     lotsP,
     lotsP.then((l) => {
-      const ids = lotsRetenus(l);
+      const { ids, n } = lotsRetenus(l);
       if (!ids.length) return [];
       return db!.select({
         lot: schema.ads.batchId, statut: schema.ads.status, plateforme: schema.ads.platform,
@@ -322,7 +338,7 @@ export async function chargerFaitsRail(workspaceId: string, brandId: string, mai
         .leftJoin(schema.verdicts, eq(schema.verdicts.adId, schema.ads.id))
         .where(and(adsDeLaMarque(workspaceId, brandId), inArray(schema.ads.batchId, ids)))
         .orderBy(...ORDRE_ADS_LOTS)
-        .limit(BORNES_LECTURE_LOTS.budget);
+        .limit(n);
     }),
     db.select({ config: schema.verdictConfigs.config }).from(schema.verdictConfigs).where(eq(schema.verdictConfigs.brandId, brandId)).limit(1),
   ]);

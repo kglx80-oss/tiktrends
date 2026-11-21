@@ -30,6 +30,12 @@ export interface BornesLectureLots {
   budget: number;
   /** Au-delà, un lot n'est pas lu (jamais une partie de lui) · il ne prend pas le budget des lots plus anciens. */
   plafondParLot: number;
+  /**
+   * La fiche d'UN lot le lit en entier, hors budget (`lotsALire`, `lotEntier`) · un lot ancien
+   * repoussé hors de la liste reste lisible et arbitrable sur sa fiche · au-delà de ce plafond de
+   * sécurité, même sa fiche le dit lu en partie (`MESURE_LECTURE_LOT_SEUL`).
+   */
+  plafondLotSeul: number;
 }
 
 /**
@@ -79,7 +85,33 @@ export const MESURE_LECTURE_LOTS = [
   { marque: 'petite', budget: 2000, variantesDeLotsLues: 240, lotsLusEnEntier: '40 sur 40', requetesRail: 3, railMs: [11.4, 8.5, 11.9], requetesListe: 5, listeMs: [26.1, 25.6, 21.2] },
 ] as const;
 
-export const BORNES_LECTURE_LOTS: Readonly<BornesLectureLots> = Object.freeze({ budget: 2000, plafondParLot: 500 });
+export const BORNES_LECTURE_LOTS: Readonly<BornesLectureLots> = Object.freeze({ budget: 2000, plafondParLot: 500, plafondLotSeul: 500 });
+
+/**
+ * Le banc de la lecture d'UN lot par sa fiche (pglite, base migrée sur place,
+ * machine chargée à 2,5-5, médiane de 3 lectures après une à vide · banc
+ * retiré après mesure). Semis · une marque de 300 lots de 8 (le budget est pris
+ * par les plus récents) et, plus anciens, un lot de 500, 1 000, 2 000, 5 000 et
+ * 10 000 variantes calculées gagnantes (la fiche propose de les arbitrer
+ * toutes). Colonnes · la lecture (`chargerLots` avec `lotEntier`) · la fiche
+ * entière rendue (`/adsmap/lots/[id]` · lecture, personas, offres, vue, balisage)
+ * · le poids du HTML · 11 requêtes pour la fiche, à toute taille. Témoins · la
+ * liste seule 55 à 93 ms · la fiche d'un lot de 8, 125 à 149 ms.
+ *
+ * Lecture · lire le lot coûte peu (500 · +5 à +30 ms · 5 000 · +220 ms) · c'est
+ * la FICHE qui ne tient pas · 1,2 à 1,6 s à 500 (dix fois une fiche ordinaire),
+ * 3,9 s à 1 000, 16,6 s à 2 000, 108 s et 13 Mo de HTML à 5 000, 508 s à 10 000.
+ * Un lot de 5 000 variantes ne doit pas se lire sur sa fiche. Retenu · 500, le
+ * plafond d'un lot de la liste · au-delà, la fiche le dit lu en partie et
+ * renvoie à la fiche de test d'une variante, qui l'arbitre seule.
+ */
+export const MESURE_LECTURE_LOT_SEUL = [
+  { variantes: 500, lectureMs: [110, 88, 82, 73], ficheMs: [1596, 1216, 1227, 1288], htmlMo: 1.31 },
+  { variantes: 1000, lectureMs: [119, 108, 119], ficheMs: [3900, 3897, 3903], htmlMo: 2.61 },
+  { variantes: 2000, lectureMs: [185], ficheMs: [16578], htmlMo: 5.21 },
+  { variantes: 5000, lectureMs: [310], ficheMs: [108360], htmlMo: 13.01 },
+  { variantes: 10000, lectureMs: [501], ficheMs: [507651], htmlMo: 26.02 },
+] as const;
 
 /** Un lot, vu par le choix des lots à lire · son identité et le nombre de ses variantes en base (même portée que la lecture). */
 export interface LotACompter {
@@ -93,13 +125,16 @@ export interface LotACompter {
  * tiennent dans ce qui reste du budget · sinon il n'est pas lu du tout, et la
  * lecture passe au suivant (un lot plus ancien et plus petit peut encore
  * tenir). Un lot vide est toujours retenu (il ne coûte rien, et il est lu en
- * entier). Le total retenu ne dépasse jamais le budget.
+ * entier). Le total retenu ne dépasse jamais le budget, hors `lotEntier` · le
+ * lot d'une fiche, lu en entier jusqu'à `plafondLotSeul`, à part.
  */
-export function lotsALire(lots: ReadonlyArray<LotACompter>, bornes: BornesLectureLots = BORNES_LECTURE_LOTS): Set<string> {
+export function lotsALire(lots: ReadonlyArray<LotACompter>, bornes: BornesLectureLots = BORNES_LECTURE_LOTS, lotEntier?: string): Set<string> {
   const out = new Set<string>();
   let reste = bornes.budget;
   for (const l of lots) {
     const n = Math.max(0, l.variantesEnBase);
+    // Le lot d'une fiche · lu en entier jusqu'au plafond d'un lot seul, sans rien prendre au budget des autres.
+    if (l.id === lotEntier) { if (n <= bornes.plafondLotSeul) out.add(l.id); continue; }
     if (n > bornes.plafondParLot || n > reste) continue;
     out.add(l.id);
     reste -= n;
@@ -124,10 +159,19 @@ export function lotLuEnEntier(l: LectureDuLot): boolean {
 }
 
 export const TITRE_LECTURE_INCOMPLETE = 'Lecture incomplète';
+/** Ce que la fiche dit à la place d'une synthèse, d'un contrôle ou d'un conseil · rien n'est tiré d'une partie du lot. */
+export const NON_CALCULE_LECTURE = 'Non calculé · lecture incomplète';
 
 const pl = (k: number, un: string, plusieurs: string) => `${k.toLocaleString('fr-FR')} ${k > 1 ? plusieurs : un}`;
 const regle = (b: BornesLectureLots) =>
   `La lecture garde les lots les plus récents, chacun avec toutes ses variantes, jusqu’à ${b.budget.toLocaleString('fr-FR')} variantes en tout et ${b.plafondParLot.toLocaleString('fr-FR')} par lot.`;
+
+/** « 3 variantes lues sur 600 » · « 0 variante lue sur 600 » · `null` lu en entier. */
+export function compteLecture(l: LectureDuLot): string | null {
+  if (lotLuEnEntier(l)) return null;
+  const lues = l.ads.length;
+  return `${pl(lues, 'variante lue', 'variantes lues')} sur ${l.variantesEnBase!.toLocaleString('fr-FR')}`;
+}
 
 /**
  * Ce que la fiche d'un lot lu en partie dit · `null` lu en entier. `etatCalcule`
@@ -135,13 +179,17 @@ const regle = (b: BornesLectureLots) =>
  * vrai quand le statut seul le donne (en préparation, prêt, historique) · la
  * liste de variantes affichée reste alors une partie du lot.
  */
-export function phraseLotLuEnPartie(l: LectureDuLot, o: { etatCalcule: boolean }, b: BornesLectureLots = BORNES_LECTURE_LOTS): string | null {
-  if (lotLuEnEntier(l)) return null;
-  const lues = l.ads.length;
+export function phraseLotLuEnPartie(l: LectureDuLot, o: { etatCalcule: boolean; fiche?: boolean }, b: BornesLectureLots = BORNES_LECTURE_LOTS): string | null {
+  const lu = compteLecture(l);
+  if (!lu) return null;
   const suite = o.etatCalcule
     ? 'les variantes affichées ne sont qu’une partie du lot.'
     : 'son état n’est pas calculé sur une partie de ses variantes · il n’est compté ni à conclure ni à importer, et son arbitrage n’est pas proposé ici.';
-  return `${pl(lues, 'variante lue', 'variantes lues')} sur ${l.variantesEnBase!.toLocaleString('fr-FR')} · ${suite} ${regle(b)}`;
+  // Sur SA fiche, le lot est lu hors budget · lu en partie, il passe le plafond d'un lot seul · le recours est la fiche d'une variante.
+  const pourquoi = o.fiche
+    ? `Une fiche lit son lot en entier jusqu’à ${b.plafondLotSeul.toLocaleString('fr-FR')} variantes · au-delà, ouvre la fiche de test d’une variante (Résultats · Tests) pour l’arbitrer seule.`
+    : regle(b);
+  return `${lu} · ${suite} ${pourquoi}`;
 }
 
 /** La note de « Lots de test » · combien de lots sont lus en partie · `null` quand tous le sont en entier. */

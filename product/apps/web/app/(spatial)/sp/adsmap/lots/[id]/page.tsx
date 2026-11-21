@@ -46,7 +46,8 @@ export default async function LotSpatial({ params, searchParams }: { params: Pro
   const g = await gardeResultats();
   if (!g.ok) return <RefusResultats titre="Lot de test" raison={g.raison} />;
 
-  const [d, pt, ot] = await Promise.all([chargerLots(g.s.workspaceId, g.marque.id), personasEtTests(g.s.workspaceId, g.marque.id), offresEtTests(g.s.workspaceId, g.marque.id)]);
+  // La fiche lit SON lot en entier, hors budget de la marque (`lotEntier`) · un lot ancien reste arbitrable ici.
+  const [d, pt, ot] = await Promise.all([chargerLots(g.s.workspaceId, g.marque.id, new Date(), { lotEntier: id }), personasEtTests(g.s.workspaceId, g.marque.id), offresEtTests(g.s.workspaceId, g.marque.id)]);
   const l = d.lots.find((x) => x.id === id);
   if (!l) notFound();
   // Lot 9 · le persona de chaque variante (carte ou brief, jamais fusionnés) et la lecture par persona de TOUTE la marque.
@@ -80,7 +81,7 @@ export default async function LotSpatial({ params, searchParams }: { params: Pro
 
   const pres = presentationLot(l, d.ctx);
   // Lu en partie · dit en tête de fiche · un lot lancé n'a alors aucun état (`illisible`), donc ni arbitrage ni import proposé.
-  const lu = phraseLotLuEnPartie(l, { etatCalcule: pres.etat !== 'illisible' });
+  const lu = phraseLotLuEnPartie(l, { etatCalcule: pres.etat !== 'illisible', fiche: true });
   const syn = syntheseLot(l, d.config.targetCpa);
   const barres = barresCpa(l.ads);
   const conclusion = conclusionLot(l, pres.etat, referenceConclusion(d.lots, l.id));
@@ -146,7 +147,7 @@ export default async function LotSpatial({ params, searchParams }: { params: Pro
         return { id: a.id, texte: a.texte ?? ' ', image: a.image, gagnante: syn.gagnante === a.id, barre: barres[i]!, tag: `${a.variante} · ${v ? LIBELLE_VERDICT[v].court.toLowerCase() : 'en mesure'}` };
       })}
       controles={controlesLot(l, pres, d.config.minImpressions)}
-      coach={coachLot(pres, syn, l.ads.length)}
+      coach={coachLot(pres, syn, l.ads.length, l)}
       conclusion={conclusion}
       personas={{
         variantes: l.ads.map((a) => {
@@ -171,7 +172,7 @@ export default async function LotSpatial({ params, searchParams }: { params: Pro
         {importer && <ImporterMesuresLot lotId={l.id} f={importer} />}
         {fenetreIncomplete && <ImporterMesuresLot lotId={l.id} f={fenetreIncomplete} fenetreIncomplete={{ titre: TITRE_FENETRE_INCOMPLETE }} />}
         {actions && <ActionsLot {...actions} />}
-        <DupliquerLot lotId={l.id} numero={l.numero} variantes={l.ads.length} raison={g.admin ? null : 'Dupliquer un lot est réservé aux admins de l’espace, comme en créer un.'} />
+        <DupliquerLot lotId={l.id} numero={l.numero} variantes={l.variantesEnBase} raison={g.admin ? null : 'Dupliquer un lot est réservé aux admins de l’espace, comme en créer un.'} />
       </>}
       lecture={lu ? { lotId: l.id, titre: TITRE_LECTURE_INCOMPLETE, phrase: lu } : null}
       reserves={[LIBELLE_NATURE_LOT[natureLot({ status: l.statut, launchedAt: l.lanceLe })].phrase, l.protocole?.resume ?? null].filter((x): x is string => !!x)}

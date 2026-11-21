@@ -9,11 +9,13 @@ import { renderToStaticMarkup } from 'react-dom/server';
  * VRAIES vues · l'Accueil (`/dashboard`), la fiche d'un lot
  * (`/adsmap/lots/[id]`) et l'écran d'import (`/adsmap/import?lot=`) · on lit
  * le DOM. Toutes les dates sont en 2020 · plus de 120 jours ont passé.
- *  · #10 · deux variantes · `a1` arbitrée, `z9` sans verdict · la lecture des
- *    lots est bornée (`LIMITE_ADS_LOTS`, 2 000, par code) et un lot de
- *    remplissage (#9, 1 995 brouillons `b…`) pousse `z9` au-delà · la lecture
- *    ne voit que `a1`, arbitrée · le lot sortait « conclu » et disparaissait de
- *    « fin prévue passée » · il y reste ;
+ *  · #10 · deux variantes · `a1` arbitrée, `z9` sans verdict · l'ancienne
+ *    lecture était bornée globalement (2 000 variantes par code) et un lot de
+ *    remplissage (#9, 1 995 brouillons `b…`) poussait `z9` au-delà · elle ne
+ *    voyait que `a1`, arbitrée · le lot sortait « conclu » et disparaissait de
+ *    « fin prévue passée ». Chaque lot est désormais lu en entier ou dit lu en
+ *    partie (`lotsALire`) · #10 est lu en entier, le remplissage (au-delà du
+ *    plafond d'un lot) ne l'est pas · #10 reste dans « fin prévue passée » ;
  *  · #12 · `a2` sans verdict, `a3` calculée à J3, jamais recalculée · « fin
  *    prévue passée » · le diagnostic dit « mesures arrêtées », pas « 1
  *    variante sur 2 sans mesure » ;
@@ -148,7 +150,7 @@ describe('la lecture bornée ne fait plus passer un lot pour conclu', () => {
   it('préalable · #10 est lu EN ENTIER (`a1` arbitrée, `z9` sans verdict) · le remplissage, au-delà du plafond d’un lot, n’est pas lu', async () => {
     const f = await chargerFaitsRail(I.ws!, I.b!);
     const t = f.lots.find((l) => l.id === L.tronque);
-    expect(f.lots.reduce((k, l) => k + l.variantesEnBase, 0), 'préalable · la marque ne passe pas l’ancienne borne globale (les cinq `a…`, le remplissage, `z9`)').toBe(BORNE + 1);
+    expect(f.lots.reduce((k, l) => k + l.variantesEnBase, 0), 'préalable · la marque dépasse l’ancienne borne globale (2 001 · les cinq `a…`, le remplissage, `z9`)').toBe(BORNE + 1);
     expect(t?.ads.map((a) => a.verdict?.statut ?? null), 'le lot #10 est lu en partie').toEqual(['validated', null]);
   });
 

@@ -2,6 +2,7 @@ import { wilsonInterval, type Interval } from '../../adsmap/stats';
 import { estLotImporte } from '../../adsmap/lot-nature';
 import type { VerdictValue } from '../../adsmap/types';
 import { verdictAffiche, type EtatLotSpatial, type FaitsAdSpatial, type FaitsLotSpatial } from './lots';
+import { compteLecture } from './lecture-lot';
 
 /**
  * Spatial · Résultats · la CONCLUSION d'un lot entier, et l'écart d'une
@@ -148,6 +149,12 @@ export function conclusionLot(l: FaitsLotSpatial, etat: EtatLotSpatial, referenc
   if (etat === 'importe') {
     return { conclusion: 'non_concluante', motif: 'importe', titre: titre('non_concluante'), lot: null, reference: null,
       phrase: 'Historique repris du tableau · ses verdicts n’ont pas été mesurés au protocole, le lot ne peut rien confirmer.' };
+  }
+  // Lu en partie · ni « il suffit d'attendre », ni une conclusion tirée d'une partie du lot.
+  const lu = compteLecture(l);
+  if (lu) {
+    return { conclusion: 'en_attente', motif: 'pas_pret', titre: 'Non calculée · lecture incomplète', lot: null, reference: null,
+      phrase: `${lu.charAt(0).toUpperCase()}${lu.slice(1)} · aucune conclusion n’est tirée d’une partie du lot.` };
   }
   if (!LISIBLES.has(etat)) {
     return { conclusion: 'en_attente', motif: 'pas_pret', titre: titre('en_attente'), lot: null, reference: null,

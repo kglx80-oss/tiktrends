@@ -5,6 +5,7 @@ import {
   type ContexteLots, type EtatLotSpatial, type FaitsAdSpatial, type FaitsLotSpatial,
 } from '../resultats/lots';
 import { conclusionLot, referenceConclusion } from '../resultats/conclusion-lot';
+import { compteLecture } from '../resultats/lecture-lot';
 
 /**
  * Spatial · « Demander à Jarvis » EN CONTEXTE (lot 5 V5). RÈGLES PURES · ni base,
@@ -213,7 +214,8 @@ function resumerLot(e: Extract<EntreeContexteJarvis, { type: 'lot' }>): Contexte
   const but = nettoyerContexteJarvis(l.but, B.titre);
   const titre = but ? `Lot #${l.numero} · ${but}` : `Lot #${l.numero}`;
   const corps = [
-    `${titre} · ${p.statut.libelle} · ${plateformesLot(l)}${p.jour !== null ? ` · jour ${p.jour} sur ${p.fenetre}` : ''} · ${l.ads.length} variante${l.ads.length > 1 ? 's' : ''}`,
+    // Lu en partie · le nombre de variantes est celui de la base, et ce qui a été lu est dit (jamais « 0 variante »).
+    `${titre} · ${p.statut.libelle} · ${plateformesLot(l)}${p.jour !== null ? ` · jour ${p.jour} sur ${p.fenetre}` : ''} · ${compteLecture(l) ? `${l.variantesEnBase} variante${l.variantesEnBase! > 1 ? 's' : ''} en base, ${compteLecture(l)} · lecture incomplète, rien n’est calculé sur ce lot` : `${l.ads.length} variante${l.ads.length > 1 ? 's' : ''}`}`,
     `Verdict du moteur · ${nettoyerContexteJarvis(syn.titre, B.titre)} · ${nettoyerContexteJarvis(syn.phrase, B.raison)}`,
     `Conclusion du lot · ${conc.titre} · ${nettoyerContexteJarvis(conc.phrase, B.raison)}`,
     ...(e.cibleCpa ? [`Cible de la marque · ${eur(e.cibleCpa)} par achat`] : []),

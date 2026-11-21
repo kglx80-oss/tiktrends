@@ -25,13 +25,19 @@ export default async function ImportSpatial({ searchParams }: { searchParams: Pr
   if (!g.ok) return <RefusResultats titre="Importer des résultats" raison={g.raison} />;
 
   const maintenant = new Date();
-  const [d, c, journal, params] = await Promise.all([chargerLots(g.s.workspaceId, g.marque.id, maintenant), chargerConnexion(g.marque.id), lireRemontees(g.marque.id), searchParams]);
+  const params = await searchParams;
+  // Le lot de l'adresse est lu en entier, hors budget de la marque (`lotEntier`) · comme sa fiche.
+  const demande = params[PARAM_LOT_IMPORT];
+  const [d, c, journal] = await Promise.all([
+    chargerLots(g.s.workspaceId, g.marque.id, maintenant, typeof demande === 'string' ? { lotEntier: demande } : {}),
+    chargerConnexion(g.marque.id), lireRemontees(g.marque.id),
+  ]);
   const mesurees = [...d.lots.flatMap((l) => l.ads), ...d.horsLot].filter((a) => a.verdict?.calcule).length;
   const liste = remontees({
     mesureLe: c.mesureLe,
     journal,
     variantesMesurees: mesurees,
-    lotsImportes: d.lots.filter((l) => estLotImporte({ status: l.statut, launchedAt: l.lanceLe })).map((l) => ({ numero: l.numero, variantes: l.ads.length, le: l.creeLe })),
+    lotsImportes: d.lots.filter((l) => estLotImporte({ status: l.statut, launchedAt: l.lanceLe })).map((l) => ({ numero: l.numero, variantes: l.variantesEnBase, le: l.creeLe })),
   });
   const cible = lotCibleImport(d.lots, params[PARAM_LOT_IMPORT]);
   const lot = cible

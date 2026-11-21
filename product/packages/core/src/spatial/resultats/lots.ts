@@ -3,7 +3,7 @@ import { verdictEffectif, type VerdictValue } from '../../adsmap/types';
 import { LIBELLE_VERDICT } from '../../adsmap/verdict-libelle';
 import { RAISON_IMPORT_FERME, lienImportLot } from './fin-prevue';
 import { joursEntiersDepuis, mesureArretee } from './mesure-arretee';
-import { TITRE_LECTURE_INCOMPLETE, lotLuEnEntier } from './lecture-lot';
+import { NON_CALCULE_LECTURE, TITRE_LECTURE_INCOMPLETE, compteLecture, lotLuEnEntier, type LectureDuLot } from './lecture-lot';
 
 /**
  * Spatial · Résultats · les LOTS de test, lus sur leurs faits réels.
@@ -329,6 +329,9 @@ const ORDRE_GAIN: Record<string, number> = { winner: 0, baby_winner: 1 };
  * n'est jamais présentée comme gagnante.
  */
 export function syntheseLot(l: FaitsLotSpatial, cibleCpa: number | null): SyntheseLot {
+  // Lu en partie · aucune synthèse ne se tire d'une partie du lot (ni « aucune variante », ni une gagnante de ce qui reste).
+  const lu = compteLecture(l);
+  if (lu) return { gagnante: null, titre: 'Non calculé', phrase: `${TITRE_LECTURE_INCOMPLETE} · ${lu} · aucun verdict d’ensemble n’est tiré d’une partie du lot.`, niveau: 1 };
   const lus = l.ads.map((a) => ({ a, v: verdictAffiche(a.verdict) })).filter((x) => x.v);
   const gagnantes = lus.filter((x) => GAGNANTES.has(x.v!))
     .sort((x, y) => (ORDRE_GAIN[x.v!]! - ORDRE_GAIN[y.v!]!) || ((x.a.verdict?.cpa ?? Infinity) - (y.a.verdict?.cpa ?? Infinity)));
@@ -448,7 +451,7 @@ export function phraseLot(p: PresentationLot, s: SyntheseLot, variantes: number)
     case 'non_concluant': return 'Aucune variante n’a tranché · sans volume suffisant, rien n’est à retenir.';
     case 'conclu': return s.titre;
     case 'importe': return 'Historique repris du tableau · ses verdicts ne sont pas comparables aux tests suivis ici.';
-    case 'illisible': return 'Lu en partie · son état n’est pas calculé sur une partie de ses variantes.';
+    case 'illisible': return variantes === 0 ? 'Non lu · aucune de ses variantes n’a été lue, son état n’est pas calculé.' : 'Lu en partie · son état n’est pas calculé sur une partie de ses variantes.';
   }
 }
 
@@ -470,7 +473,7 @@ export function indexLotVedette(lots: ReadonlyArray<{ etat: EtatLotSpatial; aDes
   return c >= 0 ? c : lots.findIndex((l) => l.aDesVerdicts);
 }
 
-const URGENCE: Record<EtatLotSpatial, number> = { a_conclure: 0, a_importer: 1, pret: 2, composition: 3, diffusion: 4, illisible: 5, non_concluant: 6, conclu: 7, importe: 8 };
+const URGENCE: Record<EtatLotSpatial, number> = { a_conclure: 0, a_importer: 1, pret: 2, composition: 3, diffusion: 4, non_concluant: 5, conclu: 6, importe: 7, illisible: 8 };
 
 /** Les « autres tests » · au plus `max`, ceux qui attendent une action d'abord (ordre stable sinon). */
 export function indexAutresLots(lots: ReadonlyArray<{ etat: EtatLotSpatial }>, vedette: number, max = 3): number[] {
@@ -493,6 +496,19 @@ export function controlesLot(l: FaitsLotSpatial, p: PresentationLot, minImpressi
   const fini = p.etat !== 'diffusion' && lance;
   const vol = volumeMinimumLot(l);
   const pc = l.protocole;
+  const protocole = {
+    icone: 'lock' as const,
+    titre: !pc || pc.conforme === null ? 'Protocole à contrôler' : pc.conforme ? 'Règle respectée' : 'Protocole non respecté',
+    detail: pc?.resume ?? 'Contrôlé à la première mesure du lot',
+  };
+  // Lu en partie · ni la durée « atteinte » (tirée de l'état), ni le volume (tiré des variantes lues) · le protocole est celui du lot.
+  if (!lotLuEnEntier(l)) {
+    return [
+      { icone: 'cal', titre: lance ? `${p.jour} jour${(p.jour ?? 0) > 1 ? 's' : ''} sur ${p.fenetre}` : 'Pas encore lancé', detail: NON_CALCULE_LECTURE },
+      { icone: 'chart', titre: 'Non calculé', detail: `${TITRE_LECTURE_INCOMPLETE.toLowerCase()} · minimum ${n(minImpressions)}` },
+      protocole,
+    ];
+  }
   return [
     {
       icone: 'cal',
@@ -504,16 +520,15 @@ export function controlesLot(l: FaitsLotSpatial, p: PresentationLot, minImpressi
       titre: vol !== null ? `${n(vol)} impressions` : 'Aucune mesure',
       detail: `${vol !== null ? 'par variante, au plus bas · ' : ''}minimum ${n(minImpressions)}`,
     },
-    {
-      icone: 'lock',
-      titre: !pc || pc.conforme === null ? 'Protocole à contrôler' : pc.conforme ? 'Règle respectée' : 'Protocole non respecté',
-      detail: pc?.resume ?? 'Contrôlé à la première mesure du lot',
-    },
+    protocole,
   ];
 }
 
 /** Ce que la fiche dit à côté de l'orbe · l'étape suivante, d'après l'état (aucun texte généré). */
-export function coachLot(p: PresentationLot, s: SyntheseLot, variantes: number): { avant: string; fort: string; apres: string } {
+export function coachLot(p: PresentationLot, s: SyntheseLot, variantes: number, lecture?: LectureDuLot): { avant: string; fort: string; apres: string } {
+  // Lu en partie (`lecture`) · aucun conseil tiré d'une partie du lot, quel que soit l'état (« Lot en préparation : 0 variante » serait faux).
+  const lu = lecture ? compteLecture(lecture) : null;
+  if (lu || p.etat === 'illisible') return { avant: `${TITRE_LECTURE_INCOMPLETE} :`, fort: 'non calculé', apres: `· ${lu ?? `${variantes} variante${variantes > 1 ? 's' : ''} lue${variantes > 1 ? 's' : ''}`} · aucun conseil n’est tiré d’une partie du lot.` };
   switch (p.etat) {
     case 'a_conclure': return { avant: 'Les verdicts sont calculés, il reste à les arbitrer. Le moteur retient :', fort: s.titre, apres: '· écris ce que chaque variante t’apprend pour conclure le lot.' };
     case 'non_concluant': return { avant: 'Aucune variante n’a tranché :', fort: s.titre, apres: '· arbitre quand même pour garder la trace de ce qui n’a rien donné.' };
@@ -523,6 +538,5 @@ export function coachLot(p: PresentationLot, s: SyntheseLot, variantes: number):
     case 'composition': return { avant: 'Lot en préparation :', fort: `${variantes} variante${variantes > 1 ? 's' : ''}`, apres: '· range, complète et prépare avant de lancer.' };
     case 'pret': return { avant: 'Toutes les variantes sont prêtes :', fort: 'lance-les dans Meta avec les noms générés', apres: '· puis marque le lot lancé ici.' };
     case 'importe': return { avant: 'Historique importé :', fort: s.titre, apres: '· ses verdicts ne sont pas comparables aux tests suivis ici.' };
-    case 'illisible': return { avant: 'Lecture incomplète :', fort: `${variantes} variante${variantes > 1 ? 's' : ''} lue${variantes > 1 ? 's' : ''}`, apres: '· une partie seulement du lot · aucun verdict d’ensemble n’en est tiré.' };
   }
 }
