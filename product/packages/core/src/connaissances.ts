@@ -35,7 +35,7 @@
  */
 
 import { ROLES_PLATEFORME } from './equipe-plateforme';
-import { permissionsPlateformeEquipe } from './studios/securite';
+import { permissionsPlateformeEquipe, type EquipeAdmissible } from './studios/securite';
 
 /* -------------------------------------------------------------------------- */
 /*  Types                                                                     */
@@ -738,7 +738,7 @@ export function changementPortee(avant: PorteeConnaissance, apres: PorteeConnais
  * publiait des connaissances de portée plateforme, lues par le Jarvis de tous
  * les clients.
  */
-export function peutGererConnaissances(equipe: { role: string; plateformeAdmissible?: boolean } | null | undefined): boolean {
+export function peutGererConnaissances(equipe: EquipeAdmissible | null | undefined): boolean {
   return !!equipe && (ROLES_PLATEFORME as readonly string[]).includes(equipe.role) && permissionsPlateformeEquipe(equipe).has('knowledge.manage');
 }
 

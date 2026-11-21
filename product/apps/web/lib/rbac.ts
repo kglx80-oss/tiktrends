@@ -146,7 +146,11 @@ export function rubriqueDeFeature(key: string): string | null {
  */
 export interface Access { role: Role; plan: Plan; equipe?: FaceEquipe }
 
-declare const FACE_EQUIPE: unique symbol;
+/**
+ * La marque de la face · un symbole NON exporté. Seul ce module peut poser la
+ * propriété, donc construire une `FaceEquipe` sans cast (`inscrireFaceEquipe`).
+ */
+const FACE_EQUIPE: unique symbol = Symbol('face-equipe');
 /**
  * La face « équipe » d'un accès · posée par `effectiveAccess` SEUL, sous
  * `privilegesEquipe` (noyau · admissibilité exigée). La marque de type la rend
@@ -155,8 +159,22 @@ declare const FACE_EQUIPE: unique symbol;
  * compile pas. Sur main c05b74a0, trois écrans le faisaient (fiche marque,
  * réglages, tagging) · un compte non admissible y retrouvait la face équipe,
  * sans verrou de formule.
+ *
+ * ── OPAQUE au niveau du type (suite de #1128) ────────────────────────────────
+ * Sur main ea01a5aa, la marque portait aussi `role` et `matrice` en clair ·
+ * `a.equipe?.role` se lisait sans `faceEquipeReconnue`, donc sans le registre ·
+ * une face forgée (cast, `any`, copie, JSON) que le registre refuse se lisait
+ * comme une vraie par quiconque l'ouvrait directement. Désormais le type est la
+ * marque SEULE, sans aucun champ lisible · `a.equipe?.role`, une
+ * déstructuration (`({ role }: FaceEquipe)`), un type local (`{ equipe?: {
+ * role } }`) ou `FaceEquipeLue` reçu sans le lecteur ne COMPILENT plus. Seul
+ * `faceEquipeReconnue` (plus bas) rend la face lisible (`FaceEquipeLue`), après
+ * le registre. Éprouvé par `test/secu-face-equipe-opaque.types.test.ts`. Ce que
+ * le type ne ferme pas · un cast, un `any` · la barrière reste le registre.
  */
-export type FaceEquipe = { readonly role: RolePlateforme; readonly matrice: MatriceDroits; readonly [FACE_EQUIPE]: true };
+export type FaceEquipe = { readonly [FACE_EQUIPE]: true };
+/** La face lisible · rendue par `faceEquipeReconnue` SEUL, après le registre. */
+export type FaceEquipeLue = { readonly role: RolePlateforme; readonly matrice: MatriceDroits };
 export type NavItem = Feature & { locked: boolean; isSub: boolean };
 
 /**
@@ -169,28 +187,35 @@ export type NavItem = Feature & { locked: boolean; isSub: boolean };
  * `Access.equipe` passe par `faceEquipeReconnue`. Un objet qui n'a pas été
  * inscrit · littéral, copie (`{ ...face }`, `structuredClone`), aller-retour
  * JSON, props sérialisées vers un composant client · vaut ABSENT · face client,
- * rôle d'espace et verrous de formule. Un WeakSet ne retient rien · une face
- * oubliée par la requête est libérée.
+ * rôle d'espace et verrous de formule. Une WeakMap ne retient rien · une face
+ * oubliée par la requête est libérée. Elle rend, pour le jeton opaque, la face
+ * lisible (gelée) · c'est ce qui permet à `faceEquipeReconnue` de la rendre
+ * sans cast. Le jeton ne porte que la marque, à l'exécution comme au type · un
+ * `(a.equipe as any).role` lit `undefined`, une copie du jeton ne porte rien.
  *
  * `inscrireFaceEquipe` est la seule porte d'entrée · seul lib/access.ts
  * l'appelle (règle `tiktrends/inscription-face-equipe`, recensement
  * `secu-fondateurs-codes-sources`). Les tests passent par `effectiveAccess`
  * (`test/helpers/face-equipe.ts`).
  */
-const FACES_RECONNUES = new WeakSet<object>();
+const FACES_RECONNUES = new WeakMap<object, FaceEquipeLue>();
 
-/** RÉSERVÉ à `effectiveAccess` (lib/access.ts) · inscrit une face qu'il vient de construire sous `privilegesEquipe`. */
-export function inscrireFaceEquipe(face: FaceEquipe): FaceEquipe {
-  FACES_RECONNUES.add(face);
-  return face;
+/** RÉSERVÉ à `effectiveAccess` (lib/access.ts) · gèle et inscrit une face qu'il vient de construire sous `privilegesEquipe` · rend son jeton opaque. */
+export function inscrireFaceEquipe(face: FaceEquipeLue): FaceEquipe {
+  // Le jeton ne porte QUE la marque, à l'exécution aussi · aucun cast, la marque ne se pose qu'ici. La face lisible, gelée, reste au registre.
+  const jeton: FaceEquipe = Object.freeze({ [FACE_EQUIPE]: true as const });
+  FACES_RECONNUES.set(jeton, Object.freeze({ role: face.role, matrice: face.matrice }));
+  return jeton;
 }
 
-/** La face équipe d'un accès, SI `effectiveAccess` l'a construite · sinon null (face client). Seul lecteur de `Access.equipe`. */
-export function faceEquipeReconnue(a: Access): FaceEquipe | null {
-  const f = a.equipe;
-  // `typeof` d'abord · un `any` peut y avoir posé une chaîne ou un nombre, que WeakSet#has accepte sans lever.
+/** La face équipe d'un accès, SI `effectiveAccess` l'a construite · sinon null (face client). Seul lecteur de `Access.equipe`, seul passage vers la face lisible. */
+export function faceEquipeReconnue(a: Access): FaceEquipeLue | null {
+  // `unknown` · un accès venu d'un `any` peut porter n'importe quoi ici, le registre seul décide.
+  const f: unknown = a.equipe;
+  // `typeof` d'abord · un `any` peut y avoir posé une chaîne ou un nombre, que WeakMap#get accepte sans lever.
   if (typeof f !== 'object' || f === null) return null;
-  if (FACES_RECONNUES.has(f)) return f;
+  const lue = FACES_RECONNUES.get(f);
+  if (lue) return lue;
   avertirFaceNonReconnue();
   return null;
 }

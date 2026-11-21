@@ -61,7 +61,7 @@ import {
 } from '@tiktrends/core';
 import { semer, session } from './studios-semis';
 import { avecSpatial } from './spatial/fournisseur';
-import { attendreMontageStable } from './helpers/attendre-etat';
+import { attendreEtat, attendreMontageStable, pasDansAct } from './helpers/attendre-etat';
 import { creerIterationChoisieAction } from '../app/actions/adsmap-iterer-variable';
 import { iterationPlanAction } from '../app/actions/adsmap-iterate';
 import PersonasSpatiale from '../app/(spatial)/sp/brands/[id]/personas/page';
@@ -193,7 +193,7 @@ async function saisir(el: HTMLInputElement | HTMLTextAreaElement | null, valeur:
 /** Ranger le formulaire d'hypothèse ouvert, puis attendre l'écriture. */
 async function ranger(f: HTMLFormElement, avant: number) {
   await cliquer([...f.querySelectorAll('button')].find((b) => b.textContent === 'Ranger dans « À formuler »'), 'ranger');
-  for (let i = 0; i < 50 && (await traces()).ads === avant; i++) await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
+  await attendreEtat('l’hypothèse rangée est écrite (le compte des fiches a bougé)', async () => (await traces()).ads !== avant, { pas: pasDansAct });
 }
 /** L'écran Itérer, monté depuis une adresse · la pub choisie, une variable admise, une valeur, puis « Créer l'itération ». */
 async function itererDepuis(href: string, parent: string) {
