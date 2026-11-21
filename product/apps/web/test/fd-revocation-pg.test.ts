@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { randomUUID } from 'node:crypto';
+import { attendreEtat } from './helpers/attendre-etat';
 
 /**
  * Lot F-D · contre-recette du 8 octobre (P2) sur Postgres RÉEL, deux connexions.
@@ -21,7 +22,7 @@ vi.hoisted(() => { if (process.env.FD_PG_URL) process.env.DATABASE_URL = process
 describe.skipIf(!URL_PG)('Postgres réel · révocation concurrente du geste « benchmark approuvé »', () => {
   it('la révocation validée pendant le geste n’est jamais effacée', async () => {
     const depot = await import('../lib/studios/prompts/depot-prompts');
-    const { db, schema, eq } = await import('@tiktrends/db');
+    const { db, schema, eq, sql } = await import('@tiktrends/db');
     const { acteurPlateforme } = await import('./l2-outils');
     const { releaseApprouvable } = await import('./fd-revocation-outils');
     const ADMIN = randomUUID();
@@ -31,20 +32,28 @@ describe.skipIf(!URL_PG)('Postgres réel · révocation concurrente du geste « 
 
     let lacher!: () => void;
     const porte = new Promise<void>((r) => { lacher = r; });
-    let verrouille!: () => void;
-    const pris = new Promise<void>((r) => { verrouille = r; });
+    let verrouille!: (pid: number) => void;
+    const pris = new Promise<number>((r) => { verrouille = r; });
+    const lignes = (r: unknown) => (Array.isArray(r) ? r : (r as { rows: unknown[] }).rows) as Array<Record<string, unknown>>;
     // Connexion 1 · la révocation, retenue avant sa validation.
     const revocation = db.transaction(async (tx) => {
+      const pid = Number(lignes(await tx.execute(sql`select pg_backend_pid() as pid`))[0]!.pid);
       const [l] = await tx.select().from(R).where(eq(R.id, rel.releaseId)).for('update');
       const evaluation = { ...(l!.evaluation as Record<string, unknown>), revocation: { motif: 'Révocation concurrente', par: ADMIN, le: new Date().toISOString() } };
       await tx.update(R).set({ evaluation }).where(eq(R.id, rel.releaseId));
-      verrouille();
+      verrouille(pid);
       await porte;
     });
-    await pris;
+    const pidRevocation = await pris;
     // Connexion 2 · le geste part pendant que la révocation tient la ligne.
-    const geste = depot.approuverBenchmark(acteurPlateforme(ADMIN), { releaseId: rel.releaseId, evaluationId: rel.evaluationId, motif: 'Fiches relues' });
-    await new Promise((r) => setTimeout(r, 400));
+    let gesteFini = false;
+    const geste = depot.approuverBenchmark(acteurPlateforme(ADMIN), { releaseId: rel.releaseId, evaluationId: rel.evaluationId, motif: 'Fiches relues' }).finally(() => { gesteFini = true; });
+    // L'état attendu · le geste est BLOQUÉ sur le verrou de la révocation (son `SELECT … FOR UPDATE`, vu par Postgres),
+    // jamais « 400 ms ont passé ». « Le geste est déjà fini » conclut aussi · les constats ci-dessous disent alors ce qu'il a écrit.
+    await attendreEtat('le geste attend le verrou de la révocation (ou il est déjà fini)', async () => {
+      const n = Number(lignes(await db.execute(sql`select count(*)::int as n from pg_stat_activity where ${pidRevocation} = any(pg_blocking_pids(pid))`))[0]!.n);
+      return n > 0 || gesteFini;
+    });
     lacher();
     await revocation;
     const r = await geste;
