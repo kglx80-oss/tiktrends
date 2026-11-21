@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   retenirJournees, protocoleRetenu, protocoleMetaRetenu, cboRetenu, cboEtabliParExport, cboParCampagne, memeCampagne, adAMesurer, sourceDesEntrees, sommeRetenues, journeesReporting, importeesDans, mentionImportees,
   dansFenetre, verdictsDesMesures, sousKpisResultats, kpisResultats, PROTOCOLE_INCONNU, DEFAULT_VERDICT_CONFIG, preuveAEcrire,
+  cleVerrouImportMesures, REFUS_IMPORT_MESURES_EN_COURS,
   type EntreeMesure, type EntreeCsvRetenable, type JourneeMetaLue, type MesuresLigne, type ProtocoleAd,
 } from '../src';
 
@@ -301,5 +302,18 @@ describe('preuveAEcrire · un réimport MUET de la même période garde la preuv
     expect(preuveAEcrire({ ...abo, ensembleId: 'as1' }, { ...m, ensembleId: 'as2', ensemble: 'ES 1' }).budgetJour, 'des identifiants d’ensemble différents tranchent « non », même nom').toBeNull();
     expect(preuveAEcrire({ ...abo, metaAdId: '120200000000000301' }, { ...m, metaAdId: '120200000000000301', ensembleId: null, ensemble: 'renommé' }).budgetJour, 'même Ad ID · le même ensemble, même renommé').toBe(50);
     expect(preuveAEcrire({ ...ancienne, metaAdId: null }, { ...m, ensembleId: 'as2', ensemble: 'ES 2' }), 'le CBO est de la campagne · un autre ensemble le perd').toEqual({ cbo: true, budgetJour: null, importeLe: 'janvier' });
+  });
+});
+
+describe('le verrou d’écriture d’un import de mesures · une clé par marque, un refus lisible', () => {
+  it('deux marques ne partagent jamais leur clé · la même marque, toujours la même', () => {
+    const a = '0d6f3b5e-0000-4000-8000-000000000001';
+    const b = '0d6f3b5e-0000-4000-8000-000000000002';
+    expect(cleVerrouImportMesures(a), 'la clé ne porte pas la marque').toBe(`adsmap-mesures-import:${a}`);
+    expect(cleVerrouImportMesures(a), 'deux marques se bloqueraient l’une l’autre').not.toBe(cleVerrouImportMesures(b));
+  });
+  it('le refus dit quoi faire, en français, sans tiret cadratin', () => {
+    expect(REFUS_IMPORT_MESURES_EN_COURS).toBe('Un import de mesures est déjà en cours pour cette marque · réessaie dans un instant.');
+    expect(REFUS_IMPORT_MESURES_EN_COURS).not.toMatch(/\u2014/);
   });
 });
