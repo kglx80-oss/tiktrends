@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { dirname, join, relative } from 'node:path';
 
 /**
  * « Codé seul » (suivi de #1115) · `FOUNDER_EMAILS` n'ouvre aucun pouvoir.
@@ -182,10 +182,63 @@ describe('Face équipe · une seule porte au registre, et la décision côté se
     expect(hors, `${PORTE} est nommée hors de rbac.ts et access.ts · inscrire une face la rendrait reconnue sans privilegesEquipe, passe par effectiveAccess`).toEqual([]);
   });
 
+  it('le lecteur d’imports RÉSOUT le chemin · relatif depuis lib/, depuis plus loin, alias @/, import(), extension', () => {
+    const lit = (chemin: string, code: string) => importeRbacOuAccess(chemin, code);
+    expect(lit('apps/web/lib/x.tsx', "import { canAccess } from './rbac';"), 'un client de lib/ qui importe ./rbac passe · le motif exige lib/ dans le chemin').toBe(true);
+    expect(lit('apps/web/lib/spatial/x.tsx', "import { effectiveAccess } from '../access';")).toBe(true);
+    expect(lit('apps/web/components/a/B.tsx', "import type { Access } from '../../lib/rbac';")).toBe(true);
+    expect(lit('apps/web/spatial/vues/X.tsx', "import { canAccess } from '@/lib/rbac';")).toBe(true);
+    expect(lit('apps/web/lib/x.tsx', "const r = await import('./rbac.ts');")).toBe(true);
+    expect(lit('apps/web/lib/x.tsx', "export { canAccess } from './access';")).toBe(true);
+    // Les homonymes ne sont pas rbac · le lecteur ne crie pas au loup.
+    expect(lit('apps/web/lib/x.tsx', "import { a } from './rbac-aide';")).toBe(false);
+    expect(lit('apps/web/lib/x.tsx', "import { a } from './spatial/rbac';")).toBe(false);
+    expect(lit('apps/web/lib/x.tsx', "import { a } from '@tiktrends/core';")).toBe(false);
+  });
+
   it('aucun module client n’importe rbac ni access · il recevrait une face sérialisée, que le registre refuse', () => {
     const clients = FICHIERS_WEB_SANS_COMMENTAIRES.filter((f) => /^\s*['"]use client['"]/.test(f.code));
     expect(clients.length, 'aucun composant client lu · le motif regarde ailleurs').toBeGreaterThan(20);
-    const hors = clients.filter((f) => /from\s+['"][^'"]*\blib\/(rbac|access)['"]|import\(\s*['"][^'"]*\blib\/(rbac|access)['"]/.test(f.code)).map((f) => f.chemin);
+    const hors = clients.filter((f) => importeRbacOuAccess(f.chemin, f.code)).map((f) => f.chemin);
     expect(hors, 'un composant client importe rbac ou access · la décision d’accès se prend côté serveur, le client reçoit le résultat (ouvert, verrou)').toEqual([]);
+  });
+});
+
+/** Les sources d'import d'un module · `from '…'` (import, export), `import('…')`, `import '…'`. */
+const SOURCES_IMPORT = /\bfrom\s+['"]([^'"]+)['"]|\bimport\s*\(\s*['"]([^'"]+)['"]|\bimport\s+['"]([^'"]+)['"]/g;
+const CIBLES_SERVEUR = new Set(['apps/web/lib/rbac', 'apps/web/lib/access']);
+/** Le module (chemin depuis product/) importe-t-il lib/rbac ou lib/access · chemin RÉSOLU (relatif, alias @/), extension retirée. */
+function importeRbacOuAccess(chemin: string, code: string): boolean {
+  for (const m of code.matchAll(SOURCES_IMPORT)) {
+    const src = (m[1] ?? m[2] ?? m[3])!;
+    const absolu = src.startsWith('@/') ? join(WEB, src.slice(2)) : src.startsWith('.') ? join(PRODUIT, dirname(chemin), src) : null;
+    if (absolu === null) continue;
+    const rel = relative(PRODUIT, absolu).split('\\').join('/').replace(/\.(ts|tsx|js|mjs)$/, '');
+    if (CIBLES_SERVEUR.has(rel)) return true;
+  }
+  return false;
+}
+
+/**
+ * Suite de #1122 · le registre des SESSIONS d'équipe
+ * (lib/registre-equipe-session.ts) n'a qu'une porte, `authentifierEquipeSession`.
+ * Seuls `equipeDeSession` (lib/equipe-plateforme.ts, lu par getSession) et le
+ * helper de test la passent · son nom écrit ailleurs suffirait à faire croire à
+ * `effectiveAccess` un `plateformeAdmissible` posé à la main. La règle
+ * `tiktrends/authentification-equipe-session` le dit dans l'éditeur.
+ */
+const PORTE_SESSIONS = ['authentifier', 'EquipeSession'].join('');
+const PASSENT_LA_PORTE_SESSIONS = ['apps/web/lib/registre-equipe-session.ts', 'apps/web/lib/equipe-plateforme.ts', 'apps/web/test/helpers/face-equipe.ts'];
+
+describe('Session d’équipe · une seule porte au registre des sessions authentiques', () => {
+  it('la porte est définie, passée par equipeDeSession et par le helper (sinon le recensement ne garde rien)', () => {
+    for (const chemin of PASSENT_LA_PORTE_SESSIONS) {
+      expect(FICHIERS_WEB_SANS_COMMENTAIRES.some((f) => f.chemin === chemin && new RegExp(`\\b${PORTE_SESSIONS}\\b`).test(f.code)), `${chemin} ne nomme plus la porte · le motif regarde ailleurs`).toBe(true);
+    }
+  });
+
+  it('personne d’autre ne nomme la porte du registre des sessions (pages, actions, lib, tests, règles)', () => {
+    const hors = FICHIERS_WEB_SANS_COMMENTAIRES.filter((f) => new RegExp(`\\b${PORTE_SESSIONS}\\b`).test(f.code) && !PASSENT_LA_PORTE_SESSIONS.includes(f.chemin)).map((f) => f.chemin);
+    expect(hors, `${PORTE_SESSIONS} est nommée hors de registre-equipe-session.ts, equipe-plateforme.ts et du helper de test · une session authentifiée à la main ferait croire son plateformeAdmissible à effectiveAccess, passe par getSession (equipeDeSession) ou sessionEquipeTest`).toEqual([]);
   });
 });

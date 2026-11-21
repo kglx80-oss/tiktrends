@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { accesTotal, plateformeAdmissible, type RolePlateforme, type MatriceDroits } from '@tiktrends/core';
 import { estFondateurCode, estFondateurEnvironnement } from './founder';
+import { authentifierEquipeSession } from './registre-equipe-session';
 
 /**
  * Le rôle d'ÉQUIPE INTERNE d'un compte + la matrice des droits éditable.
@@ -69,8 +70,17 @@ export function equipeDepuisLignes(
  * fois par requête depuis `getSession`. Pour un accès total on n'ouvre PAS la
  * table des droits (inutile). L'email est normalisé en minuscules comme il est
  * stocké à l'amorçage.
+ *
+ * La session rendue est AUTHENTIFIÉE (gelée, inscrite au registre de
+ * lib/registre-equipe-session.ts) · c'est la seule que `effectiveAccess`
+ * reconnaît. Une session d'équipe reconstruite à la main vaut absente.
  */
 export async function equipeDeSession(email?: string | null): Promise<EquipeSession | null> {
+  const lue = await lireEquipe(email);
+  return lue ? authentifierEquipeSession(lue) : null;
+}
+
+async function lireEquipe(email?: string | null): Promise<EquipeSession | null> {
   const e = email?.trim().toLowerCase();
   if (!e || !db) return equipeDepuisLignes(email, null, []);
 

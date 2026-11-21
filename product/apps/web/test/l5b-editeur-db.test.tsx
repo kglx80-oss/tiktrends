@@ -44,6 +44,7 @@ import { lireEditeurPour } from '../lib/studios/editeur/lecture';
 import { gardeStudio } from '../lib/studios/garde';
 import EditeurImagePage from '../app/(spatial)/sp/studio/projets/[id]/image/page';
 import { avecSpatial } from './spatial/fournisseur';
+import { sessionEquipeTest } from './helpers/face-equipe';
 
 const ids = h.ids;
 const qui = (q: 'ua' | 'uv' | 'ur' | 'ub') => { h.session = session(ids, q); };
@@ -271,7 +272,7 @@ describe('profils · lecture seule, hors portée', () => {
   });
 
   it('lecteur d’équipe (studio.read sans studio.propose) · page en lecture seule, enregistrement FORBIDDEN, rien écrit', async () => {
-    h.session = session(ids, 'uv', { equipe: { role: 'membre', matrice: { membre: ['studio'] }, plateformeAdmissible: true } } as never);
+    h.session = session(ids, 'uv', { equipe: sessionEquipeTest({ role: 'membre', matrice: { membre: ['studio'] }, plateformeAdmissible: true }) } as never);
     const d = await page(projet);
     expect(d.querySelector('.studio'), d.innerHTML.slice(0, 400)).not.toBeNull();
     expect(d.querySelector('.wshead .pill')?.textContent ?? '', 'pastille « Lecture seule » absente pour un rôle sans studio.propose').toContain('Lecture seule');

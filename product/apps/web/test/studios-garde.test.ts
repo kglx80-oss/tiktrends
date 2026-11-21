@@ -30,6 +30,7 @@ import { db, schema } from '@tiktrends/db';
 import { session, semer } from './studios-semis';
 import { creerProjet, enregistrerDocument, listerProjets, inspecterProjet } from '../app/actions/studios/projets';
 import { contexteDepuisSession, gardeStudio } from '../lib/studios/garde';
+import { sessionEquipeTest } from './helpers/face-equipe';
 
 const ids = etat.ids;
 let projetA = { id: '', version: '' };
@@ -69,7 +70,7 @@ describe('SEC-03 · un lecteur ne crée ni ne modifie rien, même en appelant l�
   });
 
   it('un membre d’équipe invité en lecteur ne génère pas, même si la matrice ouvre le studio', () => {
-    const ctx = contexteDepuisSession(session(ids, 'uv', { equipe: { role: 'membre', matrice: { membre: ['studio'] }, plateformeAdmissible: true } }), [ids.brandA1], [], 't');
+    const ctx = contexteDepuisSession(session(ids, 'uv', { equipe: sessionEquipeTest({ role: 'membre', matrice: { membre: ['studio'] }, plateformeAdmissible: true }) }), [ids.brandA1], [], 't');
     expect(ctx.permissions.espace.has('studio.read')).toBe(true);
     expect(ctx.permissions.espace.has('studio.generate')).toBe(false);
   });
@@ -102,8 +103,8 @@ describe('SEC-09 · admin ou owner d’espace : aucune permission plateforme', (
 
   it('seul l’accès total plateforme ouvre prompt.publish', () => {
     // Comptes ADMISSIBLES (SEC-10 · compte antérieur à son entrée staff) · seul le rôle départage ici.
-    const admin = contexteDepuisSession(session(ids, 'ua', { equipe: { role: 'admin', matrice: {}, plateformeAdmissible: true } }), [ids.brandA1], [], 't');
-    const manager = contexteDepuisSession(session(ids, 'ua', { equipe: { role: 'manager', matrice: {}, plateformeAdmissible: true } }), [ids.brandA1], [], 't');
+    const admin = contexteDepuisSession(session(ids, 'ua', { equipe: sessionEquipeTest({ role: 'admin', matrice: {}, plateformeAdmissible: true }) }), [ids.brandA1], [], 't');
+    const manager = contexteDepuisSession(session(ids, 'ua', { equipe: sessionEquipeTest({ role: 'manager', matrice: {}, plateformeAdmissible: true }) }), [ids.brandA1], [], 't');
     expect(admin.permissions.plateforme.has('prompt.publish')).toBe(true);
     expect(manager.permissions.plateforme.has('prompt.publish')).toBe(false);
   });
@@ -123,7 +124,7 @@ describe('Suivi de #1117 · l’audit ne trace « equipe: » que pour un compte 
   });
 
   it('admissible · rôle d’équipe puis rôle d’espace, inchangé', () => {
-    const ctx = contexteDepuisSession(session(ids, 'ua', { equipe: { role: 'admin', matrice: {}, plateformeAdmissible: true, inscritEquipe: true } }), [ids.brandA1], [], 't');
+    const ctx = contexteDepuisSession(session(ids, 'ua', { equipe: sessionEquipeTest({ role: 'admin', matrice: {}, plateformeAdmissible: true, inscritEquipe: true }) }), [ids.brandA1], [], 't');
     expect(ctx.roleEffectif).toBe('equipe:admin/espace:member');
   });
 });

@@ -2,6 +2,7 @@ import 'server-only';
 import { privilegesEquipe } from '@tiktrends/core';
 import { estFondateurCode } from './founder';
 import type { EquipeSession } from './equipe-plateforme';
+import { equipeSessionAuthentique } from './registre-equipe-session';
 import type { MatriceDroits, RolePlateforme } from '@tiktrends/core';
 import { inscrireFaceEquipe, type Access, type FaceEquipe, type Plan, type Role } from './rbac';
 
@@ -36,11 +37,22 @@ import { inscrireFaceEquipe, type Access, type FaceEquipe, type Plan, type Role 
  * (`faceEquipeReconnue`) · une face forgée ailleurs, par cast, `any`, copie ou
  * JSON, vaut face client. Gelée · on ne peut pas élargir après coup le rôle ou
  * la matrice d'une face reconnue.
+ *
+ * ── L'entrée authentifiée (suite de #1122) ────────────────────────────────────
+ * `privilegesEquipe` croit `equipe.plateformeAdmissible`. On ne lui passe donc
+ * QUE la session d'équipe produite par `equipeDeSession` (gelée, inscrite au
+ * registre de lib/registre-equipe-session.ts). Une `equipe` reconstruite à la
+ * main · littéral, copie, JSON · vaut absente · face client, rôle et formule
+ * réels de l'espace. Recensement des appelants · chacun reçoit la session de
+ * `getSession` (directement, ou par une garde qui la rend telle quelle) ou
+ * n'a pas d'équipe (`membres-mentions`, accès d'un AUTRE membre).
  */
 export function effectiveAccess(
   s: { role: Role; plan: Plan; user: { email: string }; equipe?: EquipeSession | null },
 ): Access {
-  const equipe = s.equipe ?? undefined;
+  // L'entrée est AUTHENTIFIÉE · seule une session d'équipe produite par `equipeDeSession` compte.
+  const equipe = equipeSessionAuthentique(s.equipe) ?? undefined;
+  if (!equipe && typeof s.equipe === 'object' && s.equipe !== null) avertirSessionNonAuthentifiee();
   const p = privilegesEquipe({ fondateurCode: estFondateurCode(s.user.email), equipe });
   const plan: Plan = p.formuleBusiness ? 'business' : s.plan;
   if (!equipe || !p.faceEquipe) return { role: s.role, plan };
@@ -56,4 +68,18 @@ function matriceGelee(m: MatriceDroits | undefined): MatriceDroits {
     if (Array.isArray(rubriques)) copie[role as RolePlateforme] = Object.freeze([...rubriques]);
   }
   return Object.freeze(copie);
+}
+
+/**
+ * Filet de journal · une `equipe` posée mais non authentifiée n'arrive jamais
+ * en code légitime (`getSession` la produit). Si elle arrive · une session
+ * reconstruite à la main, ou DEUX instances du registre (chacune ses sessions)
+ * qui fermeraient l'équipe sans bruit. Dit une fois par processus, sans donnée
+ * personnelle.
+ */
+let sessionNonAuthentifieeDite = false;
+function avertirSessionNonAuthentifiee(): void {
+  if (sessionNonAuthentifieeDite) return;
+  sessionNonAuthentifieeDite = true;
+  console.warn('[rbac] session d’équipe non authentifiée · registre d’une autre instance du module ou session reconstruite à la main · le compte retombe sur la face client');
 }

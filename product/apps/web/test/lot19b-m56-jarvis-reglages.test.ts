@@ -44,6 +44,7 @@ import { eq, inArray, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { saveJarvisRulesAction, proposeJarvisRulesAction, trainJarvisAction, saveJarvisLearningsAction } from '../app/actions/jarvis';
 import { TEXTE_REFUS_JARVIS } from '../lib/jarvis-acces';
+import { sessionEquipeTest } from './helpers/face-equipe';
 
 /* Faux fournisseur · réponse NON streamée (les deux appels du lot sont simples). */
 const recues: Array<{ system: string }> = [];
@@ -101,7 +102,7 @@ const ACTIONS: Array<[string, () => Promise<{ error?: string }>]> = [
 const REFUSES: Array<[string, () => unknown, string, string]> = [
   ['admin d’un espace Starter', () => base(ids.wsS, { role: 'admin', plan: 'starter', equipe: null }), ids.bS, TEXTE_REFUS_JARVIS.plan],
   ['owner d’un espace Starter', () => base(ids.wsS, { role: 'owner', plan: 'starter', equipe: null }), ids.bS, TEXTE_REFUS_JARVIS.plan],
-  ['membre d’équipe freelance, owner de son espace Business', () => base(ids.wsB, { role: 'owner', plan: 'business', equipe: { role: 'freelance', matrice: {}, plateformeAdmissible: true } }), ids.bB, TEXTE_REFUS_JARVIS.role],
+  ['membre d’équipe freelance, owner de son espace Business', () => base(ids.wsB, { role: 'owner', plan: 'business', equipe: sessionEquipeTest({ role: 'freelance', matrice: {}, plateformeAdmissible: true }) }), ids.bB, TEXTE_REFUS_JARVIS.role],
 ];
 
 describe('refus · feature `jarvis` · zéro effet', () => {
@@ -166,7 +167,7 @@ describe('parcours autorisés inchangés · faux fournisseur local', () => {
   });
 
   it('fondateur (espace Starter, accès total) · autorisé, crédits illimités', async () => {
-    h.session = base(ids.wsS, { role: 'owner', plan: 'starter', user: { id: ids.u, email: 'kguilbaux@agence-glx.fr', name: null }, equipe: { role: 'adminplus', matrice: {} } }); h.marque = ids.bS;
+    h.session = base(ids.wsS, { role: 'owner', plan: 'starter', user: { id: ids.u, email: 'kguilbaux@agence-glx.fr', name: null }, equipe: sessionEquipeTest({ role: 'adminplus', matrice: {} }) }); h.marque = ids.bS;
     const avant = await etat();
     const r = await proposeJarvisRulesAction();
     expect(r.error).toBeUndefined();

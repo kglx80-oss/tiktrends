@@ -83,6 +83,7 @@ import { Lot } from '../spatial/vues/resultats/Lot';
 import { Hypotheses } from '../spatial/vues/resultats/Hypotheses';
 import { LOTS_SANS_GAGNANTE, cartesSansGagnante, faitsCartesSansGagnante, propsFicheLot } from './helpers/gagnante-partout-vues';
 import { sansNomsAjoutes } from './helpers/noms-accessibles';
+import { sessionEquipeTest } from './helpers/face-equipe';
 
 vi.setConfig({ testTimeout: 120_000, hookTimeout: 240_000 });
 
@@ -392,7 +393,7 @@ describe('les portes · autre marque active, rôle sans `studio.propose`', () =>
   });
 
   it('Résultats ouvert par l’équipe, rôle d’espace sans `studio.propose` · fiche et carte · fermées avec la raison du rôle', async () => {
-    h.session = session(ids, 'uv', { plan: 'plus', equipe: { role: 'adminplus', matrice: {}, plateformeAdmissible: true } as SessionTest['equipe'] });
+    h.session = session(ids, 'uv', { plan: 'plus', equipe: sessionEquipeTest({ role: 'adminplus', matrice: {}, plateformeAdmissible: true }) as SessionTest['equipe'] });
     const d = await fiche('C');
     expect(ferme(d, geste(ligneVariante(d, 'C4'))), 'sur la fiche').toEqual(['BUTTON', 'true', LIBELLE_ITERER_GAGNANTE, RAISON_ROLE_ITERATION]);
     expect(d.querySelector('a[data-iterer-gagnante]'), 'un lien ouvert sans le rôle').toBeNull();

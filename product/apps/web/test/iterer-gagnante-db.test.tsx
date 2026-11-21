@@ -84,6 +84,7 @@ import IterationSpatiale from '../app/(spatial)/sp/studio/iterer/page';
 import { Projet } from '../spatial/vues/projet/Projet';
 import { OngletActivite } from '../spatial/vues/projet/OngletActivite';
 import { NotesSansNoeud, type ControleNotes } from '../spatial/vues/projet/NotesLignee';
+import { sessionEquipeTest } from './helpers/face-equipe';
 
 vi.setConfig({ testTimeout: 120_000, hookTimeout: 240_000 });
 
@@ -329,7 +330,7 @@ describe('les portes · autre marque active, Résultats fermé, rôle · l’idi
   });
 
   it('Résultats ouvert par l’équipe, rôle d’espace sans `studio.propose` · fermé avec la raison du rôle', async () => {
-    h.session = session(ids, 'uv', { plan: 'plus', equipe: { role: 'adminplus', matrice: {}, plateformeAdmissible: true } as SessionTest['equipe'] });
+    h.session = session(ids, 'uv', { plan: 'plus', equipe: sessionEquipeTest({ role: 'adminplus', matrice: {}, plateformeAdmissible: true }) as SessionTest['equipe'] });
     const d = await fiche();
     expect(commentaire(d, 'C')!.querySelector('[data-resultat-commentaire]')?.getAttribute('data-resultat-commentaire'), 'le résultat n’est pas dit').toBe('confirmee');
     expect(ferme(d, geste(commentaire(d, 'C'))), 'sous le commentaire · pas fermé avec sa raison écrite à côté').toEqual(['BUTTON', 'true', LIBELLE_ITERER_GAGNANTE, RAISON_ROLE_ITERATION]);

@@ -42,6 +42,7 @@ import { verserSelectionDansProjet, projetsPourVersement } from '../app/actions/
 import { lireProduitProjet } from '../app/actions/studios/produit';
 import { semer, session } from './studios-semis';
 import { semerCatalogue, projetStatique, compter, delta, dataUri, JAMAIS_TOUCHE, type Catalogue } from './l5c-outils';
+import { sessionEquipeTest } from './helpers/face-equipe';
 
 const ids = etat.ids;
 const V = schema.studioProjectVersions;
@@ -163,7 +164,7 @@ describe('droits et bornes', () => {
     const avant = await compter(db);
     expect(await verserSelectionDansProjet({ projectId, ids: [m.commune], role: 'style', scope: 'global' })).toMatchObject({ ok: false, code: 'FORBIDDEN' });
     // Membre d'équipe invité en lecteur, studio ouvert par la matrice · il voit les projets, il n'y verse rien.
-    etat.session = session(ids, 'uv', { equipe: { role: 'membre', matrice: { membre: ['studio'] }, plateformeAdmissible: true } } as never);
+    etat.session = session(ids, 'uv', { equipe: sessionEquipeTest({ role: 'membre', matrice: { membre: ['studio'] }, plateformeAdmissible: true }) } as never);
     const lus = await projetsPourVersement();
     expect(lus.ok && lus.projets.map((p) => p.id)).toContain(projectId);
     expect(await verserSelectionDansProjet({ projectId, ids: [m.commune], role: 'style', scope: 'global' })).toMatchObject({ ok: false, code: 'FORBIDDEN' });

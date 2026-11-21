@@ -70,6 +70,7 @@ import { verserSelectionDansProjet, projetsPourVersement, creerProjetEtVerser } 
 import { lireProduitProjet } from '../app/actions/studios/produit';
 import { semer, session } from './studios-semis';
 import { semerCatalogue, projetStatique, compter, delta, dataUri, JAMAIS_TOUCHE, type Catalogue } from './l5c-outils';
+import { sessionEquipeTest } from './helpers/face-equipe';
 
 const ids = etat.ids;
 const P = schema.studioProjects;
@@ -225,7 +226,7 @@ describe('droits et portée', () => {
   it('rôle sans droit d’écriture Studios (client_viewer, lecteur d’équipe) · FORBIDDEN, rien de créé', async () => {
     etat.session = session(ids, 'uv');
     expect(await rienCree(() => creerProjetEtVerser(entree()))).toMatchObject({ ok: false, code: 'FORBIDDEN' });
-    etat.session = session(ids, 'uv', { equipe: { role: 'membre', matrice: { membre: ['studio'] }, plateformeAdmissible: true } } as never);
+    etat.session = session(ids, 'uv', { equipe: sessionEquipeTest({ role: 'membre', matrice: { membre: ['studio'] }, plateformeAdmissible: true }) } as never);
     expect(await rienCree(() => creerProjetEtVerser(entree()))).toMatchObject({ ok: false, code: 'FORBIDDEN' });
     // La fenêtre le dit avant le clic · la règle de la page Studios.
     const lus = await projetsPourVersement();

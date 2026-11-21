@@ -45,6 +45,7 @@ import { acteurPlateforme, publierRegistreDeTest } from './l2-outils';
 import { adaptateurSimule } from './l2-adaptateur-simule';
 import { ctxDe, projetVideo, compter, delta, sortiePatch, SANS_EFFET_FINANCIER } from './l4a-outils';
 import type { AppelModele } from '../lib/studios/prompts/adaptateur';
+import { sessionEquipeTest } from './helpers/face-equipe';
 
 const ids = etat.ids;
 const PR = schema.studioProposals;
@@ -263,7 +264,7 @@ describe('FLOW-03 · une réponse tardive ne s’applique jamais à une autre po
 
   it('SEC-02 · rôle rétrogradé pendant l’appel (lecteur d’équipe) · FORBIDDEN, rien stocké', async () => {
     repondrePatch([{ op: 'replace', path: '/shots/byId/s_produit/narration', newValue: 'tardif', reason: '' }]);
-    relire = () => ({ ok: true, ctx: contexteDepuisSession(session(ids, 'ua', { role: 'client_viewer', equipe: { role: 'membre', matrice: { membre: ['studio'] }, plateformeAdmissible: true } } as never), [ids.brandA1, ids.brandA2], [], 't') });
+    relire = () => ({ ok: true, ctx: contexteDepuisSession(session(ids, 'ua', { role: 'client_viewer', equipe: sessionEquipeTest({ role: 'membre', matrice: { membre: ['studio'] }, plateformeAdmissible: true }) } as never), [ids.brandA1, ids.brandA2], [], 't') });
     const avant = await compter(db);
     const r = await proposerAvecJarvis(ctxDe(ids, 'ua'), { tache: 'document.patch', projectId: A1.projectId, baseVersionId: A1.versionId, cible: 'shot:s_produit', demande: 'x' }, deps());
     expect(r).toMatchObject({ ok: false, code: 'FORBIDDEN' });
@@ -411,7 +412,7 @@ describe('lectures pures et droits (actions réelles)', () => {
     expect(await actions.listerPropositions({ projectId: p.projectId })).toMatchObject({ ok: false, code: 'FORBIDDEN' });
     expect(await actions.appliquerProposition(entree)).toMatchObject({ ok: false, code: 'FORBIDDEN' });
     // Membre d'équipe invité en lecteur, studio ouvert par la matrice : il lit, il ne propose ni n'applique.
-    etat.session = session(ids, 'uv', { equipe: { role: 'membre', matrice: { membre: ['studio'] }, plateformeAdmissible: true } } as never);
+    etat.session = session(ids, 'uv', { equipe: sessionEquipeTest({ role: 'membre', matrice: { membre: ['studio'] }, plateformeAdmissible: true }) } as never);
     const lu = await actions.listerPropositions({ projectId: p.projectId });
     expect(lu.ok && { peutProposer: lu.peutProposer, motif: lu.jarvis.motif }).toEqual({ peutProposer: false, motif: 'DROIT_PROPOSER' });
     expect(await actions.appliquerProposition(entree)).toMatchObject({ ok: false, code: 'FORBIDDEN' });

@@ -43,6 +43,7 @@ import { GET as apercu } from '../app/studio/projets/[id]/produit/fichier/[asset
 import { semer, session } from './studios-semis';
 import { ctxDe } from './l4a-outils';
 import { semerCatalogue, projetStatique, compter, delta, type Catalogue } from './l5c-outils';
+import { sessionEquipeTest } from './helpers/face-equipe';
 
 const ids = etat.ids;
 const V = schema.studioProjectVersions;
@@ -170,7 +171,7 @@ describe('portée · personne hors du projet ne peut importer dedans', () => {
     // mais n'a pas studio.propose : seul le garde de l'action l'arrête. Admin ADMISSIBLE ·
     // un admin non admissible n'a plus la face équipe (`privilegesEquipe`) et, lecteur
     // d'un espace, ne lit plus le studio du tout (secu-business-admissible-db).
-    etat.session = session(ids, 'uv', { equipe: { role: 'admin', matrice: {}, plateformeAdmissible: true } } as never);
+    etat.session = session(ids, 'uv', { equipe: sessionEquipeTest({ role: 'admin', matrice: {}, plateformeAdmissible: true }) } as never);
     expect((await actions.lireProduitProjet({ projectId })).ok, 'le sujet devrait pouvoir lire').toBe(true);
     expect(await actions.importerPhotoProduit({ projectId, baseVersionId: versionId, productId: pr.id, dataUri: png() }), 'un rôle en lecture seule a importé une photo').toMatchObject({ ok: false, code: 'FORBIDDEN' });
     expect(delta(avant, await compter(db))).toEqual({});

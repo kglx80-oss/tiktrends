@@ -55,6 +55,7 @@ vi.mock('../app/actions/adsmap-attribution', () => ({
 }));
 
 import AccueilSpatial from '../app/(spatial)/sp/dashboard/page';
+import { sessionEquipeTest } from './helpers/face-equipe';
 
 const rendre = async (params: Record<string, string> = {}) => renderToStaticMarkup(await AccueilSpatial({ searchParams: Promise.resolve(params) }));
 const texte = (h: string) => h.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
@@ -71,8 +72,8 @@ beforeEach(() => {
 
 describe('Spatial · Analytics · refus serveur, aucune lecture', () => {
   const refuses: Array<[string, () => Session]> = [
-    ['membre d’équipe « membre » (matrice sans Analytics)', () => ({ ...proprietaire(), role: 'member', equipe: { role: 'membre', matrice: {}, plateformeAdmissible: true } })],
-    ['membre d’équipe « freelance » (matrice sans Analytics)', () => ({ ...proprietaire(), role: 'member', equipe: { role: 'freelance', matrice: {}, plateformeAdmissible: true } })],
+    ['membre d’équipe « membre » (matrice sans Analytics)', () => ({ ...proprietaire(), role: 'member', equipe: sessionEquipeTest({ role: 'membre', matrice: {}, plateformeAdmissible: true }) })],
+    ['membre d’équipe « freelance » (matrice sans Analytics)', () => ({ ...proprietaire(), role: 'member', equipe: sessionEquipeTest({ role: 'freelance', matrice: {}, plateformeAdmissible: true }) })],
   ];
   for (const [nom, session] of refuses) {
     it(nom, async () => {
@@ -91,7 +92,7 @@ describe('Spatial · Analytics · parcours autorisés', () => {
   const autorises: Array<[string, () => Session]> = [
     ['propriétaire', proprietaire],
     ['lecteur client, offre Starter (rôle et offre minimum de la matrice)', () => ({ ...proprietaire(), role: 'client_viewer', plan: 'starter' })],
-    ['membre d’équipe « lecture » (sa matrice ouvre Analytics)', () => ({ ...proprietaire(), role: 'member', equipe: { role: 'lecture', matrice: {}, plateformeAdmissible: true } })],
+    ['membre d’équipe « lecture » (sa matrice ouvre Analytics)', () => ({ ...proprietaire(), role: 'member', equipe: sessionEquipeTest({ role: 'lecture', matrice: {}, plateformeAdmissible: true }) })],
   ];
   for (const [nom, session] of autorises) {
     it(nom, async () => {
@@ -176,7 +177,7 @@ describe('Spatial · Accueil · le sélecteur de vue suit le rôle', () => {
     expect(onglets(await rendre({ vue: 'analytics' }))).toEqual([['/dashboard', 'Accueil', false], ['/dashboard?vue=analytics', 'Analytics', true]]);
   });
   it('rôle sans droit Analytics · aucun onglet, aucun lien vers la vue', async () => {
-    etat.session = { ...proprietaire(), role: 'member', equipe: { role: 'freelance', matrice: {}, plateformeAdmissible: true } };
+    etat.session = { ...proprietaire(), role: 'member', equipe: sessionEquipeTest({ role: 'freelance', matrice: {}, plateformeAdmissible: true }) };
     const h = await rendre();
     expect(onglets(h)).toBeNull();
     expect(h).not.toContain('?vue=analytics');

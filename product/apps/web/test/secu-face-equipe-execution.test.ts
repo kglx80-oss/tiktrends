@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { effectiveAccess } from '../lib/access';
 import { FEATURES, accountSections, canAccess, denyReason, faceEquipeReconnue, ouverturesParRole, railNav, type Access, type Plan, type Role } from '../lib/rbac';
+import { sessionEquipeTest } from './helpers/face-equipe';
 
 /**
  * Suite de #1122 · la face équipe est infalsifiable À L'EXÉCUTION.
@@ -24,7 +25,7 @@ import { FEATURES, accountSections, canAccess, denyReason, faceEquipeReconnue, o
 const VEILLE = FEATURES.find((f) => f.key === 'inspo')!; // minPlan core · rubrique « veille »
 const role: Role = 'member';
 const plan: Plan = 'starter';
-const vraie = effectiveAccess({ role, plan, user: { email: 'membre-equipe@tiktrends.invalid' }, equipe: { role: 'membre', matrice: { membre: ['veille'] }, plateformeAdmissible: true } });
+const vraie = effectiveAccess({ role, plan, user: { email: 'membre-equipe@tiktrends.invalid' }, equipe: sessionEquipeTest({ role: 'membre', matrice: { membre: ['veille'] }, plateformeAdmissible: true }) });
 const client: Access = { role, plan };
 /** La face qu'on cherche à forger · accès total, aucune matrice. */
 const brute = () => ({ role: 'adminplus' as const, matrice: {} });
