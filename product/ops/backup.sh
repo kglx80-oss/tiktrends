@@ -4,8 +4,16 @@
 # une copie hors-site OVH Object Storage, fortement recommandée).
 set -euo pipefail
 
-REPO="/home/debian/tiktrends/product"
-BACKUP_DIR="/home/debian/backups"
+# Chemins du VPS. TIKTRENDS_REPO et TIKTRENDS_SAUVEGARDES ne sont lues que par
+# la garde `apps/web/test/ops-backup-hors-site.test.ts` (faux docker et rclone) ;
+# le service systemd ne les pose pas. Comme dans deploy.sh, une copie d'essai
+# garde ses dumps à côté d'elle, jamais dans le dossier de la production.
+REPO="${TIKTRENDS_REPO:-/home/debian/tiktrends}/product"
+if [ -n "${TIKTRENDS_REPO:-}" ] && [ "$TIKTRENDS_REPO" != "/home/debian/tiktrends" ]; then
+  BACKUP_DIR="${TIKTRENDS_SAUVEGARDES:-$TIKTRENDS_REPO/../sauvegardes}"
+else
+  BACKUP_DIR="${TIKTRENDS_SAUVEGARDES:-/home/debian/backups}"
+fi
 KEEP=14   # nombre de sauvegardes quotidiennes conservées
 
 cd "$REPO"
@@ -35,8 +43,15 @@ echo "[$(date -Is)] Rotation : $(ls -1 "$BACKUP_DIR"/tiktrends-*.sql.gz | wc -l)
 # COPIE HORS-SITE (OVH Object Storage) — s'active TOUTE SEULE dès qu'un remote
 # rclone nommé "ovh" existe. Tant qu'il n'est pas configuré, on ne fait rien.
 # La copie n'échoue jamais la sauvegarde locale (best-effort).
+#
+# Jamais `rclone listremotes | grep -q` : sous `pipefail`, `grep -q` sort dès
+# `ovh:` lu et ferme le tube ; si rclone écrit encore (un remote listé après
+# `ovh`), il prend SIGPIPE (statut 141) et le tube entier « échoue » · la copie
+# hors-site pouvait être SAUTÉE sans un mot (#1127 pour le même défaut). La liste est donc lue en entier, PUIS cherchée : un
+# rclone en échec compte toujours comme « pas de remote ovh », comme avant.
+# Garde : apps/web/test/ops-backup-hors-site.test.ts (cas « sortie bavarde »).
 OFFSITE_BUCKET="${OFFSITE_BUCKET:-tiktrends-backups}"
-if command -v rclone >/dev/null 2>&1 && rclone listremotes 2>/dev/null | grep -q '^ovh:'; then
+if command -v rclone >/dev/null 2>&1 && REMOTES="$(rclone listremotes 2>/dev/null)" && grep -q '^ovh:' <<< "$REMOTES"; then
   if rclone copy "$FILE" "ovh:${OFFSITE_BUCKET}/" 2>/dev/null; then
     echo "[$(date -Is)] Copie hors-site OK -> ovh:${OFFSITE_BUCKET}/"
     # Rotation hors-site : garder ~30 jours.
