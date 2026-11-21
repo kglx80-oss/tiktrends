@@ -2,6 +2,7 @@ import { dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { FlatCompat } from '@eslint/eslintrc';
 import tseslint from 'typescript-eslint';
+import tiktrends from './eslint-rules/face-equipe.mjs';
 
 /**
  * Configuration ESLint · flat config (ESLint 9).
@@ -14,7 +15,18 @@ import tseslint from 'typescript-eslint';
  * Les règles activées en plus visent ce qu'on corrige à la main depuis des
  * semaines : imports morts et variables inutilisées après un remaniement.
  */
-const compat = new FlatCompat({ baseDirectory: dirname(fileURLToPath(import.meta.url)) });
+const ICI = dirname(fileURLToPath(import.meta.url));
+const compat = new FlatCompat({ baseDirectory: ICI });
+
+/**
+ * Face équipe (suite de #1117 et #1119) · seul `effectiveAccess` construit un
+ * `Access`. Ces deux fichiers en ont le droit · la construction de production et
+ * le helper des tests de `rbac`. Voir eslint-rules/face-equipe.mjs pour ce que
+ * la règle attrape et ce qu'elle laisse passer. Elle protège contre une erreur,
+ * pas contre la malveillance.
+ */
+const CONSTRUCTEURS_FACE_EQUIPE = ['lib/access.ts', 'test/helpers/face-equipe.ts'];
+const TESTS = ['test/**', '**/*.test.*'];
 
 export default [
   { ignores: ['.next/**', 'node_modules/**', 'next-env.d.ts'] },
@@ -31,6 +43,29 @@ export default [
         caughtErrors: 'none', // `catch (e)` sans usage est un motif courant et lisible ici
       }],
     },
+  },
+  {
+    // Informations de type (compilateur) · la règle face équipe en a besoin pour
+    // voir à travers alias, `Access['equipe']`, `import()` et génériques.
+    files: ['**/*.{ts,tsx}'],
+    languageOptions: { parser: tseslint.parser, parserOptions: { projectService: true, tsconfigRootDir: ICI } },
+    plugins: { tiktrends },
+  },
+  {
+    files: ['**/*.{ts,tsx}'],
+    ignores: [...CONSTRUCTEURS_FACE_EQUIPE, ...TESTS],
+    rules: {
+      'tiktrends/face-equipe-forcee': 'error',
+      'tiktrends/pas-de-test-en-production': 'error',
+      // Un `@ts-expect-error` poserait une session brute dans `equipe` sans cast · aucun en production.
+      'tiktrends/pas-de-ts-ignore': 'error',
+    },
+  },
+  {
+    // Les tests de rbac éprouvent la face CLIENT par `{ role, plan } as Access` · permis, sans equipe.
+    files: ['test/**/*.{ts,tsx}', '**/*.test.{ts,tsx}'],
+    ignores: CONSTRUCTEURS_FACE_EQUIPE,
+    rules: { 'tiktrends/face-equipe-forcee': ['error', { accesSansEquipe: true }] },
   },
   {
     rules: {
