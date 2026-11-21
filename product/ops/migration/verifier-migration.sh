@@ -113,10 +113,15 @@ comparer_a_avant() {
 
 # ── Interruptions ───────────────────────────────────────────────────────────
 if [[ ${#ATTENTE[@]} -gt 0 ]]; then
+  # Jamais `cut … | grep -q` (ni `| head`) sous `pipefail` : le lecteur sort au
+  # premier résultat, l'écrivain prend SIGPIPE (141) et le tube « échoue » ·
+  # une table présente était SAUTÉE en silence comme point d'interruption, et le
+  # migrateur bloqué pouvait arrêter tout le script (set -e). La sortie est lue
+  # en entier, PUIS cherchée. Garde : apps/web/test/l9-ops-gardes.test.ts.
   if [[ -z "$POINTS" ]]; then
     for tag in "${ATTENTE[@]}"; do
       for t in $(grep -oE 'ALTER TABLE "[a-z_0-9]+"' "$L9_DRIZZLE/$tag.sql" | sed -E 's/ALTER TABLE "([^"]+)"/\1/'); do
-        if cut -f1 "$SORTIE/avant-colonnes.tsv" | grep -qx "$t" && [[ " $POINTS " != *" $t "* ]]; then POINTS="$POINTS $t"; fi
+        if grep -qx "$t" <<< "$(cut -f1 "$SORTIE/avant-colonnes.tsv")" && [[ " $POINTS " != *" $t "* ]]; then POINTS="$POINTS $t"; fi
       done
     done
   fi
@@ -138,7 +143,8 @@ if [[ ${#ATTENTE[@]} -gt 0 ]]; then
     MIGR_PID=$!
     bloque="" enCours="" verrous=""
     for _ in $(seq 1 600); do
-      bloque="$(l9_psql "$URL" -c "select a.pid from pg_stat_activity a where a.datname = '$BASE' and exists (select 1 from pg_stat_activity v where v.application_name = 'l9_verrou' and v.pid = any(pg_blocking_pids(a.pid)))" | head -1)"
+      bloques="$(l9_psql "$URL" -c "select a.pid from pg_stat_activity a where a.datname = '$BASE' and exists (select 1 from pg_stat_activity v where v.application_name = 'l9_verrou' and v.pid = any(pg_blocking_pids(a.pid)))")"
+      bloque="$(head -1 <<< "$bloques")"
       [[ -n "$bloque" ]] && break
       kill -0 "$MIGR_PID" 2>/dev/null || break
       sleep 0.1
