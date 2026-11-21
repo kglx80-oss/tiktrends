@@ -29,7 +29,7 @@ import type { IdsStudios, SessionTest } from './studios-semis';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const h = vi.hoisted(() => ({ ids: null as unknown as IdsStudios, session: null as SessionTest | null, marque: null as string | null }));
+const h = vi.hoisted(() => ({ ids: null as unknown as IdsStudios, session: null as SessionTest | null, marque: null as string | null, contextes: { demandes: 0, reponses: 0 } }));
 vi.hoisted(() => {
   const { randomUUID: u } = require('node:crypto') as typeof import('node:crypto');
   h.ids = { wsA: u(), wsB: u(), brandA1: u(), brandA2: u(), brandB1: u(), ua: u(), uv: u(), ur: u(), ub: u() };
@@ -52,6 +52,18 @@ vi.mock('next/headers', () => ({
   headers: async () => new Headers({ 'x-tt-chemin': '/jarvis', host: 'localhost' }),
 }));
 vi.mock('next/cache', () => ({ revalidatePath: () => {}, revalidateTag: () => {}, unstable_noStore: () => {} }));
+// La VRAIE relecture du contexte de la page (tiroir, G03), comptée · un test qui lit une ABSENCE
+// (« rien de joint ») attend que chaque relecture demandée ait RÉPONDU, jamais une durée.
+vi.mock('../app/actions/jarvis-contexte', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../app/actions/jarvis-contexte')>();
+  return {
+    ...actual,
+    contexteJarvisAction: async (...a: Parameters<typeof actual.contexteJarvisAction>) => {
+      h.contextes.demandes += 1;
+      try { return await actual.contexteJarvisAction(...a); } finally { h.contextes.reponses += 1; }
+    },
+  };
+});
 vi.mock('../lib/jarvis-memory', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../lib/jarvis-memory')>()), invalidateJarvisMemory: () => {}, briefConceptBeforeLaunch: async () => ({ summary: '' }),
 }));
@@ -63,6 +75,7 @@ import {
 } from '@tiktrends/core';
 import { semer, session } from './studios-semis';
 import { avecSpatial } from './spatial/fournisseur';
+import { attendreEtat, attendreMontageStable, pasDansAct } from './helpers/attendre-etat';
 import { demarrerMockFournisseur } from './lot19b-mock-fournisseur';
 import JarvisSpatial from '../app/(spatial)/sp/jarvis/page';
 import IterationSpatiale from '../app/(spatial)/sp/studio/iterer/page';
@@ -166,7 +179,9 @@ async function monter(el: ReactElement) {
   document.body.innerHTML = '<div id="app"></div><div id="orn" hidden></div>';
   root = createRoot(document.getElementById('app')!);
   await act(async () => { root!.render(avecSpatial(el)); });
-  await act(async () => { await new Promise((r) => setTimeout(r, 80)); });
+  // Rien d'asynchrone n'est attendu au montage · l'état attendu est un arbre RENDU qui ne bouge
+  // plus (une relecture tardive remet le compte à zéro), jamais une durée.
+  await attendreMontageStable();
 }
 async function cliquer(el: Element | null, nom: string) {
   expect(el, nom).toBeTruthy();
@@ -203,9 +218,15 @@ async function demander(href: string, reponse: string) {
   fauxRoute(reponse);
   if (!document.querySelector<HTMLInputElement>('#jin')!.value) await saisir('#jin', 'Que me conseilles-tu ?');
   await act(async () => { document.querySelector<HTMLButtonElement>('#jform button[type="submit"]')!.click(); });
-  await act(async () => { await new Promise((r) => setTimeout(r, 400)); });
-  const [m] = await db.select({ id: schema.jarvisMessages.id }).from(schema.jarvisMessages).where(eq(schema.jarvisMessages.content, reponse));
-  return m!.id;
+  // L'état attendu · la réponse ÉCRITE en base (le faux de la route l'insère) ET le fil RELU · l'écran
+  // ne rend le champ qu'une fois la conversation rechargée (`finally` de l'envoi). Jamais une durée.
+  let id: string | undefined;
+  await attendreEtat('la réponse de Jarvis est en base et le fil relu (champ rendu)', async () => {
+    const [m] = await db.select({ id: schema.jarvisMessages.id }).from(schema.jarvisMessages).where(eq(schema.jarvisMessages.content, reponse));
+    id = m?.id;
+    return !!id && !document.querySelector<HTMLInputElement>('#jin')!.disabled;
+  }, { pas: pasDansAct });
+  return id!;
 }
 const geste = (cle: string) => document.querySelector<HTMLElement>(`[data-gestes-jarvis] [data-geste-jarvis="${cle}"]`);
 const coche = () => [...document.querySelectorAll('[data-itvar][aria-checked="true"]')].map((b) => b.getAttribute('data-itvar'));
@@ -309,7 +330,9 @@ describe('lot 5 bis · « Conclure le lot » ouvre la conclusion pré-remplie ·
     expect(await traces(), 'rien de conclu, aucun apprentissage, aucun appel à l’ouverture').toEqual(avant);
 
     const form = document.querySelector(`[data-apprentissage="${S.W1}"]`)!.closest('form')!;
-    await act(async () => { form.requestSubmit(); await new Promise((r) => setTimeout(r, 50)); });
+    await act(async () => { form.requestSubmit(); });
+    // L'état attendu · le geste a répondu (son message s'affiche sous la conclusion), l'écriture est faite.
+    await attendreEtat('la validation du verdict a répondu (message affiché)', () => document.querySelector('#conclure > p[role="status"]:not([data-note-jarvis]), #conclure > p[role="alert"]'), { pas: pasDansAct });
     const [v] = await db.select().from(schema.verdicts).where(eq(schema.verdicts.adId, S.W1));
     expect(v?.status, 'au clic, le verdict est validé').toBe('validated');
     const [l] = await db.select().from(schema.learnings).where(eq(schema.learnings.adId, S.W1));
@@ -385,13 +408,19 @@ describe('lot 5 bis · le tiroir de la coquille reçoit le contexte de la page (
   const pleinEcran = () => document.querySelector('a[aria-label="Ouvrir Jarvis en plein écran"]')!.getAttribute('href');
   const envoyer = async (q: string) => {
     await saisir('#jdin', q);
+    const n = corps.length;
     await act(async () => { document.querySelector<HTMLFormElement>('#jdform')!.requestSubmit(); });
-    await act(async () => { await new Promise((r) => setTimeout(r, 200)); });
+    // L'état attendu · la requête est PARTIE (le faux de la route l'a reçue) et l'envoi est FINI (champ rendu).
+    await attendreEtat('la question du tiroir est partie et l’envoi fini (champ rendu)', () => corps.length > n && !document.querySelector<HTMLInputElement>('#jdin')!.disabled, { pas: pasDansAct });
   };
+  /** Le libellé de la page jointe, une fois la relecture du serveur rendue. */
+  const pageJointe = (type: string) => attendreEtat(`la page « ${type} » est jointe (relue par le serveur, rendue)`, () => document.querySelector(`[data-contexte-page="${type}"] [data-libelle-page]`), { pas: pasDansAct });
+  /** Rien de joint · seulement une fois que CHAQUE relecture demandée a répondu, et que l'écran a rendu sa réponse. */
+  const relecturesRepondues = () => attendreEtat('chaque relecture du contexte demandée a répondu', () => h.contextes.reponses === h.contextes.demandes, { pas: pasDansAct, stabilite: 3 });
 
   it('la fiche d’un lot · relue, affichée, envoyée comme `{ type, id }` · retirée, elle ne part plus', async () => {
     await monter(tiroir(`/adsmap/lots/${S.L1}`));
-    await act(async () => { await new Promise((r) => setTimeout(r, 200)); });
+    await pageJointe('lot');
     expect(document.querySelector('[data-contexte-page="lot"] [data-libelle-page]')?.textContent).toBe('Lot #3 · Affirmation ou question ?');
     expect(pleinEcran()).toBe(lienJarvisContexte('lot', S.L1));
     fauxRoute('Réponse du tiroir.');
@@ -407,7 +436,7 @@ describe('lot 5 bis · le tiroir de la coquille reçoit le contexte de la page (
   it('un lot d’une autre marque, une page sans contexte · rien de joint, plein écran nu · un projet · seul le plein écran le porte', async () => {
     for (const chemin of [`/adsmap/lots/${S.L2}`, '/veille', `/adsmap/lots/${encodeURIComponent("' or 1=1")}`]) {
       await monter(tiroir(chemin));
-      await act(async () => { await new Promise((r) => setTimeout(r, 200)); });
+      await relecturesRepondues();
       expect(document.querySelector('[data-contexte-page]'), chemin).toBeNull();
       expect(pleinEcran(), chemin).toBe('/jarvis');
       expect(document.body.innerHTML, chemin).not.toMatch(/SECRET/);
@@ -420,7 +449,7 @@ describe('lot 5 bis · le tiroir de la coquille reçoit le contexte de la page (
 
   it('la vue d’ensemble · jointe par la même règle', async () => {
     await monter(tiroir('/adsmap'));
-    await act(async () => { await new Promise((r) => setTimeout(r, 200)); });
+    await pageJointe('resultats');
     expect(document.querySelector('[data-contexte-page="resultats"] [data-libelle-page]')?.textContent).toBe('Résultats · Vue d’ensemble');
   });
 });

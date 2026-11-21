@@ -60,6 +60,7 @@ vi.mock('../lib/jarvis-memory', async (importOriginal) => ({
 import { db, schema, eq } from '@tiktrends/db';
 import { RAISON_LISTE_A_CONCLURE, VIDE_LISTE_A_CONCLURE, messageBorneListeLots } from '@tiktrends/core';
 import { avecSpatial, CTX_TEST } from './spatial/fournisseur';
+import { attendreEtat, attendreMontageStable, pasDansAct } from './helpers/attendre-etat';
 import LotsSpatial from '../app/(spatial)/sp/adsmap/lots/page';
 import LotSpatial from '../app/(spatial)/sp/adsmap/lots/[id]/page';
 import { createBatchAction, duplicateBatchAction, launchBatchAction, prepareBatchAction, setBatchAdAction } from '../app/actions/adsmap-batch';
@@ -159,7 +160,9 @@ async function monter(el: ReactElement) {
   document.body.innerHTML = '<div id="app"></div><div id="orn" hidden></div>';
   root = createRoot(document.getElementById('app')!);
   await act(async () => { root!.render(avecSpatial(el, { ...CTX_TEST, toast: (m) => { toasts.push(m); } })); });
-  await act(async () => { await new Promise((r) => setTimeout(r, 30)); });
+  // Rien d'asynchrone n'est attendu au montage · l'état attendu est un arbre RENDU qui ne bouge
+  // plus (une relecture tardive remet le compte à zéro), jamais une durée.
+  await attendreMontageStable();
 }
 const touche = async (key: string, cible: Element = document.activeElement ?? document.body) => {
   const ev = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
@@ -237,7 +240,8 @@ describe('le membre ouvre la fiche et arbitre · l’action existante', () => {
       champ.dispatchEvent(new Event('input', { bubbles: true }));
     });
     await act(async () => { champ.closest('form')!.requestSubmit(); });
-    await act(async () => { await new Promise((r) => setTimeout(r, 200)); });
+    // L'état attendu · le geste a répondu (son message s'affiche sous la conclusion), l'écriture est faite.
+    await attendreEtat('la validation du verdict a répondu (message affiché)', () => document.querySelector('#conclure > p[role="status"]:not([data-note-jarvis]), #conclure > p[role="alert"]'), { pas: pasDansAct });
     const [v] = await db.select().from(schema.verdicts).where(eq(schema.verdicts.adId, A.n4![0]!));
     expect(v?.status, 'le verdict n’est pas validé').toBe('validated');
     const appris = await db.select().from(schema.learnings).where(eq(schema.learnings.adId, A.n4![0]!));

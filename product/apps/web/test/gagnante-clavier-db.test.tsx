@@ -67,6 +67,7 @@ import { semer, session } from './studios-semis';
 import { ctxDe } from './l3-harnais';
 import { projetAvecBrief, lancerLot, executer, sortiesDuJob, KEYFRAMES, saisieTest } from './l4c-harnais';
 import { avecSpatial, CTX_TEST } from './spatial/fournisseur';
+import { attendreMontageStable } from './helpers/attendre-etat';
 import { creerVariante } from '../lib/studios/variantes/variantes';
 import { rattacherVarianteAuTest } from '../lib/studios/variantes/tests';
 import { commenterProjet } from '../app/actions/studios/activite';
@@ -207,7 +208,9 @@ async function monter(el: ReactElement) {
   document.body.innerHTML = '<div id="app"></div><div id="orn" hidden></div>';
   root = createRoot(document.getElementById('app')!);
   await act(async () => { root!.render(avecSpatial(el, { ...CTX_TEST, toast: (m) => { toasts.push(m); } })); });
-  await act(async () => { await new Promise((r) => setTimeout(r, 80)); });
+  // Rien d'asynchrone n'est attendu au montage (mesuré · sans aucune attente, le fichier passe) ·
+  // l'état attendu est un arbre RENDU qui ne bouge plus, jamais une durée.
+  await attendreMontageStable();
 }
 async function cliquer(el: Element | null, nom: string) {
   expect(el, nom).toBeTruthy();

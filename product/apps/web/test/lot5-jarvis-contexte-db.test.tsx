@@ -64,6 +64,7 @@ import {
 import { semer, session } from './studios-semis';
 import { briefCanonique } from './l4c-harnais';
 import { avecSpatial } from './spatial/fournisseur';
+import { attendreEtat, attendreMontageStable, pasDansAct, SONDAGES_ABSENCE } from './helpers/attendre-etat';
 import { demarrerMockFournisseur } from './lot19b-mock-fournisseur';
 import { regimeSession } from '../lib/credits-appels';
 import { POST } from '../app/api/jarvis/chat/route';
@@ -157,7 +158,9 @@ async function monter(el: ReactElement) {
   document.body.innerHTML = '<div id="app"></div>';
   root = createRoot(document.getElementById('app')!);
   await act(async () => { root!.render(avecSpatial(el)); });
-  await act(async () => { await new Promise((r) => setTimeout(r, 60)); });
+  // Rien d'asynchrone n'est attendu au montage · l'état attendu est un arbre RENDU qui ne bouge
+  // plus (une relecture tardive remet le compte à zéro), jamais une durée.
+  await attendreMontageStable();
 }
 const champ = () => document.querySelector<HTMLInputElement>('#jin')!;
 
@@ -209,7 +212,9 @@ describe('lot 5 · Jarvis s’ouvre avec le contexte et la question préparée �
       expect(d.querySelector('[data-refus-contexte]'), 'aucun refus').toBeNull();
       // Monté · l'état client garde la question, et rien ne part tout seul.
       await monter(el as ReactElement);
-      await act(async () => { await new Promise((r) => setTimeout(r, 120)); });
+      // Une ABSENCE ne se constate que dans la durée · l'état (rien d'appelé, la question dans le champ)
+      // doit TENIR toute la fenêtre mesurée (`SONDAGES_ABSENCE`), jamais une durée posée de tête.
+      await attendreEtat('rien ne part tout seul · aucun appel réseau, la question reste dans le champ', () => espion.mock.calls.length === 0 && c.question.test(champ().value), { pas: pasDansAct, stabilite: SONDAGES_ABSENCE });
       expect(espion, 'aucun appel réseau du navigateur').not.toHaveBeenCalled();
       expect(await traces(), 'aucun appel au modèle, aucun message, aucune conversation, aucune dépense, aucun crédit, aucune trace').toEqual(avant);
       expect(champ().value, 'question préparée, montée').toMatch(c.question);
@@ -306,8 +311,11 @@ describe('lot 5 · l’envoi part sur un clic, avec { type, id } seulement', () 
     }) as unknown as typeof fetch;
   };
   const envoyer = async () => {
+    const n = capture.length;
     await act(async () => { document.querySelector<HTMLButtonElement>('#jform button[type="submit"]')!.click(); });
-    await act(async () => { await new Promise((r) => setTimeout(r, 300)); });
+    // L'état attendu · la requête est PARTIE (capturée) et l'envoi est FINI (fil relu, champ rendu) ·
+    // le compte « une seule requête » se lit alors sur un écran qui n'enverra plus rien.
+    await attendreEtat('la question est partie et l’envoi fini (champ rendu)', () => capture.length > n && !champ().disabled, { pas: pasDansAct });
   };
 
   it('lot · un clic, une requête · la question préparée et le contexte désigné, jamais son texte', async () => {
