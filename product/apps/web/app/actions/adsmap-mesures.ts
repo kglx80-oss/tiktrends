@@ -2,7 +2,7 @@
 
 import { db, schema, eq, and, sql } from '@tiktrends/db';
 import {
-  enteteDuFichier, lectureSeparateur, lireMesuresMeta, planImportMesures, refusColonnes,
+  enteteDuFichier, lectureSeparateur, lireMesuresMeta, planImportMesures, preuveAEcrire, refusColonnes,
   LIBELLE_LIGNE_ECARTEE, LIBELLE_PAR, LIBELLE_RATTACHEMENT, PHRASE_PRIORITE_MESURES,
   type LectureMesures, type PlanMesures, type TotauxPlan,
 } from '@tiktrends/core';
@@ -80,6 +80,7 @@ function notes(l: LectureMesures, plan: PlanMesures): string[] {
   if (l.regroupees) n.push(`${l.regroupees} ligne(s) d’une même annonce et d’une même période additionnée(s) · export ventilé (placement, âge…).`);
   if (l.doublons) n.push(`${l.doublons} ligne(s) recopiée(s) à l’identique, comptée(s) une fois.`);
   if (plan.periodes) n.push('L’export porte des périodes de plusieurs jours · une période compte entière dans la fenêtre d’évaluation. Pour la fenêtre exacte du protocole, exporte « par jour » (Ventilation › Par période › Jour).');
+  if (l.budgetsAVie) n.push(`${l.budgetsAVie} ligne(s) au budget d’ensemble à vie · l’export ne permet pas encore de le retenir · le CBO de ces annonces reste non établi, sauf par la connexion Meta avec l’accès aux ensembles.`);
   if (plan.totaux.meta) n.push(`${plan.totaux.meta} journée(s) déjà mesurée(s) par la connexion Meta · elles sont gardées, mais la connexion l’emporte.`);
   return n;
 }
@@ -175,9 +176,25 @@ export async function applyMesuresAction(csvText: string, confirmees: readonly s
       ensemble: e.source.protocole.ensemble, ensembleId: e.source.protocole.ensembleId, budgetJour: e.source.protocole.budgetJour, cbo: e.source.protocole.cbo,
       fichier: nomFichier, importePar: g.s.user.id, importeLe: new Date(),
     }));
+    const T = schema.mesuresCsv;
     await db!.transaction(async (tx) => {
+      // Deux imports de la même marque s'écrivent l'un APRÈS l'autre · chacun relit, sous ce verrou, les lignes qu'il
+      // remplace · sans lui, un import muet calculait sa preuve sur une lecture périmée et écrasait le CBO d'un import
+      // concurrent (faux comparable). Verrou de transaction · relâché au commit ou à l'annulation.
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`adsmap-mesures-import:${brandId}`}))`);
       for (let i = 0; i < lignes.length; i += 200) {
-        await tx.insert(schema.mesuresCsv).values(lignes.slice(i, i + 200)).onConflictDoUpdate({
+        // La ligne que chaque entrée remplace (même ad, même période), relue DANS la transaction · un réimport MUET (sans
+        // colonne budget) en garde la preuve, CBO ou budget du même ensemble, ET SA DATE (`preuveAEcrire`, noyau) · sans
+        // elle, un réimport effaçait un CBO établi, ou rajeunissait une vieille preuve d'ABO devant un CBO plus récent.
+        const tranche = lignes.slice(i, i + 200);
+        const cles = sql.join(tranche.map((l) => sql`(${l.adId}::uuid, ${l.dateDebut}::date, ${l.dateFin}::date)`), sql`, `);
+        const anciennes = await tx.select({
+          adId: T.adId, debut: T.dateDebut, fin: T.dateFin, metaAdId: T.metaAdId, campagne: T.campagne, campagneId: T.campagneId,
+          ensemble: T.ensemble, ensembleId: T.ensembleId, cbo: T.cbo, budgetJour: T.budgetJour, importeLe: T.importeLe,
+        }).from(T).where(and(eq(T.brandId, brandId), sql`(${T.adId}, ${T.dateDebut}, ${T.dateFin}) in (${cles})`));
+        const parCle = new Map(anciennes.map((r) => [`${r.adId}|${r.debut}|${r.fin}`, r]));
+        const ecrites = tranche.map((l) => ({ ...l, ...preuveAEcrire(parCle.get(`${l.adId}|${l.dateDebut}|${l.dateFin}`), l) }));
+        await tx.insert(schema.mesuresCsv).values(ecrites).onConflictDoUpdate({
           target: [schema.mesuresCsv.adId, schema.mesuresCsv.dateDebut, schema.mesuresCsv.dateFin],
           set: {
             spend: sql`excluded.spend`, impressions: sql`excluded.impressions`, linkClicks: sql`excluded.link_clicks`, purchases: sql`excluded.purchases`,
