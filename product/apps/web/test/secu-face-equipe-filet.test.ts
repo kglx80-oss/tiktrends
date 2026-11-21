@@ -67,8 +67,9 @@ describe('Filet de journal · une face équipe non reconnue le dit, une fois', (
 describe('Entrée de effectiveAccess · une session d’équipe reconstruite à la main vaut face client', () => {
   it('une equipe littérale « admissible » · aucune face, formule réelle, et un avertissement sans donnée personnelle', async () => {
     const { rbac, effectiveAccess, avert } = await modules();
+    const { jetonForgeTest } = await import('./helpers/face-equipe');
     for (let i = 0; i < 3; i++) {
-      const a = effectiveAccess({ ...base, equipe: { ...ADMISSIBLE } });
+      const a = effectiveAccess({ ...base, equipe: jetonForgeTest({ ...ADMISSIBLE }) });
       expect(a.equipe, 'une session reconstruite à la main obtient la face équipe · effectiveAccess croit le plateformeAdmissible de l’appelant').toBeUndefined();
       expect(a.plan, 'une session reconstruite à la main passe en Business').toBe('starter');
       expect(rbac.canAccess(a, rbac.FEATURES.find((f) => f.key === VEILLE.key)!)).toBe(false);
@@ -103,7 +104,7 @@ describe('Entrée de effectiveAccess · une session d’équipe reconstruite à 
     const { sessionEquipeTest } = await import('./helpers/face-equipe');
     const s = sessionEquipeTest({ role: 'membre', matrice: { membre: ['veille'] }, plateformeAdmissible: false });
     expect(() => { (s as { plateformeAdmissible?: boolean }).plateformeAdmissible = true; }, 'la session authentifiée se mute · on la rendrait admissible après coup').toThrow(TypeError);
-    expect(() => { (s.matrice.membre as string[]).push('adsmap'); }).toThrow(TypeError);
+    expect(() => { ((s as unknown as { matrice: { membre: string[] } }).matrice.membre).push('adsmap'); }).toThrow(TypeError);
     expect(effectiveAccess({ ...base, equipe: s }).equipe).toBeUndefined();
   });
 });

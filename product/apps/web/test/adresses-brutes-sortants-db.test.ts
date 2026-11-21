@@ -355,7 +355,7 @@ beforeAll(async () => {
   const c = contenuVide();
   const [v] = await db.insert(schema.studioProjectVersions).values({ projectId: p!.id, workspaceId: ids.wsA, brandId: ids.brandA1, n: 1, schemaVersion: SCHEMA_VERSION_CONTENU, content: c, contentHash: empreinteContenu(c), authorId: ids.ua }).returning();
   s.projet = p!.id; s.version = v!.id;
-  h.session = { user: { id: ids.ua, email: 'ua@studios.test', name: 'Kevin' }, workspaceId: ids.wsA, workspaceName: 'Espace A', role: 'owner', plan: 'business', equipe: sessionEquipeTest({ role: 'adminplus', matrice: {}, plateformeAdmissible: true }) as SessionTest['equipe'] };
+  h.session = { user: { id: ids.ua, email: 'ua@studios.test', name: 'Kevin' }, workspaceId: ids.wsA, workspaceName: 'Espace A', role: 'owner', plan: 'business', equipe: sessionEquipeTest({ role: 'adminplus', matrice: {}, plateformeAdmissible: true }) };
   h.cookie = ids.brandA1;
 });
 afterAll(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });

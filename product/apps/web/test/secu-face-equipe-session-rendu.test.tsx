@@ -48,6 +48,8 @@ import { SignJWT } from 'jose';
 import { sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession, type Session } from '../lib/auth';
+import { equipeAuthentique } from '../lib/registre-equipe-session';
+import { jetonForgeTest } from './helpers/face-equipe';
 import { avecSpatial } from './spatial/fournisseur';
 import FormatsPage from '../app/(spatial)/sp/veille/formats/page';
 
@@ -102,7 +104,9 @@ describe('Face équipe · seule la session de getSession ouvre un écran d’éq
   it('la même session, son equipe recopiée champ par champ · face client, le verrou de formule', async () => {
     await connecter(h.ids.membre);
     const s = (await getSession())!;
-    const html = await rendre({ ...s, equipe: { ...s.equipe!, matrice: { ...s.equipe!.matrice } } });
+    const e = equipeAuthentique(s);
+    expect(e, 'le témoin n’a pas d’équipe authentique · le cas ne prouve rien').not.toBeNull();
+    const html = await rendre({ ...s, equipe: jetonForgeTest({ ...e!, matrice: { ...e!.matrice } }) });
     expect(html, 'une session reconstruite à la main ouvre l’écran d’équipe · effectiveAccess croit l’equipe de l’appelant').toContain(VERROU);
   });
 
@@ -111,6 +115,6 @@ describe('Face équipe · seule la session de getSession ouvre un écran d’éq
     const s = (await getSession())!;
     expect(s.equipe, 'le témoin a une équipe · le cas ne prouve rien').toBeNull();
     expect(await rendre()).toContain(VERROU);
-    expect(await rendre({ ...s, equipe: { role: 'membre', matrice: { membre: ['veille'] }, plateformeAdmissible: true } })).toContain(VERROU);
+    expect(await rendre({ ...s, equipe: jetonForgeTest({ role: 'membre', matrice: { membre: ['veille'] }, plateformeAdmissible: true }) })).toContain(VERROU);
   });
 });

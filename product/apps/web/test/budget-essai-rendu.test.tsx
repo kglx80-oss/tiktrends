@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import type { IdsStudios, SessionTest } from './studios-semis';
+import type { IdsStudios, SessionTest, SurchargeSession } from './studios-semis';
 
 /**
  * Budget d'essai de l'espace pilote · au HTML RENDU de la vraie page ADMIN
@@ -37,7 +37,7 @@ import { enregistrerBudgetEssaiAction } from '../app/actions/studios/interrupteu
 
 const ids = h.ids;
 const dom = (html: string) => { const d = document.createElement('div'); d.innerHTML = html; return d; };
-const plateforme = () => session(ids, 'ua', { role: 'owner', equipe: { role: 'adminplus', matrice: {}, plateformeAdmissible: true } as SessionTest['equipe'] });
+const plateforme = () => session(ids, 'ua', { role: 'owner', equipe: { role: 'adminplus', matrice: {}, plateformeAdmissible: true } as SurchargeSession['equipe'] });
 const reglage = async () => (await db.select().from(schema.appSettings).where(eq(schema.appSettings.key, cleBudgetEssai(ids.wsA))))[0]?.value ?? null;
 
 beforeAll(async () => { await semer(db, schema, ids); });

@@ -2,7 +2,7 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import type { IdsStudios, SessionTest } from './studios-semis';
+import type { IdsStudios, SessionTest, SurchargeSession } from './studios-semis';
 
 /**
  * L'écran d'équipe doit VRAIMENT laisser gérer rôles et droits · on rend la
@@ -52,7 +52,7 @@ beforeAll(async () => {
 });
 
 async function monter() {
-  h.session = session(ids, 'ua', { role: 'owner', equipe: { role: 'adminplus', matrice: {}, plateformeAdmissible: true } as SessionTest['equipe'] });
+  h.session = session(ids, 'ua', { role: 'owner', equipe: { role: 'adminplus', matrice: {}, plateformeAdmissible: true } as SurchargeSession['equipe'] });
   const vue = await DroitsSpatial({ searchParams: Promise.resolve({}) });
   hote = document.createElement('div'); document.body.appendChild(hote);
   root = createRoot(hote);

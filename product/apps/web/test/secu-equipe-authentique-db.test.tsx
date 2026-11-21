@@ -51,13 +51,17 @@ vi.mock('../lib/auth', async (orig) => {
   return { ...vrai, getSession: async () => (h.reconstruite ?? vrai.getSession()) };
 });
 
+import { randomUUID } from 'node:crypto';
 import { SignJWT } from 'jose';
 import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { cleInterrupteursEspace } from '@tiktrends/core';
 import { getSession, type Session } from '../lib/auth';
+import { equipeAuthentique } from '../lib/registre-equipe-session';
+import { jetonForgeTest } from './helpers/face-equipe';
 import { gardePlateforme } from '../lib/studios/prompts/garde-prompts';
 import { enregistrerInterrupteursEspaceAction } from '../app/actions/studios/interrupteurs';
+import { creerProjet } from '../app/actions/studios/projets';
 import { enregistrerStaffAction } from '../app/actions/equipe';
 import { chargerConnaissancesAction } from '../app/actions/connaissances';
 import { personnelPlateforme } from '../lib/personnel-plateforme';
@@ -211,17 +215,60 @@ describe('Session d’équipe · seule celle de getSession ouvre un pouvoir de p
   it('un client, une équipe « admissible » posée à la main sur SA session · n’obtient RIEN', async () => {
     await connecter(h.ids.client);
     const s = (await getSession())!;
-    expect(await pouvoirs({ ...s, equipe: { ...ADMISSIBLE_A_LA_MAIN } }),
+    expect(await pouvoirs({ ...s, equipe: jetonForgeTest({ ...ADMISSIBLE_A_LA_MAIN }) }),
       'une session reconstruite à la main obtient un pouvoir de plateforme · un lecteur croit le plateformeAdmissible de l’appelant').toEqual(RIEN);
   });
 
   it('la session de l’admin, son équipe recopiée champ par champ · n’obtient RIEN (seul l’objet produit par getSession compte)', async () => {
     await connecter(h.ids.admin);
     const s = (await getSession())!;
-    const copie = { ...s, equipe: { ...s.equipe!, matrice: { ...s.equipe!.matrice } } };
+    const e = equipeAuthentique(s)!;
+    const copie = { ...s, equipe: jetonForgeTest({ ...e, matrice: { ...e.matrice } }) };
     // Les crédits illimités suivent l'adresse, notée par le VRAI getSession de ce compte · hors de ce cas.
     const { 'crédits illimités': _credits, ...obtenu } = await pouvoirs(copie);
     const { 'crédits illimités': _rien, ...attendu } = RIEN;
     expect(obtenu, 'une copie de la session d’équipe obtient un pouvoir de plateforme · un lecteur croit l’equipe de l’appelant').toEqual(attendu);
+  });
+
+  /**
+   * Suite de #1125 · les cas ci-dessus éprouvent des gestes REFUSÉS · l'audit
+   * n'y est jamais écrit, et « audit tracé equipe: » y vaut `false` sans rien
+   * prouver. Ici un geste d'ESPACE que la session forgée a le droit de faire
+   * (créer un projet · `studio.propose`, membre d'un espace Core) · il est
+   * servi, la ligne d'audit est écrite, et son `effective_role` doit être
+   * celui de l'espace seul. Le registre d'audit ne prête pas à la session
+   * forgée une équipe qu'elle n'a pas.
+   */
+  it('un geste d’espace AUTORISÉ (créer un projet) · la session forgée est servie, et l’audit la trace « espace: », jamais « equipe: »', async () => {
+    const ids = h.ids;
+    const marque = randomUUID();
+    // L'espace passe en Core (le studio y est ouvert à un membre) et reçoit une marque · rendu en fin de cas.
+    await db!.update(schema.workspaces).set({ plan: 'core' }).where(eq(schema.workspaces.id, ids.ws));
+    await db!.insert(schema.brands).values({ id: marque, workspaceId: ids.ws, name: 'Marque du geste autorisé' });
+    const roleAudite = async (reconstruite: Session | null, titre: string) => {
+      h.reconstruite = reconstruite;
+      try {
+        const r = await creerProjet({ brandId: marque, kind: 'ads', title: titre });
+        if (!r.ok) return { servi: false, roles: [] as string[] };
+        const roles = (await db!.select({ r: schema.studioAuditEvents.effectiveRole }).from(schema.studioAuditEvents)
+          .where(and(eq(schema.studioAuditEvents.action, 'project.create'), eq(schema.studioAuditEvents.targetId, r.projet.id)))).map((a) => a.r);
+        return { servi: true, roles };
+      } finally { h.reconstruite = null; }
+    };
+    try {
+      // Le témoin · l'admin légitime (vrai getSession) est tracé « equipe: » · sinon le cas ne prouverait rien.
+      await connecter(ids.admin);
+      expect(await roleAudite(null, 'Projet de l’admin'), 'le témoin n’est pas tracé « equipe: » · le cas ne prouve rien').toEqual({ servi: true, roles: ['equipe:admin/espace:member'] });
+      // La session forgée · un client, une équipe « admissible » posée à la main.
+      await connecter(ids.client);
+      const s = (await getSession())!;
+      const forgee = await roleAudite({ ...s, equipe: jetonForgeTest({ ...ADMISSIBLE_A_LA_MAIN }) }, 'Projet de la session forgée');
+      expect(forgee.servi, 'le geste d’espace est refusé · le cas ne lit pas l’audit d’un geste autorisé').toBe(true);
+      expect(forgee.roles, 'une ligne d’audit et une seule pour le geste').toHaveLength(1);
+      expect(forgee.roles.filter((r) => r.startsWith('equipe:')), 'l’audit trace « equipe: » pour une session forgée · le rôle effectif croit l’equipe de l’appelant').toEqual([]);
+      expect(forgee.roles).toEqual(['espace:member']);
+    } finally {
+      await db!.update(schema.workspaces).set({ plan: 'starter' }).where(eq(schema.workspaces.id, ids.ws));
+    }
   });
 });

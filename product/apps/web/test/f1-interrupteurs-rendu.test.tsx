@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import type { IdsStudios, SessionTest } from './studios-semis';
+import type { IdsStudios, SessionTest, SurchargeSession } from './studios-semis';
 
 /**
  * F1 · garde UI des interrupteurs, au HTML RENDU des vraies pages (pglite).
@@ -158,7 +158,7 @@ describe('voix coupée · lire oui, changer non', () => {
 // `spatial-studios-ateliers.test.tsx` (« génération coupée pour l’espace · un état, aucun geste payant »).
 
 describe('ADMIN · lecture des interrupteurs par espace', () => {
-  const plateforme = () => session(ids, 'ua', { role: 'owner', equipe: { role: 'adminplus', matrice: {}, plateformeAdmissible: true } as SessionTest['equipe'] });
+  const plateforme = () => session(ids, 'ua', { role: 'owner', equipe: { role: 'adminplus', matrice: {}, plateformeAdmissible: true } as SurchargeSession['equipe'] });
 
   it('un owner d’espace est renvoyé AVANT toute lecture (porte Spatiale, même garde plateforme)', async () => {
     h.session = session(ids, 'ua', { role: 'owner' });

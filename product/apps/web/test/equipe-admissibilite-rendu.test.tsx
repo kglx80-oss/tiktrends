@@ -2,7 +2,7 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import type { IdsStudios, SessionTest } from './studios-semis';
+import type { IdsStudios, SessionTest, SurchargeSession } from './studios-semis';
 
 /**
  * Suivi de la PR #1106 · l'admissibilité VISIBLE sur `/admin/equipe`.
@@ -40,6 +40,7 @@ import { session, semer } from './studios-semis';
 import { avecSpatial } from './spatial/fournisseur';
 import DroitsSpatial from '../app/(spatial)/sp/admin/equipe/page';
 import { equipeDeSession } from '../lib/equipe-plateforme';
+import { equipeAuthentique } from '../lib/registre-equipe-session';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 let hote: HTMLDivElement;
@@ -68,7 +69,7 @@ beforeAll(async () => {
 
 async function monter(qui: 'ua' | 'uv') {
   const equipe = qui === 'ua' ? { role: 'adminplus', matrice: {}, plateformeAdmissible: true } : { role: 'admin', matrice: {}, plateformeAdmissible: false };
-  h.session = session(ids, qui, { role: 'owner', equipe: equipe as SessionTest['equipe'] });
+  h.session = session(ids, qui, { role: 'owner', equipe: equipe as SurchargeSession['equipe'] });
   const vue = await DroitsSpatial({ searchParams: Promise.resolve({}) });
   hote = document.createElement('div'); document.body.appendChild(hote);
   root = createRoot(hote);
@@ -124,7 +125,7 @@ describe('I2 · /admin/equipe · admissibilité et date du compte, par membre', 
       const statut = l.getAttribute('data-admissibilite');
       const affiche = statut === 'admissible' || statut === 'fondateur';
       expect(statut, `${email} · aucun statut affiché`).toMatch(/^(admissible|fondateur|compte-posterieur|sans-compte)$/);
-      expect(affiche, `${email} · l’écran dit ${statut}, la session dit autre chose`).toBe((await equipeDeSession(email))?.plateformeAdmissible === true);
+      expect(affiche, `${email} · l’écran dit ${statut}, la session dit autre chose`).toBe(equipeAuthentique({ equipe: await equipeDeSession(email) })?.plateformeAdmissible === true);
     }
   });
 
