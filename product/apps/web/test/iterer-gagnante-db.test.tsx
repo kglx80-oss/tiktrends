@@ -5,7 +5,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { IdsStudios, SessionTest } from './studios-semis';
+import type { IdsStudios, SessionTest, SurchargeSession } from './studios-semis';
 
 /**
  * « Itérer depuis la gagnante » (suite de #1079) · base RÉELLE (pglite,
@@ -85,7 +85,6 @@ import IterationSpatiale from '../app/(spatial)/sp/studio/iterer/page';
 import { Projet } from '../spatial/vues/projet/Projet';
 import { OngletActivite } from '../spatial/vues/projet/OngletActivite';
 import { NotesSansNoeud, type ControleNotes } from '../spatial/vues/projet/NotesLignee';
-import { sessionEquipeTest } from './helpers/face-equipe';
 
 vi.setConfig({ testTimeout: 120_000, hookTimeout: 240_000 });
 
@@ -97,7 +96,7 @@ const S = {
   P1: '', assets: {} as Record<Cle, string>, variantes: {} as Record<Cle, string>, pubs: {} as Record<Cle, string>,
   fils: {} as Record<Cle, string>, iterations: {} as Record<Cle, string>, lots: {} as Record<'C' | 'I' | 'S', { id: string; n: number }>,
 };
-const proprietaire = (o: Partial<SessionTest> = {}): SessionTest => session(ids, 'ua', { role: 'owner', plan: 'plus', ...o });
+const proprietaire = (o: SurchargeSession = {}): SessionTest => session(ids, 'ua', { role: 'owner', plan: 'plus', ...o });
 const admise: Record<string, TestedVariable> = {};
 
 async function chaine(titre: string) {
@@ -333,7 +332,7 @@ describe('les portes · autre marque active, Résultats fermé, rôle · l’idi
   });
 
   it('Résultats ouvert par l’équipe, rôle d’espace sans `studio.propose` · fermé avec la raison du rôle', async () => {
-    h.session = session(ids, 'uv', { plan: 'plus', equipe: sessionEquipeTest({ role: 'adminplus', matrice: {}, plateformeAdmissible: true }) as SessionTest['equipe'] });
+    h.session = session(ids, 'uv', { plan: 'plus', equipe: { role: 'adminplus', matrice: {}, plateformeAdmissible: true } });
     const d = await fiche();
     expect(commentaire(d, 'C')!.querySelector('[data-resultat-commentaire]')?.getAttribute('data-resultat-commentaire'), 'le résultat n’est pas dit').toBe('confirmee');
     expect(ferme(d, geste(commentaire(d, 'C'))), 'sous le commentaire · pas fermé avec sa raison écrite à côté').toEqual(['BUTTON', 'true', LIBELLE_ITERER_GAGNANTE, RAISON_ROLE_ITERATION]);

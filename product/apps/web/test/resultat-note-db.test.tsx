@@ -3,7 +3,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { act, type ReactElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
-import type { IdsStudios, SessionTest } from './studios-semis';
+import type { IdsStudios, SessionTest, SurchargeSession } from './studios-semis';
 
 /**
  * Le résultat de l'itération sous la NOTE qui l'a fait naître (suite du lot 11
@@ -92,7 +92,7 @@ const S = {
   lots: {} as Record<'C' | 'I' | 'S' | 'T' | 'H', { id: string; n: number }>,
   nRien: '', nBrief: '', nP2: '', hyp: '', conceptA1: '',
 };
-const proprietaire = (o: Partial<SessionTest> = {}): SessionTest => session(ids, 'ua', { role: 'owner', plan: 'plus', ...o });
+const proprietaire = (o: SurchargeSession = {}): SessionTest => session(ids, 'ua', { role: 'owner', plan: 'plus', ...o });
 const admise: Record<string, TestedVariable> = {};
 
 async function chaine(brandId: string, titre: string) {

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeAll } from 'vitest';
-import type { IdsStudios, SessionTest } from './studios-semis';
+import type { IdsStudios, SessionTest, SurchargeSession } from './studios-semis';
 import type { AdaptateurModele } from '../lib/studios/prompts/adaptateur';
 
 /**
@@ -58,7 +58,7 @@ import { contexteDepuisSession } from '../lib/studios/garde';
 import { sessionEquipeTest } from './helpers/face-equipe';
 
 const ids = etat.ids;
-const qui = (q: 'ua' | 'uv' | 'ur' | 'ub', s: Partial<SessionTest> = {}) => { etat.session = session(ids, q, s); };
+const qui = (q: 'ua' | 'uv' | 'ur' | 'ub', s: SurchargeSession = {}) => { etat.session = session(ids, q, s); };
 
 /** Annonce de Veille · image seule, aucune transcription. */
 const ANNONCE = {

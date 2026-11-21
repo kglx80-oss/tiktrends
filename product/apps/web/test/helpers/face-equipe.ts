@@ -1,5 +1,5 @@
 import { effectiveAccess } from '../../lib/access';
-import { authentifierEquipeSession } from '../../lib/registre-equipe-session';
+import { authentifierEquipeSession, type JetonEquipe } from '../../lib/registre-equipe-session';
 import type { EquipeSession } from '../../lib/equipe-plateforme';
 import type { FaceEquipe } from '../../lib/rbac';
 import type { MatriceDroits, RolePlateforme } from '@tiktrends/core';
@@ -17,9 +17,20 @@ import type { MatriceDroits, RolePlateforme } from '@tiktrends/core';
  * `secu-fondateurs-codes-sources`), et ce fichier n'est importable que depuis
  * test/ (`tiktrends/pas-de-test-en-production`).
  */
-export function sessionEquipeTest<T extends EquipeSession>(e: T): T {
-  // Le type de l'appelant est gardé (une session de test peut restreindre le rôle) · l'objet rendu est la copie gelée, inscrite.
-  return authentifierEquipeSession(e) as T;
+export function sessionEquipeTest(e: EquipeSession): JetonEquipe {
+  // Le jeton OPAQUE de la copie gelée, inscrite · `Session.equipe` ne se lit que par equipeAuthentique, ici comme en production.
+  return authentifierEquipeSession(e);
+}
+
+/**
+ * Une équipe RECONSTRUITE À LA MAIN, posée là où `Session.equipe` attend son
+ * jeton · NON inscrite au registre. Le type l'interdit en production (suite de
+ * #1125, `JetonEquipe`) · seul un cast la pose, et ce cast vit ici, nommé, pour
+ * que les tests qui éprouvent la forge disent ce qu'ils font. Chaque lecteur
+ * doit la valoir ABSENTE (`equipeAuthentique` → null).
+ */
+export function jetonForgeTest(e: EquipeSession): JetonEquipe {
+  return e as unknown as JetonEquipe;
 }
 
 /**

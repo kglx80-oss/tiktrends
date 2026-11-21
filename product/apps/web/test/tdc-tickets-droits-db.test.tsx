@@ -83,6 +83,7 @@ import { SignJWT } from 'jose';
 import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../lib/auth';
+import { equipeAuthentique } from '../lib/registre-equipe-session';
 import { fondateursCodes } from '../lib/founder';
 import { avecSpatial } from './spatial/fournisseur';
 import { replyTicketAction, setTicketStatusAction } from '../app/actions/support';
@@ -234,7 +235,7 @@ describe('Tour de contrôle · tickets · qui a le droit voit exactement ce qu�
   it('fondateur administrateur de son espace · session RELUE par le vrai getSession · le poste SAV reçoit la capture de main', async () => {
     await connecter(ids.uF);
     const s = await getSession();
-    expect(s && { ws: s.workspaceId, role: s.role, equipe: s.equipe?.role }).toEqual({ ws: ids.wsE, role: 'owner', equipe: 'adminplus' });
+    expect(s && { ws: s.workspaceId, role: s.role, equipe: equipeAuthentique(s)?.role }).toEqual({ ws: ids.wsE, role: 'owner', equipe: 'adminplus' });
     expect(await ticketsRecus(), 'le poste SAV ne reçoit plus la capture de main').toEqual(CAPTURE_MAIN());
     const d = dom(await html('sav'));
     // Le fil du premier ticket de l'onglet est montré, la réponse ouverte (son espace).
@@ -312,7 +313,7 @@ describe('Tour de contrôle · tickets · le rôle d’équipe plateforme n’ou
   it('Admin d’équipe (accès total) NON fondateur, propriétaire de son espace · jamais admis, puis retiré de l’équipe · toujours refusé', async () => {
     await connecter(ids.uS);
     const s = await getSession();
-    expect(s?.equipe?.role, 'semis · le compte doit être de l’équipe').toBe('admin');
+    expect(equipeAuthentique(s)?.role, 'semis · le compte doit être de l’équipe').toBe('admin');
     await toutRefuse('redirect:/dashboard');
     await db!.delete(schema.platformStaff).where(eq(schema.platformStaff.email, EQUIPE));
     try {

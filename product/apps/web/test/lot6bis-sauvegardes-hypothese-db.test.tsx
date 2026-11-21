@@ -3,7 +3,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { act, type ReactElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
-import type { IdsStudios, SessionTest } from './studios-semis';
+import type { IdsStudios, SessionTest, SurchargeSession } from './studios-semis';
 
 /**
  * Lot 6 bis V5 · des sauvegardes de Veille au PROJET et à l'HYPOTHÈSE, sur une
@@ -70,7 +70,7 @@ vi.setConfig({ testTimeout: 120_000, hookTimeout: 120_000 });
 
 const ids = h.ids;
 const S: Record<string, string> = {};
-const membre = (o: Partial<SessionTest> = {}): SessionTest => session(ids, 'ua', { plan: 'plus', ...o });
+const membre = (o: SurchargeSession = {}): SessionTest => session(ids, 'ua', { plan: 'plus', ...o });
 const pub = (id: string, annonceur: string, mediaType = 'image'): InspoAd => ({ id, platform: 'meta', status: 'active', daysRunning: 12, mediaType, advertiserName: annonceur, body: `Texte de ${annonceur}` });
 
 async function sauver(brandId: string, ad: InspoAd, meta: { tags?: string[]; note?: string }) {
