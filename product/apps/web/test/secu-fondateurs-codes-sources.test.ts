@@ -154,3 +154,38 @@ describe('Face équipe · la marque n’est nommée que par sa définition et se
     expect(hors, `${MARQUE} est nommée hors de rbac.ts, access.ts et du helper de test · seule effectiveAccess construit une face équipe (privilegesEquipe), lis Access.equipe sans nommer la marque`).toEqual([]);
   });
 });
+
+/**
+ * Suite de #1122 · le registre des faces équipe (lib/rbac.ts) n'a qu'une porte,
+ * `inscrireFaceEquipe`, et seul `effectiveAccess` (lib/access.ts) la passe. Son
+ * NOM écrit ailleurs (import, espace de noms, chaîne) suffirait à rendre
+ * reconnue une face forgée · ce filet le refuse par construction, la règle
+ * `tiktrends/inscription-face-equipe` le dit dans l'éditeur.
+ *
+ * Et la décision se prend CÔTÉ SERVEUR · un composant client qui importerait
+ * rbac ou access déciderait sur une face reçue en props, donc sérialisée, donc
+ * refusée par le registre (face client) · l'écran d'équipe se fermerait sans
+ * bruit. Aucun module `'use client'` ne les importe · il reçoit le résultat.
+ */
+const PORTE = ['inscrireFace', 'Equipe'].join('');
+const PASSENT_LA_PORTE = ['apps/web/lib/rbac.ts', 'apps/web/lib/access.ts'];
+
+describe('Face équipe · une seule porte au registre, et la décision côté serveur', () => {
+  it('la porte est définie dans rbac.ts et passée par access.ts (sinon le recensement ne garde rien)', () => {
+    for (const chemin of PASSENT_LA_PORTE) {
+      expect(FICHIERS_WEB_SANS_COMMENTAIRES.some((f) => f.chemin === chemin && new RegExp(`\\b${PORTE}\\b`).test(f.code)), `${chemin} ne nomme plus la porte · le motif regarde ailleurs`).toBe(true);
+    }
+  });
+
+  it('personne d’autre ne nomme la porte du registre (pages, actions, lib, tests, règles)', () => {
+    const hors = FICHIERS_WEB_SANS_COMMENTAIRES.filter((f) => new RegExp(`\\b${PORTE}\\b`).test(f.code) && !PASSENT_LA_PORTE.includes(f.chemin)).map((f) => f.chemin);
+    expect(hors, `${PORTE} est nommée hors de rbac.ts et access.ts · inscrire une face la rendrait reconnue sans privilegesEquipe, passe par effectiveAccess`).toEqual([]);
+  });
+
+  it('aucun module client n’importe rbac ni access · il recevrait une face sérialisée, que le registre refuse', () => {
+    const clients = FICHIERS_WEB_SANS_COMMENTAIRES.filter((f) => /^\s*['"]use client['"]/.test(f.code));
+    expect(clients.length, 'aucun composant client lu · le motif regarde ailleurs').toBeGreaterThan(20);
+    const hors = clients.filter((f) => /from\s+['"][^'"]*\blib\/(rbac|access)['"]|import\(\s*['"][^'"]*\blib\/(rbac|access)['"]/.test(f.code)).map((f) => f.chemin);
+    expect(hors, 'un composant client importe rbac ou access · la décision d’accès se prend côté serveur, le client reçoit le résultat (ouvert, verrou)').toEqual([]);
+  });
+});

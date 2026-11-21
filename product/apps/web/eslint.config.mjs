@@ -19,16 +19,19 @@ const ICI = dirname(fileURLToPath(import.meta.url));
 const compat = new FlatCompat({ baseDirectory: ICI });
 
 /**
- * Face équipe (suite de #1117 et #1119) · seul `effectiveAccess` construit un
- * `Access`. Deux fichiers ont le droit d'en forcer un · la construction de
- * production (exemptée de `face-equipe-forcee` SEULEMENT · ni import de test ni
- * `@ts-ignore` n'y sont permis) et le helper des tests de `rbac`. Voir
- * eslint-rules/face-equipe.mjs pour ce que la règle attrape et ce qu'elle laisse
- * passer. Elle protège contre une erreur, pas contre la malveillance.
+ * Face équipe (suite de #1117, #1119 et #1122) · seul `effectiveAccess`
+ * construit et INSCRIT une face équipe · la vraie barrière est le registre de
+ * lib/rbac.ts, à l'exécution. Ces règles sont un filet contre l'erreur (voir
+ * eslint-rules/face-equipe.mjs). Exemptions, une par règle :
+ *  · `face-equipe-forcee` · la construction de production, et le test qui
+ *    forge des faces EXPRÈS pour prouver que le registre les refuse ;
+ *  · `inscription-face-equipe` · la définition du registre et son seul appelant.
+ * Ni import de test ni `@ts-ignore` ne sont permis nulle part en production.
  */
 const CONSTRUCTION_PRODUCTION = 'lib/access.ts';
-const HELPER_TEST = 'test/helpers/face-equipe.ts';
-const TESTS = ['test/**', '**/*.test.*'];
+const FORGE_EXPRES = 'test/secu-face-equipe-execution.test.ts';
+const REGISTRE = ['lib/rbac.ts', 'lib/access.ts'];
+const TESTS = ['test/**', '**/*.test.{ts,tsx}'];
 
 export default [
   { ignores: ['.next/**', 'node_modules/**', 'next-env.d.ts'] },
@@ -51,8 +54,9 @@ export default [
     // voir à travers alias, `Access['equipe']`, `import()` et génériques.
     files: ['**/*.{ts,tsx}'],
     languageOptions: { parser: tseslint.parser, parserOptions: { projectService: true, tsconfigRootDir: ICI } },
-    plugins: { tiktrends },
   },
+  // Les règles du dépôt, déclarées pour TOUS les fichiers (l'inscription se lit aussi dans un .mjs).
+  { plugins: { tiktrends } },
   {
     files: ['**/*.{ts,tsx}'],
     ignores: TESTS,
@@ -69,9 +73,14 @@ export default [
   },
   {
     // Les tests de rbac éprouvent la face CLIENT par `{ role, plan } as Access` · permis, sans equipe.
-    files: ['test/**/*.{ts,tsx}', '**/*.test.{ts,tsx}'],
-    ignores: [HELPER_TEST],
+    files: TESTS,
+    ignores: [FORGE_EXPRES],
     rules: { 'tiktrends/face-equipe-forcee': ['error', { accesSansEquipe: true }] },
+  },
+  {
+    files: ['**/*.{ts,tsx,js,mjs}'],
+    ignores: REGISTRE,
+    rules: { 'tiktrends/inscription-face-equipe': 'error' },
   },
   {
     rules: {

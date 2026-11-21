@@ -14,7 +14,9 @@ import { ESLint } from 'eslint';
  * un cas tombe ici et dit lequel.
  *
  * Elle protège contre une ERREUR, pas contre la malveillance · voir la liste
- * de ce qui passe dans le module de la règle.
+ * de ce qui passe dans le module de la règle. La VRAIE barrière est à
+ * l'exécution (registre des faces, lib/rbac.ts) · `secu-face-equipe-execution`
+ * et `secu-face-equipe-rendu` l'éprouvent. Ce lint est le filet.
  */
 
 const WEB = join(__dirname, '..');
@@ -23,6 +25,8 @@ const EXPR = 'canAccess(effectiveAccess(s), studio)';
 const ACCES = "import type { Access } from '../../../../lib/rbac';";
 const FORCER = 'function forcer<T>(x: unknown): T { return x as T; }';
 const SOURCE = readFileSync(PAGE, 'utf8');
+/** Le nom de la porte du registre, recomposé · le recensement le refuse hors de rbac.ts et access.ts. */
+const INSCRIRE = ['inscrireFace', 'Equipe'].join('');
 
 /** La page, avec un contournement en plus de l'appel d'origine (qui reste utilisé · seule la règle peut parler). */
 function page(contournement: string, avant = '', apres = ''): string {
@@ -84,6 +88,15 @@ const CAS: Array<{ quoi: string; code: string; regle: string; phrase: RegExp }> 
     code: page('canAccess({ role: s.role, plan,\n        /** @ts-expect-error session brute */\n        equipe: s.equipe }, studio)') },
   { quoi: 'détour @/lib/../test/helpers', regle: 'tiktrends/pas-de-test-en-production', phrase: /Import de « @\/lib\/\.\.\/test\/helpers\/face-equipe »/,
     code: page("canAccess({ role: s.role, plan, equipe: faceEquipeTest('admin') }, studio)", "import { faceEquipeTest } from '@/lib/../test/helpers/face-equipe';") },
+  // Troisième tour · le registre (lib/rbac.ts) n'a qu'une porte, et seul lib/access.ts la passe.
+  { quoi: 'import de la porte du registre', regle: 'tiktrends/inscription-face-equipe', phrase: /hors de lib\/access\.ts · inscrire une face au registre la rendrait reconnue sans privilegesEquipe/,
+    code: page(`canAccess({ role: s.role, plan }, studio) || !!${INSCRIRE}`, `import { ${INSCRIRE} } from '../../../../lib/rbac';`) },
+  { quoi: 'porte du registre lue sur un espace de noms', regle: 'tiktrends/inscription-face-equipe', phrase: /hors de lib\/access\.ts/,
+    code: page(`canAccess({ role: s.role, plan }, studio) || !!rbac.${INSCRIRE}`, "import * as rbac from '../../../../lib/rbac';") },
+  { quoi: 'import() par un gabarit sans substitution', regle: 'tiktrends/pas-de-test-en-production', phrase: /Import de « \.\.\/\.\.\/\.\.\/\.\.\/test\/helpers\/face-equipe »/,
+    code: page("canAccess({ role: s.role, plan }, studio) || !!(await import(`../../../../test/helpers/face-equipe`))") },
+  { quoi: 'module .test avec extension', regle: 'tiktrends/pas-de-test-en-production', phrase: /un module en \.test/,
+    code: page('canAccess({ role: s.role, plan }, studio) || !!relais', "import * as relais from '../../../../lib/relais.test.js';") },
   { quoi: 'relais par un module lib/x.test', regle: 'tiktrends/pas-de-test-en-production', phrase: /Import de « \.\.\/\.\.\/\.\.\/\.\.\/lib\/relais\.test » depuis du code de production · un module en \.test/,
     code: page('canAccess({ role: s.role, plan }, studio) || !!relais', "import * as relais from '../../../../lib/relais.test';") },
 ];
@@ -107,7 +120,12 @@ describe('Face équipe · la règle ESLint typée refuse chaque contournement re
     }, 120_000);
   }
 
-  it('les deux constructions permises restent hors de la règle, et la page est dessous', async () => {
+  it('ne signale pas · un dossier qui contient « .test » sans que le module en soit un (dernier segment seul)', async () => {
+    const m = (await lint(page('canAccess({ role: s.role, plan }, studio) || !!m', "import * as m from '../../../../lib/x.test/vrai-module';"))).filter((x) => x.severity === 2 && x.ruleId?.startsWith('tiktrends/'));
+    expect(m).toEqual([]);
+  }, 120_000);
+
+  it('les exemptions sont exactement celles déclarées, et la page est dessous', async () => {
     const severite = async (rel: string, regle = 'tiktrends/face-equipe-forcee') => {
       const r = (await eslint.calculateConfigForFile(join(WEB, rel)))?.rules?.[regle];
       return Array.isArray(r) ? r[0] : r;
@@ -115,7 +133,13 @@ describe('Face équipe · la règle ESLint typée refuse chaque contournement re
     expect(await severite('app/(spatial)/sp/settings/page.tsx'), 'la règle n’est plus en erreur sur les pages').toBe(2);
     expect(await severite('test/team-acces-garde.test.tsx'), 'la règle n’est plus en erreur sur les tests').toBe(2);
     expect(await severite('lib/access.ts'), 'effectiveAccess est sous la règle · il ne pourrait plus construire la face équipe').toBeUndefined();
-    expect(await severite('test/helpers/face-equipe.ts'), 'le helper des tests de rbac est sous la règle').toBeUndefined();
+    expect(await severite('test/helpers/face-equipe.ts'), 'le helper passe par effectiveAccess · il n’a plus à être exempté').toBe(2);
+    expect(await severite('test/secu-face-equipe-execution.test.ts'), 'le test qui forge des faces exprès n’est plus exempté · il ne peut plus écrire les contournements qu’il éprouve').toBeUndefined();
+    const inscription = 'tiktrends/inscription-face-equipe';
+    for (const rel of ['app/(spatial)/sp/settings/page.tsx', 'test/helpers/face-equipe.ts', 'test/secu-face-equipe-execution.test.ts', 'lib/founder.ts']) {
+      expect(await severite(rel, inscription), `${rel} · la porte du registre n’est plus gardée`).toBe(2);
+    }
+    for (const rel of ['lib/rbac.ts', 'lib/access.ts']) expect(await severite(rel, inscription), `${rel} · le registre ne peut plus être défini ou appelé`).toBeUndefined();
     // lib/access.ts n'est exempté que de face-equipe-forcee · ni import de test ni @ts-ignore n'y passent.
     for (const regle of ['tiktrends/pas-de-test-en-production', 'tiktrends/pas-de-ts-ignore']) {
       expect(await severite('lib/access.ts', regle), `${regle} ne garde plus lib/access.ts`).toBe(2);
@@ -129,9 +153,43 @@ describe('Face équipe · la règle ESLint typée refuse chaque contournement re
     const racine = JSON.parse(readFileSync(join(WEB, '..', '..', 'package.json'), 'utf8')) as { scripts?: Record<string, string> };
     expect(racine.scripts?.lint, 'product · le script lint ne passe plus par turbo').toBe('turbo run lint');
     const ci = readFileSync(join(WEB, '..', '..', '..', '.github', 'workflows', 'ci.yml'), 'utf8');
-    expect(ci, 'la CI ne travaille plus dans product/').toMatch(/defaults:\s*\n\s*run:\s*\n\s*working-directory:\s*product\b/);
-    expect(ci, 'la CI ne lance plus « pnpm lint »').toMatch(/^\s*run:\s*pnpm lint\s*$/m);
+    expect(ci, 'la CI ne travaille plus dans product/').toMatch(/^defaults:\s*\n\s+run:\s*\n\s+working-directory:\s*product\s*$/m);
+    const lint = etapesCi(ci).filter(lanceLeLint);
+    expect(lint.length, 'la CI ne lance plus le lint (pnpm lint, pnpm run lint, pnpm -w lint)').toBeGreaterThan(0);
+    expect(lint.filter((e) => !etapeBloquante(e)), 'l’étape de lint ne bloque plus la CI (if, continue-on-error)').toEqual([]);
   });
+
+  it('le lecteur d’étapes CI reconnaît chaque forme, et refuse une étape qui ne bloque pas', () => {
+    const ci = (corps: string) => `jobs:\n  verify:\n    steps:\n${corps}`;
+    const bloquantes = (y: string) => etapesCi(y).filter(lanceLeLint).filter(etapeBloquante).length;
+    expect(bloquantes(ci('      - name: Lint\n        run: pnpm lint\n'))).toBe(1);
+    expect(bloquantes(ci('      - run: pnpm run lint\n'))).toBe(1);
+    expect(bloquantes(ci('      - run: pnpm -w lint\n'))).toBe(1);
+    expect(bloquantes(ci("      - name: Lint\n        run: 'pnpm -w run lint'\n"))).toBe(1);
+    expect(bloquantes(ci('      - name: Lint\n        if: false\n        run: pnpm lint\n'))).toBe(0);
+    expect(bloquantes(ci('      - name: Lint\n        run: pnpm lint\n        continue-on-error: true\n'))).toBe(0);
+    expect(bloquantes(ci('      - name: Tests\n        run: pnpm test\n'))).toBe(0);
+    expect(bloquantes(ci('      - name: Lint\n        run: pnpm lint || true\n'))).toBe(0);
+  });
+
+  // F · faux positifs acceptés · la forme est refusée, la réécriture conseillée (annoter la variable) passe.
+  const REECRITURES: Array<{ quoi: string; refusee: string; conseillee: string; apres?: string; react?: true }> = [
+    { quoi: 'new Map<string, Access>()', refusee: 'new Map<string, Access>().size === 0', conseillee: 'carte.size === 0', apres: 'const entrees: Array<[string, Access]> = [];\nconst carte = new Map(entrees);' },
+    { quoi: 'useState<Access | null>(null)', refusee: 'useState<Access | null>(null).length === 2', conseillee: 'useState(initial).length === 2', apres: 'const initial: Access | null = null;', react: true },
+    { quoi: '[] as Access[]', refusee: '([] as Access[]).length === 0', conseillee: 'aucun.length === 0', apres: 'const aucun: Access[] = [];' },
+    { quoi: '.filter((a): a is Access => …)', refusee: '[effectiveAccess(s), null].filter((a): a is Access => a !== null).length > 0', conseillee: '[effectiveAccess(s), null].flatMap((a) => (a !== null ? [a] : [])).length > 0' },
+  ];
+  for (const r of REECRITURES) {
+    it(`réécriture conseillée · ${r.quoi} refusé, la variable annotée passe`, async () => {
+      const avant = r.react ? `${ACCES}\nimport { useState } from 'react';` : ACCES;
+      // Seules les règles du dépôt comptent ici · la page d'ancrage n'est pas un composant client (règles des hooks).
+      const nos = (m: Awaited<ReturnType<typeof lint>>) => m.filter((x) => x.severity === 2 && x.ruleId?.startsWith('tiktrends/'));
+      const refus = nos(await lint(page(r.refusee, avant)));
+      expect(refus.map((x) => x.ruleId), `${r.quoi} n’est plus refusé · mets à jour la liste des faux positifs du module`).toEqual(['tiktrends/face-equipe-forcee']);
+      const ok = nos(await lint(page(r.conseillee, avant, r.apres ?? '')));
+      expect(ok, `${r.quoi} · la réécriture conseillée par le module ne passe pas`).toEqual([]);
+    }, 120_000);
+  }
 
   it('un test garde le droit d’éprouver la face CLIENT par `as Access`, jamais d’y glisser equipe', async () => {
     const TEST = join(WEB, 'test/team-acces-garde.test.tsx');
@@ -145,3 +203,27 @@ describe('Face équipe · la règle ESLint typée refuse chaque contournement re
     expect(m[0]!.message).toMatch(/Transtypage vers un Access qui porte une propriété equipe/);
   }, 120_000);
 });
+
+/** Les étapes d'un workflow · lecture tolérante par indentation (aucune dépendance YAML n'est déclarée par apps/web). */
+type EtapeCi = Record<string, string>;
+function etapesCi(yaml: string): EtapeCi[] {
+  const etapes: EtapeCi[] = [];
+  let courante: EtapeCi | null = null;
+  let retrait = -1;
+  for (const ligne of yaml.split('\n')) {
+    const item = /^(\s*)-\s+([\w-]+):\s*(.*)$/.exec(ligne);
+    if (item && (retrait < 0 || item[1]!.length === retrait)) {
+      retrait = item[1]!.length;
+      courante = { [item[2]!]: item[3]!.trim() };
+      etapes.push(courante);
+      continue;
+    }
+    const cle = /^(\s*)([\w-]+):\s*(.*)$/.exec(ligne);
+    if (courante && cle && cle[1]!.length > retrait) courante[cle[2]!] = cle[3]!.trim();
+    else if (cle && cle[1]!.length <= retrait) { courante = null; if (cle[1]!.length < retrait) retrait = -1; }
+  }
+  return etapes;
+}
+const sansGuillemets = (v: string) => v.replace(/^(['"])(.*)\1$/, '$2').trim();
+const lanceLeLint = (e: EtapeCi) => /^pnpm(\s+-w)?(\s+run)?\s+lint$/.test(sansGuillemets(e.run ?? ''));
+const etapeBloquante = (e: EtapeCi) => !('if' in e) && !('continue-on-error' in e);

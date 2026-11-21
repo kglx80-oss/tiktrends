@@ -3,11 +3,27 @@ import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 
 /**
+ * ── LA VRAIE BARRIÈRE EST À L'EXÉCUTION, pas ici ─────────────────────────────
+ * Trois tours de relecture de #1122 ont trouvé, chaque fois, de nouvelles
+ * formes qui forgent la face équipe en compilant et en passant ce lint (cast
+ * vers un type fonction qui rend `Access`, `any` dans une PROPRIÉTÉ d'une
+ * réponse d'API, garde générique `est<Access>(e)`…). Une liste d'interdits par
+ * analyse statique ne sera jamais close. La décision se prend donc dans
+ * lib/rbac.ts · `effectiveAccess` INSCRIT chaque face qu'il construit (gelée),
+ * et `canAccess`, `denyReason`, le rail et le menu ne reconnaissent que les
+ * faces inscrites (`faceEquipeReconnue`) · une face forgée, quelle que soit sa
+ * forme, vaut face client. Prouvé en exécutant le vrai code ·
+ * `test/secu-face-equipe-execution.test.ts` et `secu-face-equipe-rendu.test.tsx`.
+ *
+ * Ces règles restent comme FILET contre l'erreur · elles disent tôt, dans
+ * l'éditeur, qu'un raccourci ne marchera pas. Aucune règle n'est ajoutée pour
+ * les formes A, B, C ci-dessus · c'est le registre qui les ferme.
+ *
  * Règle `tiktrends/face-equipe-forcee` · seul `effectiveAccess` (lib/access.ts)
  * construit un `Access`, et donc la face « équipe » (`Access.equipe`, marque de
  * type déclarée dans lib/rbac.ts), sous la règle d'admissibilité du noyau
- * (`privilegesEquipe`). Une face équipe forcée ailleurs ouvre à un compte NON
- * admissible les rubriques d'équipe, sans verrou de formule (`canAccess`).
+ * (`privilegesEquipe`). Une face équipe forcée ailleurs n'ouvre plus rien (le
+ * registre la refuse), mais c'est presque toujours une erreur de conception.
  *
  * Elle protège contre une ERREUR (un raccourci pris de bonne foi), pas contre la
  * malveillance · un auteur décidé trouvera toujours une porte (voir la liste de
@@ -46,7 +62,11 @@ import ts from 'typescript';
  *     rend `Access` ou la marque · l'implémentation, elle, peut rendre
  *     `unknown`, et le compilateur ne vérifie pas l'écart.
  *
- * Ce qu'elle laisse passer (à dire, pas à taire) :
+ * Ce qu'elle laisse passer (à dire, pas à taire · le registre les ferme à l'exécution) :
+ *  · A · un cast vers un type fonction qui rend `Access`
+ *    (`((x) => x) as (x: unknown) => Access`) ;
+ *  · B · un `any` dans une PROPRIÉTÉ (`(await res.json()) as { role; plan; equipe: any }`) ;
+ *  · C · une garde générique à argument explicite (`est<Access>(e)`, prédicat sur T) ;
  *  · un `// eslint-disable` · le recensement (`test/secu-fondateurs-codes-sources.test.ts`)
  *    refuse toute désactivation d'une règle `tiktrends/` ;
  *  · `@ts-ignore` / `@ts-expect-error` · refusés en production par
@@ -58,12 +78,19 @@ import ts from 'typescript';
  *    (`forcer(x, effectiveAccess(s))`) ;
  *  · tout ce qui contourne le compilateur lui-même.
  *
- * Faux positifs acceptés (aucun aujourd'hui, mesuré · 0) · les formes 1 et 4
- * refusent aussi des écritures sans danger, à réécrire ainsi :
- *  · `useState<Access>(…)` → laisser l'inférence le déduire de la valeur
- *    initiale, qui vient de `effectiveAccess(s)` (`useState(effectiveAccess(s))`) ;
- *  · `[] as Access[]` → annoter la variable plutôt que la valeur
- *    (`const acces: Access[] = []`) ;
+ * Faux positifs acceptés (aucun aujourd'hui, mesuré · 0) · les formes 1, 4 et
+ * 6 refusent aussi des écritures sans danger. La réécriture qui fonctionne est
+ * toujours la même · ANNOTER LA VARIABLE (le compilateur vérifie l'affectation)
+ * au lieu de fixer le type de la valeur (que rien ne vérifie). Chacune est
+ * éprouvée par `secu-face-equipe-lint.test.ts` (« réécritures conseillées ») :
+ *  · `new Map<string, Access>()` → `const entrees: Array<[string, Access]> = [];`
+ *    puis `new Map(entrees)` (un `new Map()` nu est un `Map<any, any>`, refusé
+ *    à l'affectation d'un `Map<string, Access>`) ;
+ *  · `useState<Access | null>(null)` → `const initial: Access | null = null;`
+ *    puis `useState(initial)` ;
+ *  · `[] as Access[]` → `const acces: Access[] = [];`
+ *  · `.filter((a): a is Access => …)` → `.flatMap((a) => (… ? [a] : []))`,
+ *    le tableau source étant déjà typé ;
  *  · un `Access` reçu d'un autre module · le typer à la frontière
  *    (`function f(a: Access)`), sans cast.
  */
@@ -144,6 +171,8 @@ export const faceEquipeForcee = {
   },
   create(context) {
     const services = context.sourceCode.parserServices;
+    // Un .mjs de test/ (sans types) n'a rien à transtyper · un .ts sans types, c'est la configuration qui est cassée.
+    if (!/\.tsx?$/.test(context.filename)) return {};
     if (!services?.program) throw new Error('tiktrends/face-equipe-forcee · informations de type absentes (parserOptions.projectService)');
     const checker = services.program.getTypeChecker();
     const accesSansEquipe = context.options[0]?.accesSansEquipe === true;
@@ -284,7 +313,15 @@ export const versTest = (source, fichier) => {
   const r = cheminResolu(source, fichier);
   return !!r && (r === DOSSIER_TEST || r.startsWith(DOSSIER_TEST + sep));
 };
-export const MODULE_DE_TEST = /\.test(?:\.[cm]?[jt]sx?)?$/;
+/** Un module de test · `x.test`, `x.test.ts`, `x.test.tsx`… · lu sur le DERNIER segment du chemin. */
+export const MODULE_DE_TEST = /\.test(?:\.|$)/;
+const dernierSegment = (source) => source.split(/[\\/]/).pop() ?? '';
+/** La valeur d'une source d'import · littéral, ou gabarit SANS substitution (`import(`../test/x`)`). */
+function valeurSource(src) {
+  if (src?.type === 'Literal' && typeof src.value === 'string') return src.value;
+  if (src?.type === 'TemplateLiteral' && src.expressions.length === 0) return src.quasis[0]?.value.cooked ?? null;
+  return null;
+}
 export const pasDeTestEnProduction = {
   meta: {
     type: 'problem',
@@ -297,9 +334,10 @@ export const pasDeTestEnProduction = {
   },
   create(context) {
     const verifier = (src) => {
-      if (src?.type !== 'Literal' || typeof src.value !== 'string') return;
-      if (versTest(src.value, context.filename)) context.report({ node: src, messageId: 'importTest', data: { chemin: src.value } });
-      else if (MODULE_DE_TEST.test(src.value)) context.report({ node: src, messageId: 'importModuleTest', data: { chemin: src.value } });
+      const chemin = valeurSource(src);
+      if (chemin === null) return;
+      if (versTest(chemin, context.filename)) context.report({ node: src, messageId: 'importTest', data: { chemin } });
+      else if (MODULE_DE_TEST.test(dernierSegment(chemin))) context.report({ node: src, messageId: 'importModuleTest', data: { chemin } });
     };
     return {
       ImportDeclaration: (n) => verifier(n.source),
@@ -339,4 +377,38 @@ export const pasDeTsIgnore = {
   },
 };
 
-export default { rules: { 'face-equipe-forcee': faceEquipeForcee, 'pas-de-test-en-production': pasDeTestEnProduction, 'pas-de-ts-ignore': pasDeTsIgnore } };
+/**
+ * Règle `tiktrends/inscription-face-equipe` · `inscrireFaceEquipe` (lib/rbac.ts)
+ * est la seule porte d'entrée du registre des faces équipe · seul
+ * lib/access.ts (`effectiveAccess`) l'importe. Ailleurs, l'importer (nommé,
+ * renommé, ou lu sur un espace de noms `rbac.inscrireFaceEquipe`) suffirait à
+ * rendre reconnue une face forgée. Les tests n'en ont pas besoin · ils passent
+ * par `effectiveAccess` (test/helpers/face-equipe.ts). Le recensement
+ * (`secu-fondateurs-codes-sources`) refuse aussi le NOM hors de rbac.ts et
+ * access.ts.
+ */
+/** Le nom, recomposé · ce fichier est lu par le recensement, qui refuse ce nom hors de rbac.ts et access.ts. */
+export const INSCRIPTION = ['inscrireFace', 'Equipe'].join('');
+export const inscriptionFaceEquipe = {
+  meta: {
+    type: 'problem',
+    docs: { description: 'Seul lib/access.ts inscrit une face équipe.' },
+    schema: [],
+    messages: {
+      inscription: '« {{nom}} » hors de lib/access.ts · inscrire une face au registre la rendrait reconnue sans privilegesEquipe. Passe par effectiveAccess (lib/access.ts) · dans un test, par faceEquipeTest (test/helpers/face-equipe.ts).',
+    },
+  },
+  create(context) {
+    const signaler = (node) => context.report({ node, messageId: 'inscription', data: { nom: INSCRIPTION } });
+    return {
+      ImportSpecifier(n) { if ((n.imported.name ?? n.imported.value) === INSCRIPTION) signaler(n); },
+      ExportSpecifier(n) { if ((n.local.name ?? n.local.value) === INSCRIPTION) signaler(n); },
+      MemberExpression(n) {
+        const p = n.property;
+        if ((!n.computed && p.type === 'Identifier' && p.name === INSCRIPTION) || (p.type === 'Literal' && p.value === INSCRIPTION)) signaler(n);
+      },
+    };
+  },
+};
+
+export default { rules: { 'face-equipe-forcee': faceEquipeForcee, 'pas-de-test-en-production': pasDeTestEnProduction, 'pas-de-ts-ignore': pasDeTsIgnore, 'inscription-face-equipe': inscriptionFaceEquipe } };
