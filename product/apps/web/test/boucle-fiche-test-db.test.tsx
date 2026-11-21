@@ -63,6 +63,7 @@ import {
   type BriefCanonique,
 } from '@tiktrends/core';
 import { avecSpatial } from './spatial/fournisseur';
+import { attendreMontageStable } from './helpers/attendre-etat';
 import { contexteDepuisSession } from '../lib/studios/garde';
 import { projetAvecBrief, lancerLot, executer, sortiesDuJob, KEYFRAMES, saisieTest, briefCanonique, contenuImages } from './l4c-harnais';
 import { creerVariante } from '../lib/studios/variantes/variantes';
@@ -205,7 +206,9 @@ async function monter(el: ReactElement) {
   document.body.innerHTML = '<div id="app"></div><div id="orn" hidden></div>';
   root = createRoot(document.getElementById('app')!);
   await act(async () => { root!.render(avecSpatial(el)); });
-  await act(async () => { await new Promise((r) => setTimeout(r, 80)); });
+  // Rien d'asynchrone n'est attendu au montage (mesuré · sans aucune attente, le fichier passe) ·
+  // l'état attendu est un arbre RENDU qui ne bouge plus, jamais une durée.
+  await attendreMontageStable();
 }
 async function cliquer(el: Element | null | undefined, nom: string) {
   expect(el, nom).toBeTruthy();
