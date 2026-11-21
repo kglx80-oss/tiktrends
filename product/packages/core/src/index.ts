@@ -56,6 +56,7 @@ export * from './adsmap/proposal-taxonomy';
 export * from './adsmap/market-stats';
 export * from './adsmap/source-pertinence';
 export * from './adsmap/lot-nature';
+export * from './adsmap/rangement-lot';
 export * from './adsmap/apercu-lots';
 export * from './adsmap/hook-library';
 export * from './adsmap/attribution';

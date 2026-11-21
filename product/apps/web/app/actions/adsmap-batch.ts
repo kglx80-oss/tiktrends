@@ -5,9 +5,10 @@ import { db, schema } from '@tiktrends/db';
 import {
   buildUniqueNames, checkAdReady, formatViolations, resolveCampaignName,
   DEFAULT_VERDICT_CONFIG, type VerdictConfig, type AdShape, manquesAvantTest, VALEUR_ABSENTE,
-  structureVariante, butLotDuplique, finPrevueAuLancement,
+  structureVariante, butLotDuplique, finPrevueAuLancement, decisionRangementLot, RAISON_AD_DANS_UN_AUTRE_LOT,
 } from '@tiktrends/core';
 import { adsmapGuard } from '../../lib/adsmap-guard';
+import { adsDeLaMarque } from '../../lib/adsmap-marque';
 import { logAndTranslate } from '../../lib/error-log';
 import { briefConceptBeforeLaunch } from '../../lib/jarvis-memory';
 import { GUARD } from '../../lib/guard-error';
@@ -292,9 +293,16 @@ export async function duplicateBatchAction(batchId: string): Promise<{ id?: stri
     const [b] = await db!.select({ id: schema.batches.id, number: schema.batches.number, goal: schema.batches.goal }).from(schema.batches)
       .where(and(eq(schema.batches.id, batchId), eq(schema.batches.brandId, g.brand.id), eq(schema.batches.workspaceId, g.s.workspaceId))).limit(1);
     if (!b) return { error: GUARD.notFound('ce lot') };
-    const sources = await db!.select().from(schema.ads)
-      .where(and(eq(schema.ads.batchId, b.id), eq(schema.ads.workspaceId, g.s.workspaceId)))
-      .orderBy(asc(schema.ads.variantCode));
+    // Les variantes de la MARQUE du lot, par le graphe (concept → angle → désir →
+    // persona) · une ad d'une autre marque rangée là avant le contrôle de
+    // `setBatchAdAction` ne se recopie pas dans un lot neuf de cette marque.
+    const sources = (await db!.select({ ad: schema.ads }).from(schema.ads)
+      .innerJoin(schema.concepts, eq(schema.ads.conceptId, schema.concepts.id))
+      .innerJoin(schema.angles, eq(schema.concepts.angleId, schema.angles.id))
+      .innerJoin(schema.desires, eq(schema.angles.desireId, schema.desires.id))
+      .innerJoin(schema.personas, eq(schema.desires.personaId, schema.personas.id))
+      .where(and(eq(schema.ads.batchId, b.id), eq(schema.ads.workspaceId, g.s.workspaceId), eq(schema.personas.brandId, g.brand.id)))
+      .orderBy(asc(schema.ads.variantCode))).map((r) => r.ad);
     const parents = sources.length
       ? await db!.select().from(schema.iterationEdges).where(inArray(schema.iterationEdges.childAdId, sources.map((a) => a.id)))
       : [];
@@ -336,23 +344,37 @@ export async function duplicateBatchAction(batchId: string): Promise<{ id?: stri
   }
 }
 
-/** Range ou retire une ad d'un lot · rien d'autre ne change. */
+/**
+ * Range ou retire une ad d'un lot · rien d'autre ne change.
+ *
+ * L'écran ne propose que les ads hors lot de la marque · l'action ne s'y fie
+ * pas · appelée directement, elle rangeait l'ad d'une AUTRE marque de l'espace
+ * (invisible sur tous les écrans de la marque, mais comptée à l'Accueil · le
+ * lot ne concluait jamais), ou retirait une ad d'un autre lot, lancé compris.
+ * L'ad est donc relue par le graphe de la marque du lot (`adsDeLaMarque`), et la
+ * règle tranche au noyau (`decisionRangementLot`). L'écriture reporte le lot lu
+ * dans sa condition · si l'ad a changé de lot entre-temps, rien n'est écrit.
+ */
 export async function setBatchAdAction(input: { batchId: string; adId: string; inBatch: boolean }): Promise<{ ok?: true; error?: string }> {
   const g = await adsmapGuard({ minRole: 'admin' });
   if ('error' in g) return { error: g.error };
   try {
     const [b] = await db!.select({ id: schema.batches.id, status: schema.batches.status }).from(schema.batches)
-      .where(and(eq(schema.batches.id, input.batchId), eq(schema.batches.brandId, g.brand.id))).limit(1);
+      .where(and(eq(schema.batches.id, input.batchId), eq(schema.batches.brandId, g.brand.id), eq(schema.batches.workspaceId, g.s.workspaceId))).limit(1);
     if (!b) return { error: GUARD.notFound('ce lot') };
-    // Un lot en test ou analysé est un témoin : y ajouter une ad en cours de route
-    // rendrait les dépenses incomparables, donc les verdicts faux.
-    if (b.status === 'testing' || b.status === 'analyzed') {
-      return { error: 'Ce lot est déjà lancé · y ajouter une ad maintenant rendrait les dépenses incomparables. Ouvre le lot suivant.' };
-    }
 
-    await db!.update(schema.ads)
-      .set({ batchId: input.inBatch ? input.batchId : null, updatedAt: new Date() })
-      .where(and(eq(schema.ads.id, input.adId), eq(schema.ads.workspaceId, g.s.workspaceId)));
+    const lue = typeof input.adId === 'string' ? (await adsDeLaMarque(g.s.workspaceId, g.brand.id, [input.adId])).get(input.adId) : undefined;
+    const d = decisionRangementLot({ lot: { id: b.id, statut: b.status }, ad: lue ? { lotId: lue.lotId } : null, ranger: input.inBatch });
+    if (!d.ok) return { error: d.raison };
+
+    const ecrites = await db!.update(schema.ads)
+      .set({ batchId: d.lotApres, updatedAt: new Date() })
+      .where(and(
+        eq(schema.ads.id, input.adId), eq(schema.ads.workspaceId, g.s.workspaceId),
+        lue!.lotId === null ? isNull(schema.ads.batchId) : eq(schema.ads.batchId, lue!.lotId),
+      ))
+      .returning({ id: schema.ads.id });
+    if (!ecrites.length) return { error: RAISON_AD_DANS_UN_AUTRE_LOT };
     return { ok: true };
   } catch (e) {
     return { error: logAndTranslate('adsmap:batch-assign', e, { subject: 'la composition du lot', workspaceId: g.s.workspaceId }) };
