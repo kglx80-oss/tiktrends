@@ -27,6 +27,14 @@
 # la liste des conteneurs PUIS chaque inspection (statut et forme de la
 # sortie) avant d'y chercher un partage. Un échec, ou une sortie qu'on ne sait
 # pas lire, n'est jamais pris pour « aucun partage ».
+#
+# Jamais `echo "$X" | grep -q …` : sous `pipefail`, `grep -q` sort au premier
+# motif trouvé et ferme le tube · `echo`, qui écrit ligne à ligne, prend SIGPIPE
+# sur la ligne suivante (statut 141) et le tube entier « échoue ». Selon le test,
+# c'est un ÉCHEC fantôme (étape 9 sur une machine chargée, vu dans les portes)
+# ou une garde qui s'ouvre (`.env.deploy` trouvé, puis ignoré). On lit donc
+# toujours une sortie par `grep -q … <<< "$X"` · aucun écrivain à tuer.
+# Garde : le cas « sortie bavarde » de apps/web/test/e2-verifier-environnement.test.ts.
 set -u
 set -o pipefail
 
@@ -124,13 +132,13 @@ fi
 etape "compose-config · configuration résolue du projet : volumes, réseaux, ports, fichiers de production"
 lancer "$DC --profile outils config"
 if [ "$A_BLANC" = "0" ]; then
-  if [ -z "$SORTIE" ] || [ "$STATUT" -ne 0 ] || echo "$SORTIE" | grep -q "^error\|invalid"; then echec "config illisible" "compose-config";
+  if [ -z "$SORTIE" ] || [ "$STATUT" -ne 0 ] || grep -q "^error\|invalid" <<< "$SORTIE"; then echec "config illisible" "compose-config";
   else
     PUBLIES=$(echo "$SORTIE" | grep -cE '^\s+published:')
     LOCAUX=$(echo "$SORTIE" | grep -cE '^\s+host_ip: 127\.0\.0\.1$')
     NOMS=$(echo "$SORTIE" | awk '/^(volumes|networks):/ {s=1; next} /^[a-z]/ {s=0} s && /^    name:/ {print $2}')
     HORS=$(echo "$NOMS" | grep -v "^${PROJET}" | grep -c . || true)
-    if echo "$SORTIE" | grep -q '\.env\.deploy'; then echec ".env.deploy (production) référencé" "compose-config";
+    if grep -q '\.env\.deploy' <<< "$SORTIE"; then echec ".env.deploy (production) référencé" "compose-config";
     elif [ "$PUBLIES" = "0" ]; then echec "aucun port publié pour le site de recette" "compose-config";
     elif [ "$PUBLIES" != "$LOCAUX" ]; then echec "${PUBLIES} port(s) publié(s), ${LOCAUX} sur 127.0.0.1 · un port sort de la machine" "compose-config";
     elif [ "$HORS" != "0" ]; then echec "volume ou réseau hors préfixe ${PROJET}" "compose-config";
@@ -202,7 +210,7 @@ lancer "$DC up -d"
 if [ "$A_BLANC" = "0" ]; then
   if [ "$STATUT" -ne 0 ]; then echec "up en échec · « $DC logs »" "demarrage"; fi
   lancer "$DC ps --status running --services"
-  if echo "$SORTIE" | grep -q '^web_recette$' && echo "$SORTIE" | grep -q '^workers_recette$'; then ok "web_recette et workers_recette en marche" "demarrage"; else echec "services non démarrés · « $DC logs »" "demarrage"; fi
+  if grep -q '^web_recette$' <<< "$SORTIE" && grep -q '^workers_recette$' <<< "$SORTIE"; then ok "web_recette et workers_recette en marche" "demarrage"; else echec "services non démarrés · « $DC logs »" "demarrage"; fi
 fi
 
 # 10 · inspection après démarrage · aucun volume ni réseau hors du projet de recette sur ses conteneurs
@@ -219,12 +227,12 @@ etape "ffmpeg-worker · ffprobe et ffmpeg dans workers_recette"
 lancer "$DC run --rm --no-deps workers_recette ffprobe -version"; V1=$(echo "$SORTIE" | head -1)
 lancer "$DC run --rm --no-deps workers_recette ffmpeg -version"; V2=$(echo "$SORTIE" | head -1)
 if [ "$A_BLANC" = "0" ]; then
-  if echo "$V1" | grep -q '^ffprobe version' && echo "$V2" | grep -q '^ffmpeg version'; then ok "${V1} · ${V2}" "ffmpeg-worker"; else echec "ffprobe ou ffmpeg absent de l'image du worker" "ffmpeg-worker"; fi; fi
+  if grep -q '^ffprobe version' <<< "$V1" && grep -q '^ffmpeg version' <<< "$V2"; then ok "${V1} · ${V2}" "ffmpeg-worker"; else echec "ffprobe ou ffmpeg absent de l'image du worker" "ffmpeg-worker"; fi; fi
 
 # 13 · la sonde vidéo publie sa capacité (publiée PUIS relue en base)
 etape "sonde-video · sonde publiée et relue dans app_settings"
 lancer "$DC run --rm workers_recette pnpm exec tsx src/recette/sonde-recette.ts"
-if [ "$A_BLANC" = "0" ]; then L=$(echo "$SORTIE" | grep -E '^(OK|ÉCHEC) · ' | tail -1); if echo "$L" | grep -q '^OK · '; then ok "${L#OK · }" "sonde-video"; else echec "${L:-aucune ligne de sonde}" "sonde-video"; fi; fi
+if [ "$A_BLANC" = "0" ]; then L=$(echo "$SORTIE" | grep -E '^(OK|ÉCHEC) · ' | tail -1); if grep -q '^OK · ' <<< "$L"; then ok "${L#OK · }" "sonde-video"; else echec "${L:-aucune ligne de sonde}" "sonde-video"; fi; fi
 
 # 14 · le site de recette répond, sur 127.0.0.1 SEULEMENT
 etape "site-local · http://127.0.0.1:3101 répond, publié sur 127.0.0.1 seulement"
@@ -232,14 +240,14 @@ lancer "$DC port web_recette 3000"; PORT="$SORTIE"
 lancer "curl -sS -o /dev/null -w '%{http_code}' --max-time 20 http://127.0.0.1:3101/"; CODE="$SORTIE"
 if [ "$A_BLANC" = "0" ]; then
   if [ "$PORT" != "127.0.0.1:3101" ]; then echec "publié sur « ${PORT} » · seul 127.0.0.1:3101 est admis" "site-local";
-  elif echo "$CODE" | grep -qE '^[23][0-9][0-9]$'; then ok "HTTP ${CODE}, publié sur ${PORT}" "site-local";
+  elif grep -qE '^[23][0-9][0-9]$' <<< "$CODE"; then ok "HTTP ${CODE}, publié sur ${PORT}" "site-local";
   else echec "HTTP « ${CODE} » sur http://127.0.0.1:3101/" "site-local"; fi; fi
 
 # 15 · registre cumulatif du budget · dossier présent sur la machine, jamais dans un volume
 etape "registre · ops/recette/registre sur la machine, lisible par recette:budget"
 lancer "mkdir -p ops/recette/registre && $DC --profile outils run --rm outils_recette pnpm --filter @tiktrends/web recette:budget"
-if [ "$A_BLANC" = "0" ]; then if echo "$SORTIE" | grep -q 'RESTANT'; then ok "$(echo "$SORTIE" | grep 'RESTANT' | sed 's/^ *//')" "registre";
-  elif echo "$SORTIE" | grep -q 'premier essai'; then ok "registre absent, base sans dépense · créé à la première commande payante" "registre";
+if [ "$A_BLANC" = "0" ]; then if grep -q 'RESTANT' <<< "$SORTIE"; then ok "$(echo "$SORTIE" | grep 'RESTANT' | sed 's/^ *//')" "registre";
+  elif grep -q 'premier essai' <<< "$SORTIE"; then ok "registre absent, base sans dépense · créé à la première commande payante" "registre";
   else echec "$(echo "$SORTIE" | tail -1)" "registre"; fi; fi
 
 if [ "$A_BLANC" = "1" ]; then echo; echo "Résumé"; echo "À BLANC · ${ETAPE} étapes affichées, rien n'a été exécuté."; exit 0; fi

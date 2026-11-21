@@ -62,6 +62,25 @@ const actif = () => document.activeElement;
 /** Une promesse tenue en main · l'action reste « en cours » tant qu'on ne la résout pas. */
 function differe<T>() { let resoudre!: (v: T) => void; let rejeter!: (e: unknown) => void; const p = new Promise<T>((a, b) => { resoudre = a; rejeter = b; }); return { p, resoudre, rejeter }; }
 
+/**
+ * Borne de l'attente de l'état final · MESURÉE, jamais posée de tête. Délai entre la réponse de
+ * « retenir » et l'état final (proposition retirée ET focus sur « Générer »), en ms, sondé à 1 ms
+ * (copie en boucle de ce test, 21/11/2026, machine de 4 cœurs) :
+ *
+ *   régime                                          n    p50   p90   p95   p99   max
+ *   au repos                                        50    56    61    62    64    65
+ *   12 boucles CPU actives                          50    67   110   114   132   138
+ *   suite web en parallèle + 12 boucles CPU        200    89   304   409   778   814
+ *
+ * L'ancienne attente FIXE (120 ms + 5 ms) passait sous le p90 du deuxième régime · 7 échecs sur
+ * 150 sous 12 boucles CPU, 11 sur 150 suite web en parallèle, les deux messages vus dans les portes
+ * (« la proposition retenue devait disparaître », « le focus est tombé sur <body> »). On sonde
+ * désormais l'état · 0 échec sur 100 dans chacun des deux régimes. La borne ne sert qu'à conclure
+ * quand le défaut revient (focus resté sur <body>) · 10 s, plus de douze fois le pire délai
+ * mesuré, sous la limite de 30 s par test.
+ */
+const ATTENTE_FOCUS_MS = 10_000;
+
 // ── Parcours image ────────────────────────────────────────────────────────────
 const TOUT = { peutGenerer: true, peutProposer: true, briefPresent: true, preparationOk: true, releasePubliee: true, fournisseurTexte: true, plafondAtteint: false, fournisseurImage: true };
 const CONSIGNE: ConsigneVue = {
@@ -95,8 +114,13 @@ describe('Parcours image · le focus survit à un rendu tardif de la vue relue',
     await cliquer(b);
     expect(actif(), 'le focus a quitté le bouton pressé').toBe(b);
     await act(async () => { d.resoudre({ ok: true }); await d.p; });
-    // Hors `act` · la relecture (10 ms), le rendu retardé (20 ms) puis l'effet · on attend largement.
-    await new Promise((r) => setTimeout(r, 120));
+    // Hors `act` · la relecture (10 ms), le rendu retardé (20 ms) puis l'effet. On attend l'ÉTAT FINAL
+    // (proposition retirée, focus posé), sondé toutes les 5 ms, borné par ATTENTE_FOCUS_MS.
+    await vi.waitFor(() => {
+      expect(q('[data-bouton="retenir"]'), 'la proposition retenue devait disparaître').toBeNull();
+      expect(actif(), 'le focus est tombé sur <body> quand la vue relue est rendue après le replacement').toBe(q('[data-bouton="lancer"]'));
+    }, { timeout: ATTENTE_FOCUS_MS, interval: 5 });
+    // L'état tient · rien de ce qui reste en file ne le défait.
     await act(async () => { await new Promise((r) => setTimeout(r, 5)); });
     expect(q('[data-bouton="retenir"]'), 'la proposition retenue devait disparaître').toBeNull();
     expect(actif(), 'le focus est tombé sur <body> quand la vue relue est rendue après le replacement').toBe(q('[data-bouton="lancer"]'));

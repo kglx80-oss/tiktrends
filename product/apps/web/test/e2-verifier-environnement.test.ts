@@ -37,12 +37,44 @@ const SECRET = 'a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718';
 const SECRET_AUTH = 'mdp-sentinelle-auth-e3-77c1d0aa';
 const ENV_CONFORME = `POSTGRES_PASSWORD=${SECRET}\nAUTH_SECRET=${SECRET_AUTH}\n`;
 
+/**
+ * La course qui faisait échouer l'étape 9 (« demarrage ») sous charge, une fois par-ci par-là dans
+ * les portes, sans rapport avec le diff · le script lisait `echo "$SORTIE" | grep -q '^web_recette$'`
+ * sous `pipefail`. `echo` écrit LIGNE À LIGNE (strace · un `write` par ligne) ; `grep -q` sort dès
+ * `web_recette` lu ; si l'ordonnanceur le fait sortir avant la ligne `workers_recette`, `echo` prend
+ * SIGPIPE (statut 141, vu dans PIPESTATUS) et le tube « échoue » · ÉCHEC fantôme. Le même tube
+ * ouvrait une garde (`.env.deploy` trouvé puis ignoré). Correctif à la source : `grep -q … <<< "$X"`.
+ *
+ * Mesures (21/11/2026, 4 cœurs, faux outils de ce fichier) · échecs de l'étape 9 :
+ *
+ *   régime                                              passages     avant     après
+ *   ce fichier en boucle, 12 boucles CPU                  50         1         0
+ *     (27 cas par passage avant, 30 après)
+ *   script seul, 8 en parallèle, 12 boucles CPU          2 000         4         0
+ *   script seul, 4 en parallèle                            200         1         ·
+ *   la ligne de l'étape 9 isolée, 8 boucles CPU        4 × 3 000       1 [141 0] ·
+ *
+ * Aucune attente en jeu · un passage complet dure p50 144 ms, max 236 ms à 4 en parallèle, et au
+ * pire mesuré (8 en parallèle, machine à une charge de 25 à 30) p50 2,4 s, max 11,5 s, sous les
+ * 30 s par test. Pour rendre la course CERTAINE, BAVARD ajoute des lignes après la ligne cherchée ·
+ * il faut plus que le tampon du tube (64 Kio) plus la lecture de grep. Taux d'échec de l'ancien script à l'étape 9 selon BAVARD (100 passages, 4 en parallèle) :
+ *
+ *   lignes ajoutées     100    1 000   2 000   3 000   5 000   10 000   40 000
+ *   octets            ~2 K    ~20 K   ~40 K   ~60 K   ~94 K   ~199 K   ~829 K
+ *   échecs / 100         0        1       5      11      86      100      100
+ *
+ * 40 000 lignes · quatre fois le premier volume certain.
+ */
+const BAVARD = '40000';
+
 let racine = '';
 let bin = '';
 const FAUX_DOCKER = `#!/bin/bash
 echo "$*" >> "$JOURNAL_DOCKER"
+# BAVARD=n · n lignes de plus APRÈS la ligne que le script cherche (sorties bavardes).
+bavard() { [ -n "\${BAVARD:-}" ] && seq -f 'service_bavard_%g' "\$BAVARD"; return 0; }
 case "$*" in
-  *" config"*) cat <<FIN
+  *" config"*) [ -n "\${CONFIG_EN_TETE:-}" ] && echo "\$CONFIG_EN_TETE"; cat <<FIN
 name: tiktrends-recette
 services:
   web_recette:
@@ -61,10 +93,10 @@ volumes:
   pgdata_recette:
     name: \${NOM_VOLUME:-tiktrends-recette-pgdata}
 FIN
-  ;;
+  bavard ;;
   *" build"*) [ -n "\${BUILD_KO:-}" ] && { echo "échec de construction"; exit 1; } ;;
   *" up -d"*) [ -n "\${UP_KO:-}" ] && { echo "échec du démarrage"; exit 1; }; touch "\$JOURNAL_DOCKER.up" ;;
-  *"ps --status running --services"*) printf 'db_recette\\nredis_recette\\nweb_recette\\nworkers_recette\\n' ;;
+  *"ps --status running --services"*) printf 'db_recette\\nredis_recette\\nweb_recette\\nworkers_recette\\n'; bavard ;;
   "ps --filter publish=3101"*) [ -n "\${PORT_OCCUPE:-}" ] && echo "\${PORT_OCCUPE}" ;;
   "ps -a"*)
     [ -n "\${PS_KO:-}" ] && { echo "Cannot connect to the Docker daemon at unix:///var/run/docker.sock"; exit 1; }
@@ -81,7 +113,7 @@ FIN
   *"ffmpeg -version"*) echo "ffmpeg version 6.1.1" ;;
   *"sonde-recette.ts"*) echo "\${SONDE:-OK · sonde vidéo publiée et relue · décodage prouvé (ffmpeg version 6.1.1) · H.264 oui, AAC oui}" ;;
   *"port web_recette 3000"*) echo "\${HOTE_PORT:-127.0.0.1}:3101" ;;
-  *"recette:budget"*) echo "  RESTANT             · 15,0000 \\$" ;;
+  *"recette:budget"*) echo "  RESTANT             · 15,0000 \\$"; bavard ;;
 esac
 exit 0
 `;
@@ -157,6 +189,13 @@ describe('verifier-environnement.sh · contre de faux outils', () => {
     expect(Math.max(...lectures.slice(0, 3)), 'une lecture de phase 1 après une mutation').toBeLessThan(premierBuild);
   });
 
+  it('sorties bavardes (des milliers de lignes APRÈS la ligne cherchée) ⇒ toujours quinze OK · aucun ÉCHEC fantôme quand grep s’arrête au premier motif', () => {
+    const r = lancer([], { BAVARD });
+    expect(echecs(r.sortie), r.sortie).toEqual([]);
+    expect(r.code, r.sortie).toBe(0);
+    expect(r.sortie.match(/^OK {5}· \d+ /gm)).toHaveLength(15);
+  });
+
   // E3 · chaque prérequis KO, tour à tour ⇒ arrêt AVANT toute mutation.
   it.each([
     ['mémoire sous le seuil mesuré', { RECETTE_MEMINFO: '/dev/null' }, ENV_CONFORME, 'memoire'],
@@ -180,6 +219,9 @@ describe('verifier-environnement.sh · contre de faux outils', () => {
     ['inspection d’un autre conteneur que celui demandé', { INSPECT: 'C:/autre N:tiktrends-recette-reseau' }, ENV_CONFORME, 'isolement-existant'],
     ['élément sans préfixe mêlé à une inspection valide', { INSPECT: 'C:/tiktrends-recette-web_recette-1 N:tiktrends-recette-reseau avertissement' }, ENV_CONFORME, 'isolement-existant'],
     ['nom de conteneur illisible dans la liste', { CONTENEURS: 'WARNING: erreur de configuration' }, ENV_CONFORME, 'isolement-existant'],
+    // Sorties bavardes · `grep -q` trouve son motif tôt et sort · la garde doit TOMBER quand même.
+    ['configuration qui référence .env.deploy, sortie bavarde', { CONFIG_EN_TETE: 'env_file: ../.env.deploy', BAVARD }, ENV_CONFORME, 'compose-config'],
+    ['configuration signalée invalide, sortie bavarde', { CONFIG_EN_TETE: 'invalid interpolation format', BAVARD }, ENV_CONFORME, 'compose-config'],
   ] as const)('prérequis KO · %s ⇒ ÉCHEC nommé, arrêt immédiat : aucun build, up ni run, rien d’écrit', (_n, env, envFichier, attendu) => {
     const r = lancer([], env, chantier(envFichier));
     expect(r.code, r.sortie).toBe(1);
