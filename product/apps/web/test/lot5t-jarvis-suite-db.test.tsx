@@ -61,7 +61,7 @@ import { semer, session } from './studios-semis';
 import { ctxDe } from './l3-harnais';
 import { projetAvecBrief, lancerLot, executer, sortiesDuJob, KEYFRAMES, saisieTest } from './l4c-harnais';
 import { avecSpatial } from './spatial/fournisseur';
-import { attendreEtat, attendreMontageStable, pasDansAct } from './helpers/attendre-etat';
+import { attendreAbsence, attendreEtat, attendreMontageStable, pasDansAct } from './helpers/attendre-etat';
 import { demarrerMockFournisseur } from './lot19b-mock-fournisseur';
 import { creerVariante } from '../lib/studios/variantes/variantes';
 import { rattacherVarianteAuTest } from '../lib/studios/variantes/tests';
@@ -290,6 +290,7 @@ describe('lot 5 ter · panneau Jarvis d’un projet · « Créer l’itération 
       await message({ contenu, conversationId: S.fil1 });
       await monter(<Projet {...await fiche()} />);
       expect(document.querySelector('aside.jpanel p')?.textContent, `la réponse est affichée · ${contenu}`).toBeTruthy();
+      await attendreAbsence(`aucun geste sous la réponse · ${contenu}`, () => !gesteProjet());
       expect(gesteProjet(), contenu).toBeNull();
     }
   });

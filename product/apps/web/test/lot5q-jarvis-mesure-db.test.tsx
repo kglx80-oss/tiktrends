@@ -62,7 +62,7 @@ import { semer, session } from './studios-semis';
 import { ctxDe } from './l3-harnais';
 import { projetAvecBrief, lancerLot, executer, sortiesDuJob, KEYFRAMES, saisieTest } from './l4c-harnais';
 import { avecSpatial } from './spatial/fournisseur';
-import { attendreEtat, attendreMontageStable, pasDansAct } from './helpers/attendre-etat';
+import { attendreAbsence, attendreEtat, attendreMontageStable, pasDansAct } from './helpers/attendre-etat';
 import { demarrerMockFournisseur } from './lot19b-mock-fournisseur';
 import { creerVariante } from '../lib/studios/variantes/variantes';
 import { rattacherVarianteAuTest } from '../lib/studios/variantes/tests';
@@ -387,6 +387,8 @@ describe('lot 5 quater · le panneau Jarvis d’un projet · « Tester » une va
     const props = await chargerProjet(h.session as never, S.P1);
     if (!props.ok) throw new Error('fiche');
     await monter(<Projet {...props.props} />);
+    expect(document.querySelector('aside.jpanel p')?.textContent, 'la réponse est affichée').toBeTruthy();
+    await attendreAbsence('aucun geste d’essai sous la réponse', () => !document.querySelector('aside.jpanel [data-essai-jarvis]'));
     expect(document.querySelector('aside.jpanel [data-essai-jarvis]')).toBeNull();
   });
 });

@@ -71,11 +71,11 @@ vi.mock('../lib/jarvis-memory', async (importOriginal) => ({
 import { db, schema, eq } from '@tiktrends/db';
 import {
   REFUS_GESTE_JARVIS, RAISON_GESTE_RIEN_A_CONCLURE, RAISON_GESTE_SANS_GAGNANTE_LOT, LIBELLE_CHOIX_VARIABLE, VOCABULAIRE_VARIABLES,
-  lienConclusionJarvis, lienIterationJarvis, lienJarvisContexte, variablesDuPlan, type TestedVariable,
+  contexteTiroirJarvis, lienConclusionJarvis, lienIterationJarvis, lienJarvisContexte, variablesDuPlan, type TestedVariable,
 } from '@tiktrends/core';
 import { semer, session } from './studios-semis';
 import { avecSpatial } from './spatial/fournisseur';
-import { attendreEtat, attendreMontageStable, pasDansAct } from './helpers/attendre-etat';
+import { attendreAbsence, attendreEtat, attendreMontageStable, pasDansAct } from './helpers/attendre-etat';
 import { demarrerMockFournisseur } from './lot19b-mock-fournisseur';
 import JarvisSpatial from '../app/(spatial)/sp/jarvis/page';
 import IterationSpatiale from '../app/(spatial)/sp/studio/iterer/page';
@@ -412,11 +412,21 @@ describe('lot 5 bis · le tiroir de la coquille reçoit le contexte de la page (
     await act(async () => { document.querySelector<HTMLFormElement>('#jdform')!.requestSubmit(); });
     // L'état attendu · la requête est PARTIE (le faux de la route l'a reçue) et l'envoi est FINI (champ rendu).
     await attendreEtat('la question du tiroir est partie et l’envoi fini (champ rendu)', () => corps.length > n && !document.querySelector<HTMLInputElement>('#jdin')!.disabled, { pas: pasDansAct });
+    // Une seule question part · tenu dans la durée (un renvoi tardif la viole).
+    await attendreAbsence('plus aucune requête du tiroir après l’envoi', () => corps.length === n + 1);
   };
   /** Le libellé de la page jointe, une fois la relecture du serveur rendue. */
   const pageJointe = (type: string) => attendreEtat(`la page « ${type} » est jointe (relue par le serveur, rendue)`, () => document.querySelector(`[data-contexte-page="${type}"] [data-libelle-page]`), { pas: pasDansAct });
-  /** Rien de joint · seulement une fois que CHAQUE relecture demandée a répondu, et que l'écran a rendu sa réponse. */
-  const relecturesRepondues = () => attendreEtat('chaque relecture du contexte demandée a répondu', () => h.contextes.reponses === h.contextes.demandes, { pas: pasDansAct, stabilite: 3 });
+  /**
+   * Rien de joint · seulement une fois que CHAQUE relecture demandée a répondu, et que l'écran a
+   * rendu sa réponse. `doitRelire` (la règle du noyau, `contexteTiroirJarvis`) · une relecture DOIT
+   * être partie depuis `avant` · sinon « 0 réponse pour 0 demande » passerait pour une réponse.
+   */
+  const relecturesRepondues = (avant: number, doitRelire: boolean) => attendreEtat(
+    doitRelire ? 'la relecture du contexte est partie et a répondu' : 'chaque relecture du contexte demandée a répondu',
+    () => h.contextes.reponses === h.contextes.demandes && h.contextes.demandes >= avant + (doitRelire ? 1 : 0),
+    { pas: pasDansAct, stabilite: 3 },
+  );
 
   it('la fiche d’un lot · relue, affichée, envoyée comme `{ type, id }` · retirée, elle ne part plus', async () => {
     await monter(tiroir(`/adsmap/lots/${S.L1}`));
@@ -435,14 +445,21 @@ describe('lot 5 bis · le tiroir de la coquille reçoit le contexte de la page (
 
   it('un lot d’une autre marque, une page sans contexte · rien de joint, plein écran nu · un projet · seul le plein écran le porte', async () => {
     for (const chemin of [`/adsmap/lots/${S.L2}`, '/veille', `/adsmap/lots/${encodeURIComponent("' or 1=1")}`]) {
+      const avant = h.contextes.demandes;
+      const doitRelire = contexteTiroirJarvis(chemin) !== null;
       await monter(tiroir(chemin));
-      await relecturesRepondues();
+      await relecturesRepondues(avant, doitRelire);
+      if (!doitRelire) expect(h.contextes.demandes, `${chemin} · aucune relecture attendue`).toBe(avant);
       expect(document.querySelector('[data-contexte-page]'), chemin).toBeNull();
       expect(pleinEcran(), chemin).toBe('/jarvis');
       expect(document.body.innerHTML, chemin).not.toMatch(/SECRET/);
     }
     const projet = '99999999-9999-4999-8999-999999999999';
+    const avant = h.contextes.demandes;
     await monter(tiroir(`/studio/projets/${projet}`));
+    await relecturesRepondues(avant, false);
+    expect(h.contextes.demandes, 'un projet n’est pas joint au tiroir · aucune relecture').toBe(avant);
+    await attendreAbsence('un projet · rien de joint au tiroir', () => !document.querySelector('[data-contexte-page]'));
     expect(document.querySelector('[data-contexte-page]')).toBeNull();
     expect(pleinEcran()).toBe(lienJarvisContexte('projet', projet));
   });

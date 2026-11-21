@@ -68,6 +68,12 @@ export interface OptionsAttente {
    * React monté, `pasDansAct` · les mises à jour en file sont rendues avant le sondage suivant.
    */
   pas?: (ms: number) => Promise<unknown>;
+  /**
+   * Pour une ABSENCE (« plus aucune requête », « rien ne part tout seul ») · la condition doit être
+   * vraie dès le premier sondage et le rester · le premier sondage faux échoue TOUT DE SUITE
+   * (« violée »), au lieu d'attendre la borne. Sans effet sur un état qu'on attend de voir venir.
+   */
+  echecImmediat?: boolean;
 }
 
 export interface EtatAtteint {
@@ -115,6 +121,9 @@ export async function attendreEtat(condition: string, sonde: () => unknown, opti
     tenus = ok ? tenus + 1 : 0;
     meilleur = Math.max(meilleur, tenus);
     const ms = performance.now() - debut;
+    if (!ok && options.echecImmediat) {
+      throw new Error(`attendreEtat · « ${condition} » violée au sondage ${sondages}/${stabilite}, après ${Math.round(ms)} ms (toutes les ${intervalle} ms) · constat : ${constat(dernier)}`, { cause: dernier });
+    }
     if (tenus >= stabilite) {
       journaliser(condition, ms, sondages);
       return { ms, sondages };
@@ -122,7 +131,8 @@ export async function attendreEtat(condition: string, sonde: () => unknown, opti
     if (ms >= borne) {
       const tenue = stabilite > 1 ? ` · tenue au mieux ${meilleur}/${stabilite} sondages d’affilée` : '';
       const vu = tenus > 0 ? `tenue, pas assez longtemps${dernier === undefined ? '' : ` (perdue sur : ${constat(dernier)})`}` : constat(dernier);
-      throw new Error(`attendreEtat · « ${condition} » non atteinte en ${Math.round(ms)} ms (${sondages} sondages, toutes les ${intervalle} ms)${tenue} · dernier constat : ${vu}`);
+      // `cause` · le dernier constat tel quel (l'erreur de l'`expect`, avec sa pile), pas seulement sa première ligne.
+      throw new Error(`attendreEtat · « ${condition} » non atteinte en ${Math.round(ms)} ms (${sondages} sondages, toutes les ${intervalle} ms)${tenue} · dernier constat : ${vu}`, { cause: dernier });
     }
     await pas(intervalle);
   }
@@ -146,7 +156,22 @@ export function sondeDomInchange(racine: () => Element | null = () => document.b
 
 /** Le montage d'une page · rendu, puis inchangé sur `SONDAGES_MONTAGE` sondages dans `act`. */
 export const SONDAGES_MONTAGE = 3;
-export const attendreMontageStable = () => attendreEtat('la page montée est rendue et ne bouge plus', sondeDomInchange(), { pas: pasDansAct, stabilite: SONDAGES_MONTAGE });
+/**
+ * Le montage dans `#app` · `#app` doit porter un rendu (un composant qui rend `null` n'est pas
+ * « monté »), puis tout le document (`#app` et les surcouches portées ailleurs, `#orn`) ne doit
+ * plus bouger. `document.body` seul ne suffit pas · il n'est jamais vide (`#app`, `#orn`).
+ */
+export function attendreMontageStable(racine: () => Element | null = () => document.getElementById('app'), borneMs = BORNE_ATTENTE_MS) {
+  const inchange = sondeDomInchange();
+  return attendreEtat('la page montée est rendue (#app non vide) et ne bouge plus', () => {
+    const rendu = !!racine()?.innerHTML;
+    const stable = inchange();
+    return rendu && stable;
+  }, { pas: pasDansAct, stabilite: SONDAGES_MONTAGE, borneMs });
+}
+
+/** Une ABSENCE · vraie d'emblée, tenue `SONDAGES_ABSENCE` sondages dans `act`, violée ⇒ échec immédiat. */
+export const attendreAbsence = (condition: string, sonde: () => unknown) => attendreEtat(condition, sonde, { pas: pasDansAct, stabilite: SONDAGES_ABSENCE, echecImmediat: true });
 
 /**
  * Mesure · si `ATTENDRE_ETAT_JOURNAL` nomme un fichier, chaque état atteint y ajoute une ligne

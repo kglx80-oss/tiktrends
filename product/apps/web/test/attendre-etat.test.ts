@@ -1,5 +1,8 @@
+// @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
-import { attendreEtat, BORNE_ATTENTE_MS, sondeDomInchange } from './helpers/attendre-etat';
+import { attendreEtat, attendreMontageStable, BORNE_ATTENTE_MS, sondeDomInchange } from './helpers/attendre-etat';
+
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 /**
  * L'utilitaire commun « attendre un état » (`test/helpers/attendre-etat.ts`) · on lit ce qu'il
@@ -104,5 +107,51 @@ describe('sondeDomInchange · « rendu et ne bouge plus »', () => {
     const r = await attendreEtat('figé', sonde, { stabilite: 3, intervalleMs: 1 });
     // Cinq lectures qui changent, la sixième identique à la cinquième ouvre le compte · 6, 7, 8.
     expect(r.sondages).toBe(8);
+  });
+});
+
+describe('attendreEtat · le dernier constat voyage comme `cause` · la pile de l’`expect` reste lisible', () => {
+  it('non atteinte · `cause` est l’erreur de l’expect elle-même', async () => {
+    const e = await attendreEtat('cause gardée', () => { expect(2, 'la ligne manque').toBe(1); return true; }, { borneMs: 20, intervalleMs: 5 }).catch((x: Error) => x);
+    const cause = (e as Error).cause as Error;
+    expect(cause).toBeInstanceOf(Error);
+    expect(cause.message).toContain('la ligne manque');
+    expect(cause.stack).toContain('attendre-etat.test.ts');
+  });
+});
+
+describe('attendreEtat · `echecImmediat` · une absence violée échoue tout de suite', () => {
+  it('tenue tout du long · acceptée après la fenêtre', async () => {
+    const r = await attendreEtat('rien ne part', () => true, { stabilite: 5, intervalleMs: 2, echecImmediat: true });
+    expect(r.sondages).toBe(5);
+  });
+
+  it('violée au troisième sondage · échec immédiat, bien avant la borne, qui nomme la condition, le sondage et le constat', async () => {
+    let n = 0;
+    const t0 = performance.now();
+    const e = await attendreEtat('plus aucune requête', () => { n += 1; if (n === 3) throw new Error('2 requêtes au lieu d’une'); return true; }, { stabilite: 21, intervalleMs: 2, echecImmediat: true }).catch((x: Error) => x);
+    expect(performance.now() - t0, 'aucune attente de la borne').toBeLessThan(2_000);
+    expect((e as Error).message).toMatch(/^attendreEtat · « plus aucune requête » violée au sondage 3\/21, après \d+ ms \(toutes les 2 ms\) · constat : 2 requêtes au lieu d’une$/);
+    expect(((e as Error).cause as Error).message).toBe('2 requêtes au lieu d’une');
+  });
+
+  it('sans l’option · la même rechute est attendue jusqu’à ce que l’état tienne (aucun échec immédiat)', async () => {
+    let n = 0;
+    const r = await attendreEtat('tient après une rechute', () => { n += 1; return n !== 3; }, { stabilite: 4, intervalleMs: 1 });
+    expect(r.sondages).toBe(3 + 4);
+  });
+});
+
+describe('attendreMontageStable · `#app` doit porter un rendu · `document.body` n’est jamais vide', () => {
+  it('un composant qui rend `null` (#app vide, #orn présent) n’est pas « monté » · échec nommé', async () => {
+    document.body.innerHTML = '<div id="app"></div><div id="orn" hidden></div>';
+    const e = await attendreMontageStable(undefined, 80).catch((x: Error) => x);
+    expect((e as Error).message).toMatch(/^attendreEtat · « la page montée est rendue \(#app non vide\) et ne bouge plus » non atteinte en \d+ ms/);
+  });
+
+  it('#app rendu et immobile · accepté', async () => {
+    document.body.innerHTML = '<div id="app"><main>Fiche</main></div><div id="orn" hidden></div>';
+    const r = await attendreMontageStable();
+    expect(r.sondages).toBe(4);
   });
 });

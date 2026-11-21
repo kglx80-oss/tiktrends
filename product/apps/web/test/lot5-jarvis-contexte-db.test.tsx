@@ -64,7 +64,7 @@ import {
 import { semer, session } from './studios-semis';
 import { briefCanonique } from './l4c-harnais';
 import { avecSpatial } from './spatial/fournisseur';
-import { attendreEtat, attendreMontageStable, pasDansAct, SONDAGES_ABSENCE } from './helpers/attendre-etat';
+import { attendreAbsence, attendreEtat, attendreMontageStable, pasDansAct } from './helpers/attendre-etat';
 import { demarrerMockFournisseur } from './lot19b-mock-fournisseur';
 import { regimeSession } from '../lib/credits-appels';
 import { POST } from '../app/api/jarvis/chat/route';
@@ -214,7 +214,7 @@ describe('lot 5 · Jarvis s’ouvre avec le contexte et la question préparée �
       await monter(el as ReactElement);
       // Une ABSENCE ne se constate que dans la durée · l'état (rien d'appelé, la question dans le champ)
       // doit TENIR toute la fenêtre mesurée (`SONDAGES_ABSENCE`), jamais une durée posée de tête.
-      await attendreEtat('rien ne part tout seul · aucun appel réseau, la question reste dans le champ', () => espion.mock.calls.length === 0 && c.question.test(champ().value), { pas: pasDansAct, stabilite: SONDAGES_ABSENCE });
+      await attendreAbsence('rien ne part tout seul · aucun appel réseau, la question reste dans le champ', () => espion.mock.calls.length === 0 && c.question.test(champ().value));
       expect(espion, 'aucun appel réseau du navigateur').not.toHaveBeenCalled();
       expect(await traces(), 'aucun appel au modèle, aucun message, aucune conversation, aucune dépense, aucun crédit, aucune trace').toEqual(avant);
       expect(champ().value, 'question préparée, montée').toMatch(c.question);
@@ -316,6 +316,8 @@ describe('lot 5 · l’envoi part sur un clic, avec { type, id } seulement', () 
     // L'état attendu · la requête est PARTIE (capturée) et l'envoi est FINI (fil relu, champ rendu) ·
     // le compte « une seule requête » se lit alors sur un écran qui n'enverra plus rien.
     await attendreEtat('la question est partie et l’envoi fini (champ rendu)', () => capture.length > n && !champ().disabled, { pas: pasDansAct });
+    // « Une seule requête » se lit dans la DURÉE · un renvoi tardif (après la relecture du fil) la viole.
+    await attendreAbsence('plus aucune requête après l’envoi', () => capture.length === n + 1);
   };
 
   it('lot · un clic, une requête · la question préparée et le contexte désigné, jamais son texte', async () => {

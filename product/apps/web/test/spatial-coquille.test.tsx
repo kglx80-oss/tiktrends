@@ -267,7 +267,7 @@ const clic = async (el: Element | null) => { if (!el) throw new Error('élément
 /** L'état attendu après un geste · sondé dans `act`, jamais une durée. */
 const attendreQue = (condition: string, sonde: () => unknown) => attendreEtat(condition, sonde, { pas: pasDansAct });
 /** Une ABSENCE · l'état doit tenir toute la fenêtre mesurée (`SONDAGES_ABSENCE`). */
-const rienNeBouge = (condition: string, sonde: () => unknown) => attendreEtat(condition, sonde, { pas: pasDansAct, stabilite: SONDAGES_ABSENCE });
+const rienNeBouge = (condition: string, sonde: () => unknown) => attendreEtat(condition, sonde, { pas: pasDansAct, stabilite: SONDAGES_ABSENCE, echecImmediat: true });
 const id = (x: string) => document.activeElement?.id === x;
 
 function donnees(): DonneesCoquille {
@@ -424,6 +424,7 @@ describe('Spatial · coquille · comportement des surcouches', () => {
       expect(fetchFactice).not.toHaveBeenCalled(); // une suggestion n'envoie rien
       await act(async () => { (document.getElementById('jdform') as HTMLFormElement).requestSubmit(); });
       await attendreQue('la question est partie et l’envoi fini (champ rendu)', () => appels.length > 0 && !(document.getElementById('jdin') as HTMLInputElement).disabled);
+      await rienNeBouge('plus aucune requête du tiroir après l’envoi', () => appels.length === 1);
       expect(appels).toHaveLength(1);
       expect(appels[0]!.url).toBe('/api/jarvis/chat');
       expect(appels[0]!.corps).toMatchObject({ message: 'Propose trois angles', brandId: 'b1' });
