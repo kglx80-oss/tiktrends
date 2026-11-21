@@ -2,7 +2,7 @@
 
 import { db, schema, eq, and, sql } from '@tiktrends/db';
 import {
-  enteteDuFichier, lectureSeparateur, lireMesuresMeta, planImportMesures, refusColonnes,
+  enteteDuFichier, lectureSeparateur, lireMesuresMeta, planImportMesures, preuveAEcrire, refusColonnes,
   LIBELLE_LIGNE_ECARTEE, LIBELLE_PAR, LIBELLE_RATTACHEMENT, PHRASE_PRIORITE_MESURES,
   type LectureMesures, type PlanMesures, type TotauxPlan,
 } from '@tiktrends/core';
@@ -80,12 +80,13 @@ function notes(l: LectureMesures, plan: PlanMesures): string[] {
   if (l.regroupees) n.push(`${l.regroupees} ligne(s) d’une même annonce et d’une même période additionnée(s) · export ventilé (placement, âge…).`);
   if (l.doublons) n.push(`${l.doublons} ligne(s) recopiée(s) à l’identique, comptée(s) une fois.`);
   if (plan.periodes) n.push('L’export porte des périodes de plusieurs jours · une période compte entière dans la fenêtre d’évaluation. Pour la fenêtre exacte du protocole, exporte « par jour » (Ventilation › Par période › Jour).');
+  if (l.budgetsAVie) n.push(`${l.budgetsAVie} ligne(s) au budget d’ensemble à vie · l’export ne permet pas encore de le retenir · le CBO de ces annonces reste non établi, sauf par la connexion Meta avec l’accès aux ensembles.`);
   if (plan.totaux.meta) n.push(`${plan.totaux.meta} journée(s) déjà mesurée(s) par la connexion Meta · elles sont gardées, mais la connexion l’emporte.`);
   return n;
 }
 
 async function preparer(csvText: string, ws: string, brandId: string, confirmees: ReadonlySet<string>): Promise<
-  { error: string; guide?: ResultatApercuMesures['guide'] } | { lecture: LectureMesures; plan: PlanMesures; ads: AdDeLaMarque[] }
+  { error: string; guide?: ResultatApercuMesures['guide'] } | { lecture: LectureMesures; plan: PlanMesures; ads: AdDeLaMarque[]; lu: Awaited<ReturnType<typeof lireJourneesRetenues>> }
 > {
   const lecture = lireMesuresMeta(csvText);
   if (lecture.refus) {
@@ -102,7 +103,7 @@ async function preparer(csvText: string, ws: string, brandId: string, confirmees
   // LA lecture des mesures (connexion puis export) · ce qui est déjà en base et les jours que la connexion garde.
   const lu = await lireJourneesRetenues(brandId, { ads });
   const plan = planImportMesures(lecture, ads, { existantes: existantesParCle(lu.csv), joursMeta: lu.joursMeta, confirmees });
-  return { lecture, plan, ads };
+  return { lecture, plan, ads, lu };
 }
 
 /** Analyse l'export et rend ce qui serait écrit · n'écrit rien. */
@@ -165,25 +166,28 @@ export async function applyMesuresAction(csvText: string, confirmees: readonly s
     if (!p.plan.aEcrire.length) return { error: 'Aucune annonce rattachée à une ad de la marque · rien n’est écrit.' };
 
     const nomFichier = fichier?.trim().slice(0, 200) || null;
-    const lignes = p.plan.aEcrire.map((e) => ({
-      adId: e.adId, workspaceId: ws, brandId, dateDebut: e.debut, dateFin: e.fin,
-      spend: e.mesures.spend, impressions: e.mesures.impressions, linkClicks: e.mesures.linkClicks, purchases: e.mesures.purchases,
-      reach: e.mesures.reach ?? null, clicks: e.mesures.clicks ?? null, purchaseValue: e.mesures.purchaseValue ?? null,
-      video3s: e.mesures.video3s ?? null, thruplays: e.mesures.thruplays ?? null, videoP50: e.mesures.videoP50 ?? null,
-      addToCart: e.mesures.addToCart ?? null, landingViews: e.mesures.landingViews ?? null,
-      metaAdId: e.source.adIdMeta, nomAnnonce: e.source.nom, campagne: e.source.protocole.campagne, campagneId: e.source.protocole.campagneId,
-      ensemble: e.source.protocole.ensemble, ensembleId: e.source.protocole.ensembleId, budgetJour: e.source.protocole.budgetJour, cbo: e.source.protocole.cbo,
-      fichier: nomFichier, importePar: g.s.user.id, importeLe: new Date(),
-    }));
-    // Une ligne MUETTE (ni « Using campaign budget » ni budget d'ensemble · `cboEtabliParExport` nul) qui remplace la même
-    // période de la même annonce (identifiant Meta lu, sinon campagne) ne dit rien du budget · elle GARDE la preuve de la
-    // ligne qu'elle remplace (CBO ou budget d'ensemble) · sans quoi un réimport sans colonne budget effaçait un CBO établi
-    // et laissait revivre une ligne ABO plus ancienne. Une ligne qui dit un budget le remplace, toujours.
-    const T = schema.mesuresCsv;
-    const muetteDeLaMemeAnnonce = sql`(excluded.cbo = false and excluded.budget_jour is null and (
-      (excluded.meta_ad_id is not null and excluded.meta_ad_id = ${T.metaAdId})
-      or (excluded.campagne_id is not null and excluded.campagne_id = ${T.campagneId})
-      or (excluded.campagne is not null and excluded.campagne = ${T.campagne})))`;
+    const maintenant = new Date();
+    // La ligne déjà en base que chaque entrée remplace (même ad, même période) · un réimport MUET (sans colonne budget) en garde
+    // la preuve, CBO ou budget d'ensemble, ET SA DATE (`preuveAEcrire`, noyau) · sans elle, un réimport effaçait un CBO établi,
+    // ou rajeunissait une vieille preuve d'ABO qui passait devant un CBO plus récent.
+    const remplacee = new Map([...p.lu.csv].flatMap(([adId, es]) => es.map((x) => [`${adId}|${x.debut}|${x.fin}`, x] as const)));
+    const lignes = p.plan.aEcrire.map((e) => {
+      const r = remplacee.get(`${e.adId}|${e.debut}|${e.fin}`);
+      const preuve = preuveAEcrire(
+        r && { metaAdId: r.metaAdId ?? null, campagne: r.protocole.campagne, campagneId: r.protocole.campagneId, cbo: r.protocole.cbo, budgetJour: r.protocole.budgetJour, importeLe: new Date(r.importeLe) },
+        { metaAdId: e.source.adIdMeta, campagne: e.source.protocole.campagne, campagneId: e.source.protocole.campagneId, cbo: e.source.protocole.cbo, budgetJour: e.source.protocole.budgetJour, importeLe: maintenant },
+      );
+      return {
+        adId: e.adId, workspaceId: ws, brandId, dateDebut: e.debut, dateFin: e.fin,
+        spend: e.mesures.spend, impressions: e.mesures.impressions, linkClicks: e.mesures.linkClicks, purchases: e.mesures.purchases,
+        reach: e.mesures.reach ?? null, clicks: e.mesures.clicks ?? null, purchaseValue: e.mesures.purchaseValue ?? null,
+        video3s: e.mesures.video3s ?? null, thruplays: e.mesures.thruplays ?? null, videoP50: e.mesures.videoP50 ?? null,
+        addToCart: e.mesures.addToCart ?? null, landingViews: e.mesures.landingViews ?? null,
+        metaAdId: e.source.adIdMeta, nomAnnonce: e.source.nom, campagne: e.source.protocole.campagne, campagneId: e.source.protocole.campagneId,
+        ensemble: e.source.protocole.ensemble, ensembleId: e.source.protocole.ensembleId, budgetJour: preuve.budgetJour, cbo: preuve.cbo,
+        fichier: nomFichier, importePar: g.s.user.id, importeLe: preuve.importeLe,
+      };
+    });
     await db!.transaction(async (tx) => {
       for (let i = 0; i < lignes.length; i += 200) {
         await tx.insert(schema.mesuresCsv).values(lignes.slice(i, i + 200)).onConflictDoUpdate({
@@ -193,8 +197,7 @@ export async function applyMesuresAction(csvText: string, confirmees: readonly s
             reach: sql`excluded.reach`, clicks: sql`excluded.clicks`, purchaseValue: sql`excluded.purchase_value`, video3s: sql`excluded.video_3s`,
             thruplays: sql`excluded.thruplays`, videoP50: sql`excluded.video_p50`, addToCart: sql`excluded.add_to_cart`, landingViews: sql`excluded.landing_views`,
             metaAdId: sql`excluded.meta_ad_id`, nomAnnonce: sql`excluded.nom_annonce`, campagne: sql`excluded.campagne`, campagneId: sql`excluded.campagne_id`,
-            ensemble: sql`excluded.ensemble`, ensembleId: sql`excluded.ensemble_id`, budgetJour: sql`case when ${muetteDeLaMemeAnnonce} then ${T.budgetJour} else excluded.budget_jour end`,
-            cbo: sql`case when ${muetteDeLaMemeAnnonce} then ${T.cbo} else excluded.cbo end`,
+            ensemble: sql`excluded.ensemble`, ensembleId: sql`excluded.ensemble_id`, budgetJour: sql`excluded.budget_jour`, cbo: sql`excluded.cbo`,
             fichier: sql`excluded.fichier`, importePar: sql`excluded.importe_par`, importeLe: sql`excluded.importe_le`,
           },
         });

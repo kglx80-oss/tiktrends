@@ -43,7 +43,7 @@
  * Pur · ni base, ni réseau, ni horloge.
  */
 
-import { normNom, retenirMesures, type EntreeMesure, type MesuresLigne, type ProtocoleLigne } from './mesures-csv';
+import { memeCampagne, retenirMesures, type EntreeMesure, type MesuresLigne, type ProtocoleLigne } from './mesures-csv';
 import type { AdAMesurer } from './mesures-verdicts';
 
 export type SourceMesure = 'meta' | 'csv';
@@ -167,17 +167,13 @@ export const PROTOCOLE_INCONNU: ProtocoleAd = { nomAnnonce: null, campagne: null
 export const cboEtabliParExport = (p: { cbo: boolean; budgetJour: number | null }): boolean | null => (p.cbo ? true : p.budgetJour !== null ? false : null);
 
 /**
- * La ligne d'export parle-t-elle de la campagne Meta de l'ad · identifiants
- * égaux quand les deux en ont un, sinon noms de campagne égaux une fois
- * normalisés (casse, accents, ponctuation) · rien à comparer ⇒ non. Une ligne
- * rattachée par son nom peut venir d'une autre campagne · elle ne dit rien de
- * celle-ci.
+ * Deux lignes d'export sont-elles de la même campagne · le même identifiant
+ * Meta d'annonce (une annonce ne change pas de campagne), sinon `memeCampagne`
+ * (des identifiants de campagne différents tranchent « non ») · rien à comparer
+ * (NULL et NULL) ⇒ non. Une ligne est toujours de sa propre campagne.
  */
-export function memeCampagne(meta: { campagneId: string | null; campagne: string | null }, ligne: { campagneId: string | null; campagne: string | null }): boolean {
-  if (meta.campagneId && ligne.campagneId) return meta.campagneId === ligne.campagneId;
-  // Un nom sans lettre ni chiffre latins (emoji, cyrillique…) se normalise en '' · deux vides ne prouvent pas la même campagne.
-  const a = meta.campagne ? normNom(meta.campagne) : '', b = ligne.campagne ? normNom(ligne.campagne) : '';
-  return a !== '' && a === b;
+function memeCampagneLignes(a: { metaAdId?: string | null; protocole: ProtocoleLigne }, b: { metaAdId?: string | null; protocole: ProtocoleLigne }): boolean {
+  return a === b || (!!a.metaAdId && a.metaAdId === b.metaAdId) || memeCampagne(a.protocole, b.protocole);
 }
 
 /**
@@ -206,10 +202,12 @@ function cboEtabliParLaCampagne(recentes: readonly EntreeCsvRetenable[], deLaCam
  * reste du protocole reste celui de la connexion.
  *
  * Sans connexion (ad jamais synchronisée) · le protocole est celui de la ligne
- * la plus récente, son CBO celui qu'établit la plus récente ligne DE SA
- * CAMPAGNE (même annonce par l'identifiant Meta lu, sinon `memeCampagne`) ·
- * même règle que côté connexion · aucune ⇒ INCONNU (`null`), jamais `false` ·
- * un export sans colonne budget ne prouve pas l'ABO (le lot passerait
+ * la plus récente · son CBO suit la même règle asymétrique · chaque campagne
+ * de l'ad (`memeCampagneLignes`) parle par sa plus récente ligne qui établit ·
+ * l'une dit CBO ⇒ CBO (une ad rattachée par son nom dans deux campagnes a une
+ * part de sa dépense sous CBO) · sinon l'ABO ne vient que de la campagne de la
+ * ligne la plus récente · aucune ⇒ INCONNU (`null`), jamais `false` · un
+ * export sans colonne budget ne prouve pas l'ABO (le lot passerait
  * « comparables » en CBO, §6.1).
  *
  * Risque connu, non traité · un « non » de la connexion PÉRIMÉ (instance lue en
@@ -228,8 +226,11 @@ export function protocoleRetenu(
   }
   const dernier = recentes[0];
   if (!dernier) return { protocole: PROTOCOLE_INCONNU, source: null };
-  const deSaCampagne = (l: EntreeCsvRetenable) => l === dernier || (!!dernier.metaAdId && l.metaAdId === dernier.metaAdId) || memeCampagne(dernier.protocole, l.protocole);
-  return { protocole: { ...dernier.protocole, nomAnnonce: dernier.nomAnnonce, cbo: cboEtabliParLaCampagne(recentes, deSaCampagne) }, source: 'csv' };
+  const etablissent = recentes.filter((l) => cboEtabliParExport(l.protocole) !== null);
+  // La voix de chaque campagne · sa plus récente ligne qui établit (un export correctif de la MÊME campagne l'emporte).
+  const voix = etablissent.filter((l, i) => !etablissent.slice(0, i).some((m) => memeCampagneLignes(m, l)));
+  const cbo = voix.some((l) => l.protocole.cbo) ? true : voix.some((l) => memeCampagneLignes(dernier, l)) ? false : null;
+  return { protocole: { ...dernier.protocole, nomAnnonce: dernier.nomAnnonce, cbo }, source: 'csv' };
 }
 
 /**
@@ -338,4 +339,27 @@ export const importeesDans = (entrees: readonly EntreeRetenue[], du: string, au:
 /** La mention d'un écran de mesures quand un export y compte · `null` sinon (rien n'est ajouté). */
 export function mentionImportees(n: number): string | null {
   return n > 0 ? `dont ${n} entrée${n > 1 ? 's' : ''} d’un export Ads Manager (la connexion Meta l’emporte le même jour)` : null;
+}
+
+/* ───────────────────────── réimport ───────────────────────── */
+
+/** Ce qu'une ligne d'export garde du protocole en base · la forme de `adsmap_mesures_csv`. */
+export interface PreuveLigne<D> { metaAdId: string | null; campagne: string | null; campagneId: string | null; cbo: boolean; budgetJour: number | null; importeLe: D }
+
+/**
+ * Ce qu'écrit une ligne d'export qui REMPLACE la même période de la même ad
+ * (réimport · clé `(ad_id, date_debut, date_fin)`). Une ligne MUETTE
+ * (`cboEtabliParExport` nul · sans colonne budget) ne dit rien du budget · si
+ * la ligne remplacée en établissait un, de la même campagne
+ * (`memeCampagneLignes` · même Ad ID, sinon `memeCampagne`), elle le garde, CBO
+ * ou budget d'ensemble, ET SA DATE · la date d'une preuve décide de son rang
+ * (`protocoleRetenu` · la plus récente qui établit) · rajeunie, une vieille
+ * preuve d'ABO passerait devant un CBO plus récent d'une autre période. Une
+ * ligne qui dit un budget remplace la preuve, toujours.
+ */
+export function preuveAEcrire<D>(ancienne: PreuveLigne<D> | undefined, nouvelle: PreuveLigne<D>): { cbo: boolean; budgetJour: number | null; importeLe: D } {
+  const ligne = (p: PreuveLigne<D>) => ({ metaAdId: p.metaAdId, protocole: { campagne: p.campagne, campagneId: p.campagneId, ensemble: null, ensembleId: null, budgetJour: p.budgetJour, cbo: p.cbo } });
+  const garde = !!ancienne && cboEtabliParExport(nouvelle) === null && cboEtabliParExport(ancienne) !== null && memeCampagneLignes(ligne(ancienne), ligne(nouvelle));
+  const p = garde ? ancienne! : nouvelle;
+  return { cbo: p.cbo, budgetJour: p.budgetJour, importeLe: p.importeLe };
 }

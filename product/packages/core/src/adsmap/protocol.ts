@@ -132,7 +132,7 @@ export function checkProtocol(
   if (inconnu.length && rules.structure !== 'cbo_tolerated') {
     violations.push({
       code: 'cbo_inconnu',
-      message: `Le CBO de ${inconnu.length} annonce(s) n'est pas établi · ni la connexion Meta (ensemble non lu · droits ou quota, ensemble archivé, annonce terminée que la synchro ne relit plus · ou annonce jamais synchronisée) ni un export Ads Manager (colonne budget de l'ensemble absente) ne dit si leur budget est piloté par la campagne, et aucune autre annonce de leur campagne ne le dit. Les verdicts de ce lot resteront relatifs tant qu'il n'est pas établi · importe un export Ads Manager avec la colonne budget de l'ensemble, ou connecte Meta avec l'accès aux ensembles de publicités.`,
+      message: `Le CBO de ${inconnu.length} annonce(s) n’est pas établi · ni la connexion Meta (ensemble non lu · droits ou quota, ensemble archivé, annonce terminée que la synchro ne relit plus · ou annonce jamais synchronisée) ni un export Ads Manager (sans colonne budget de l’ensemble, ou budget de l’ensemble à vie, que l’export ne permet pas encore de retenir) ne dit si leur budget est piloté par la campagne, et aucune autre annonce de leur campagne ne le dit. Les verdicts de ce lot resteront relatifs tant qu’il n’est pas établi · importe un export Ads Manager avec la colonne budget de l’ensemble, ou connecte Meta avec l’accès aux ensembles de publicités.`,
       adIds: inconnu.map((a) => a.adId),
     });
   }
@@ -211,6 +211,6 @@ export function summarizeProtocol(check: ProtocolCheck): string {
   if (check.compliant) return 'Protocole respecté, avec des réserves mineures · les verdicts restent comparables.';
   const cbo = check.violations.find((v) => v.code === 'cbo');
   if (cbo) return 'Budget piloté par la campagne : les verdicts de ce lot ne seront que relatifs.';
-  if (protocoleSeulementInconnu(check.violations)) return 'CBO non établi · importe un export Ads Manager avec la colonne budget de l’ensemble, ou connecte Meta · d’ici là, les verdicts de ce lot ne sont que relatifs.';
+  if (protocoleSeulementInconnu(check.violations)) return 'CBO non établi · importe un export Ads Manager avec la colonne budget de l’ensemble, ou connecte Meta avec l’accès aux ensembles · d’ici là, les verdicts de ce lot ne sont que relatifs.';
   return `${check.violations.length} écart(s) au protocole · les verdicts de ce lot ne sont pas comparables entre eux.`;
 }

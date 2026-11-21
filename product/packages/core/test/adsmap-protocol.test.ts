@@ -57,7 +57,7 @@ describe('CBO · la violation qui coûte le plus cher', () => {
 });
 
 describe('CBO INCONNU · ensembles non lus · le lot ne se compare pas', () => {
-  const RESUME = 'CBO non établi · importe un export Ads Manager avec la colonne budget de l’ensemble, ou connecte Meta · d’ici là, les verdicts de ce lot ne sont que relatifs.';
+  const RESUME = 'CBO non établi · importe un export Ads Manager avec la colonne budget de l’ensemble, ou connecte Meta avec l’accès aux ensembles · d’ici là, les verdicts de ce lot ne sont que relatifs.';
 
   it('une annonce qui a dépensé, CBO inconnu (`null`) · lot NON comparable, résumé qui le dit', () => {
     const c = checkProtocol([ad(1, { campaignBudgetOptimization: null }), ad(2, { campaignBudgetOptimization: false })], rules, ctx);

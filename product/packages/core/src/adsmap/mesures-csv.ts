@@ -306,6 +306,12 @@ export interface LectureMesures {
   identifiantsAbimes: number;
   /** Aucune colonne d'achats · le moteur ne pourra rien conclure sur le CPA. */
   sansAchats: boolean;
+  /**
+   * Lignes au budget d'ensemble « à vie » · il prouve l'ABO, mais la ligne ne
+   * le garde pas (`budgetJour` est QUOTIDIEN, la colonne `adsmap_mesures_csv.cbo`
+   * ne dit que le CBO) · elle se lit muette, CBO non établi · l'import le dit.
+   */
+  budgetsAVie: number;
 }
 
 /** La forme comparable d'un nom d'annonce · sans accent ni ponctuation de nommage. */
@@ -320,7 +326,36 @@ export function jetons(s: string): string[] {
 
 const PURCHASE = /purchase|achat/i;
 
-function lireProtocole(cell: (c: ColonneMesure) => string | undefined, langue: LangueExport | null): ProtocoleLigne {
+/**
+ * La ligne d'export parle-t-elle de la même campagne · identifiants égaux quand
+ * les deux en ont un (des identifiants différents tranchent « non », même nom),
+ * sinon noms de campagne égaux une fois normalisés (casse, accents,
+ * ponctuation) · rien à comparer ⇒ non. Une ligne rattachée par son nom peut
+ * venir d'une autre campagne · elle ne dit rien de celle-ci.
+ */
+export function memeCampagne(a: { campagneId: string | null; campagne: string | null }, b: { campagneId: string | null; campagne: string | null }): boolean {
+  if (a.campagneId && b.campagneId) return a.campagneId === b.campagneId;
+  // Un nom sans lettre ni chiffre latins (emoji, cyrillique…) se normalise en '' · deux vides ne prouvent pas la même campagne.
+  const x = a.campagne ? normNom(a.campagne) : '', y = b.campagne ? normNom(b.campagne) : '';
+  return x !== '' && x === y;
+}
+
+/**
+ * Deux lignes d'une même annonce et d'une même période (export ventilé) · un
+ * seul protocole. Un CBO lu dans l'une rend le tout CBO (une part de la
+ * dépense est sous budget de campagne) · sinon le budget d'ensemble ne tient
+ * que si les deux lignes sont de la même campagne · même annonce par son
+ * identifiant Meta (`memeAnnonce`), sinon `memeCampagne` · deux campagnes
+ * (même NOM d'annonce) ne prouvent pas l'ABO de toute la dépense · le reste
+ * (campagne, ensemble) reste celui de la première ligne.
+ */
+export function fusionnerProtocoles(a: ProtocoleLigne, b: ProtocoleLigne, memeAnnonce = false): ProtocoleLigne {
+  if (a.cbo || b.cbo) return { ...a, cbo: true, budgetJour: null };
+  const budget = memeAnnonce || memeCampagne(a, b) ? a.budgetJour ?? b.budgetJour : null;
+  return budget === a.budgetJour ? a : { ...a, budgetJour: budget };
+}
+
+function lireProtocole(cell: (c: ColonneMesure) => string | undefined, langue: LangueExport | null): { protocole: ProtocoleLigne; budgetAVie: boolean } {
   const texte = (c: ColonneMesure) => cell(c)?.trim() || null;
   const budgetBrut = cell('budgetEnsemble') ?? '';
   const type = normIntitule(cell('typeBudgetEnsemble') ?? '');
@@ -329,10 +364,13 @@ function lireProtocole(cell: (c: ColonneMesure) => string | undefined, langue: L
   const cbo = /campaign|campagne/i.test(budgetBrut) && montant === null;
   const aVie = /lifetime|a vie|total/.test(type);
   return {
-    campagne: texte('campagne'), campagneId: identifiantMeta(cell('campagneId')).id,
-    ensemble: texte('ensemble'), ensembleId: identifiantMeta(cell('ensembleId')).id,
-    budgetJour: !cbo && !aVie && montant !== null && montant > 0 ? montant : null,
-    cbo,
+    protocole: {
+      campagne: texte('campagne'), campagneId: identifiantMeta(cell('campagneId')).id,
+      ensemble: texte('ensemble'), ensembleId: identifiantMeta(cell('ensembleId')).id,
+      budgetJour: !cbo && !aVie && montant !== null && montant > 0 ? montant : null,
+      cbo,
+    },
+    budgetAVie: !cbo && aVie && montant !== null && montant > 0,
   };
 }
 
@@ -351,7 +389,7 @@ export function lireMesuresMeta(csvText: string): LectureMesures {
   const reconnues = (Object.values(e.colonnes) as number[]).sort((a, b) => a - b).map((i) => header[i]!.trim());
   const base: LectureMesures = {
     refus: null, separateur, langue: e.langue, intitules, reconnues, manquantes: e.manquantes,
-    lignes: [], ecartees: [], regroupees: 0, doublons: 0, identifiantsAbimes: 0, sansAchats: false,
+    lignes: [], ecartees: [], regroupees: 0, doublons: 0, identifiantsAbimes: 0, sansAchats: false, budgetsAVie: 0,
   };
   if (e.manquantes.length) {
     return { ...base, refus: `Export Meta non reconnu · colonne${e.manquantes.length > 1 ? 's' : ''} absente${e.manquantes.length > 1 ? 's' : ''} : ${e.manquantes.map((m) => `« ${m} »`).join(', ')}. Exporte le tableau des publicités depuis Ads Manager (niveau « Publicités »), avec le nom de la publicité, la période, le montant dépensé et les impressions.` };
@@ -396,16 +434,20 @@ export function lireMesuresMeta(csvText: string): LectureMesures {
     opt('ajoutsPanier', 'addToCart'); opt('vuesDestination', 'landingViews');
 
     const annonce = id.id ? `id:${id.id}` : `nom:${normNom(nom!)}`;
-    const l: LigneMesure = { ligne: numero, annonce, adIdMeta: id.id, nom, debut, fin, mesures, protocole: lireProtocole(cell, e.langue) };
+    const p = lireProtocole(cell, e.langue);
+    const l: LigneMesure = { ligne: numero, annonce, adIdMeta: id.id, nom, debut, fin, mesures, protocole: p.protocole };
     const cle = `${annonce}|${debut}|${fin}`;
     const brut = r.join('\u0001');
     const deja = parCle.get(cle);
+    if (deja?.bruts.has(brut)) { out.doublons++; continue; }
+    if (p.budgetAVie) out.budgetsAVie++;
     if (!deja) { parCle.set(cle, { l, bruts: new Set([brut]) }); ordre.push(cle); continue; }
-    if (deja.bruts.has(brut)) { out.doublons++; continue; }
     // Même annonce, même période, autre ligne · un export ventilé (placement, âge…) · les mesures s'additionnent.
     deja.bruts.add(brut);
     out.regroupees++;
     deja.l.mesures = additionner(deja.l.mesures, mesures);
+    // Une clé par identifiant (`id:`) · la même annonce, donc la même campagne.
+    deja.l.protocole = fusionnerProtocoles(deja.l.protocole, p.protocole, !!id.id);
   }
   out.lignes = ordre.map((k) => parCle.get(k)!.l);
   return out;

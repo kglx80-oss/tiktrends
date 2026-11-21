@@ -107,7 +107,7 @@ async function verdicts(m: Cle) {
 }
 const RELATIFS = { verdicts: 2, comparables: 0, winners: 0 };
 const COMPARABLES = { verdicts: 2, comparables: 2, winners: 2 };
-const RESUME_INCONNU = 'CBO non établi · importe un export Ads Manager avec la colonne budget de l’ensemble, ou connecte Meta · d’ici là, les verdicts de ce lot ne sont que relatifs.';
+const RESUME_INCONNU = 'CBO non établi · importe un export Ads Manager avec la colonne budget de l’ensemble, ou connecte Meta avec l’accès aux ensembles · d’ici là, les verdicts de ce lot ne sont que relatifs.';
 const ACTION_INCONNU = 'Importe un export Ads Manager du lot avec la colonne budget de l’ensemble, ou connecte Meta avec l’accès aux ensembles de publicités · le CBO établi, le contrôle du lot se refait.';
 
 async function synchro(m: Cle) {

@@ -95,6 +95,22 @@ describe('lecture · lignes, totaux, ventilation, doublons', () => {
     const csv = FR_ENTETE + '\n' + ['2026-10-01', '2026-10-07', 'C', 'E', 'P', '', 'active', '1', 'achat', '10', '1000', '10', '1', '1', '0', 'Utilisation du budget de la campagne', ''].join(';') + '\n';
     expect(lireMesuresMeta(csv).lignes[0]!.protocole).toMatchObject({ cbo: true, budgetJour: null });
   });
+  it('ventilé · deux campagnes sous le même NOM d’annonce, même jour · une ligne CBO rend le regroupement CBO · deux ABO de campagnes différentes ne prouvent rien', () => {
+    const ligne = (campagne: string, budget: string) => `2026-10-01,2026-10-01,2026-10-01,${campagne},S,Ad A,,active,1,purchase,300,500,5,10,1,40,${budget},Daily`;
+    const lu = (a: string, b: string) => lireMesuresMeta(`${EN_ENTETE}\n${a}\n${b}\n`).lignes;
+    expect(lu(ligne('ABO', '50'), ligne('CBO', 'Using campaign budget'))[0]!.protocole, 'le regroupement garde le protocole de la première ligne · le CBO de la seconde est perdu').toMatchObject({ cbo: true, budgetJour: null });
+    expect(lu(ligne('ABO', '50'), ligne('ABO bis', '50'))[0]!.protocole, 'deux campagnes · le budget de la première prouve l’ABO de toute la dépense').toMatchObject({ cbo: false, budgetJour: null });
+    expect(lu(ligne('ABO', '50'), ligne('ABO', '50'))[0]!.protocole, 'même campagne (ventilation par placement) · le budget tient').toMatchObject({ campagne: 'ABO', cbo: false, budgetJour: 50 });
+    expect(lu(ligne('ABO', '50'), ligne('ABO', '50'))).toHaveLength(1);
+    // Rattaché par l'Ad ID, sans nom de campagne · la même annonce, donc la même campagne · le budget tient.
+    const parId = (budget: string, achats: number) => `2026-10-01,2026-10-01,2026-10-01,,S,Ad A,111111,active,1,purchase,300,500,5,10,${achats},40,${budget},Daily`;
+    expect(lireMesuresMeta(`${EN_ENTETE}\n${parId('50', 1)}\n${parId('50', 2)}\n`).lignes[0]!.protocole, 'même Ad ID, sans campagne · la ventilation fait perdre le budget d’ensemble').toMatchObject({ cbo: false, budgetJour: 50 });
+  });
+  it('budget d’ensemble « à vie » · non retenu (pas un budget quotidien) · compté, pour le dire', () => {
+    const l = lireMesuresMeta(`${EN_ENTETE}\n2026-10-01,2026-10-01,2026-10-01,C,S,Ad A,111111,active,1,purchase,300,500,5,10,1,40,300,Lifetime\n2026-10-01,2026-10-01,2026-10-01,C,S,Ad B,222222,active,1,purchase,300,500,5,10,1,40,15,Daily\n`);
+    expect(l.lignes.map((x) => x.protocole.budgetJour)).toEqual([null, 15]);
+    expect(l.budgetsAVie, 'les lignes au budget à vie ne sont pas comptées').toBe(1);
+  });
 });
 
 /* ───────────────────────── rattachement ───────────────────────── */

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   retenirJournees, protocoleRetenu, protocoleMetaRetenu, cboRetenu, cboEtabliParExport, cboParCampagne, memeCampagne, adAMesurer, sourceDesEntrees, sommeRetenues, journeesReporting, importeesDans, mentionImportees,
-  dansFenetre, verdictsDesMesures, sousKpisResultats, kpisResultats, PROTOCOLE_INCONNU, DEFAULT_VERDICT_CONFIG,
+  dansFenetre, verdictsDesMesures, sousKpisResultats, kpisResultats, PROTOCOLE_INCONNU, DEFAULT_VERDICT_CONFIG, preuveAEcrire,
   type EntreeMesure, type EntreeCsvRetenable, type JourneeMetaLue, type MesuresLigne, type ProtocoleAd,
 } from '../src';
 
@@ -131,6 +131,21 @@ describe('protocoleRetenu · la connexion d’abord, sinon la ligne d’export l
     const sans = (o: Partial<EntreeCsvRetenable['protocole']>, importeLe: string, k: number) => ({ ...csv(J(k), J(k), jour(1, 0), importeLe, { campagne: null, campagneId: null, ...o }), metaAdId: '120200000000000301' });
     expect(protocoleRetenu(null, [sans({ budgetJour: 50 }, '2026-10-01T00:00:00Z', 0), sans({ budgetJour: null }, '2026-10-09T00:00:00Z', 1)]).protocole.cbo, 'deux lignes de la même annonce (Ad ID), sans colonne campagne · l’ABO établi est ignoré').toBe(false);
   });
+  it('export SEUL, ad rattachée par le nom dans DEUX campagnes · un CBO lu dans l’une l’emporte · l’ABO ne vient que de la campagne de la plus récente', () => {
+    const L = (o: Partial<EntreeCsvRetenable['protocole']>, importeLe: string, k: number) => csv(J(k), J(k), jour(1, 0), importeLe, o);
+    const cboX = L({ campagneId: 'cx', budgetJour: null, cbo: true }, '2026-10-01T00:00:00Z', 0);
+    const aboY = L({ campagneId: 'cy', budgetJour: 50 }, '2026-10-09T00:00:00Z', 4);
+    expect(protocoleRetenu(null, [cboX, aboY]).protocole.cbo, 'une partie de la dépense est sous CBO (campagne X) · l’ABO de Y la rend comparable').toBe(true);
+    expect(protocoleRetenu(null, [aboY, L({ campagneId: 'cy', budgetJour: null, cbo: true }, '2026-10-01T00:00:00Z', 0)]).protocole.cbo, 'export correctif de la MÊME campagne · l’ABO plus récent l’emporte').toBe(false);
+    expect(protocoleRetenu(null, [L({ campagneId: 'cx', budgetJour: 50 }, '2026-10-01T00:00:00Z', 0), L({ campagneId: 'cy', budgetJour: null }, '2026-10-09T00:00:00Z', 4)]).protocole.cbo, 'l’ABO d’une AUTRE campagne que la plus récente établit l’ABO').toBeNull();
+    // Une ligne CBO plus ancienne de X, corrigée en ABO par X plus tard · X ne dit plus CBO.
+    expect(protocoleRetenu(null, [L({ campagneId: 'cx', budgetJour: null, cbo: true }, '2026-10-01T00:00:00Z', 0), L({ campagneId: 'cx', budgetJour: 50 }, '2026-10-05T00:00:00Z', 1), aboY]).protocole.cbo).toBe(false);
+  });
+  it('export SEUL · une ad sans campagne ni identifiant · sa seule ligne établit pour elle · deux lignes sans rien à comparer ne sont pas de la même campagne', () => {
+    const nu = (o: Partial<EntreeCsvRetenable['protocole']>, importeLe: string, k: number) => csv(J(k), J(k), jour(1, 0), importeLe, { campagne: null, campagneId: null, ...o });
+    expect(protocoleRetenu(null, [nu({ budgetJour: 50 }, '2026-10-09T00:00:00Z', 1)]).protocole.cbo, 'la ligne la plus récente n’établit pas pour elle-même').toBe(false);
+    expect(protocoleRetenu(null, [nu({ budgetJour: 50 }, '2026-10-01T00:00:00Z', 0), nu({ budgetJour: null }, '2026-10-09T00:00:00Z', 1)]).protocole.cbo, 'deux lignes sans campagne ni identifiant (NULL et NULL) passent pour la même campagne').toBeNull();
+  });
   it('rien · protocole inconnu, source nulle · CBO inconnu (`null`)', () => {
     expect(protocoleRetenu(undefined, [])).toEqual({ protocole: PROTOCOLE_INCONNU, source: null });
     expect(PROTOCOLE_INCONNU.cbo).toBeNull();
@@ -251,5 +266,26 @@ describe('verdict · les journées retenues donnent le verdict des journées att
   it('l’ordre des sources lues ne change rien (synchro qui relit, import qui relit)', () => {
     const a = verdicts(metaJ, csvJ), b = verdicts([...metaJ].reverse(), new Map([...csvJ].map(([k, v]) => [k, [...v].reverse()])));
     expect(b).toEqual(a);
+  });
+});
+
+describe('preuveAEcrire · un réimport MUET de la même période garde la preuve qu’il remplace, et sa date', () => {
+  const ancienne = { metaAdId: '120200000000000301', campagne: 'C1', campagneId: 'c1', cbo: true, budgetJour: null, importeLe: 'janvier' };
+  const muette = { metaAdId: '120200000000000301', campagne: 'C1', campagneId: 'c1', cbo: false, budgetJour: null, importeLe: 'octobre' };
+  it('muette, même annonce · la preuve ET sa date restent', () => {
+    expect(preuveAEcrire(ancienne, muette), 'la preuve gardée prend la date du réimport · elle passe devant une preuve plus récente').toEqual({ cbo: true, budgetJour: null, importeLe: 'janvier' });
+    expect(preuveAEcrire({ ...ancienne, cbo: false, budgetJour: 50 }, muette)).toEqual({ cbo: false, budgetJour: 50, importeLe: 'janvier' });
+  });
+  it('une ligne qui DIT un budget remplace la preuve · une ancienne muette n’a rien à garder · rien d’ancien · la nouvelle', () => {
+    expect(preuveAEcrire(ancienne, { ...muette, budgetJour: 50 })).toEqual({ cbo: false, budgetJour: 50, importeLe: 'octobre' });
+    expect(preuveAEcrire({ ...ancienne, cbo: false }, muette)).toEqual({ cbo: false, budgetJour: null, importeLe: 'octobre' });
+    expect(preuveAEcrire(undefined, muette)).toEqual({ cbo: false, budgetJour: null, importeLe: 'octobre' });
+  });
+  it('la même annonce · l’Ad ID d’abord, puis la campagne comme `memeCampagne` · des identifiants différents tranchent « non »', () => {
+    expect(preuveAEcrire(ancienne, { ...muette, campagne: 'Autre nom', campagneId: null }).cbo, 'même Ad ID, nom de campagne différent · la preuve est perdue').toBe(true);
+    expect(preuveAEcrire({ ...ancienne, metaAdId: null }, { ...muette, metaAdId: null, campagneId: 'c2' }).cbo, 'deux identifiants de campagne différents, même nom · passent pour la même campagne').toBe(false);
+    expect(preuveAEcrire({ ...ancienne, metaAdId: null }, { ...muette, metaAdId: null, campagne: ' c1 ' }).cbo, 'même identifiant de campagne').toBe(true);
+    expect(preuveAEcrire({ ...ancienne, metaAdId: null, campagneId: null, campagne: null }, { ...muette, metaAdId: null, campagneId: null, campagne: null }).cbo, 'NULL et NULL · rien à comparer passe pour la même annonce').toBe(false);
+    expect(preuveAEcrire({ ...ancienne, metaAdId: null, campagneId: null }, { ...muette, metaAdId: null, campagneId: null, campagne: '  c1 ' }).cbo, 'même nom, casse et espaces près').toBe(true);
   });
 });
