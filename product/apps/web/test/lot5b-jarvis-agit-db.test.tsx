@@ -465,8 +465,12 @@ describe('lot 5 bis · le tiroir de la coquille reçoit le contexte de la page (
       await monter(tiroir(chemin));
       await relecturesRepondues(avant, doitRelire);
       if (!doitRelire) expect(h.contextes.demandes, `${chemin} · aucune relecture attendue`).toBe(avant);
-      // Rien de joint, rien de l'autre marque · tenu dans la durée (un joint posé en retard la viole).
-      await attendreAbsence(`${chemin} · rien de joint au tiroir, rien de l’autre marque`, () => !document.querySelector('[data-contexte-page]') && !/SECRET/.test(document.body.innerHTML));
+      // Rien de joint, rien de l'autre marque, aucune relecture de plus · tenu dans la durée (un joint
+      // posé en retard, une relecture parasite partie après coup la violent).
+      await attendreAbsence(
+        `${chemin} · rien de joint au tiroir, rien de l’autre marque, aucune relecture de plus`,
+        () => !document.querySelector('[data-contexte-page]') && !/SECRET/.test(document.body.innerHTML) && h.contextes.demandes === avant + (doitRelire ? 1 : 0),
+      );
       expect(document.querySelector('[data-contexte-page]'), chemin).toBeNull();
       expect(pleinEcran(), chemin).toBe('/jarvis');
       expect(document.body.innerHTML, chemin).not.toMatch(/SECRET/);
@@ -476,7 +480,7 @@ describe('lot 5 bis · le tiroir de la coquille reçoit le contexte de la page (
     await monter(tiroir(`/studio/projets/${projet}`));
     await relecturesRepondues(avant, false);
     expect(h.contextes.demandes, 'un projet n’est pas joint au tiroir · aucune relecture').toBe(avant);
-    await attendreAbsence('un projet · rien de joint au tiroir', () => !document.querySelector('[data-contexte-page]'));
+    await attendreAbsence('un projet · rien de joint au tiroir, aucune relecture', () => !document.querySelector('[data-contexte-page]') && h.contextes.demandes === avant);
     expect(document.querySelector('[data-contexte-page]')).toBeNull();
     expect(pleinEcran()).toBe(lienJarvisContexte('projet', projet));
   });
