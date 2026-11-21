@@ -1,6 +1,7 @@
 import { CHEMIN_IMPORT_RESULTATS } from '../../parcours-boucle';
 import type { SeuilMinimumMoteur } from '../../adsmap/verdict';
 import { PRESENTATION_ETAT_LOT, etatLotSpatial, lotArbitrable, type ContexteLots, type EtatLotSpatial, type FaitsVerdictVariante } from './lots';
+import type { VariantesDuLot } from './lecture-lot';
 import {
   diagnosticFinPrevue, finPrevueAccueil, finPrevuePassee, gesteImportLot, lienImportLot, phraseMesuresArretees, sourcesImportLot,
   type FinPrevueAccueil, type LotImport, type VarianteFinPrevue,
@@ -26,7 +27,10 @@ import { jourCourt } from '../accueil/temps';
 /** Une variante telle que la liste la lit · l'état de son lot (statut, verdict calculé) et le diagnostic (plateforme, agrégat). */
 export type VarianteListeImport = VarianteFinPrevue & FaitsVerdictVariante;
 
-export interface LotListeImport {
+/** Les variantes d'un lot de la liste · toutes, ou aucune (lu en partie · `illisible`, il n'attend rien d'ici). */
+type VariantesImport = VariantesDuLot<ReadonlyArray<VarianteListeImport>>;
+
+export type LotListeImport = {
   id: string;
   numero: number;
   but: string | null;
@@ -34,15 +38,12 @@ export interface LotListeImport {
   lanceLe: string | null;
   /** `adsmap_batches.planned_end_at` (ISO) · posée au lancement (`launchBatchAction` · `finPrevueAuLancement`) · `null` pour un lot lancé avant, ou importé · la fenêtre du moteur prend alors le relais. */
   finPrevue: string | null;
-  ads: ReadonlyArray<VarianteListeImport>;
-  /** Combien de variantes la base compte pour ce lot (`FaitsEtatLot.variantesEnBase`) · lu en partie, le lot n'attend rien d'ici (`illisible`). */
-  variantesEnBase?: number;
-}
+} & VariantesImport;
 
 /** Ce que la règle `lotAttendDesMesures` lit d'un lot · son état (statut, lancement, verdicts) et ses variantes · ni son but, ni son identité, ni sa fin prévue. */
-export type FaitsLotEnMesure = Pick<LotListeImport, 'statut' | 'lanceLe' | 'ads' | 'variantesEnBase'>;
+export type FaitsLotEnMesure = { statut: string; lanceLe: string | null } & VariantesImport;
 /** Ce que `casMesuresLot` lit · les mêmes faits, ET la fin prévue (obligatoire · l'oublier ferait taire la pastille sans le dire). */
-export type FaitsLotAImporter = Pick<LotListeImport, 'statut' | 'lanceLe' | 'finPrevue' | 'ads' | 'variantesEnBase'>;
+export type FaitsLotAImporter = { statut: string; lanceLe: string | null; finPrevue: string | null } & VariantesImport;
 
 /** Les états d'un lot qui reçoit encore des mesures · lancé, suivi dans l'outil, pas encore à arbitrer. */
 const ETATS_EN_MESURE: ReadonlySet<EtatLotSpatial> = new Set<EtatLotSpatial>(['diffusion', 'a_importer']);
@@ -57,7 +58,8 @@ const ETATS_EN_MESURE: ReadonlySet<EtatLotSpatial> = new Set<EtatLotSpatial>(['d
  * et le silence n'attendent rien.
  */
 export function lotAttendDesMesures(l: FaitsLotEnMesure, ctx: ContexteLots, seuil: SeuilMinimumMoteur): boolean {
-  if (!ETATS_EN_MESURE.has(etatLotSpatial(l, ctx))) return false;
+  // Lu en partie · `illisible`, hors des états en mesure · rien ne se mesure sur des variantes non lues.
+  if (l.partielle || !ETATS_EN_MESURE.has(etatLotSpatial(l, ctx))) return false;
   if (!sourcesImportLot(l.ads).ok) return false;
   const d = diagnosticFinPrevue(l.ads, seuil, { ...ctx, lanceLe: l.lanceLe });
   return !!d && d.cas !== 'autre';
@@ -113,7 +115,8 @@ export function casMesuresLot(l: FaitsLotAImporter, ctx: ContexteLots, seuil: Se
 /** Le cas, dit sur la section « Lot #n · ses mesures » de l'écran d'import · `null` quand le lot n'attend rien. */
 export function mesuresDuLot(l: FaitsLotAImporter & { numero: number }, ctx: ContexteLots, seuil: SeuilMinimumMoteur): { cas: CasMesuresLot; texte: string } | null {
   const cas = casMesuresLot(l, ctx, seuil);
-  if (!cas) return null;
+  // `casMesuresLot` ne rend rien d'un lot lu en partie (`lotAttendDesMesures`).
+  if (!cas || l.partielle) return null;
   const jour = (iso: string) => jourCourt(iso.slice(0, 10));
   const n = l.numero;
   if (cas === 'manquantes') {

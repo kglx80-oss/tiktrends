@@ -3,7 +3,7 @@ import {
   BORNES_LECTURE_LOTS, DEFAULT_VERDICT_CONFIG, MESURE_LECTURE_LOTS, MESURE_LECTURE_LOT_SEUL, PRESENTATION_ETAT_LOT, TITRE_LECTURE_INCOMPLETE,
   compteAConclure, compteAImporter, dansFiltreLots, etatLotSpatial, lotArbitrable, lotImport, lotLuEnEntier, lotsALire, lotsConclusLus,
   noteLectureLots, phraseLotLuEnPartie, presentationLot, syntheseLot, controlesLot, coachLot, conclusionLot, phraseLot, indexAutresLots, resumerContexteJarvis,
-  NON_CALCULE_LECTURE,
+  NON_CALCULE_LECTURE, NON_CALCULE, lectureDuLot, nombreVariantes, categorieLot, plateformesLot, hypotheseLot, preparationLot, suiteLot,
   type FaitsAdSpatial, type FaitsLotSpatial, type FaitsVerdictSpatial, type VerdictValue,
 } from '../src';
 
@@ -30,10 +30,13 @@ const arbitre = (v: VerdictValue) => verdict(v, { statut: 'validated', retenu: v
 const ad = (id: string, v: FaitsVerdictSpatial | null): FaitsAdSpatial => ({
   id, variante: id, statut: 'live', hypothese: 'h', variable: 'hook', plateforme: 'meta', texte: 't', image: null, manques: [], verdict: v,
 });
+/** Un lot tel que la lecture le rend · `variantesEnBase` absent · lu en entier · sinon `lectureDuLot` (partiel s'il en manque). */
 const lot = (id: string, numero: number, ads: FaitsAdSpatial[], variantesEnBase?: number, statut = 'testing'): FaitsLotSpatial & { finPrevue: string | null } => ({
-  id, numero, but: null, statut, lanceLe: statut === 'testing' ? LANCE.toISOString() : null, protocole: null, ads, finPrevue: new Date(LANCE.getTime() + 7 * J).toISOString(),
-  ...(variantesEnBase === undefined ? {} : { variantesEnBase }),
+  id, numero, but: null, statut, lanceLe: statut === 'testing' ? LANCE.toISOString() : null, protocole: null, finPrevue: new Date(LANCE.getTime() + 7 * J).toISOString(),
+  ...lectureDuLot(ads, variantesEnBase ?? ads.length),
 });
+/** Le motif des phrases tirées de rien (garde « B ») · le même que celui des vues en base. */
+const FAUSSES = /aucune variante|Aucune mesure|Durée prévue atteinte|en préparation : 0|à choisir|Aucune hypothèse|Aucun persona|Aucune variante rangée|Pas encore lancé|0 étape/;
 
 describe('lotsALire · les plus récents, chacun en entier, tant que le budget tient', () => {
   const b = { budget: 10, plafondParLot: 4, plafondLotSeul: 6 };
@@ -54,6 +57,14 @@ describe('lotsALire · les plus récents, chacun en entier, tant que le budget t
     expect([...lotsALire(l, b, 'vieux')].sort(), 'la fiche d’un lot ancien ne le lit pas, ou prend le budget des autres').toEqual(['a', 'b', 'c', 'vieux']);
     expect([...lotsALire([{ id: 'x', variantesEnBase: 7 }], b, 'x')], 'au-delà du plafond d’un lot seul, même sa fiche le lit').toEqual([]);
   });
+  it('le lot d’une fiche · les AUTRES lots sont exactement ceux de la liste · il ne libère ni ne prend de budget', () => {
+    const l = [{ id: 'a', variantesEnBase: 4 }, { id: 'fiche', variantesEnBase: 4 }, { id: 'b', variantesEnBase: 4 }, { id: 'c', variantesEnBase: 2 }];
+    const liste = lotsALire(l, b);
+    expect([...liste], 'préalable · la liste').toEqual(['a', 'fiche', 'c']);
+    const fiche = lotsALire(l, b, 'fiche');
+    expect([...fiche].filter((id) => id !== 'fiche'), 'la fiche lit d’autres lots que la liste').toEqual([...liste].filter((id) => id !== 'fiche'));
+    expect(fiche.has('fiche')).toBe(true);
+  });
   it('les bornes retenues · celles du tableau mesuré, plafond au quart du budget', () => {
     expect(BORNES_LECTURE_LOTS).toEqual({ budget: 2000, plafondParLot: 500, plafondLotSeul: 500 });
     // La fiche d'un lot au plafond d'un lot seul ne coûte pas plus de dix fois une fiche ordinaire (mesurée 125 à 149 ms) · 1 000 en coûte trente.
@@ -69,12 +80,19 @@ describe('lotsALire · les plus récents, chacun en entier, tant que le budget t
   });
 });
 
-describe('lotLuEnEntier · autant de variantes lues que la base en compte', () => {
-  it('moins (coupées) ou plus (écrites entre le compte et la lecture) · lu en partie · absent · lu en entier', () => {
-    expect(lotLuEnEntier({ ads: [1, 2], variantesEnBase: 2 })).toBe(true);
-    expect(lotLuEnEntier({ ads: [1], variantesEnBase: 2 })).toBe(false);
-    expect(lotLuEnEntier({ ads: [1, 2, 3], variantesEnBase: 2 })).toBe(false);
-    expect(lotLuEnEntier({ ads: [] })).toBe(true);
+describe('le TYPE · un lot lu en partie n’expose aucune variante', () => {
+  it('`lectureDuLot` · autant lues que comptées · entier · sinon partiel, sans `ads`', () => {
+    expect(lectureDuLot([1, 2], 2)).toEqual({ ads: [1, 2] });
+    expect(lectureDuLot([1], 2)).toEqual({ partielle: { variantesEnBase: 2, variantesLues: 1 } });
+    expect(lectureDuLot([1, 2, 3], 2), 'plus lues que comptées (écrites entre le compte et la lecture)').toEqual({ partielle: { variantesEnBase: 2, variantesLues: 3 } });
+    expect(lotLuEnEntier(lectureDuLot([], 0))).toBe(true);
+    expect(lotLuEnEntier(lectureDuLot([], 3))).toBe(false);
+    expect(nombreVariantes(lectureDuLot([], 3))).toBe(3);
+  });
+  it('parcourir les variantes d’un lot sans traiter le cas partiel ne compile pas', () => {
+    const l: FaitsLotSpatial = lot('t', 1, [], 3);
+    // @ts-expect-error · `ads` est absent d'un lot lu en partie · un dérivé qui l'oublie ne compile pas (si `ads` redevenait toujours présent, cette ligne casserait le typage).
+    expect(() => l.ads.length, 'un lot lu en partie expose une liste de variantes').toThrow(TypeError);
   });
 });
 
@@ -85,7 +103,7 @@ describe('l’état d’un lot lu en partie · « Lecture incomplète », jamais
   it('lu en partie · ni conclu, ni à conclure · `illisible`', () => {
     expect(etatLotSpatial(entier, CTX)).toBe('a_conclure');
     expect(etatLotSpatial(coupe, CTX), 'un lot lu en partie reçoit un état calculé sur une partie').toBe('illisible');
-    expect(etatLotSpatial({ ...coupe, variantesEnBase: undefined }, CTX), 'préalable · sans compte, l’ancienne lecture le disait conclu').toBe('conclu');
+    expect(etatLotSpatial(lot('l', 20, [ad('a', arbitre('winner'))]), CTX), 'préalable · lue comme entière, l’ancienne lecture le disait conclu').toBe('conclu');
   });
   it('le statut seul donne l’état · en préparation, prêt, historique · inchangés, lus en partie ou non', () => {
     expect(etatLotSpatial(lot('p', 1, [], 3, 'planned'), CTX)).toBe('composition');
@@ -101,16 +119,19 @@ describe('l’état d’un lot lu en partie · « Lecture incomplète », jamais
     expect(lotArbitrable('illisible')).toBe(false);
     expect(['tous', 'preparation', 'diffusion', 'importer', 'conclure'].filter((f) => dansFiltreLots('illisible', f as never))).toEqual(['tous']);
   });
-  it('la liste le présente « Lecture incomplète », vers sa fiche', () => {
+  it('la liste le présente « Lecture incomplète », vers sa fiche · ni hypothèse, ni variable, ni plateforme « à choisir »', () => {
     const p = presentationLot(coupe, CTX);
     expect(p.statut.libelle).toBe(TITRE_LECTURE_INCOMPLETE);
     expect(p.action.href).toBe('/adsmap/lots/l');
     expect(PRESENTATION_ETAT_LOT.illisible.versImport).toBeUndefined();
+    expect([p.hypothese, p.categorie, p.plateformes]).toEqual([null, NON_CALCULE, NON_CALCULE]);
+    expect(p.sansHypothese).toBe('Lecture incomplète · 1 variante lue sur 2 · ses variantes ne sont pas lues ici.');
+    expect([categorieLot(coupe), plateformesLot(coupe), hypotheseLot(coupe), preparationLot(coupe, 0)]).toEqual([NON_CALCULE, NON_CALCULE, null, null]);
+    expect([p.sansHypothese, p.categorie, p.plateformes].filter((t) => FAUSSES.test(t)), 'la liste dit une phrase tirée de rien').toEqual([]);
   });
 });
 
 describe('un lot lu en partie · aucune phrase tirée d’une partie (ou de rien)', () => {
-  const FAUSSES = /aucune variante|Aucune mesure|Durée prévue atteinte|en préparation : 0/;
   // Lancé il y a 3 jours, fenêtre de 7 · encore en cours · AUCUNE variante lue sur 8.
   const enCours = { maintenant: new Date(LANCE.getTime() + 3 * J), fenetreJours: 7 };
   const nonLu = lot('n', 30, [], 8);
@@ -118,7 +139,7 @@ describe('un lot lu en partie · aucune phrase tirée d’une partie (ou de rien
   it('synthèse, contrôles, conseil, conclusion · « non calculé », jamais « aucune variante », « Aucune mesure » ni « Durée prévue atteinte »', () => {
     const syn = syntheseLot(nonLu, 50);
     const textes = [syn.titre, syn.phrase, ...controlesLot(nonLu, p, 5000).flatMap((c) => [c.titre, c.detail]),
-      ...Object.values(coachLot(p, syn, nonLu.ads.length, nonLu)), conclusionLot(nonLu, p.etat, { n: 40, k: 10 }).titre, conclusionLot(nonLu, p.etat, { n: 40, k: 10 }).phrase];
+      ...Object.values(coachLot(p, syn, nonLu)), phraseLot(p, syn, nonLu), suiteLot(p.etat, syn), conclusionLot(nonLu, p.etat, { n: 40, k: 10 }).titre, conclusionLot(nonLu, p.etat, { n: 40, k: 10 }).phrase];
     expect(textes.filter((t) => FAUSSES.test(t)), 'une phrase est tirée de rien').toEqual([]);
     expect(syn).toMatchObject({ gagnante: null, titre: 'Non calculé' });
     expect(syn.phrase).toBe('Lecture incomplète · 0 variante lue sur 8 · aucun verdict d’ensemble n’est tiré d’une partie du lot.');
@@ -129,7 +150,11 @@ describe('un lot lu en partie · aucune phrase tirée d’une partie (ou de rien
     const prep = lot('p', 31, [], 900, 'planned');
     const pp = presentationLot(prep, CTX);
     expect(pp.etat).toBe('composition');
-    expect(Object.values(coachLot(pp, syntheseLot(prep, 50), 0, prep)).join(' ')).toBe('Lecture incomplète : non calculé · 0 variante lue sur 900 · aucun conseil n’est tiré d’une partie du lot.');
+    expect(phraseLot(pp, syntheseLot(prep, 50), prep), 'une préparation lue en partie dit « Aucune variante rangée »').toMatch(/^Non lu · 0 variante lue sur 900 · /);
+    expect(controlesLot(prep, pp, 5000).map((c) => c.titre).filter((t) => FAUSSES.test(t)), 'les contrôles d’une préparation lue en partie disent « Pas encore lancé »').toEqual([]);
+    const imp = { ...lot('h', 32, [], 40, 'analyzed'), lanceLe: null };
+    expect(controlesLot(imp, presentationLot(imp, CTX), 5000)[0]!.titre, 'un historique lu en partie dit « Pas encore lancé »').toBe('Historique importé');
+    expect(Object.values(coachLot(pp, syntheseLot(prep, 50), prep)).join(' ')).toBe('Lecture incomplète : non calculé · 0 variante lue sur 900 · aucun conseil n’est tiré d’une partie du lot.');
   });
   it('Jarvis · le contexte d’un lot lu en partie dit le compte en base, jamais « 0 variante » ni « aucune variante »', () => {
     const r = resumerContexteJarvis({ type: 'lot', brandId: 'm', lot: nonLu, lots: [nonLu], ctx: enCours, cibleCpa: 50 }, { brandId: 'm' })!;
@@ -137,36 +162,40 @@ describe('un lot lu en partie · aucune phrase tirée d’une partie (ou de rien
     expect(texte.match(FAUSSES), 'le contexte de Jarvis dit une phrase tirée de rien').toBeNull();
     expect(texte).not.toMatch(/· 0 variante(?! lue)/);
     expect(texte).toMatch(/8 variantes en base, 0 variante lue sur 8 · lecture incomplète, rien n’est calculé sur ce lot/);
+    expect(r.question, 'la question de Jarvis parle d’un état « lecture incomplète »').not.toMatch(/ce lot est lecture incomplète/i);
+    expect(r.question).toMatch(/ses variantes n’ont pas été lues ici \(0 variante lue sur 8\)/);
   });
   it('« Lu en partie » pour une partie, « Non lu » pour rien · l’urgence passe après l’historique importé', () => {
-    expect(phraseLot(p, syntheseLot(nonLu, 50), 0)).toMatch(/^Non lu · /);
-    expect(phraseLot(p, syntheseLot(nonLu, 50), 3)).toMatch(/^Lu en partie · /);
+    expect(phraseLot(p, syntheseLot(nonLu, 50), nonLu)).toMatch(/^Non lu · /);
+    const partie = lot('q', 33, [ad('a', null), ad('b', null), ad('c', null)], 8);
+    expect(phraseLot(presentationLot(partie, enCours), syntheseLot(partie, 50), partie)).toMatch(/^Lu en partie · 3 variantes lues sur 8 · /);
     expect(indexAutresLots([{ etat: 'illisible' }, { etat: 'importe' }, { etat: 'conclu' }, { etat: 'non_concluant' }], -1, 4), 'un lot illisible passe avant un lot conclu ou importé').toEqual([3, 2, 1, 0]);
   });
 });
 
 describe('ce que l’écran dit d’un lot lu en partie', () => {
   it('la fiche d’un lot trop grand pour elle · le recours · la fiche de test d’une variante', () => {
-    expect(phraseLotLuEnPartie({ ads: [], variantesEnBase: 6000 }, { etatCalcule: false, fiche: true })).toMatch(/proposé ici\. Une fiche lit son lot en entier jusqu’à 500 variantes · au-delà, ouvre la fiche de test d’une variante \(Résultats · Tests\) pour l’arbitrer seule\.$/);
+    expect(phraseLotLuEnPartie(lectureDuLot([], 6000), { etatCalcule: false, fiche: true })).toMatch(/proposé ici\. Une fiche lit son lot en entier jusqu’à 500 variantes · au-delà, ouvre la fiche de test d’une variante \(Résultats · Tests\) pour l’arbitrer seule\.$/);
   });
   it('la fiche · combien lues, sur combien, et pourquoi rien n’est calculé · en français, sans tiret cadratin', () => {
-    const t = phraseLotLuEnPartie({ ads: [1], variantesEnBase: 600 }, { etatCalcule: false })!;
+    const t = phraseLotLuEnPartie(lectureDuLot([1], 600), { etatCalcule: false })!;
     expect(t).toBe('1 variante lue sur 600 · son état n’est pas calculé sur une partie de ses variantes · il n’est compté ni à conclure ni à importer, et son arbitrage n’est pas proposé ici. La lecture garde les lots les plus récents, chacun avec toutes ses variantes, jusqu’à 2 000 variantes en tout et 500 par lot.');
-    expect(phraseLotLuEnPartie({ ads: [1, 2], variantesEnBase: 2 }, { etatCalcule: false })).toBeNull();
-    expect(phraseLotLuEnPartie({ ads: [], variantesEnBase: 900 }, { etatCalcule: true })).toMatch(/^0 variante lue sur 900 · les variantes affichées ne sont qu’une partie du lot\. /);
+    expect(phraseLotLuEnPartie(lectureDuLot([1, 2], 2), { etatCalcule: false })).toBeNull();
+    expect(phraseLotLuEnPartie(lectureDuLot([], 900), { etatCalcule: true })).toMatch(/^0 variante lue sur 900 · ses variantes ne sont pas affichées, aucune n’est tirée d’une partie du lot\. /);
     expect(t).not.toMatch(/—/);
   });
   it('la liste · le nombre de lots lus en partie · rien quand tous sont entiers', () => {
-    expect(noteLectureLots([{ ads: [], variantesEnBase: 3 }, { ads: [1], variantesEnBase: 1 }])).toMatch(/^1 lot lu en partie · aucun état n’est calculé sur une partie de ses variantes · /);
-    expect(noteLectureLots([{ ads: [], variantesEnBase: 3 }, { ads: [], variantesEnBase: 2 }])).toMatch(/^2 lots lus en partie · aucun état n’est calculé sur une partie de leurs variantes · un lot lancé dit « Lecture incomplète »\. /);
-    expect(noteLectureLots([{ ads: [1], variantesEnBase: 1 }, { ads: [] }])).toBeNull();
+    expect(noteLectureLots([lectureDuLot([], 3), lectureDuLot([1], 1)])).toMatch(/^1 lot lu en partie · aucun état n’est calculé sur une partie de ses variantes · /);
+    expect(noteLectureLots([lectureDuLot([], 3), lectureDuLot([], 2)])).toMatch(/^2 lots lus en partie · aucun état n’est calculé sur une partie de leurs variantes · un lot lancé dit « Lecture incomplète »\. .* Sa fiche le lit en entier jusqu’à 500 variantes\.$/);
+    expect(noteLectureLots([lectureDuLot([1], 1), lectureDuLot([], 0)])).toBeNull();
   });
   it('l’import d’un lot lu en partie · aucun diagnostic tiré des variantes lues, la phrase à la place', () => {
     const v = { code: 'a', nomRegie: 'N', statut: 'live', plateforme: 'meta', verdict: null };
-    const p = lotImport({ id: 'l', numero: 22, but: null, variantesEnBase: 2 }, [v], DEFAULT_VERDICT_CONFIG, { ...CTX, lanceLe: LANCE.toISOString() });
+    const p = lotImport({ id: 'l', numero: 22, but: null }, { partielle: { variantesEnBase: 2, variantesLues: 1 } }, DEFAULT_VERDICT_CONFIG, { ...CTX, lanceLe: LANCE.toISOString() });
     expect(p.diagnostic, 'l’import tire un diagnostic d’une partie du lot').toBeNull();
+    expect(p.variantes, 'l’import montre une partie des variantes').toEqual([]);
     expect(p.lecture).toMatch(/^1 variante lue sur 2 · /);
-    const e = lotImport({ id: 'l', numero: 22, but: null, variantesEnBase: 1 }, [v], DEFAULT_VERDICT_CONFIG, { ...CTX, lanceLe: LANCE.toISOString() });
+    const e = lotImport({ id: 'l', numero: 22, but: null }, [v], DEFAULT_VERDICT_CONFIG, { ...CTX, lanceLe: LANCE.toISOString() });
     expect(e.lecture).toBeNull();
     expect(e.diagnostic).not.toBeNull();
   });

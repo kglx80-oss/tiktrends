@@ -1,4 +1,4 @@
-import {
+import { variantesDesLotsLus,
   LIBELLE_ETAPE_TEST, LIBELLE_VERDICT, REGLE_ITERATION, RETOUR_STUDIO, VALEUR_ABSENTE, briefDepuisTest, estGagnanteValidee,
   libellePorteeTest, libelleVariableTest, lienFicheTest, lienIterationStudio, lienNouveauProjet, lienSourceVeille,
   lireLienProfondAdsmap, pastilleVerdict, pourcentFr, presentationTest, verdictEffectif,
@@ -94,14 +94,15 @@ export default async function FicheTestSpatial({ params, searchParams }: { param
   const planIds = detache || gagnanteArbitree
     ? new Set(choixIterationSpatial((await iterationPlanAction()).view?.rows ?? [], () => undefined, { peutIterer: true }).filter((c) => c.selectionnable).map((c) => c.adId))
     : new Set<string>();
-  const tousLesTests = lots.lots.flatMap((l) => l.ads);
+  const tousLesTests = variantesDesLotsLus(lots.lots);
   const cible = cibleDuTest({
     adId: d.id, persona, offre, lecturePersonas, lectureOffres, planIds,
     testsPersona: persona?.persona ? tousLesTests.filter((a) => personaDe(a.id)?.id === persona.persona!.id).map((a) => a.id) : [],
     testsOffre: offre?.offre ? tousLesTests.filter((a) => offreDe(a.id)?.id === offre.offre!.id).map((a) => a.id) : [],
   });
   // Lot 13 ter · ce que T et L ouvrent (une navigation) · fermé, la raison du geste.
-  const sonLot = lots.lots.find((l) => l.ads.some((a) => a.id === d.id)) ?? null;
+  // Son lot · cherché parmi les lots lus en entier · lu en partie, il n'expose pas ses variantes (la fiche de test se lit sans lui).
+  const sonLot = lots.lots.find((l) => !l.partielle && l.ads.some((a) => a.id === d.id)) ?? null;
   const clavier = gestesClavierTest({ adId: d.id, gagnanteArbitree, planIds, lot: sonLot ? { id: sonLot.id, numero: sonLot.numero } : null });
   const hypotheseOuverte = accesHypothese({ adsmap: roleAtLeast(g.s.role, 'member') ? 'ok' : 'role', marqueActive: true });
 

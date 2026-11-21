@@ -7,6 +7,7 @@ import {
   apprentissagesDepuisReponse, lireGesteConclusion, REFUS_GESTE_JARVIS, gestesPersonaLot, choixIterationSpatial,
   accesHypothese, gestesLectureGroupe, noteDepartLectureOffre, gagnanteArbitree, gestesClavierLot,
   importFicheLot, reserveFenetreIncomplete, TITRE_FENETRE_INCOMPLETE, phraseLotLuEnPartie, TITRE_LECTURE_INCOMPLETE,
+  adresseTests, nombreVariantes, variantesDesLotsLus,
 } from '@tiktrends/core';
 import { gagnantesDuLot, gestesGagnantesLot } from '@tiktrends/core';
 import { roleAtLeast } from '../../../../../../lib/rbac';
@@ -50,32 +51,36 @@ export default async function LotSpatial({ params, searchParams }: { params: Pro
   const [d, pt, ot] = await Promise.all([chargerLots(g.s.workspaceId, g.marque.id, new Date(), { lotEntier: id }), personasEtTests(g.s.workspaceId, g.marque.id), offresEtTests(g.s.workspaceId, g.marque.id)]);
   const l = d.lots.find((x) => x.id === id);
   if (!l) notFound();
+  // Lu en partie (au-delà du plafond d'un lot seul) · AUCUNE variante n'est exposée (`VariantesDuLot`) · la fiche n'en tire rien ·
+  // ni variantes, ni personas, ni offres, ni gestes, ni import · `ads` vaut `[]` seulement là où une liste vide ne dit rien.
+  const ads = l.partielle ? [] : l.ads;
+  const marque = variantesDesLotsLus(d.lots);
   // Lot 9 · le persona de chaque variante (carte ou brief, jamais fusionnés) et la lecture par persona de TOUTE la marque.
   const attribution = (adId: string) => pt.parAd.get(adId) ?? null;
   const lecture = lecturePersonas(entreesLecturePersonas(d.lots, (adId) => attribution(adId)?.persona ?? null), pt.personas);
-  const duLot = new Set(l.ads.map((a) => attribution(a.id)?.persona?.id).filter((x): x is string => !!x));
+  const duLot = new Set(ads.map((a) => attribution(a.id)?.persona?.id).filter((x): x is string => !!x));
   // Lot 9 bis · l'offre de chaque variante (test ou brief, jamais fusionnés) et la lecture par offre de TOUTE la marque (même règle).
   const offreDe = (adId: string) => ot.parAd.get(adId) ?? null;
   const lectureO = lectureOffres(entreesLectureOffres(d.lots, (adId) => offreDe(adId)?.offre ?? null), ot.offres);
-  const offresDuLot = new Set(l.ads.map((a) => offreDe(a.id)?.offre?.id).filter((x): x is string => !!x));
+  const offresDuLot = new Set(ads.map((a) => offreDe(a.id)?.offre?.id).filter((x): x is string => !!x));
   // VB P06 · les gestes d'un persona OU d'une offre du lot qui SE DÉTACHE · le plan d'itération n'est lu que dans ce cas · les pubs
   // retenues sont celles que l'écran Itérer proposera, sélectionnables (`choixIterationSpatial`, la même règle).
   const detaches = lecture.groupes.filter((x) => duLot.has(x.persona.id) && (x.lecture === 'au_dessus' || x.lecture === 'en_dessous'));
   const offresDetachees = lectureO.groupes.some((x) => offresDuLot.has(x.ref.id) && (x.lecture === 'au_dessus' || x.lecture === 'en_dessous'));
   // Lot 13 bis · la touche T (Itérer depuis la gagnante) lit le même plan, dès que le lot a une gagnante arbitrée.
-  const planLu = detaches.length || offresDetachees || l.ads.some(gagnanteArbitree) ? await iterationPlanAction() : null;
+  const planLu = detaches.length || offresDetachees || ads.some(gagnanteArbitree) ? await iterationPlanAction() : null;
   const planIds = planLu
     ? new Set(choixIterationSpatial(planLu.view?.rows ?? [], () => undefined, { peutIterer: true }).filter((c) => c.selectionnable).map((c) => c.adId))
     : new Set<string>();
   const testsDe = (ads: readonly { id: string }[], personaId: string) => ads.filter((a) => attribution(a.id)?.persona?.id === personaId).map((a) => a.id);
   const gestes = (x: (typeof lecture.groupes)[number]) => gestesPersonaLot(x, {
-    numeroLot: l.numero, testsDuLot: testsDe(l.ads, x.persona.id), testsDeLaMarque: testsDe(d.lots.flatMap((y) => y.ads), x.persona.id), planIds,
+    numeroLot: l.numero, testsDuLot: testsDe(ads, x.persona.id), testsDeLaMarque: testsDe(marque, x.persona.id), planIds,
   });
   // Les gestes d'une offre du lot qui se détache · la règle et la brique des personas (`gestesLectureGroupe`) · source « offre »,
   // relue par le serveur dans la marque active · rien n'est écrit sans le clic.
   const testsDeLOffre = (ads: readonly { id: string }[], offreId: string) => ads.filter((a) => offreDe(a.id)?.offre?.id === offreId).map((a) => a.id);
   const gestesOffre = (x: (typeof lectureO.groupes)[number]) => gestesLectureGroupe({ ref: x.ref, lecture: x.lecture, k: x.k, n: x.n, reference: x.reference }, {
-    groupe: 'offre', note: noteDepartLectureOffre(l.numero), prioritaires: testsDeLOffre(l.ads, x.ref.id), testsDeLaMarque: testsDeLOffre(d.lots.flatMap((y) => y.ads), x.ref.id), planIds,
+    groupe: 'offre', note: noteDepartLectureOffre(l.numero), prioritaires: testsDeLOffre(ads, x.ref.id), testsDeLaMarque: testsDeLOffre(marque, x.ref.id), planIds,
   });
   const hypothese = accesHypothese({ adsmap: roleAtLeast(g.s.role, 'member') ? 'ok' : 'role', marqueActive: true });
 
@@ -83,11 +88,11 @@ export default async function LotSpatial({ params, searchParams }: { params: Pro
   // Lu en partie · dit en tête de fiche · un lot lancé n'a alors aucun état (`illisible`), donc ni arbitrage ni import proposé.
   const lu = phraseLotLuEnPartie(l, { etatCalcule: pres.etat !== 'illisible', fiche: true });
   const syn = syntheseLot(l, d.config.targetCpa);
-  const barres = barresCpa(l.ads);
+  const barres = barresCpa(ads);
   const conclusion = conclusionLot(l, pres.etat, referenceConclusion(d.lots, l.id));
   // « Itérer depuis la gagnante » · chaque variante arbitrée gagnante d'un lot CONCLU (`gestesGagnantesLot`, la règle du fil) · la porte de
   // l'écran Itérer, puis ce que le plan (déjà lu) et la lignée disent de chacune · lus seulement s'il y en a une, sans écriture.
-  const lotG = { id: l.id, numero: l.numero, etat: pres.etat, conclusion, ads: l.ads };
+  const lotG = { id: l.id, numero: l.numero, etat: pres.etat, conclusion, ads };
   const aIterer = gagnantesDuLot(lotG);
   const gagnantes = aIterer.length
     ? gestesGagnantesLot(lotG, {
@@ -97,20 +102,21 @@ export default async function LotSpatial({ params, searchParams }: { params: Pro
     : {};
   // Lot 13 bis · ce que C et T ouvrent (une navigation) · fermé, la raison du geste · lot CONCLU avec une gagnante · T ouvre le
   // MÊME geste que le bouton de sa variante (`depuisGagnante` · les gestes ci-dessus, jamais une adresse recopiée).
-  const clavier = gestesClavierLot({ etat: pres.etat, ads: l.ads, gagnante: syn.gagnante ?? null, planIds, depuisGagnante: gagnantes });
+  const clavier = gestesClavierLot({ etat: pres.etat, ads, gagnante: syn.gagnante ?? null, planIds, depuisGagnante: gagnantes });
   // « Mesures à importer » · l'import EXISTANT ouvert sur CE lot, sous SA garde (`import`) · fermé, sa raison.
-  const importer = importFicheLot({ etat: pres.etat, lot: l, variantes: l.ads, seuil: d.config, acces: { refus: g.refusImport }, fenetre: { ...d.ctx, lanceLe: l.lanceLe } });
+  const importer = l.partielle ? null : importFicheLot({ etat: pres.etat, lot: l, variantes: l.ads, seuil: d.config, acces: { refus: g.refusImport }, fenetre: { ...d.ctx, lanceLe: l.lanceLe } });
   // Un lot qu'on arbitre au-delà de la borne de relecture, mesures arrêtées avant la fin de la fenêtre · l'arbitre le lit, et l'import de CE lot (sous sa garde).
-  const fenetreIncomplete = reserveFenetreIncomplete({ etat: pres.etat, lot: l, variantes: l.ads, seuil: d.config, fenetre: { ...d.ctx, lanceLe: l.lanceLe }, acces: { refus: g.refusImport } });
+  const fenetreIncomplete = l.partielle ? null : reserveFenetreIncomplete({ etat: pres.etat, lot: l, variantes: l.ads, seuil: d.config, fenetre: { ...d.ctx, lanceLe: l.lanceLe }, acces: { refus: g.refusImport } });
 
   let actions: PropsActionsLot | null = null;
-  if (g.admin && (pres.etat === 'composition' || pres.etat === 'pret')) {
+  // Lu en partie · composer sur une liste vide dirait « aucune variante » d'un lot qui en compte des centaines · pas de composition ici.
+  if (g.admin && !l.partielle && (pres.etat === 'composition' || pres.etat === 'pret')) {
     const fiche = await batchDetailAction(l.id);
     const b = fiche.detail?.brief;
     const detail = new Map((fiche.detail?.ads ?? []).map((a) => [a.id, a]));
     actions = {
       mode: 'composition', lotId: l.id, pret: pres.etat === 'pret',
-      variantes: l.ads.map((a) => ({
+      variantes: ads.map((a) => ({
         id: a.id, variante: a.variante, concept: a.concept, manques: a.manques, nom: a.nomGenere,
         blocage: detail.get(a.id)?.blocking ?? null, avis: detail.get(a.id)?.prelaunch?.summary ?? null, adset: detail.get(a.id)?.adsetName ?? null,
       })),
@@ -120,7 +126,7 @@ export default async function LotSpatial({ params, searchParams }: { params: Pro
       brief: b ? { campagne: b.campaignName, structure: b.structure, budgetJour: b.dailyBudgetPerAd, jours: b.durationDays, audience: b.audienceRule, total: b.totalBudget, conclusivite: b.conclusiveness } : null,
     };
   } else if (lotArbitrable(pres.etat)) {
-    const aArbitrer = l.ads.filter(attendArbitrage);
+    const aArbitrer = ads.filter(attendArbitrage);
     // Depuis une réponse de Jarvis · relue dans la portée, pré-remplit sans rien valider.
     const geste = lireGesteConclusion(sp);
     const texte = geste.etat === 'ok' ? await lireReponseJarvis(g.s, g.marque.id, geste.reponse) : null;
@@ -139,17 +145,18 @@ export default async function LotSpatial({ params, searchParams }: { params: Pro
 
   return (
     <Lot
-      sous={[`Lot #${l.numero}`, LIBELLE_NATURE_LOT[natureLot({ status: l.statut, launchedAt: l.lanceLe })].court, plateformesLot(l), `${d.ctx.fenetreJours} jours`].filter(Boolean).join(' · ')}
+      sous={[`Lot #${l.numero}`, LIBELLE_NATURE_LOT[natureLot({ status: l.statut, launchedAt: l.lanceLe })].court, l.partielle ? null : plateformesLot(l), `${d.ctx.fenetreJours} jours`].filter(Boolean).join(' · ')}
       titre={l.but?.trim() || `Lot #${l.numero}`}
       verdict={{ gagnant: !!syn.gagnante, titre: syn.titre, phrase: syn.phrase, niveau: syn.niveau }}
-      variantes={l.ads.map((a, i) => {
+      variantes={ads.map((a, i) => {
         const v = verdictAffiche(a.verdict);
         return { id: a.id, texte: a.texte ?? ' ', image: a.image, gagnante: syn.gagnante === a.id, barre: barres[i]!, tag: `${a.variante} · ${v ? LIBELLE_VERDICT[v].court.toLowerCase() : 'en mesure'}` };
       })}
       controles={controlesLot(l, pres, d.config.minImpressions)}
-      coach={coachLot(pres, syn, l.ads.length, l)}
+      coach={coachLot(pres, syn, l)}
       conclusion={conclusion}
-      personas={{
+      // Lu en partie · ni « Aucun persona de ce lot ne se détache », ni une lecture tirée de rien · la section n'est pas posée.
+      personas={l.partielle ? undefined : {
         variantes: l.ads.map((a) => {
           const at = attribution(a.id);
           return { id: a.id, variante: a.variante, personaId: at?.persona?.id ?? null, desaccord: !!at?.desaccord, libelle: at ? libelleAttribution(at) : 'Aucun persona · ni la carte ni le brief n’en nomment un' };
@@ -157,7 +164,7 @@ export default async function LotSpatial({ params, searchParams }: { params: Pro
         groupes: lecture.groupes.filter((x) => duLot.has(x.persona.id)).map((x) => ({ id: x.persona.id, nom: x.persona.nom, lecture: x.lecture, phrase: x.phrase, gestes: gestes(x) })),
         parle: lecture.parle, phrase: lecture.phrase, regle: regleLecturePersonas(), gestesLus: true,
       }}
-      offres={{
+      offres={l.partielle ? undefined : {
         variantes: l.ads.map((a) => {
           const at = offreDe(a.id);
           return { id: a.id, variante: a.variante, offreId: at?.offre?.id ?? null, desaccord: !!at?.desaccord, libelle: at ? libelleAttributionOffre(at) : SANS_OFFRE_TEST };
@@ -172,11 +179,11 @@ export default async function LotSpatial({ params, searchParams }: { params: Pro
         {importer && <ImporterMesuresLot lotId={l.id} f={importer} />}
         {fenetreIncomplete && <ImporterMesuresLot lotId={l.id} f={fenetreIncomplete} fenetreIncomplete={{ titre: TITRE_FENETRE_INCOMPLETE }} />}
         {actions && <ActionsLot {...actions} />}
-        <DupliquerLot lotId={l.id} numero={l.numero} variantes={l.variantesEnBase} raison={g.admin ? null : 'Dupliquer un lot est réservé aux admins de l’espace, comme en créer un.'} />
+        <DupliquerLot lotId={l.id} numero={l.numero} variantes={nombreVariantes(l)} raison={g.admin ? null : 'Dupliquer un lot est réservé aux admins de l’espace, comme en créer un.'} />
       </>}
-      lecture={lu ? { lotId: l.id, titre: TITRE_LECTURE_INCOMPLETE, phrase: lu } : null}
+      lecture={lu ? { lotId: l.id, titre: TITRE_LECTURE_INCOMPLETE, phrase: lu, tests: { libelle: 'Ouvrir les tests de ce lot', href: adresseTests({ batchId: l.id }) } } : null}
       reserves={[LIBELLE_NATURE_LOT[natureLot({ status: l.statut, launchedAt: l.lanceLe })].phrase, l.protocole?.resume ?? null].filter((x): x is string => !!x)}
-      fiches={l.ads.map((a) => {
+      fiches={ads.map((a) => {
         const v = verdictAffiche(a.verdict);
         return { href: lienFicheTest(a.id), libelle: `${a.variante} · ${a.concept}`, detail: `${libelleStatutTest(a.statut)} · ${v ? LIBELLE_VERDICT[v].court : 'pas de verdict'}`, ...(gagnantes[a.id] ? { gagnante: gagnantes[a.id] } : {}) };
       })}

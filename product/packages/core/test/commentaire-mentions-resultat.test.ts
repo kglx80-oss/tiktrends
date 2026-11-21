@@ -5,7 +5,7 @@ import {
   historiqueAvecMentions, insererMention, iterationsDuCommentaire, lireDemandeMentions, lireHistoriqueCommentaire, lireMentions, membreVoitProjet, membresMentionnables,
   nomAffichageMention, nomMention, optionMentionSuivante, prevenusApres, proprietairePrevenuSansMention, referenceConclusion, requeteMention, resultatsCommentaire,
   segmentsCommentaire, texteAffiche,
-  type FaitsAdSpatial, type FaitsLotSpatial, type IterationDuCommentaire, type MembreBrut,
+  type FaitsAdSpatial, type FaitsLotSpatialEntier, type IterationDuCommentaire, type MembreBrut,
 } from '../src';
 
 /**
@@ -178,11 +178,11 @@ const ad = (id: string, v: 'winner' | 'loser' | null, o: Partial<FaitsAdSpatial>
   id, variante: id, statut: 'done', hypothese: 'Si on teste, alors ça baisse, parce que.', variable: 'hook', plateforme: 'meta', texte: null, image: null, manques: [],
   verdict: v ? { calcule: v, retenu: v, statut: 'validated', comparable: true, raison: null, depense: 1, impressions: 1, achats: 1, cpa: 1 } : null, ...o,
 });
-const lot = (id: string, numero: number, ads: FaitsAdSpatial[]): FaitsLotSpatial => ({ id, numero, but: null, statut: 'testing', lanceLe: '2026-09-01T00:00:00Z', ads, protocole: null });
+const lot = (id: string, numero: number, ads: FaitsAdSpatial[]): FaitsLotSpatialEntier => ({ id, numero, but: null, statut: 'testing', lanceLe: '2026-09-01T00:00:00Z', ads, protocole: null });
 const CTX = { maintenant: new Date('2026-11-09T00:00:00Z'), fenetreJours: 14 };
 const REF = lot('r', 1, Array.from({ length: 8 }, (_, i) => ad(`r${i}`, i === 0 ? 'winner' : 'loser')));
 const REF_HAUTE = lot('r', 1, Array.from({ length: 8 }, (_, i) => ad(`r${i}`, i === 0 ? 'loser' : 'winner')));
-function iteration(l: FaitsLotSpatial, autres: FaitsLotSpatial[], adId: string): IterationDuCommentaire {
+function iteration(l: FaitsLotSpatialEntier, autres: FaitsLotSpatialEntier[], adId: string): IterationDuCommentaire {
   const etat = etatLotSpatial(l, CTX);
   return { adId, variante: adId, lot: { id: l.id, numero: l.numero, etat }, conclusion: conclusionLot(l, etat, referenceConclusion([l, ...autres], l.id)) };
 }

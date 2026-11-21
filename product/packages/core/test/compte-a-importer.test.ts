@@ -2,10 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   CHEMIN_IMPORT_RESULTATS, DEFAULT_VERDICT_CONFIG, compteAConclure, compteAImporter, etatLotSpatial, lienImportLot, listeLotImport,
   pastilleAConclure, pastilleAImporter,
-  type EtatLotSpatial, type FaitsAdSpatial, type FaitsLotSpatial, type FaitsVerdictSpatial, type VerdictValue,
+  type EtatLotSpatial, type FaitsAdSpatial, type FaitsLotSpatialEntier, type FaitsVerdictSpatial, type VerdictValue,
 } from '../src';
 
-type Lot = FaitsLotSpatial & { finPrevue: string | null };
+type Lot = FaitsLotSpatialEntier & { finPrevue: string | null };
 
 /**
  * Savoir de partout qu'un lot attend ses mesures · le compte « à importer »

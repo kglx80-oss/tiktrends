@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   FILTRES_LOTS, RAISON_LISTE_A_CONCLURE, actionAConclure, attendArbitrage, dansFiltreLots, etatLotSpatial, gestesClavierLot, gestesListeLots,
   lienLotSpatial, lotArbitrable, lotConcluable, porteeListeLots, presentationLot, selectionAConclure, sousListeAConclure,
-  type ContexteLots, type EtatLotSpatial, type FaitsAdSpatial, type FaitsLotSpatial, type VerdictValue,
+  type ContexteLots, type EtatLotSpatial, type FaitsAdSpatial, type FaitsLotSpatialEntier, type VerdictValue,
 } from '../src';
 
 /**
@@ -27,12 +27,12 @@ function ad(id: string, v: { calcule: VerdictValue | null; valide?: boolean } | 
     verdict: v ? { calcule: v.calcule, retenu: v.valide ? v.calcule : null, statut: v.valide ? 'validated' : 'computed', comparable: true, raison: null, depense: 1, impressions: 1, achats: 1, cpa: 1 } : null,
   };
 }
-function lot(id: string, statut: string, lanceIl: number | null, ads: FaitsAdSpatial[]): FaitsLotSpatial {
+function lot(id: string, statut: string, lanceIl: number | null, ads: FaitsAdSpatial[]): FaitsLotSpatialEntier {
   return { id, numero: Number(id.replace(/\D/g, '')) || 1, but: `But ${id}`, statut, lanceLe: lanceIl === null ? null : il(lanceIl), ads, protocole: null };
 }
 
 /** Un lot par état réel · le plus récent d'abord (l'ordre de `chargerLots`). */
-const LOTS: Array<[EtatLotSpatial, FaitsLotSpatial]> = [
+const LOTS: Array<[EtatLotSpatial, FaitsLotSpatialEntier]> = [
   ['composition', lot('l8', 'planned', null, [ad('a8', null)])],
   ['pret', lot('l7', 'ready', null, [ad('a7', null)])],
   ['diffusion', lot('l6', 'testing', 2, [ad('a6', { calcule: 'winner' })])],

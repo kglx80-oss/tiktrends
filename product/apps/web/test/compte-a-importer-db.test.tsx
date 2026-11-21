@@ -60,7 +60,7 @@ vi.mock('next/cache', () => ({ revalidatePath: () => {}, revalidateTag: () => {}
 vi.mock('../app/actions/assistant', () => ({ askAssistant: async () => ({}) }));
 
 import { db, schema } from '@tiktrends/db';
-import { compteAImporter } from '@tiktrends/core';
+import { compteAImporter, type VariantesDuLot } from '@tiktrends/core';
 import { avecSpatial } from './spatial/fournisseur';
 import ImportSpatial from '../app/(spatial)/sp/adsmap/import/page';
 import { chargerCoquille } from '../lib/spatial/coquille';
@@ -326,8 +326,9 @@ describe('LA lecture du rail · la MÊME portée, le MÊME ordre, la MÊME borne
   it('à la borne (lots au-delà du plafond d’un lot) · mêmes lots retenus, mêmes variantes et mêmes comptes en base par lot', async () => {
     const liste = await chargerLots(I.wsA!, I.bBorne!, MAINTENANT);
     const legere = await chargerFaitsRail(I.wsA!, I.bBorne!, MAINTENANT);
-    expect(liste.lots.map((l) => [l.ads.length, l.variantesEnBase]), 'préalable · chaque lot passe le plafond, aucun n’est lu en partie').toEqual([[0, 700], [0, 700], [0, 700]]);
-    expect(legere.lots.map((l) => [l.id, l.ads.length, l.variantesEnBase]), 'la lecture légère ne lit pas les mêmes variantes que la liste').toEqual(liste.lots.map((l) => [l.id, l.ads.length, l.variantesEnBase]));
+    expect(liste.lots.map((l) => l.partielle ?? null), 'préalable · chaque lot passe le plafond, aucun n’est lu (jamais une partie)').toEqual([0, 1, 2].map(() => ({ variantesEnBase: 700, variantesLues: 0 })));
+    const lecture = (l: VariantesDuLot<ReadonlyArray<unknown>>) => (l.partielle ? ['partielle', l.partielle.variantesEnBase, l.partielle.variantesLues] : ['entiere', l.ads.length]);
+    expect(legere.lots.map((l) => [l.id, ...lecture(l)]), 'la lecture légère ne lit pas les mêmes variantes que la liste').toEqual(liste.lots.map((l) => [l.id, ...lecture(l)]));
     const attendu = compteAImporter(liste.lots, liste.ctx, liste.config);
     const lu = await compterAImporter(I.wsA!, I.bBorne!, MAINTENANT);
     expect(lu, 'la lecture légère ne retient pas les mêmes lots que `chargerLots`').toEqual(attendu);

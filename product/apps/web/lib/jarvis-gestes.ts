@@ -1,7 +1,7 @@
 import 'server-only';
 import { and, eq, inArray } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import {
+import { variantesDesLotsLus,
   iterationProjetDepuisVariantes, dejaTesteesSurPub, etatLotSpatial, gestesContexteJarvis, parentDepuisPlan, reponseLisible, variablesDuPlan, variantesEssaiProjet,
   type CandidatIteration, type CandidatProjetJarvis, type ChoixVariablesIteration, type DemandeContexteJarvis, type GesteJarvis, type TestedVariable,
   type VarianteEssaiJarvis,
@@ -134,12 +134,14 @@ export async function lireContexteGestes(s: SessionLue, brandId: string, demande
   if (demande.type !== 'lot' && demande.type !== 'hypothese') return null;
   if (!canAccess(effectiveAccess(s), ADSMAP)) return null;
   try {
-    const d = await chargerLots(s.workspaceId, brandId, maintenant);
+    // Le lot joint est lu en entier, hors budget (`lotEntier`), comme sa fiche et le contexte de Jarvis.
+    const d = await chargerLots(s.workspaceId, brandId, maintenant, demande.type === 'lot' ? { lotEntier: demande.id } : {});
     if (demande.type === 'lot') {
       const lot = d.lots.find((l) => l.id === demande.id);
-      return lot ? { ads: lot.ads, lot, etat: etatLotSpatial(lot, d.ctx) } : null;
+      // Lu en partie (au-delà du plafond d'un lot seul) · aucune variante, état `illisible` · ni « Conclure », ni « Itérer » ne se tirent de rien.
+      return lot ? { ads: lot.partielle ? [] : lot.ads, lot, etat: etatLotSpatial(lot, d.ctx) } : null;
     }
-    const ad = [...d.lots.flatMap((l) => l.ads), ...d.horsLot].find((a) => a.id === demande.id);
+    const ad = [...variantesDesLotsLus(d.lots), ...d.horsLot].find((a) => a.id === demande.id);
     if (!ad) return null;
     const lot = ad.lotId ? d.lots.find((l) => l.id === ad.lotId) ?? null : null;
     return { ads: [ad], lot, etat: lot ? etatLotSpatial(lot, d.ctx) : null };
@@ -161,7 +163,7 @@ export async function gestesPourContexte(s: SessionLue, brandId: string, demande
   if (!c) return null;
   const g = gestesContexteJarvis({
     type: demande.type, id: demande.id, ads: c.ads,
-    lot: c.lot && c.etat ? { id: c.lot.id, etat: c.etat, ads: c.lot.ads } : null,
+    lot: c.lot && c.etat ? { id: c.lot.id, etat: c.etat, ads: c.lot.partielle ? [] : c.lot.ads } : null,
   });
   if (!g) return null;
   const plan = g.iterer.cible ? await lirePlanIteration() : null;

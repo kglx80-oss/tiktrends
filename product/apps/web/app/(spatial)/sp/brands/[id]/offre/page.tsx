@@ -1,6 +1,6 @@
 import { and, asc, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import {
+import { variantesDesLotsLus,
   costFor, listePropre, morceauxTexte, prixEuros, resumeProduits, statutFicheProduit, messageServiceInactif,
   detailOffre, lienNouveauProjet, LIBELLES_STATUT_ALLEGATION, LIBELLES_TYPE_OFFRE, manquesOffres, ordonnerOffres, pastilleManquesOffres, signalAllegation, statutAllegation,
   accesHypothese, accesTestsOffre, bilanTestsOffre, choixIterationSpatial, entreesLectureOffres, gestesLectureGroupe, lectureOffres, lotsDuGroupe, noteGestesSilenceFiche,
@@ -65,7 +65,7 @@ export default async function OffreSpatiale({ params }: { params: Promise<{ id: 
   const dansLesTests = (offreId: string) => {
     if (!tests) return { ferme: true as const, raison: ferme! };
     const t = testsDeLOffre(tests.lecture, offreId);
-    const ids = tests.d.lots.flatMap((l) => l.ads).filter((a) => tests!.offre(a.id)?.id === offreId).map((a) => a.id);
+    const ids = variantesDesLotsLus(tests.d.lots).filter((a) => tests!.offre(a.id)?.id === offreId).map((a) => a.id);
     const gestes = t.groupe ? gestesLectureGroupe({ ref: t.groupe.ref, lecture: t.groupe.lecture, k: t.groupe.k, n: t.groupe.n, reference: t.groupe.reference },
       { groupe: 'offre', note: NOTE_GESTES_FICHE_OFFRE, prioritaires: [], testsDeLaMarque: ids, planIds: tests.planIds }) : null;
     return {

@@ -4,7 +4,7 @@ import {
   LIBELLE_RESULTAT_COMMENTAIRE, LIBELLE_RESULTAT_FIL, LIEN_PAGE_HYPOTHESES, PHRASE_ITERATION_EN_TEST, RAISON_HYPOTHESES_AUTRE_MARQUE, RAISON_LOT_AUTRE_MARQUE,
   cartesHypotheses, conclusionLot, etatLotSpatial, hypothesesDeLaNote, iterationsDuCommentaire, iterationsDuFil, referenceConclusion, resultatsCommentaire, resultatsFil,
   statutsHypothesesNote,
-  type FaitsAdSpatial, type FaitsHypotheseAd, type FaitsLotSpatial, type IterationDuCommentaire, type IterationDuFil, type OrigineHypotheseLibre,
+  type FaitsAdSpatial, type FaitsHypotheseAd, type FaitsLotSpatialEntier, type IterationDuCommentaire, type IterationDuFil, type OrigineHypotheseLibre,
 } from '../src';
 
 /**
@@ -28,11 +28,11 @@ const ad = (id: string, v: 'winner' | 'loser' | null, o: Partial<FaitsAdSpatial>
   id, variante: id, statut: 'done', hypothese: 'Si on teste, alors ça baisse, parce que.', variable: 'hook', plateforme: 'meta', texte: null, image: null, manques: [],
   verdict: v ? { calcule: v, retenu: v, statut: 'validated', comparable: true, raison: null, depense: 1, impressions: 1, achats: 1, cpa: 1 } : null, ...o,
 });
-const lot = (id: string, numero: number, ads: FaitsAdSpatial[], lanceLe = '2026-09-01T00:00:00Z'): FaitsLotSpatial => ({ id, numero, but: null, statut: 'testing', lanceLe, ads, protocole: null });
+const lot = (id: string, numero: number, ads: FaitsAdSpatial[], lanceLe = '2026-09-01T00:00:00Z'): FaitsLotSpatialEntier => ({ id, numero, but: null, statut: 'testing', lanceLe, ads, protocole: null });
 const CTX = { maintenant: new Date('2026-11-09T00:00:00Z'), fenetreJours: 14 };
 const REF = lot('r', 1, Array.from({ length: 8 }, (_, i) => ad(`r${i}`, i === 0 ? 'winner' : 'loser')));
 const REF_HAUTE = lot('r', 1, Array.from({ length: 8 }, (_, i) => ad(`r${i}`, i === 0 ? 'loser' : 'winner')));
-function iteration(l: FaitsLotSpatial, autres: FaitsLotSpatial[], adId: string): IterationDuCommentaire {
+function iteration(l: FaitsLotSpatialEntier, autres: FaitsLotSpatialEntier[], adId: string): IterationDuCommentaire {
   const etat = etatLotSpatial(l, CTX);
   return { adId, variante: adId, lot: { id: l.id, numero: l.numero, etat }, conclusion: conclusionLot(l, etat, referenceConclusion([l, ...autres], l.id)) };
 }
@@ -96,7 +96,7 @@ describe('la note · la MÊME règle · même sortie pour les mêmes itérations
 
 const NOTE = u(90); const PROJET = u(91);
 const origineNote = (noteId: string | null = NOTE, projetId: string | null = PROJET): OrigineHypotheseLibre => ({ type: 'note', noeud: 'Brief · version 1', noteId, projetId });
-function fait(a: FaitsAdSpatial, l: FaitsLotSpatial | null, autres: FaitsLotSpatial[] = [REF], origine: OrigineHypotheseLibre | null = origineNote()): FaitsHypotheseAd {
+function fait(a: FaitsAdSpatial, l: FaitsLotSpatialEntier | null, autres: FaitsLotSpatialEntier[] = [REF], origine: OrigineHypotheseLibre | null = origineNote()): FaitsHypotheseAd {
   if (!l) return { ad: a, concept: 'Crème', bande: null, origine, lot: null };
   const etat = etatLotSpatial(l, CTX);
   return { ad: a, concept: 'Crème', bande: null, origine, lot: { id: l.id, numero: l.numero, etat, jour: null, conclusion: conclusionLot(l, etat, referenceConclusion([l, ...autres], l.id)) } };

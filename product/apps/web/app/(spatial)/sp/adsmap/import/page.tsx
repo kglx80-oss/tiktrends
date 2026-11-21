@@ -1,4 +1,4 @@
-import { PARAM_LOT_IMPORT, estLotImporte, listeLotImport, lotCibleImport, lotImport, mesuresDuLot, quandCourt, remontees, sousNavResultats } from '@tiktrends/core';
+import { PARAM_LOT_IMPORT, estLotImporte, lotDemande, nombreVariantes, variantesDesLotsLus, listeLotImport, lotCibleImport, lotImport, mesuresDuLot, quandCourt, remontees, sousNavResultats } from '@tiktrends/core';
 import { Importer } from '../../../../../spatial/vues/resultats/Importer';
 import { RefusResultats } from '../../../../../spatial/vues/resultats/communs';
 import { chargerConnexion, chargerLots, gardeResultats } from '../donnees';
@@ -27,22 +27,24 @@ export default async function ImportSpatial({ searchParams }: { searchParams: Pr
   const maintenant = new Date();
   const params = await searchParams;
   // Le lot de l'adresse est lu en entier, hors budget de la marque (`lotEntier`) · comme sa fiche.
-  const demande = params[PARAM_LOT_IMPORT];
+  // `?lot=a&lot=b` · une seule valeur, lue une fois (`lotDemande`) · la même pour la lecture et pour la cible.
+  const demande = lotDemande(params[PARAM_LOT_IMPORT]);
   const [d, c, journal] = await Promise.all([
-    chargerLots(g.s.workspaceId, g.marque.id, maintenant, typeof demande === 'string' ? { lotEntier: demande } : {}),
+    chargerLots(g.s.workspaceId, g.marque.id, maintenant, demande ? { lotEntier: demande } : {}),
     chargerConnexion(g.marque.id), lireRemontees(g.marque.id),
   ]);
-  const mesurees = [...d.lots.flatMap((l) => l.ads), ...d.horsLot].filter((a) => a.verdict?.calcule).length;
+  const mesurees = [...variantesDesLotsLus(d.lots), ...d.horsLot].filter((a) => a.verdict?.calcule).length;
   const liste = remontees({
     mesureLe: c.mesureLe,
     journal,
     variantesMesurees: mesurees,
-    lotsImportes: d.lots.filter((l) => estLotImporte({ status: l.statut, launchedAt: l.lanceLe })).map((l) => ({ numero: l.numero, variantes: l.variantesEnBase, le: l.creeLe })),
+    lotsImportes: d.lots.filter((l) => estLotImporte({ status: l.statut, launchedAt: l.lanceLe })).map((l) => ({ numero: l.numero, variantes: nombreVariantes(l), le: l.creeLe })),
   });
-  const cible = lotCibleImport(d.lots, params[PARAM_LOT_IMPORT]);
+  const cible = lotCibleImport(d.lots, demande);
   const lot = cible
     ? {
-      ...lotImport(cible, cible.ads.map((a) => ({
+      // Lu en partie · aucune variante exposée · `lotImport` le dit, sans diagnostic tiré d'une partie.
+      ...lotImport(cible, cible.partielle ? { partielle: cible.partielle } : cible.ads.map((a) => ({
         code: a.variante, nomRegie: a.nomGenere, statut: a.statut, plateforme: a.plateforme,
         verdict: a.verdict ? { calcule: a.verdict.calcule, statut: a.verdict.statut, calculeLe: a.verdict.calculeLe, impressions: a.verdict.impressions, depense: a.verdict.depense } : null,
       })), d.config, { ...d.ctx, lanceLe: cible.lanceLe }),

@@ -1,7 +1,7 @@
 import 'server-only';
 import { and, eq, inArray } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import {
+import { variantesDesLotsLus,
   etatPlanGagnante, gagnanteDeLHypothese, gagnantesDuLot, lotDeLaCarte, peutCreerIteration,
   gagnantesDeLaLignee, gestesParAdDeLaLignee, lireNaissanceGagnante,
   type AdRelueGagnante, type DemandeProvenanceGagnante, type GagnanteDuFil, type GagnanteDuNoeud, type LignePlanSpatial, type LotPourGagnante,
@@ -131,7 +131,7 @@ export async function lireGagnantesLignee(workspaceId: string, projet: { id: str
   }
   if (!naissances.size && !resultats.some((r) => r.enLot)) return {};
   const dl = await chargerLots(workspaceId, projet.brandId);
-  const parAd = new Map<string, AdRelueGagnante>([...dl.lots.flatMap((l) => l.ads), ...dl.horsLot].map((a) => [a.id.toLowerCase(), a]));
+  const parAd = new Map<string, AdRelueGagnante>([...variantesDesLotsLus(dl.lots), ...dl.horsLot].map((a) => [a.id.toLowerCase(), a]));
   const faits = faitsHypotheses(dl);
   const adsDuLot = (lotId: string) => dl.lots.find((l) => l.id === lotId)?.ads ?? [];
   const lots = [...new Map(faits.flatMap((f) => (f.lot ? [[f.lot.id, f] as const] : []))).values()]

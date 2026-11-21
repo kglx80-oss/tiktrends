@@ -52,7 +52,7 @@ export interface PropsLot {
    * Le lot est lu en partie (`phraseLotLuEnPartie`) · dit en tête de fiche,
    * avant tout verdict · absent ou `null` (lu en entier), rien n'est ajouté à la maquette.
    */
-  lecture?: { lotId: string; titre: string; phrase: string } | null;
+  lecture?: { lotId: string; titre: string; phrase: string; tests?: { libelle: string; href: string } } | null;
 }
 
 const TON_CONCLUSION: Record<LectureConclusion['conclusion'], { pill: string; couleur: string; icone: string }> = {
@@ -86,6 +86,7 @@ function LectureIncomplete({ l }: { l: NonNullable<PropsLot['lecture']> }) {
         <h2 style={{ margin: 0 }}>{l.titre}</h2>
         <p className="muted" style={{ fontSize: '12.5px' }}>{l.phrase}</p>
       </div>
+      {l.tests && <Lien className="btn sm" href={l.tests.href} data-geste="tests-du-lot">{l.tests.libelle}</Lien>}
     </section>
   );
 }

@@ -37,7 +37,8 @@ export interface PropsBoucle {
   idees: readonly IdeeBoucle[];
   /** Où mène « Ajouter une hypothèse » (les suites · aucune saisie libre n'existe côté serveur). */
   ajouter: string;
-  preparation: ReadonlyArray<LotBoucle & { fait: number; sur: number }>;
+  /** `preparation` · `preparationAffichee` (noyau) · lu en partie, « Préparation non calculée », jamais « 0/4 ». */
+  preparation: ReadonlyArray<LotBoucle & { preparation: { part: number; texte: string } }>;
   diffusion: ReadonlyArray<LotBoucle & { image: string | null; r916?: boolean; part: number; jour: string; bilan: string }>;
   analyse: ReadonlyArray<LotBoucle & { pubs: Array<{ image: string | null; gagne: boolean }>; detail: string; statut: { libelle: string; classe: string } }>;
   apprentissages: ReadonlyArray<{ id: string; niveau: NiveauPreuve; texte: string; statut: { libelle: string; classe: string }; valide: string | null }>;
@@ -91,7 +92,7 @@ export function Boucle(p: PropsBoucle) {
             {p.preparation.map((l, i) => (
               <article className="blc" key={l.id}>
                 <strong>{l.titre}</strong>
-                <div className="blpr"><i className="amar"><b style={{ width: `${(l.fait / l.sur) * 100}%` }} /></i><small>Préparation {l.fait}/{l.sur}</small></div>
+                <div className="blpr"><i className="amar"><b style={{ width: `${l.preparation.part}%` }} /></i><small>{l.preparation.texte}</small></div>
                 <div className="blf"><span className="pill">{l.categorie}</span><Lien className="btn sm" href={l.action.href} aria-label={noms.preparation[i]}>{l.action.libelle}</Lien></div>
               </article>
             ))}

@@ -125,37 +125,74 @@ export interface LotACompter {
  * tiennent dans ce qui reste du budget · sinon il n'est pas lu du tout, et la
  * lecture passe au suivant (un lot plus ancien et plus petit peut encore
  * tenir). Un lot vide est toujours retenu (il ne coûte rien, et il est lu en
- * entier). Le total retenu ne dépasse jamais le budget, hors `lotEntier` · le
- * lot d'une fiche, lu en entier jusqu'à `plafondLotSeul`, à part.
+ * entier). Le total retenu ne dépasse jamais le budget.
+ *
+ * `lotEntier` · le lot d'une fiche · les autres lots sont choisis EXACTEMENT
+ * comme dans la liste (le budget est calculé sans lui, il n'en libère ni n'en
+ * prend), puis il est ajouté s'il a au plus `plafondLotSeul` variantes.
  */
 export function lotsALire(lots: ReadonlyArray<LotACompter>, bornes: BornesLectureLots = BORNES_LECTURE_LOTS, lotEntier?: string): Set<string> {
   const out = new Set<string>();
   let reste = bornes.budget;
   for (const l of lots) {
     const n = Math.max(0, l.variantesEnBase);
-    // Le lot d'une fiche · lu en entier jusqu'au plafond d'un lot seul, sans rien prendre au budget des autres.
-    if (l.id === lotEntier) { if (n <= bornes.plafondLotSeul) out.add(l.id); continue; }
     if (n > bornes.plafondParLot || n > reste) continue;
     out.add(l.id);
     reste -= n;
   }
+  const fiche = lotEntier === undefined ? undefined : lots.find((l) => l.id === lotEntier);
+  if (fiche && Math.max(0, fiche.variantesEnBase) <= bornes.plafondLotSeul) out.add(fiche.id);
   return out;
 }
 
-/**
- * Ce que la lecture a vu d'un lot · ses variantes lues (`ads`) et le nombre
- * que la base en compte (`variantesEnBase`). Absent · le lecteur n'a posé
- * aucune borne (un faisceau construit à la main, un lecteur qui lit tout) ·
- * le lot est lu en entier par construction.
- */
-export interface LectureDuLot {
-  ads: ReadonlyArray<unknown>;
-  variantesEnBase?: number;
+/* ───────────── le TYPE d'un lot lu · ses variantes, toutes, ou aucune ───────────── */
+
+/** Un lot que la lecture n'a pas vu en entier · combien la base en compte, combien ont été lues (aucune n'est exposée). */
+export interface LecturePartielle {
+  variantesEnBase: number;
+  variantesLues: number;
 }
 
-/** Le lot est-il lu en entier · autant de variantes lues que la base en compte (ni moins, coupées · ni plus, écrites entre le compte et la lecture). */
-export function lotLuEnEntier(l: LectureDuLot): boolean {
-  return l.variantesEnBase === undefined || l.ads.length === l.variantesEnBase;
+/**
+ * Les variantes d'un lot telles que la lecture les rend · TOUTES (`ads`), ou
+ * AUCUNE (`partielle`) · un lot lu en partie n'expose pas de liste qu'on
+ * parcourrait comme si elle était complète · `l.ads` vaut `undefined`, chaque
+ * dérivé (état, présentation, synthèse, contrôles, conseil, Jarvis, gestes)
+ * doit traiter ce cas, sinon le code ne compile pas. Un lot construit à la main
+ * avec ses `ads` est lu en entier.
+ */
+export type VariantesDuLot<A> =
+  | { ads: A; partielle?: undefined }
+  | { ads?: undefined; partielle: LecturePartielle };
+
+/** Le lot tel que la lecture le rend · `ads` lues ET compte en base égaux · entier · sinon partiel, sans variante. */
+export function lectureDuLot<A extends ReadonlyArray<unknown>>(ads: A, variantesEnBase: number): VariantesDuLot<A> {
+  return ads.length === variantesEnBase ? { ads } : { partielle: { variantesEnBase, variantesLues: ads.length } };
+}
+
+/**
+ * Les variantes des lots LUS EN ENTIER, dans l'ordre des lots · les lectures
+ * qui portent sur toute la marque (bilans, lectures par persona ou par offre,
+ * hypothèses, index par ad) · un lot lu en partie n'en apporte aucune (on ne
+ * sait pas lesquelles ont été coupées), et ce choix est écrit ici, une fois.
+ */
+export function variantesDesLotsLus<L extends VariantesDuLot<ReadonlyArray<unknown>>>(lots: readonly L[]): Array<NonNullable<L['ads']>[number]> {
+  return lots.flatMap((l) => (l.partielle ? [] : [...l.ads])) as Array<NonNullable<L['ads']>[number]>;
+}
+
+/** Garde de type · le lot est lu en entier, ses `ads` sont là (pour filtrer une liste de lots avant de parcourir leurs variantes). */
+export function estLuEnEntier<L extends VariantesDuLot<ReadonlyArray<unknown>>>(l: L): l is Extract<L, { partielle?: undefined }> {
+  return !l.partielle;
+}
+
+/** Le lot est-il lu en entier · ses variantes sont exposées. */
+export function lotLuEnEntier(l: VariantesDuLot<ReadonlyArray<unknown>>): boolean {
+  return !l.partielle;
+}
+
+/** Combien de variantes le lot compte · lu en entier, celles lues · en partie, celles de la base. */
+export function nombreVariantes(l: VariantesDuLot<ReadonlyArray<unknown>>): number {
+  return l.partielle ? l.partielle.variantesEnBase : l.ads.length;
 }
 
 export const TITRE_LECTURE_INCOMPLETE = 'Lecture incomplète';
@@ -167,10 +204,9 @@ const regle = (b: BornesLectureLots) =>
   `La lecture garde les lots les plus récents, chacun avec toutes ses variantes, jusqu’à ${b.budget.toLocaleString('fr-FR')} variantes en tout et ${b.plafondParLot.toLocaleString('fr-FR')} par lot.`;
 
 /** « 3 variantes lues sur 600 » · « 0 variante lue sur 600 » · `null` lu en entier. */
-export function compteLecture(l: LectureDuLot): string | null {
-  if (lotLuEnEntier(l)) return null;
-  const lues = l.ads.length;
-  return `${pl(lues, 'variante lue', 'variantes lues')} sur ${l.variantesEnBase!.toLocaleString('fr-FR')}`;
+export function compteLecture(l: VariantesDuLot<ReadonlyArray<unknown>>): string | null {
+  if (!l.partielle) return null;
+  return `${pl(l.partielle.variantesLues, 'variante lue', 'variantes lues')} sur ${l.partielle.variantesEnBase.toLocaleString('fr-FR')}`;
 }
 
 /**
@@ -179,11 +215,11 @@ export function compteLecture(l: LectureDuLot): string | null {
  * vrai quand le statut seul le donne (en préparation, prêt, historique) · la
  * liste de variantes affichée reste alors une partie du lot.
  */
-export function phraseLotLuEnPartie(l: LectureDuLot, o: { etatCalcule: boolean; fiche?: boolean }, b: BornesLectureLots = BORNES_LECTURE_LOTS): string | null {
+export function phraseLotLuEnPartie(l: VariantesDuLot<ReadonlyArray<unknown>>, o: { etatCalcule: boolean; fiche?: boolean }, b: BornesLectureLots = BORNES_LECTURE_LOTS): string | null {
   const lu = compteLecture(l);
   if (!lu) return null;
   const suite = o.etatCalcule
-    ? 'les variantes affichées ne sont qu’une partie du lot.'
+    ? 'ses variantes ne sont pas affichées, aucune n’est tirée d’une partie du lot.'
     : 'son état n’est pas calculé sur une partie de ses variantes · il n’est compté ni à conclure ni à importer, et son arbitrage n’est pas proposé ici.';
   // Sur SA fiche, le lot est lu hors budget · lu en partie, il passe le plafond d'un lot seul · le recours est la fiche d'une variante.
   const pourquoi = o.fiche
@@ -193,8 +229,8 @@ export function phraseLotLuEnPartie(l: LectureDuLot, o: { etatCalcule: boolean; 
 }
 
 /** La note de « Lots de test » · combien de lots sont lus en partie · `null` quand tous le sont en entier. */
-export function noteLectureLots(lots: ReadonlyArray<LectureDuLot>, b: BornesLectureLots = BORNES_LECTURE_LOTS): string | null {
+export function noteLectureLots(lots: ReadonlyArray<VariantesDuLot<ReadonlyArray<unknown>>>, b: BornesLectureLots = BORNES_LECTURE_LOTS): string | null {
   const n = lots.filter((l) => !lotLuEnEntier(l)).length;
   if (n === 0) return null;
-  return `${pl(n, 'lot lu', 'lots lus')} en partie · aucun état n’est calculé sur une partie de ${n > 1 ? 'leurs' : 'ses'} variantes · un lot lancé dit « ${TITRE_LECTURE_INCOMPLETE} ». ${regle(b)}`;
+  return `${pl(n, 'lot lu', 'lots lus')} en partie · aucun état n’est calculé sur une partie de ${n > 1 ? 'leurs' : 'ses'} variantes · un lot lancé dit « ${TITRE_LECTURE_INCOMPLETE} ». ${regle(b)} Sa fiche le lit en entier jusqu’à ${b.plafondLotSeul.toLocaleString('fr-FR')} variantes.`;
 }

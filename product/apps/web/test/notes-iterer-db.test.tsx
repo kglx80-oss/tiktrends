@@ -314,7 +314,7 @@ describe('l’écran Itérer EXISTANT depuis une note · la pub du nœud, le tex
     expect(JSON.stringify(enfant!.sourceRef), 'le texte de la note recopié dans la source').not.toContain('le reste tient bien');
     // Relue par la lecture des Résultats (celle du bilan) · elle compte dans « Note de la lignée ».
     const d = await chargerLots(ids.wsA, ids.brandA1);
-    const lue = [...d.lots.flatMap((l) => l.ads), ...d.horsLot].find((a) => a.id === enfant!.id);
+    const lue = [...d.lots.flatMap((l) => l.ads ?? []), ...d.horsLot].find((a) => a.id === enfant!.id);
     expect(lue?.note, 'la lecture des Résultats ne relit pas la provenance').toEqual({ noteId: S.nG, projetId: S.P1 });
     expect(provenanceDuTest({ origine: lue!.origine, typeAd: lue!.typeAd, jarvis: lue!.jarvis, commentaire: lue!.commentaire, note: lue!.note })).toBe('note');
     const apres = await traces();

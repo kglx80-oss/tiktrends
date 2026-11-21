@@ -34,7 +34,7 @@ import { Hypothese, Pub, type SousNavResultats } from './communs';
  * Les lots reçus sont déjà ceux qu'il peut conclure · même parcours ↓ ↑.
  */
 
-export interface LigneLot extends Pick<PresentationLot, 'id' | 'etat' | 'titre' | 'hypothese' | 'categorie' | 'statut' | 'anneau' | 'action'> {
+export interface LigneLot extends Pick<PresentationLot, 'id' | 'etat' | 'titre' | 'hypothese' | 'categorie' | 'statut' | 'anneau' | 'action'>, Partial<Pick<PresentationLot, 'sansHypothese'>> {
   /** `r916` · format vertical, seulement s'il est connu (aucune source aujourd'hui · toujours faux). */
   pubs: Array<{ texte: string; image: string | null; r916?: boolean }>;
   mesure: string;
@@ -132,7 +132,7 @@ export function Lots(p: PropsLots) {
             <span className="stack">{l.pubs.map((x, i) => <Pub key={i} texte={x.texte} image={x.image} r916={x.r916} />)}</span>
             <span style={{ minWidth: 0 }}>
               <h3 id={`lot-titre-${l.id}`}>{l.titre}</h3>
-              <p className="muted" style={{ fontSize: '12.5px', marginTop: 4 }}>{l.hypothese ? <Hypothese texte={l.hypothese} /> : 'Aucune hypothèse écrite sur ses variantes.'}</p>
+              <p className="muted" style={{ fontSize: '12.5px', marginTop: 4 }}>{l.hypothese ? <Hypothese texte={l.hypothese} /> : (l.sansHypothese ?? 'Aucune hypothèse écrite sur ses variantes.')}</p>
               <span className="meta"><span className="pill c"><Ic n="loop" />{l.categorie}</span><span className={`pill ${l.statut.classe}`}>{l.statut.libelle}</span><span className="faint" style={{ fontSize: '11.5px' }}>{l.mesure}</span></span>
             </span>
             <Anneau part={l.anneau.part} taille={54} libelle={l.anneau.libelle} classe={l.anneau.classe} />

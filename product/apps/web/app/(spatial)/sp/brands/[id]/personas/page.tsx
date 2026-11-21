@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import {
+import { variantesDesLotsLus,
   accesHypothese, accesTestsPersona, bilanTestsPersona, citationsPersona, entreesLecturePersonas, imageModelByKey, initialeNom, lecturePersonas, listePropre,
   ordonnerPersonas, regleLecturePersonas, statutPersona, teinteAvatar, testsDuPersona, type LecturePersonas,
   choixIterationSpatial, gestesLectureGroupe, lotsDuGroupe, noteGestesSilenceFiche, NOTE_GESTES_FICHE_PERSONA,
@@ -59,7 +59,7 @@ export default async function PersonasSpatiale({ params }: { params: Promise<{ i
     if (!lus) return { ferme: true as const, raison: portes.lecture! };
     const t = testsDuPersona(lus.lecture, personaId);
     const g = lus.lecture.groupes.find((x) => x.persona.id === personaId);
-    const tests = lus.d.lots.flatMap((l) => l.ads).filter((a) => lus!.persona(a.id)?.id === personaId).map((a) => a.id);
+    const tests = variantesDesLotsLus(lus.d.lots).filter((a) => lus!.persona(a.id)?.id === personaId).map((a) => a.id);
     const gestes = g ? gestesLectureGroupe({ ref: g.persona, lecture: g.lecture, k: g.k, n: g.n, reference: g.reference },
       { groupe: 'persona', note: NOTE_GESTES_FICHE_PERSONA, prioritaires: [], testsDeLaMarque: tests, planIds: lus.planIds }) : null;
     return {

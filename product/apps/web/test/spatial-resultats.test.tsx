@@ -367,7 +367,7 @@ describe('Spatial · Résultats · parité de structure avec la maquette', () =>
         prochaine={{ titre: 'Conclure le lot #1', phrase: 'p', bouton: 'Conclure le lot', href: '/adsmap/lots/1' }}
         idees={([['a', 'chat'], ['b', 'users'], ['c', 'eye']] as const).map(([id, icone]) => ({ id, icone, teinte: 'bleu' as const, origine: 'Suite', texte: 't', categorie: 'Accroche', action: { libelle: 'Formuler', href: '/adsmap/suites' } }))}
         ajouter="/adsmap/suites"
-        preparation={[{ id: 'p', titre: 'Lot #3', categorie: 'Visuel', action: { libelle: 'Compléter', href: '/adsmap/lots/3' }, fait: 2, sur: 4 }]}
+        preparation={[{ id: 'p', titre: 'Lot #3', categorie: 'Visuel', action: { libelle: 'Compléter', href: '/adsmap/lots/3' }, preparation: { part: 50, texte: 'Préparation 2/4' } }]}
         diffusion={[{ id: 'd', titre: 'Lot #2', categorie: 'Format', action: { libelle: 'Suivre', href: '/adsmap/lots/2' }, image: IMG, r916: true, part: 43, jour: 'J6 / 14', bilan: 'b' }]}
         analyse={[
           { id: 'a1', titre: 'Lot #1', categorie: 'Accroche', pubs: [{ image: IMG, gagne: true }, { image: IMG, gagne: false }], detail: 'd', statut: { libelle: 'À conclure', classe: 'g' }, action: { libelle: 'Conclure', href: '/adsmap/lots/1' } },

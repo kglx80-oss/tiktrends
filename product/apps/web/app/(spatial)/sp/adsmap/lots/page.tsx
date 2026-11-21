@@ -1,6 +1,6 @@
 import {
   PARAM_FILTRE_LOTS, actionAConclure, boucleIterationLots, compteLotsEnAttente, dansFiltreLots, filtreInitialLots, gestesListeLots, porteeListeLots, presentationLot,
-  selectionAConclure, sousListeAConclure, sousNavResultats, noteLectureLots,
+  selectionAConclure, sousListeAConclure, sousNavResultats, noteLectureLots, NON_CALCULE_LECTURE,
 } from '@tiktrends/core';
 import { iterationPlanAction } from '../../../../actions/adsmap-iterate';
 import { Lots } from '../../../../../spatial/vues/resultats/Lots';
@@ -40,7 +40,10 @@ export default async function LotsSpatial({ searchParams }: { searchParams: Prom
     : `Aucun seuil enregistré pour cette marque · les verdicts suivent les valeurs par défaut du moteur (cible de ${d.config.targetCpa.toLocaleString('fr-FR')} € par achat) tant que le protocole n’est pas réglé.`;
   const ligne = (l: (typeof d.lots)[number]) => {
     const p = presentationLot(l, d.ctx);
-    return { ...p, pubs: l.ads.slice(0, 2).map((a) => ({ texte: ' ', image: a.image })), mesure: `${p.plateformes} · Coût par achat` };
+    // Lu en partie · aucune vignette ni plateforme tirée de rien (`presentationLot` dit déjà « Lecture incomplète » à la place de l'hypothèse).
+    return l.partielle
+      ? { ...p, pubs: [], mesure: NON_CALCULE_LECTURE }
+      : { ...p, pubs: l.ads.slice(0, 2).map((a) => ({ texte: ' ', image: a.image })), mesure: `${p.plateformes} · Coût par achat` };
   };
 
   if (portee === 'a-conclure') {

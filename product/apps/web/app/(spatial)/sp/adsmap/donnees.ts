@@ -4,7 +4,7 @@ import { and, asc, desc, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm
 import { db, schema } from '@tiktrends/db';
 import {
   DEFAULT_VERDICT_CONFIG, conclusionLot, manquesAvantTest, etatLotSpatial, presentationLot, referenceConclusion, lireOrigineHypothese, lireProvenanceJarvis, lireProvenanceCommentaire, lireProvenanceNote, sommeRetenues,
-  compteAConclure, compteAImporter, lotsConclusLus, lotsALire, BORNES_LECTURE_LOTS,
+  compteAConclure, compteAImporter, lotsConclusLus, lotsALire, lectureDuLot, estLuEnEntier, BORNES_LECTURE_LOTS, type VariantesDuLot,
   type EstimationHypothese, type OrigineHypotheseLibre, type ProvenanceJarvis, type ProvenanceCommentaire, type ProvenanceNote, type VerdictConfig, type VerdictValue, type FaitsAdSpatial, type FaitsLotSpatial, type ContexteLots, type AgregatMesures,
   type FaitsHypotheseAd, type CompteAConclure, type FaitsVerdictSpatial, type SeuilMinimumMoteur, type VarianteFinPrevue,
   type CompteAImporter, type FaitsLotAImporter,
@@ -83,14 +83,20 @@ export interface AdLue extends FaitsAdSpatial {
   note?: ProvenanceNote | null;
 }
 
-export interface LotLu extends FaitsLotSpatial {
-  ads: AdLue[];
-  /** Combien de variantes la base compte pour ce lot, sous la portée de la lecture · moins de variantes lues (`ads`) · lu en partie (`lotLuEnEntier`). */
-  variantesEnBase: number;
+/**
+ * Un lot lu · ses variantes TOUTES (`ads`) ou AUCUNE (`partielle` · ce que la
+ * base compte, ce que la lecture a vu) · `lectureDuLot` · jamais une partie
+ * qu'on parcourrait comme si elle était complète (`VariantesDuLot`, noyau).
+ */
+export type LotLu = {
+  id: string; numero: number; but: string | null; statut: string; lanceLe: string | null;
+  protocole: FaitsLotSpatial['protocole'];
   creeLe: string;
   /** `planned_end_at` (ISO) · `null` sans fin prévue · lue par la liste « Lot » de l'import (`casMesuresLot`). */
   finPrevue: string | null;
-}
+} & VariantesDuLot<AdLue[]>;
+/** Un lot lu en entier · ses `ads` sont là. */
+export type LotLuEntier = Extract<LotLu, { partielle?: undefined }>;
 
 export interface DonneesLots {
   lots: LotLu[];
@@ -274,8 +280,8 @@ export async function chargerLots(workspaceId: string, brandId: string, maintena
         lanceLe: b.launchedAt ? (b.launchedAt as Date).toISOString() : null,
         finPrevue: b.plannedEndAt ? (b.plannedEndAt as Date).toISOString() : null,
         creeLe: (b.createdAt as Date).toISOString(),
-        ads: parLot.get(b.id) ?? [],
-        variantesEnBase: Number(b.enBase),
+        // Toutes les variantes, ou aucune · `partielle` quand la lecture n'a pas vu autant de variantes que la base en compte.
+        ...lectureDuLot(parLot.get(b.id) ?? [], Number(b.enBase)),
         protocole: pc ? { conforme: typeof pc.compliant === 'boolean' ? pc.compliant : null, resume: typeof pc.summary === 'string' ? pc.summary : null } : null,
       };
     }),
@@ -291,7 +297,7 @@ export async function chargerLots(workspaceId: string, brandId: string, maintena
 export const etatsLots = (d: DonneesLots) => d.lots.map((l) => etatLotSpatial(l, d.ctx));
 
 /** Un lot vu par les deux comptes du rail · ce que « à conclure » (`FaitsEtatLot`) et « à importer » (`FaitsLotAImporter`) lisent, son identité. */
-export type LotRailLu = FaitsLotAImporter & { id: string; numero: number; variantesEnBase: number };
+export type LotRailLu = FaitsLotAImporter & { id: string; numero: number };
 
 export interface FaitsRail { lots: LotRailLu[]; ctx: ContexteLots; seuil: SeuilMinimumMoteur }
 
@@ -343,7 +349,7 @@ export async function chargerFaitsRail(workspaceId: string, brandId: string, mai
     db.select({ config: schema.verdictConfigs.config }).from(schema.verdictConfigs).where(eq(schema.verdictConfigs.brandId, brandId)).limit(1),
   ]);
   const config: VerdictConfig = { ...DEFAULT_VERDICT_CONFIG, ...((vc?.config as Partial<VerdictConfig>) ?? {}) };
-  const parLot = new Map<string, LotRailLu['ads'][number][]>();
+  const parLot = new Map<string, NonNullable<LotRailLu['ads']>[number][]>();
   for (const r of lignes) {
     if (!r.lot) continue;
     const v = {
@@ -355,7 +361,7 @@ export async function chargerFaitsRail(workspaceId: string, brandId: string, mai
   }
   const iso = (d: unknown) => (d ? (d as Date).toISOString() : null);
   return {
-    lots: lots.map((b) => ({ id: b.id, numero: b.number, statut: b.status, lanceLe: iso(b.launchedAt), finPrevue: iso(b.plannedEndAt), ads: parLot.get(b.id) ?? [], variantesEnBase: Number(b.enBase) })),
+    lots: lots.map((b): LotRailLu => ({ id: b.id, numero: b.number, statut: b.status, lanceLe: iso(b.launchedAt), finPrevue: iso(b.plannedEndAt), ...lectureDuLot(parLot.get(b.id) ?? [], Number(b.enBase)) })),
     ctx: { maintenant, fenetreJours: config.evaluationWindowDays },
     seuil: config,
   };
@@ -482,7 +488,8 @@ export async function chargerVariantesFinPrevue(workspaceId: string, brandId: st
  */
 export function faitsHypotheses(d: DonneesLots): Array<FaitsHypotheseAd & { ad: AdLue }> {
   return [
-    ...d.lots.flatMap((l) => {
+    // Un lot lu en partie n'expose aucune variante · aucune carte d'hypothèse ne se tire de lui.
+    ...d.lots.filter(estLuEnEntier).flatMap((l) => {
       const p = presentationLot(l, d.ctx);
       const conclusion = conclusionLot(l, p.etat, referenceConclusion(d.lots, l.id));
       return l.ads.map((a) => ({ ad: a, concept: a.concept, bande: a.bande, origine: a.origine, estimation: a.estimation, lot: { id: l.id, numero: l.numero, etat: p.etat, jour: p.etat === 'diffusion' ? p.jour : null, conclusion } }));

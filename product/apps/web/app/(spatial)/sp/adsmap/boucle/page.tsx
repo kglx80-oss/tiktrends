@@ -1,11 +1,11 @@
 import {
   categorieLot, categorieVariable, etatApprentissage, kpisBoucle, lienLotSpatial, moisCourt, niveauPreuveApprentissage,
-  preparationLot, presentationLot, prochaineActionBoucle, sousNavResultats, syntheseLot, type FaitsApprentissage, type FaitsVerdictSpatial,
+  preparationAffichee, estLuEnEntier, variantesDesLotsLus, presentationLot, prochaineActionBoucle, sousNavResultats, syntheseLot, type FaitsApprentissage, type FaitsVerdictSpatial,
 } from '@tiktrends/core';
 import { iterationPlanAction } from '../../../../actions/adsmap-iterate';
 import { Boucle, type PropsBoucle } from '../../../../../spatial/vues/resultats/Boucle';
 import { RefusResultats } from '../../../../../spatial/vues/resultats/communs';
-import { chargerApprentissages, chargerLots, gardeResultats, type AdLue, type LotLu } from '../donnees';
+import { chargerApprentissages, chargerLots, gardeResultats, type AdLue, type LotLuEntier } from '../donnees';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,8 +23,9 @@ export default async function BoucleSpatial() {
   const lus = d.lots.map((l) => ({ l, presentation: presentationLot(l, d.ctx), synthese: syntheseLot(l, d.config.targetCpa) }));
   const suites = plan.view?.rows ?? [];
 
-  const parAd = new Map<string, { ad: AdLue; lot: LotLu | null }>();
-  for (const l of d.lots) for (const a of l.ads) parAd.set(a.id, { ad: a, lot: l });
+  // Les variantes des lots lus en entier · un lot lu en partie n'en expose aucune (`estLuEnEntier`).
+  const parAd = new Map<string, { ad: AdLue; lot: LotLuEntier | null }>();
+  for (const l of d.lots.filter(estLuEnEntier)) for (const a of l.ads) parAd.set(a.id, { ad: a, lot: l });
   for (const a of d.horsLot) parAd.set(a.id, { ad: a, lot: null });
   const faits: Array<FaitsApprentissage & { lanceLe: string | null }> = appris.map((a) => {
     const x = a.adId ? parAd.get(a.adId) : undefined;
@@ -35,7 +36,7 @@ export default async function BoucleSpatial() {
   });
   const valides = faits.filter((f) => etatApprentissage(f) === 'valide');
 
-  const toutes = [...d.lots.flatMap((l) => l.ads), ...d.horsLot];
+  const toutes = [...variantesDesLotsLus(d.lots), ...d.horsLot];
   const verdicts = toutes.map((a) => a.verdict).filter((v): v is FaitsVerdictSpatial => !!v && !!(v.calcule ?? v.retenu));
   const lancements = d.lots.map((l) => l.lanceLe).filter((x): x is string => !!x).sort();
   const cycles = faits.filter((f) => f.source === 'arbitrage' && f.lanceLe)
@@ -62,16 +63,18 @@ export default async function BoucleSpatial() {
       ajouter="/adsmap/suites"
       preparation={de('composition', 'pret').map(({ l, presentation: p }) => ({
         id: l.id, titre: p.titre, categorie: categorieLot(l), action: { libelle: 'Compléter', href: lienLotSpatial(l.id) },
-        ...preparationLot(l, l.ads.filter((a) => a.nomGenere).length),
+        preparation: preparationAffichee(l, l.partielle ? 0 : l.ads.filter((a) => a.nomGenere).length),
       }))}
       diffusion={de('diffusion').map(({ l, presentation: p }) => ({
         id: l.id, titre: p.titre, categorie: categorieLot(l), action: { libelle: 'Suivre', href: lienLotSpatial(l.id) },
-        image: l.ads[0]?.image ?? null, part: p.anneau.part, jour: `J${p.jour ?? 1} / ${p.fenetre}`,
+        // Un lot lu en partie est `illisible`, jamais « en diffusion » · aucune image tirée de rien s'il l'était.
+        image: l.partielle ? null : l.ads[0]?.image ?? null, part: p.anneau.part, jour: `J${p.jour ?? 1} / ${p.fenetre}`,
         bilan: `Bilan le ${dateCourte(p.fin) ?? 'fin de fenêtre'} · rien à faire d’ici là`,
       }))}
       analyse={de('a_conclure', 'a_importer', 'non_concluant').map(({ l, presentation: p, synthese: s }) => ({
         id: l.id, titre: p.titre, categorie: categorieLot(l),
-        pubs: [...l.ads].sort((a, b) => Number(b.id === s.gagnante) - Number(a.id === s.gagnante)).slice(0, 2).map((a) => ({ image: a.image, gagne: a.id === s.gagnante })),
+        // Un lot lu en partie est `illisible`, jamais à analyser · aucune pub tirée de rien s'il l'était.
+        pubs: [...(l.partielle ? [] : l.ads)].sort((a, b) => Number(b.id === s.gagnante) - Number(a.id === s.gagnante)).slice(0, 2).map((a) => ({ image: a.image, gagne: a.id === s.gagnante })),
         detail: p.etat === 'a_importer' ? `${p.fenetre} jours écoulés · mesures manquantes` : p.etat === 'a_conclure' ? `${s.titre} · prêt à conclure` : `${s.titre} · à arbitrer quand même`,
         statut: p.etat === 'a_conclure' ? { libelle: 'À conclure', classe: 'g' } : p.etat === 'a_importer' ? { libelle: 'À importer', classe: 'w' } : { libelle: 'Non concluant', classe: '' },
         action: p.etat === 'a_importer' && g.admin ? { libelle: 'Importer', href: p.action.href } : { libelle: p.etat === 'a_conclure' ? 'Conclure' : 'Voir le lot', href: lienLotSpatial(l.id) },

@@ -213,21 +213,26 @@ function resumerLot(e: Extract<EntreeContexteJarvis, { type: 'lot' }>): Contexte
   const conc = conclusionLot(l, p.etat, referenceConclusion(e.lots, l.id));
   const but = nettoyerContexteJarvis(l.but, B.titre);
   const titre = but ? `Lot #${l.numero} · ${but}` : `Lot #${l.numero}`;
+  // Lu en partie · aucune variante n'est exposée · le nombre est celui de la base, ce qui a été lu est dit (jamais « 0 variante »),
+  // et la question ne parle pas d'un état (« ce lot est lecture incomplète ») · elle demande ce qu'il faut savoir sans ses variantes.
+  const ads = l.partielle ? [] : l.ads;
+  const nb = (k: number) => `${k} variante${k > 1 ? 's' : ''}`;
   const corps = [
-    // Lu en partie · le nombre de variantes est celui de la base, et ce qui a été lu est dit (jamais « 0 variante »).
-    `${titre} · ${p.statut.libelle} · ${plateformesLot(l)}${p.jour !== null ? ` · jour ${p.jour} sur ${p.fenetre}` : ''} · ${compteLecture(l) ? `${l.variantesEnBase} variante${l.variantesEnBase! > 1 ? 's' : ''} en base, ${compteLecture(l)} · lecture incomplète, rien n’est calculé sur ce lot` : `${l.ads.length} variante${l.ads.length > 1 ? 's' : ''}`}`,
+    `${titre} · ${p.statut.libelle}${l.partielle ? '' : ` · ${plateformesLot(l)}`}${p.jour !== null ? ` · jour ${p.jour} sur ${p.fenetre}` : ''} · ${l.partielle ? `${nb(l.partielle.variantesEnBase)} en base, ${compteLecture(l)} · lecture incomplète, rien n’est calculé sur ce lot` : nb(ads.length)}`,
     `Verdict du moteur · ${nettoyerContexteJarvis(syn.titre, B.titre)} · ${nettoyerContexteJarvis(syn.phrase, B.raison)}`,
     `Conclusion du lot · ${conc.titre} · ${nettoyerContexteJarvis(conc.phrase, B.raison)}`,
     ...(e.cibleCpa ? [`Cible de la marque · ${eur(e.cibleCpa)} par achat`] : []),
-    ...l.ads.slice(0, B.variantes).map((a) => {
+    ...ads.slice(0, B.variantes).map((a) => {
       const h = nettoyerContexteJarvis(a.hypothese, B.valeur);
       return `Variante ${nettoyerContexteJarvis(a.variante, 12)} · ${categorieVariable(a.variable)}${h ? ` · « ${h} »` : ' · hypothèse non écrite'} · ${mesures(a)}`;
     }),
-    ...(l.ads.length > B.variantes ? [`… et ${l.ads.length - B.variantes} autres variantes, non détaillées ici`] : []),
+    ...(ads.length > B.variantes ? [`… et ${ads.length - B.variantes} autres variantes, non détaillées ici`] : []),
   ];
-  const gagnante = l.ads.find((a) => a.id === syn.gagnante);
+  const gagnante = ads.find((a) => a.id === syn.gagnante);
   const fini = ETATS_FINIS.has(p.etat);
-  const question = fini
+  const question = l.partielle
+    ? `Sur le ${titre} · ses variantes n’ont pas été lues ici (${compteLecture(l)}). Que faut-il vérifier avant de l’arbitrer variante par variante ?`
+    : fini
     ? `Sur le ${titre} · que faut-il retenir de ce résultat, et quelle variante tester ensuite ?`
     : `Sur le ${titre} · ce lot est ${p.statut.libelle.toLowerCase()}. Qu’est-ce qui manque pour qu’il puisse conclure, et que dois-je surveiller d’ici là ?`;
   return sortie('lot', l.id, titre, corps, question, [
@@ -266,7 +271,8 @@ function resumerResultats(e: Extract<EntreeContexteJarvis, { type: 'resultats' }
   const pres = e.lots.map((l) => ({ l, p: presentationLot(l, e.ctx) }));
   const parEtat = new Map<string, number>();
   for (const { p } of pres) parEtat.set(p.statut.libelle, (parEtat.get(p.statut.libelle) ?? 0) + 1);
-  const ads = [...e.lots.flatMap((l) => l.ads), ...e.horsLot];
+  // Un lot lu en partie n'apporte aucune variante au bilan des hypothèses.
+  const ads = [...e.lots.flatMap((l) => (l.partielle ? [] : l.ads)), ...e.horsLot];
   const avecHypothese = ads.filter((a) => a.hypothese?.trim());
   const tranchees = avecHypothese.map((a) => verdictAffiche(a.verdict)).filter(Boolean);
   const confirmees = tranchees.filter((v) => v === 'winner' || v === 'baby_winner').length;
