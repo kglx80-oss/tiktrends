@@ -175,6 +175,15 @@ export async function applyMesuresAction(csvText: string, confirmees: readonly s
       ensemble: e.source.protocole.ensemble, ensembleId: e.source.protocole.ensembleId, budgetJour: e.source.protocole.budgetJour, cbo: e.source.protocole.cbo,
       fichier: nomFichier, importePar: g.s.user.id, importeLe: new Date(),
     }));
+    // Une ligne MUETTE (ni « Using campaign budget » ni budget d'ensemble · `cboEtabliParExport` nul) qui remplace la même
+    // période de la même annonce (identifiant Meta lu, sinon campagne) ne dit rien du budget · elle GARDE la preuve de la
+    // ligne qu'elle remplace (CBO ou budget d'ensemble) · sans quoi un réimport sans colonne budget effaçait un CBO établi
+    // et laissait revivre une ligne ABO plus ancienne. Une ligne qui dit un budget le remplace, toujours.
+    const T = schema.mesuresCsv;
+    const muetteDeLaMemeAnnonce = sql`(excluded.cbo = false and excluded.budget_jour is null and (
+      (excluded.meta_ad_id is not null and excluded.meta_ad_id = ${T.metaAdId})
+      or (excluded.campagne_id is not null and excluded.campagne_id = ${T.campagneId})
+      or (excluded.campagne is not null and excluded.campagne = ${T.campagne})))`;
     await db!.transaction(async (tx) => {
       for (let i = 0; i < lignes.length; i += 200) {
         await tx.insert(schema.mesuresCsv).values(lignes.slice(i, i + 200)).onConflictDoUpdate({
@@ -184,7 +193,8 @@ export async function applyMesuresAction(csvText: string, confirmees: readonly s
             reach: sql`excluded.reach`, clicks: sql`excluded.clicks`, purchaseValue: sql`excluded.purchase_value`, video3s: sql`excluded.video_3s`,
             thruplays: sql`excluded.thruplays`, videoP50: sql`excluded.video_p50`, addToCart: sql`excluded.add_to_cart`, landingViews: sql`excluded.landing_views`,
             metaAdId: sql`excluded.meta_ad_id`, nomAnnonce: sql`excluded.nom_annonce`, campagne: sql`excluded.campagne`, campagneId: sql`excluded.campagne_id`,
-            ensemble: sql`excluded.ensemble`, ensembleId: sql`excluded.ensemble_id`, budgetJour: sql`excluded.budget_jour`, cbo: sql`excluded.cbo`,
+            ensemble: sql`excluded.ensemble`, ensembleId: sql`excluded.ensemble_id`, budgetJour: sql`case when ${muetteDeLaMemeAnnonce} then ${T.budgetJour} else excluded.budget_jour end`,
+            cbo: sql`case when ${muetteDeLaMemeAnnonce} then ${T.cbo} else excluded.cbo end`,
             fichier: sql`excluded.fichier`, importePar: sql`excluded.importe_par`, importeLe: sql`excluded.importe_le`,
           },
         });

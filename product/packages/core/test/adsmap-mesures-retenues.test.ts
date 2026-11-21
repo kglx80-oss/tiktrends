@@ -115,6 +115,22 @@ describe('protocoleRetenu · la connexion d’abord, sinon la ligne d’export l
     expect(protocoleRetenu(inc, [csv(J(0), J(0), jour(1, 0), '2026-10-01T00:00:00Z', { campagneId: 'c1', budgetJour: 50 }), csv(J(1), J(1), jour(1, 0), '2026-10-09T00:00:00Z', { campagneId: 'c9', cbo: true, budgetJour: null })]).protocole.cbo).toBe(false);
     expect([memeCampagne({ campagneId: 'c1', campagne: 'X' }, { campagneId: 'c1', campagne: 'Y' }), memeCampagne({ campagneId: 'c1', campagne: 'X' }, { campagneId: 'c2', campagne: 'X' }), memeCampagne({ campagneId: null, campagne: null }, { campagneId: null, campagne: null })]).toEqual([true, false, false]);
   });
+  it('export SEUL (ad jamais synchronisée) · même règle · la plus récente ligne DE SA CAMPAGNE qui établit · ligne muette ⇒ inconnu, jamais « non »', () => {
+    const L = (o: Partial<EntreeCsvRetenable['protocole']>, importeLe: string, k: number) => csv(J(k), J(k), jour(1, 0), importeLe, { campagneId: 'c1', ...o });
+    const muette = L({ budgetJour: null, cbo: false }, '2026-10-09T00:00:00Z', 1);
+    expect(protocoleRetenu(null, [muette]), 'export sans colonne budget · le CBO vaut « non » (ABO supposé)').toEqual({ protocole: { ...muette.protocole, nomAnnonce: 'Pub', cbo: null }, source: 'csv' });
+    expect(protocoleRetenu(null, [L({ budgetJour: 50 }, '2026-10-09T00:00:00Z', 1)]).protocole, 'un budget d’ensemble ne prouve plus l’ABO').toMatchObject({ cbo: false, budgetJour: 50 });
+    expect(protocoleRetenu(null, [L({ budgetJour: null, cbo: true }, '2026-10-09T00:00:00Z', 1)]).protocole.cbo, '« Using campaign budget » ne prouve plus le CBO').toBe(true);
+    // Une muette récente n'efface pas ce qu'une ligne plus ancienne de la campagne a établi · le reste du protocole reste celui de la plus récente.
+    const p = protocoleRetenu(null, [L({ budgetJour: null, cbo: true, ensemble: 'ancien' }, '2026-10-01T00:00:00Z', 0), { ...muette, protocole: { ...muette.protocole, ensemble: 'récent' } }]).protocole;
+    expect([p.cbo, p.ensemble], 'une ligne muette récente efface le CBO établi par une ligne plus ancienne').toEqual([true, 'récent']);
+    expect(protocoleRetenu(null, [L({ budgetJour: 50 }, '2026-10-01T00:00:00Z', 0), muette]).protocole.cbo).toBe(false);
+    // Une ligne d'une AUTRE campagne (rattachée par le nom) n'établit rien pour la campagne de la plus récente.
+    expect(protocoleRetenu(null, [L({ campagneId: 'c9', budgetJour: 50 }, '2026-10-01T00:00:00Z', 0), muette]).protocole.cbo, 'une ligne d’une autre campagne établit le CBO de celle-ci').toBeNull();
+    // Le même identifiant Meta d'annonce · même campagne, même sans colonne campagne.
+    const sans = (o: Partial<EntreeCsvRetenable['protocole']>, importeLe: string, k: number) => ({ ...csv(J(k), J(k), jour(1, 0), importeLe, { campagne: null, campagneId: null, ...o }), metaAdId: '120200000000000301' });
+    expect(protocoleRetenu(null, [sans({ budgetJour: 50 }, '2026-10-01T00:00:00Z', 0), sans({ budgetJour: null }, '2026-10-09T00:00:00Z', 1)]).protocole.cbo, 'deux lignes de la même annonce (Ad ID), sans colonne campagne · l’ABO établi est ignoré').toBe(false);
+  });
   it('rien · protocole inconnu, source nulle · CBO inconnu (`null`)', () => {
     expect(protocoleRetenu(undefined, [])).toEqual({ protocole: PROTOCOLE_INCONNU, source: null });
     expect(PROTOCOLE_INCONNU.cbo).toBeNull();

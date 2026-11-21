@@ -254,7 +254,13 @@ export interface ProtocoleLigne {
   ensembleId: string | null;
   /** Budget QUOTIDIEN de l'ensemble · `null` quand il est à vie, absent ou piloté par la campagne. */
   budgetJour: number | null;
-  /** Budget piloté au niveau de la campagne (CBO) · « Utilisation du budget de la campagne ». */
+  /**
+   * La ligne DIT « Utilisation du budget de la campagne » (CBO). `false` ne
+   * prouve PAS l'ABO · seul un budget d'ensemble lu le prouve · le CBO à trois
+   * états s'en déduit (`cboEtabliParExport`, `mesures-retenues.ts`), jamais de
+   * ce booléen seul. Booléen et non `null` · c'est ce que garde la colonne
+   * `adsmap_mesures_csv.cbo` (NOT NULL) · « muette » = `false` sans budget.
+   */
   cbo: boolean;
 }
 

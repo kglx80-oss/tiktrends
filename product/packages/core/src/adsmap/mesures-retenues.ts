@@ -181,6 +181,17 @@ export function memeCampagne(meta: { campagneId: string | null; campagne: string
 }
 
 /**
+ * Le CBO qu'ÉTABLIT la plus récente ligne d'export de la campagne qui en
+ * établit un (`cboEtabliParExport` non nul) · `null` si aucune · une ligne
+ * muette ne dit rien et n'efface pas ce qu'une ligne plus ancienne a établi.
+ * `recentes` · triées de la plus récente à la plus ancienne.
+ */
+function cboEtabliParLaCampagne(recentes: readonly EntreeCsvRetenable[], deLaCampagne: (l: EntreeCsvRetenable) => boolean): boolean | null {
+  const ligne = recentes.find((l) => deLaCampagne(l) && cboEtabliParExport(l.protocole) !== null);
+  return ligne ? cboEtabliParExport(ligne.protocole) : null;
+}
+
+/**
  * Le protocole d'une ad · la connexion d'abord (elle suit l'ensemble tel qu'il
  * tourne), sinon la ligne de fichier importée la plus récente · `source` le dit.
  *
@@ -194,6 +205,13 @@ export function memeCampagne(meta: { campagneId: string | null; campagne: string
  * c'est le contournement naturel d'un jeton sans droits sur les ensembles. Le
  * reste du protocole reste celui de la connexion.
  *
+ * Sans connexion (ad jamais synchronisée) · le protocole est celui de la ligne
+ * la plus récente, son CBO celui qu'établit la plus récente ligne DE SA
+ * CAMPAGNE (même annonce par l'identifiant Meta lu, sinon `memeCampagne`) ·
+ * même règle que côté connexion · aucune ⇒ INCONNU (`null`), jamais `false` ·
+ * un export sans colonne budget ne prouve pas l'ABO (le lot passerait
+ * « comparables » en CBO, §6.1).
+ *
  * Risque connu, non traité · un « non » de la connexion PÉRIMÉ (instance lue en
  * ABO, campagne passée en CBO depuis, ensembles illisibles) tient tant qu'aucun
  * export ne dit CBO · rien ne date le dernier ensemble lu.
@@ -204,13 +222,14 @@ export function protocoleRetenu(
   const recentes = [...csv].sort((x, y) => (x.importeLe < y.importeLe ? 1 : x.importeLe > y.importeLe ? -1 : 0));
   if (meta) {
     const deLaCampagne = (l: EntreeCsvRetenable) => (!!o.idMeta && l.metaAdId === o.idMeta) || memeCampagne(meta, l.protocole);
-    const ligne = recentes.find((l) => deLaCampagne(l) && cboEtabliParExport(l.protocole) !== null);
-    const etabli = ligne ? cboEtabliParExport(ligne.protocole) : null;
+    const etabli = cboEtabliParLaCampagne(recentes, deLaCampagne);
     const cbo = meta.cbo === true || etabli === true ? true : (meta.cbo ?? etabli);
     return { protocole: cbo === meta.cbo ? meta : { ...meta, cbo }, source: 'meta' };
   }
   const dernier = recentes[0];
-  return dernier ? { protocole: { ...dernier.protocole, nomAnnonce: dernier.nomAnnonce }, source: 'csv' } : { protocole: PROTOCOLE_INCONNU, source: null };
+  if (!dernier) return { protocole: PROTOCOLE_INCONNU, source: null };
+  const deSaCampagne = (l: EntreeCsvRetenable) => l === dernier || (!!dernier.metaAdId && l.metaAdId === dernier.metaAdId) || memeCampagne(dernier.protocole, l.protocole);
+  return { protocole: { ...dernier.protocole, nomAnnonce: dernier.nomAnnonce, cbo: cboEtabliParLaCampagne(recentes, deSaCampagne) }, source: 'csv' };
 }
 
 /**

@@ -98,7 +98,7 @@ describe('lots', () => {
   it('protocole seulement INCONNU (ensembles non lus) · l’action est de rétablir la lecture, pas de corriger la structure', () => {
     const d = buildDecisions(input({ batches: [lot({ protocoleInconnu: true })] }));
     expect(d[0]!.type).toBe('protocol_violation');
-    expect(d[0]!.action).toBe('Rétablis l’accès de la connexion Meta aux ensembles de publicités, ou importe un export Ads Manager du lot avec la colonne budget de l’ensemble · le CBO établi, le contrôle du lot se refait.');
+    expect(d[0]!.action).toBe('Importe un export Ads Manager du lot avec la colonne budget de l’ensemble, ou connecte Meta avec l’accès aux ensembles de publicités · le CBO établi, le contrôle du lot se refait.');
     expect(buildDecisions(input({ batches: [lot()] }))[0]!.action).toMatch(/Corrige la structure/);
   });
 
