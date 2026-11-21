@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { ONGLETS_REGLAGES, PAGES_ADMINISTRATION } from '@tiktrends/core';
+import { sessionEquipeTest } from './helpers/face-equipe';
 
 /**
  * UX V2 · lot 4c · les onglets de Réglages et d'Administration, au RÉSULTAT.
@@ -70,11 +71,11 @@ const ROLES: Record<string, () => unknown> = {
   'admin d’espace': () => base({ role: 'admin' }),
   membre: () => base({ role: 'member' }),
   lecteur: () => base({ role: 'client_viewer' }),
-  'équipe plateforme': () => base({ role: 'owner', user: { id: ids.user, email: 'kguilbaux@agence-glx.fr', name: 'K' }, equipe: { role: 'adminplus', matrice: {}, plateformeAdmissible: true } }),
+  'équipe plateforme': () => base({ role: 'owner', user: { id: ids.user, email: 'kguilbaux@agence-glx.fr', name: 'K' }, equipe: sessionEquipeTest({ role: 'adminplus', matrice: {}, plateformeAdmissible: true }) }),
   // Rôle d'équipe GRADÉ · la matrice ne lui montre que Réglages et Équipe du
   // menu de compte. Les onglets en sont un sous-ensemble (jamais plus large
   // que les pages) · la complétude ne s'applique pas à lui.
-  'manager d’équipe (matrice)': () => base({ role: 'owner', equipe: { role: 'manager', matrice: { manager: ['reglages', 'equipe'] }, plateformeAdmissible: true } }),
+  'manager d’équipe (matrice)': () => base({ role: 'owner', equipe: sessionEquipeTest({ role: 'manager', matrice: { manager: ['reglages', 'equipe'] }, plateformeAdmissible: true }) }),
 };
 
 type Issue = { ouvre: boolean; html: string | null; erreur?: string };
@@ -129,7 +130,7 @@ describe('lot 4c · entrée de l’Administration', () => {
   });
 
   it('fondateur sans compte admissible (SEC-10) · ni les modèles IA ni les interrupteurs ne s’ouvrent', async () => {
-    etat.session = base({ role: 'owner', user: { id: ids.user, email: 'kguilbaux@agence-glx.fr', name: 'K' }, equipe: { role: 'adminplus', matrice: {}, plateformeAdmissible: false } });
+    etat.session = base({ role: 'owner', user: { id: ids.user, email: 'kguilbaux@agence-glx.fr', name: 'K' }, equipe: sessionEquipeTest({ role: 'adminplus', matrice: {}, plateformeAdmissible: false }) });
     // Vague 4 · plus aucune page V5 ne porte la barre d'Administration (toutes servies par
     // Spatial) · la protection reste le refus des pages elles-mêmes, gardé ici.
     expect((await rendre('/admin/ia-studios')).ouvre, 'la page refuse bien ce compte').toBe(false);
@@ -144,8 +145,8 @@ describe('lot 4c · entrée de l’Administration', () => {
 
   it('Tour de contrôle Spatial · chaque entrée proposée s’ouvre, pour chaque compte qui y entre (SEC-10)', async () => {
     const comptes = [
-      { nom: 'fondateur non admissible', equipe: { role: 'adminplus', matrice: {}, plateformeAdmissible: false } },
-      { nom: 'fondateur admissible', equipe: { role: 'adminplus', matrice: {}, plateformeAdmissible: true } },
+      { nom: 'fondateur non admissible', equipe: sessionEquipeTest({ role: 'adminplus', matrice: {}, plateformeAdmissible: false }) },
+      { nom: 'fondateur admissible', equipe: sessionEquipeTest({ role: 'adminplus', matrice: {}, plateformeAdmissible: true }) },
       { nom: 'fondateur sans équipe', equipe: undefined },
     ];
     let proposees = 0;
@@ -161,7 +162,7 @@ describe('lot 4c · entrée de l’Administration', () => {
     }
     // Mesuré : 30 entrées proposées sur les trois comptes (28/10/2026) · plancher 20.
     expect(proposees).toBeGreaterThanOrEqual(20);
-    etat.session = base({ role: 'owner', user: { id: ids.user, email: 'kguilbaux@agence-glx.fr', name: 'K' }, equipe: { role: 'adminplus', matrice: {}, plateformeAdmissible: true } });
+    etat.session = base({ role: 'owner', user: { id: ids.user, email: 'kguilbaux@agence-glx.fr', name: 'K' }, equipe: sessionEquipeTest({ role: 'adminplus', matrice: {}, plateformeAdmissible: true }) });
     const admissible = (await rendre('/admin')).html!;
     expect(admissible, 'le fondateur admissible voit bien Modèles IA').toContain('href="/admin/ia-studios"');
     expect(admissible, 'le fondateur admissible voit bien les Interrupteurs').toContain('href="/admin/studios-interrupteurs"');

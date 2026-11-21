@@ -66,6 +66,7 @@ import { semer } from './studios-semis';
 import { projetTest } from './l3-harnais';
 import { avecSpatial } from './spatial/fournisseur';
 import { AD_DRIVE, interditsCreasEtrangeres, objetsAdsmap, semerAdsmapMedias, type SemisAdsmap } from './helpers/semis-adsmap-medias';
+import { sessionEquipeTest } from './helpers/face-equipe';
 
 vi.setConfig({ testTimeout: 120_000, hookTimeout: 120_000 });
 
@@ -282,7 +283,7 @@ beforeAll(async () => {
   s.adsmap = await semerAdsmapMedias(db, schema, { workspaceId: ids.wsA, brandId: ids.brandA1, autreMarqueId: ids.brandA2, lotId: s.lot, objets: ADSMAP });
   s.ad = s.adsmap.ad;
   // Propriétaire fondateur, équipe plateforme · TOUS les écrans s'ouvrent (admin compris).
-  h.session = { user: { id: ids.ua, email: 'ua@studios.test', name: 'Kevin' }, workspaceId: ids.wsA, workspaceName: 'Espace A', role: 'owner', plan: 'business', equipe: { role: 'adminplus', matrice: {}, plateformeAdmissible: true } as SessionTest['equipe'] };
+  h.session = { user: { id: ids.ua, email: 'ua@studios.test', name: 'Kevin' }, workspaceId: ids.wsA, workspaceName: 'Espace A', role: 'owner', plan: 'business', equipe: sessionEquipeTest({ role: 'adminplus', matrice: {}, plateformeAdmissible: true }) as SessionTest['equipe'] };
   h.cookie = ids.brandA1;
 });
 afterAll(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });

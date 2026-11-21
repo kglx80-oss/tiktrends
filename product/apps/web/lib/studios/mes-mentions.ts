@@ -11,6 +11,7 @@ import {
 } from '@tiktrends/core';
 import type { Session } from '../auth';
 import { effectiveAccess } from '../access';
+import { equipeAuthentique } from '../registre-equipe-session';
 import { canAccess, FEATURES, roleAtLeast, type Plan, type Role } from '../rbac';
 import { gardeStudio, type ContexteStudio } from './garde';
 import { lireProjetsDeLaPortee, type ProjetStudio } from './depot';
@@ -225,7 +226,7 @@ async function accesEspacesDeLaCloche(s: SessionMentions, notifs: readonly Notif
       espaces: new Map(lignes.map((l) => {
         const role = (l.role ?? null) as Role | null;
         if (!role) return [l.id.toLowerCase(), { recap: false, radar: false }];
-        const acces = effectiveAccess({ role, plan: ((l.plan as Plan) || 'starter'), user: s.user, equipe: s.equipe });
+        const acces = effectiveAccess({ role, plan: ((l.plan as Plan) || 'starter'), user: s.user, equipe: equipeAuthentique(s) });
         return [l.id.toLowerCase(), { recap: destinataireRecap(role), radar: pageRadarOuverte({ resultats: canAccess(acces, RESULTATS), admin: roleAtLeast(role, 'admin') }) }];
       })),
     };

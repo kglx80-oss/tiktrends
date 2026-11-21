@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { Session } from '../lib/auth';
+import { sessionEquipeTest } from './helpers/face-equipe';
 
 /**
  * Semis commun des tests studios · deux espaces, trois marques, cinq personnes.
@@ -22,13 +23,21 @@ export type IdsStudios = ReturnType<typeof idsStudios>;
 
 export type SessionTest = Pick<Session, 'user' | 'workspaceId' | 'workspaceName' | 'role' | 'plan' | 'equipe'>;
 
+/**
+ * La session d'un membre du semis, comme `getSession` la rendrait · une
+ * `equipe` passée ici est AUTHENTIFIÉE (`sessionEquipeTest`, le registre que
+ * remplit `equipeDeSession`) · sinon chaque lecteur la vaudrait absente
+ * (`equipeAuthentique`, suite de #1124). Un test qui éprouve une équipe
+ * reconstruite à la main la pose lui-même, après coup.
+ */
 export function session(ids: IdsStudios, qui: 'ua' | 'uv' | 'ur' | 'ub', surcharge: Partial<SessionTest> = {}): SessionTest {
   const ws = qui === 'ub' ? ids.wsB : ids.wsA;
   const role = qui === 'uv' ? 'client_viewer' : 'member';
+  const { equipe, ...reste } = surcharge;
   return {
     user: { id: ids[qui], email: `${qui}@studios.test`, name: null },
     workspaceId: ws, workspaceName: ws === ids.wsA ? 'Espace A' : 'Espace B',
-    role, plan: 'core', equipe: null, ...surcharge,
+    role, plan: 'core', ...reste, equipe: equipe ? sessionEquipeTest(equipe) : null,
   };
 }
 

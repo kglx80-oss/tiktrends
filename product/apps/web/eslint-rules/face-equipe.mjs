@@ -389,7 +389,12 @@ export const pasDeTsIgnore = {
  */
 /** Le nom, recomposé · ce fichier est lu par le recensement, qui refuse ce nom hors de rbac.ts et access.ts. */
 export const INSCRIPTION = ['inscrireFace', 'Equipe'].join('');
-/** Une porte réservée · son nom importé (nommé, renommé, ré-exporté) ou lu sur un espace de noms est signalé. */
+/**
+ * Une porte réservée · son nom importé (nommé, renommé, ré-exporté), lu sur un
+ * espace de noms, ou DÉSTRUCTURÉ (`const { porte: x } = module`, `({ porte })
+ * => …`, sur un espace de noms ou un `await import(…)`) est signalé.
+ */
+const cleDePropriete = (p) => (p.key.type === 'Identifier' && !p.computed ? p.key.name : p.key.type === 'Literal' ? p.key.value : null);
 function porteReservee(nom, description, message) {
   return {
     meta: { type: 'problem', docs: { description }, schema: [], messages: { porte: message } },
@@ -402,6 +407,7 @@ function porteReservee(nom, description, message) {
           const p = n.property;
           if ((!n.computed && p.type === 'Identifier' && p.name === nom) || (p.type === 'Literal' && p.value === nom)) signaler(n);
         },
+        'ObjectPattern > Property'(n) { if (cleDePropriete(n) === nom) signaler(n); },
       };
     },
   };

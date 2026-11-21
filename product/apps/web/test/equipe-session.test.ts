@@ -60,10 +60,11 @@ describe('effectiveAccess · equipe prime, client inchangé', () => {
     expect(a.plan).toBe('business');
   });
 
+  // AUTHENTIFIÉE (comme getSession la rend) · sinon la session vaudrait absente et le cas passerait sans éprouver l'admissibilité.
   it('équipe à accès total NON admissible → face client · formule de l’espace, pas d’Access.equipe', () => {
     const a = effectiveAccess({
       role: 'client_viewer', plan: 'starter', user: { email: AUTRE },
-      equipe: { role: 'admin', matrice: {}, plateformeAdmissible: false },
+      equipe: sessionEquipeTest({ role: 'admin', matrice: {}, plateformeAdmissible: false }),
     });
     expect(a).toEqual({ role: 'client_viewer', plan: 'starter' });
   });
@@ -79,7 +80,7 @@ describe('effectiveAccess · equipe prime, client inchangé', () => {
 
   it('équipe gradée NON admissible (ou admissibilité absente) → face client (« Fermer aussi »)', () => {
     for (const plateformeAdmissible of [false, undefined]) {
-      const a = effectiveAccess({ role: 'client_viewer', plan: 'starter', user: { email: AUTRE }, equipe: { role: 'membre', matrice: {}, plateformeAdmissible } });
+      const a = effectiveAccess({ role: 'client_viewer', plan: 'starter', user: { email: AUTRE }, equipe: sessionEquipeTest({ role: 'membre', matrice: {}, plateformeAdmissible }) });
       expect(a).toEqual({ role: 'client_viewer', plan: 'starter' });
     }
   });
