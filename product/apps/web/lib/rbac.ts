@@ -159,12 +159,46 @@ declare const FACE_EQUIPE: unique symbol;
 export type FaceEquipe = { readonly role: RolePlateforme; readonly matrice: MatriceDroits; readonly [FACE_EQUIPE]: true };
 export type NavItem = Feature & { locked: boolean; isSub: boolean };
 
+/**
+ * ── La vraie barrière · le registre des faces équipe (suite de #1122) ────────
+ * La marque de type ci-dessus ne garde que la COMPILATION · un cast, un `any`
+ * (réponse d'API, `JSON.parse`), une garde de type ou une surcharge la
+ * contournent, et la liste de ces formes ne sera jamais close. La décision se
+ * prend donc à l'EXÉCUTION · `effectiveAccess` (lib/access.ts) inscrit ici
+ * chaque objet `equipe` qu'il construit, gelé, et tout lecteur de
+ * `Access.equipe` passe par `faceEquipeReconnue`. Un objet qui n'a pas été
+ * inscrit · littéral, copie (`{ ...face }`, `structuredClone`), aller-retour
+ * JSON, props sérialisées vers un composant client · vaut ABSENT · face client,
+ * rôle d'espace et verrous de formule. Un WeakSet ne retient rien · une face
+ * oubliée par la requête est libérée.
+ *
+ * `inscrireFaceEquipe` est la seule porte d'entrée · seul lib/access.ts
+ * l'appelle (règle `tiktrends/inscription-face-equipe`, recensement
+ * `secu-fondateurs-codes-sources`). Les tests passent par `effectiveAccess`
+ * (`test/helpers/face-equipe.ts`).
+ */
+const FACES_RECONNUES = new WeakSet<object>();
+
+/** RÉSERVÉ à `effectiveAccess` (lib/access.ts) · inscrit une face qu'il vient de construire sous `privilegesEquipe`. */
+export function inscrireFaceEquipe(face: FaceEquipe): FaceEquipe {
+  FACES_RECONNUES.add(face);
+  return face;
+}
+
+/** La face équipe d'un accès, SI `effectiveAccess` l'a construite · sinon null (face client). Seul lecteur de `Access.equipe`. */
+export function faceEquipeReconnue(a: Access): FaceEquipe | null {
+  const f = a.equipe;
+  // `typeof` d'abord · un `any` peut y avoir posé une chaîne ou un nombre, que WeakSet#has accepte sans lever.
+  return typeof f === 'object' && f !== null && FACES_RECONNUES.has(f) ? f : null;
+}
+
 /** La feature est-elle VISIBLE ? Client · rôle d'espace. Équipe · matrice des rubriques. */
 function voitFeature(a: Access, f: Feature): boolean {
-  if (!a.equipe) return roleAtLeast(a.role, f.minRole);
+  const equipe = faceEquipeReconnue(a);
+  if (!equipe) return roleAtLeast(a.role, f.minRole);
   const rub = rubriqueDeFeature(f.key);
   if (rub === null) return true; // sans rubrique (support) · toujours pour l'équipe
-  return roleVoitRubrique(a.equipe.role, rub, a.equipe.matrice);
+  return roleVoitRubrique(equipe.role, rub, equipe.matrice);
 }
 
 /**
@@ -175,7 +209,7 @@ function voitFeature(a: Access, f: Feature): boolean {
  * face client · la formule réelle de son espace s'applique.
  */
 function verrouille(a: Access, f: Feature): boolean {
-  return a.equipe ? false : !planAtLeast(a.plan, f.minPlan);
+  return faceEquipeReconnue(a) ? false : !planAtLeast(a.plan, f.minPlan);
 }
 
 /** Navigation du rail, groupée ; les sous-menus suivent leur parent (indentés). */
@@ -208,13 +242,13 @@ export function accountSections(a: Access): Array<{ section: AccountSection; ite
 
 /** L'utilisateur a-t-il accès ? Client · rôle ET formule. Équipe · la rubrique suffit (pas de formule). */
 export function canAccess(a: Access, f: Feature): boolean {
-  if (a.equipe) return voitFeature(a, f);
+  if (faceEquipeReconnue(a)) return voitFeature(a, f);
   return roleAtLeast(a.role, f.minRole) && planAtLeast(a.plan, f.minPlan);
 }
 
 /** Raison d'un refus (pour l'UI de page verrouillée). */
 export function denyReason(a: Access, f: Feature): 'role' | 'plan' | null {
-  if (a.equipe) return voitFeature(a, f) ? null : 'role';
+  if (faceEquipeReconnue(a)) return voitFeature(a, f) ? null : 'role';
   if (!roleAtLeast(a.role, f.minRole)) return 'role';
   if (!planAtLeast(a.plan, f.minPlan)) return 'plan';
   return null;
