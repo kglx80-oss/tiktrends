@@ -68,7 +68,7 @@ import { semer, session } from './studios-semis';
 import { ctxDe } from './l3-harnais';
 import { projetAvecBrief, lancerLot, executer, sortiesDuJob, KEYFRAMES, saisieTest } from './l4c-harnais';
 import { avecSpatial } from './spatial/fournisseur';
-import { attendreMontageStable } from './helpers/attendre-etat';
+import { attendreEtat, attendreMontageStable, pasDansAct } from './helpers/attendre-etat';
 import { creerVariante } from '../lib/studios/variantes/variantes';
 import { rattacherVarianteAuTest } from '../lib/studios/variantes/tests';
 import { creerProjet as creerProjetDepot } from '../lib/studios/depot';
@@ -305,7 +305,7 @@ describe('l’écran Itérer EXISTANT · la pub de la création, le commentaire 
     await saisir('[data-champ="hypothese"]', `${TEXTE_G()} Si on le fait, le coût par achat baisse.`);
     expect(await traces(), 'rien de créé avant le clic').toEqual(avant);
     await cliquer(document.querySelector('#orn [data-geste="creer-iteration"]'), 'créer l’itération');
-    for (let i = 0; i < 50 && (await traces()).ads === avant.ads; i += 1) await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
+    await attendreEtat('l’itération créée est écrite (le compte des fiches a bougé)', async () => (await traces()).ads !== avant.ads, { pas: pasDansAct });
     const [e] = (await db.select().from(schema.iterationEdges).where(eq(schema.iterationEdges.parentAdId, S.adGagnante)));
     expect(e, 'une itération depuis la pub de la création').toBeTruthy();
     const [enfant] = await db.select().from(schema.ads).where(eq(schema.ads.id, e!.childAdId));

@@ -60,7 +60,7 @@ import type { InspoAd } from '@tiktrends/integrations';
 import { NOTE_GESTES_SILENCE, NIVEAU_BILAN_PROVENANCE, lienIterationVariable, lienJarvisCarteHypothese, lireOrigineHypothese, wilsonInterval } from '@tiktrends/core';
 import { semer, session } from './studios-semis';
 import { avecSpatial } from './spatial/fournisseur';
-import { attendreMontageStable } from './helpers/attendre-etat';
+import { attendreEtat, attendreMontageStable, pasDansAct } from './helpers/attendre-etat';
 import { saveAd } from '../app/actions/inspo';
 import { creerHypotheseAction } from '../app/actions/adsmap-hypotheses';
 import { validateVerdictAction } from '../app/actions/adsmap-verdict';
@@ -341,7 +341,7 @@ describe('P06 · les gestes depuis la lecture par persona · seulement quand un 
 
     await saisir(f.querySelector('textarea[name="alors"]'), 'le coût par achat baisse sur ce segment');
     await cliquer([...f.querySelectorAll('button')].find((b) => b.textContent === 'Ranger dans « À formuler »'), 'ranger');
-    for (let i = 0; i < 50 && (await traces()).ads === avant.ads; i++) await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
+    await attendreEtat('l’hypothèse rangée est écrite (le compte des fiches a bougé)', async () => (await traces()).ads !== avant.ads, { pas: pasDansAct });
     expect((await traces()).ads - avant.ads, 'l’hypothèse n’est pas créée').toBe(1);
     const brouillons = await db.select().from(schema.ads).where(and(eq(schema.ads.workspaceId, ids.wsA), eq(schema.ads.status, 'draft')));
     const neuve = brouillons.find((a) => lireOrigineHypothese(a.sourceRef)?.type === 'persona')!;

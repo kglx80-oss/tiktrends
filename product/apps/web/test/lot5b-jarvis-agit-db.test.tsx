@@ -419,14 +419,22 @@ describe('lot 5 bis · le tiroir de la coquille reçoit le contexte de la page (
   const pageJointe = (type: string) => attendreEtat(`la page « ${type} » est jointe (relue par le serveur, rendue)`, () => document.querySelector(`[data-contexte-page="${type}"] [data-libelle-page]`), { pas: pasDansAct });
   /**
    * Rien de joint · seulement une fois que CHAQUE relecture demandée a répondu, et que l'écran a
-   * rendu sa réponse. `doitRelire` (la règle du noyau, `contexteTiroirJarvis`) · une relecture DOIT
-   * être partie depuis `avant` · sinon « 0 réponse pour 0 demande » passerait pour une réponse.
+   * rendu sa réponse. `doitRelire` (dit par le TEST, jamais recalculé par la règle qu'il éprouve) ·
+   * EXACTEMENT une relecture partie depuis `avant` (ou aucune) · sinon « 0 réponse pour 0 demande »
+   * passerait pour une réponse, et deux relectures pour une seule page passeraient pour une.
    */
-  const relecturesRepondues = (avant: number, doitRelire: boolean) => attendreEtat(
-    doitRelire ? 'la relecture du contexte est partie et a répondu' : 'chaque relecture du contexte demandée a répondu',
-    () => h.contextes.reponses === h.contextes.demandes && h.contextes.demandes >= avant + (doitRelire ? 1 : 0),
-    { pas: pasDansAct, stabilite: 3 },
-  );
+  const relecturesRepondues = (avant: number, doitRelire: boolean) => {
+    const attendues = doitRelire ? 1 : 0;
+    return attendreEtat(
+      doitRelire ? 'UNE relecture du contexte est partie et a répondu' : 'aucune relecture du contexte n’est partie',
+      () => {
+        const { demandes, reponses } = h.contextes;
+        if (reponses === demandes && demandes === avant + attendues) return true;
+        throw new Error(`${demandes - avant} relecture(s) demandée(s) depuis le montage pour ${attendues} attendue(s) · ${demandes - reponses} sans réponse`);
+      },
+      { pas: pasDansAct, stabilite: 3 },
+    );
+  };
 
   it('la fiche d’un lot · relue, affichée, envoyée comme `{ type, id }` · retirée, elle ne part plus', async () => {
     await monter(tiroir(`/adsmap/lots/${S.L1}`));
@@ -444,12 +452,21 @@ describe('lot 5 bis · le tiroir de la coquille reçoit le contexte de la page (
   });
 
   it('un lot d’une autre marque, une page sans contexte · rien de joint, plein écran nu · un projet · seul le plein écran le porte', async () => {
-    for (const chemin of [`/adsmap/lots/${S.L2}`, '/veille', `/adsmap/lots/${encodeURIComponent("' or 1=1")}`]) {
+    // Ce que chaque page DOIT faire, écrit en dur · le lot d'une autre marque (L2) est relu, et c'est le SERVEUR
+    // qui refuse (IDOR) · le recalculer par `contexteTiroirJarvis` rendrait le test aveugle à une règle qui répond `null`.
+    const cas: ReadonlyArray<readonly [string, boolean]> = [
+      [`/adsmap/lots/${S.L2}`, true],
+      ['/veille', false],
+      [`/adsmap/lots/${encodeURIComponent("' or 1=1")}`, false],
+    ];
+    for (const [chemin, doitRelire] of cas) {
+      expect(contexteTiroirJarvis(chemin) !== null, `${chemin} · la règle du noyau ne demande pas la relecture que ce cas éprouve`).toBe(doitRelire);
       const avant = h.contextes.demandes;
-      const doitRelire = contexteTiroirJarvis(chemin) !== null;
       await monter(tiroir(chemin));
       await relecturesRepondues(avant, doitRelire);
       if (!doitRelire) expect(h.contextes.demandes, `${chemin} · aucune relecture attendue`).toBe(avant);
+      // Rien de joint, rien de l'autre marque · tenu dans la durée (un joint posé en retard la viole).
+      await attendreAbsence(`${chemin} · rien de joint au tiroir, rien de l’autre marque`, () => !document.querySelector('[data-contexte-page]') && !/SECRET/.test(document.body.innerHTML));
       expect(document.querySelector('[data-contexte-page]'), chemin).toBeNull();
       expect(pleinEcran(), chemin).toBe('/jarvis');
       expect(document.body.innerHTML, chemin).not.toMatch(/SECRET/);

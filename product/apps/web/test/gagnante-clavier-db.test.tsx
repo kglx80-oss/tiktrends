@@ -67,7 +67,7 @@ import { semer, session } from './studios-semis';
 import { ctxDe } from './l3-harnais';
 import { projetAvecBrief, lancerLot, executer, sortiesDuJob, KEYFRAMES, saisieTest } from './l4c-harnais';
 import { avecSpatial, CTX_TEST } from './spatial/fournisseur';
-import { attendreAbsence, attendreMontageStable } from './helpers/attendre-etat';
+import { attendreAbsence, attendreEtat, attendreMontageStable, pasDansAct } from './helpers/attendre-etat';
 import { creerVariante } from '../lib/studios/variantes/variantes';
 import { rattacherVarianteAuTest } from '../lib/studios/variantes/tests';
 import { commenterProjet } from '../app/actions/studios/activite';
@@ -308,10 +308,10 @@ describe('la touche T · lot conclu avec gagnante · LE lien du bouton de sa var
     await saisir(document.querySelector('[data-champ="valeur"]') as HTMLInputElement, 'Une valeur nouvelle et précise');
     await cliquer(document.querySelector('#orn [data-geste="creer-iteration"]'), 'créer l’itération');
     let arete: { childAdId: string } | undefined;
-    for (let i = 0; i < 80 && !arete; i += 1) {
+    await attendreEtat('l’itération depuis la gagnante de T est écrite (son arête)', async () => {
       [arete] = await db.select({ childAdId: schema.iterationEdges.childAdId }).from(schema.iterationEdges).where(eq(schema.iterationEdges.parentAdId, S.depart));
-      if (!arete) await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
-    }
+      return arete;
+    }, { pas: pasDansAct });
     expect(arete, 'aucune itération depuis la gagnante de T').toBeTruthy();
     const [enfant] = await db.select().from(schema.ads).where(eq(schema.ads.id, arete!.childAdId));
     expect(lireDepuisGagnante(enfant!.sourceRef), 'l’itération née de T ne porte pas `depuisGagnante`').toEqual({ source: 'lot', lotId: S.lots.C.id, hypotheseAdId: null, gagnanteAdId: S.depart });
@@ -344,6 +344,8 @@ describe('la touche T · lot conclu avec gagnante · LE lien du bouton de sa var
   it('raccourcis à une touche coupés (`tt_raccourcis`) · T inerte · ni navigation, ni toast, ni touche promise', async () => {
     document.cookie = 'tt_raccourcis=0; path=/';
     await monter(await page(S.lots.C.id));
+    // Préalable positif · sans lui, une fiche qui ne rend rien (un écran de refus) passerait pour « T inerte ».
+    expect(T(), 'préalable · la fiche du lot est rendue').not.toBeNull();
     await touche('t');
     await attendreAbsence('T inerte · ni navigation, ni toast', () => h.push.mock.calls.length === 0 && toasts.length === 0);
     expect(h.push, 'T part alors que les raccourcis sont coupés').not.toHaveBeenCalled();
