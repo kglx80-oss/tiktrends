@@ -8,6 +8,7 @@ import {
   type RolePlateforme,
 } from '@tiktrends/core';
 import { getSession } from '../../lib/auth';
+import { equipeAuthentique } from '../../lib/registre-equipe-session';
 
 const HOME = '/admin/equipe';
 
@@ -20,13 +21,16 @@ const HOME = '/admin/equipe';
  * Le garde lit le rôle d'équipe de la session (posé par getSession), pas le rôle
  * d'espace ni « fondateur » : c'est ce qui permet à un admin ajouté ICI de gérer
  * l'équipe à son tour, sans redéploiement. Un compte sans accès total est
- * renvoyé au tableau de bord.
+ * renvoyé au tableau de bord. Seule l'équipe AUTHENTIQUE compte
+ * (`equipeAuthentique`, suite de #1124) · une équipe reconstruite à la main
+ * vaut absente, son `plateformeAdmissible` n'ouvre aucune écriture.
  */
 async function exigerAccesTotal() {
   const s = await getSession();
   if (!s || !db) redirect('/login');
-  if (!s.equipe || !accesTotal(s.equipe.role)) redirect('/dashboard');
-  if (!peutEcrireEquipe(s.equipe, (r) => accesTotal(r as RolePlateforme))) redirect(`${HOME}?e=admissible`);
+  const equipe = equipeAuthentique(s);
+  if (!equipe || !accesTotal(equipe.role)) redirect('/dashboard');
+  if (!peutEcrireEquipe(equipe, (r) => accesTotal(r as RolePlateforme))) redirect(`${HOME}?e=admissible`);
   return s;
 }
 

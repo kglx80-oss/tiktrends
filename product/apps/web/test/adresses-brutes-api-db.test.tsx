@@ -106,6 +106,7 @@ import { jetonScelle } from './helpers/depot-jeton';
 import type { UsageDepot } from '@tiktrends/core';
 import { ORIGINES_DEPART_ASSISTANT, type OrigineDepartAssistant } from '@tiktrends/core';
 import { interditsCreasEtrangeres, objetsAdsmap, semerAdsmapMedias, type SemisAdsmap } from './helpers/semis-adsmap-medias';
+import { sessionEquipeTest } from './helpers/face-equipe';
 
 vi.setConfig({ testTimeout: 120_000, hookTimeout: 120_000 });
 
@@ -676,7 +677,7 @@ beforeAll(async () => {
   octets.set(cleDe(SCENE), await sharp({ create: { width: 40, height: 50, channels: 3, background: { r: 200, g: 180, b: 160 } } }).png().toBuffer());
   const [pu] = await db.insert(schema.generations).values({ brandId: ids.brandA1, kind: 'ad', status: 'completed', input: { template: 'benefits', sceneUrl: SCENE, headline: 'Une peau nette', cta: 'Acheter', accent: '#123456' }, output: {} }).returning({ id: schema.generations.id });
   s.pub = pu!.id;
-  h.session = { user: { id: ids.ua, email: 'ua@studios.test', name: 'Kevin' }, workspaceId: ids.wsA, workspaceName: 'Espace A', role: 'owner', plan: 'business', equipe: { role: 'adminplus', matrice: {}, plateformeAdmissible: true } as SessionTest['equipe'] };
+  h.session = { user: { id: ids.ua, email: 'ua@studios.test', name: 'Kevin' }, workspaceId: ids.wsA, workspaceName: 'Espace A', role: 'owner', plan: 'business', equipe: sessionEquipeTest({ role: 'adminplus', matrice: {}, plateformeAdmissible: true }) as SessionTest['equipe'] };
   h.cookie = ids.brandA1;
   // Un projet statique AVEC brief (source, hypothèse, produit dont la photo vit au stockage) et une maquette · il se lit, s'exporte, se rend.
   const source = sourceConcurrente(ids);

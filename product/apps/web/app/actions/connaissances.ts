@@ -10,6 +10,7 @@ import {
 import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../lib/auth';
+import { equipeAuthentique } from '../../lib/registre-equipe-session';
 import {
   listerConnaissances, lireUneConnaissance, ecrireConnaissance, usageConnaissances, type UsageVersion,
 } from '../../lib/jarvis-connaissances';
@@ -19,8 +20,8 @@ import { GUARD } from '../../lib/guard-error';
 /**
  * Les gestes de l'écran Connaissances · réservés à l'ACCÈS TOTAL plateforme.
  *
- * Le garde lit le rôle d'ÉQUIPE de la session (`s.equipe`, posé par
- * `getSession` · fondateur ou ligne `platform_staff`), jamais le rôle d'espace :
+ * Le garde lit le rôle d'ÉQUIPE AUTHENTIQUE de la session (`equipeAuthentique`,
+ * posé par `getSession` · fondateur ou ligne `platform_staff`), jamais le rôle d'espace :
  * un owner ou un admin d'espace client est refusé, parce qu'une inscription
  * libre crée un owner. Chaque geste relit la connaissance, applique la règle
  * pure du noyau, et n'écrit que si personne ne l'a modifiée entre-temps.
@@ -42,7 +43,7 @@ async function garde(): Promise<{ auteur: string } | { error: string }> {
   // La vraie raison du refus (noyau) · un Admin d'équipe NON admissible (compte
   // créé après son inscription, SEC-10) lit pourquoi et quoi demander, au lieu
   // de « réservé aux Admin ».
-  const refus = refusConnaissances(s.equipe);
+  const refus = refusConnaissances(equipeAuthentique(s));
   if (refus) return { error: refus };
   return { auteur: s.user.email };
 }

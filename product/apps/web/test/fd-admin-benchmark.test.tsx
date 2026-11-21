@@ -36,9 +36,10 @@ import { approuverBudgetBenchmarkAction, joindreFichesBenchmarkAction } from '..
 import { lancerCampagneSimulee } from '../lib/studios/benchmark/programme';
 import * as depot from '../lib/studios/prompts/depot-prompts';
 import { acteurPlateforme } from './l2-outils';
+import { sessionEquipeTest } from './helpers/face-equipe';
 
 const base = (o: Record<string, unknown>) => ({ user: { id: ids.user, email: 'equipe@plateforme.test', name: null }, workspaceId: ids.ws, workspaceName: 'Démo', plan: 'business', ...o });
-const EQUIPE = () => base({ role: 'owner', equipe: { role: 'adminplus', matrice: {}, plateformeAdmissible: true } });
+const EQUIPE = () => base({ role: 'owner', equipe: sessionEquipeTest({ role: 'adminplus', matrice: {}, plateformeAdmissible: true }) });
 const REFUSES: Array<[string, () => unknown]> = [
   ['owner d’espace', () => base({ role: 'owner', equipe: null })],
   ['admin d’espace', () => base({ role: 'admin', equipe: null })],
