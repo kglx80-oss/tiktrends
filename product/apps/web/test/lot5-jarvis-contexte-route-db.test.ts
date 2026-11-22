@@ -17,10 +17,11 @@ import type { IdsStudios, SessionTest } from './studios-semis';
  * 0 $ réel · fournisseur simulé.
  */
 
-const h = vi.hoisted(() => ({ ids: null as unknown as IdsStudios, session: null as SessionTest | null, marque: null as string | null }));
+const h = vi.hoisted(() => ({ ids: null as unknown as IdsStudios, session: null as SessionTest | null, marque: null as string | null, petite: '' }));
 vi.hoisted(() => {
   const { randomUUID: u } = require('node:crypto') as typeof import('node:crypto');
   h.ids = { wsA: u(), wsB: u(), brandA1: u(), brandA2: u(), brandB1: u(), ua: u(), uv: u(), ur: u(), ub: u() };
+  h.petite = u();
 });
 
 vi.mock('@tiktrends/db', async (importOriginal) => {
@@ -46,7 +47,7 @@ vi.mock('../lib/jarvis-memory', async (importOriginal) => ({
 
 import { db, schema, eq } from '@tiktrends/db';
 import {
-  REFUS_CONTEXTE_JARVIS, TITRE_BLOC_CONTEXTE_JARVIS, TITRE_BLOC_CONCEPT_JARVIS,
+  BORNES_LECTURE_LOTS, NON_CALCULE_LECTURE, REFUS_CONTEXTE_JARVIS, TITRE_BLOC_CONTEXTE_JARVIS, TITRE_BLOC_CONCEPT_JARVIS,
   contenuVide, empreinteContenu, SCHEMA_VERSION_CONTENU, type ContenuVersion,
 } from '@tiktrends/core';
 import { semer, session } from './studios-semis';
@@ -57,7 +58,7 @@ import { POST } from '../app/api/jarvis/chat/route';
 vi.setConfig({ testTimeout: 120_000, hookTimeout: 180_000 });
 
 const ids = h.ids;
-const S = { L1: '', L2: '', L3: '', V1: '', V2: '', H1: '', H2: '', P1: '', P2: '' };
+const S = { L1: '', L2: '', L3: '', V1: '', V2: '', H1: '', H2: '', P1: '', P2: '', LP: '', HP: '' };
 const proprietaire = (): SessionTest => session(ids, 'ua', { role: 'owner', plan: 'plus' });
 let mock: Awaited<ReturnType<typeof demarrerMockFournisseur>>;
 const HYPO_A1 = 'Si on ouvre sur la preuve clinique, alors le coût par achat baisse, parce que la peur de l’irritation tombe.';
@@ -107,6 +108,16 @@ beforeAll(async () => {
   const c3 = await chaine(ids.wsB, ids.brandB1, 'Concept secret B1');
   S.L3 = await lot(ids.wsB, ids.brandB1, 1, 'SECRET_LOT_B1');
   await ad(ids.wsB, c3, S.L3, 'V1', 'HYPOTHESE_SECRETE_B1', 'loser');
+  // « Petite » #2 · un lot en préparation au-delà du plafond d'un lot SEUL (même sa fiche le lit en partie) · une hypothèse y est rangée.
+  await db.insert(schema.brands).values({ id: h.petite, workspaceId: ids.wsA, name: 'Petite' });
+  const cp = await chaine(ids.wsA, h.petite, 'Petite');
+  const [lp] = await db.insert(schema.batches).values({ workspaceId: ids.wsA, brandId: h.petite, number: 2, goal: 'Petite préparation', status: 'planned' }).returning({ id: schema.batches.id });
+  S.LP = lp!.id;
+  const n = BORNES_LECTURE_LOTS.plafondLotSeul + 1;
+  const brouillons = Array.from({ length: n }, (_, k) => ({ workspaceId: ids.wsA, conceptId: cp, batchId: S.LP, variantCode: `b${String(k).padStart(4, '0')}`, status: 'draft' as const, hypothesis: k === n - 1 ? 'HYPOTHESE_NON_LUE_PETITE' : null }));
+  for (let i = 0; i < n; i += 500) await db.insert(schema.ads).values(brouillons.slice(i, i + 500));
+  const [hp] = await db.select({ id: schema.ads.id }).from(schema.ads).where(eq(schema.ads.hypothesis, 'HYPOTHESE_NON_LUE_PETITE'));
+  S.HP = hp!.id;
   S.P1 = await projet(ids.brandA1, 'Crème hiver');
   S.P2 = await projet(ids.brandA2, 'PROJET_SECRET_A2');
 }, 240_000);
@@ -156,6 +167,36 @@ describe('lot 5 · la route reçoit { type, id } et relit le contexte', () => {
     expect(liees.length, 'une conversation liée au projet').toBe(1);
     await poser({ message: 'Et ensuite ?', contexte: { type: 'projet', id: S.P1 } });
     expect((await db.select().from(schema.jarvisConversations).where(eq(schema.jarvisConversations.projectId, S.P1))).length, 'le même fil, pas un second').toBe(1);
+  });
+
+  it('une hypothèse rangée dans un lot lu en partie (« Petite » #2) · 409 « non calculé », avant tout appel, aucune réservation', async () => {
+    // Le régime qui RÉSERVE · forfait V2, interrupteur levé, solde · sans lui, la conversation est incluse et « aucune réservation » ne prouverait rien.
+    process.env.TARIFS_V2 = '1';
+    h.session = session(ids, 'ua', { role: 'owner', plan: 'pro' });
+    await db.update(schema.workspaces).set({ plan: 'pro', creditsBalance: 1000 }).where(eq(schema.workspaces.id, ids.wsA));
+    try {
+      const compte = async () => ({
+        modele: mock.recues.length,
+        depense: (await db.select({ id: schema.aiSpend.id }).from(schema.aiSpend)).length,
+        credits: (await db.select({ id: schema.creditLedger.id }).from(schema.creditLedger)).length,
+        solde: (await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, ids.wsA)))[0]!.c,
+        messages: (await db.select({ id: schema.jarvisMessages.id }).from(schema.jarvisMessages)).length,
+      });
+      // Le témoin · un envoi qui part réserve ses crédits et sa dépense, puis appelle le modèle.
+      const t0 = await compte();
+      expect((await poser({ message: 'Cette hypothèse ?', contexte: { type: 'hypothese', id: S.H1 } })).status, 'préalable · le témoin part').toBe(200);
+      const t1 = await compte();
+      expect([t1.modele - t0.modele, t1.depense > t0.depense, t1.credits > t0.credits], 'préalable · un envoi qui part appelle le modèle, réserve sa dépense et ses crédits').toEqual([1, true, true]);
+      h.marque = h.petite;
+      const avant = await compte();
+      const r = await poser({ message: 'Analyse', contexte: { type: 'hypothese', id: S.HP }, brandId: h.petite });
+      expect(r.status, 'une hypothèse d’un lot lu en partie').toBe(409);
+      expect(JSON.parse(r.texte).error, 'la raison · non calculé, jamais le refus de droits').toBe(NON_CALCULE_LECTURE);
+      expect(await compte(), 'un refus « non calculé » appelle le modèle, réserve une dépense ou des crédits, ou écrit').toEqual(avant);
+    } finally {
+      delete process.env.TARIFS_V2;
+      await db.update(schema.workspaces).set({ plan: 'plus' }).where(eq(schema.workspaces.id, ids.wsA));
+    }
   });
 
   it('autre marque · 404 avant tout appel, aucune écriture', async () => {
