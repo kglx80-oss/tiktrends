@@ -147,6 +147,47 @@ describe('journal · sans doublon, trié, filtré, paginé', () => {
     expect(resumeJournal({ page: 1, pages: 1, total: 0, type: null })).toBe('Aucun événement sur ce projet pour l’instant.');
   });
 
+  it('même instant · l’ordre d’ÉCRITURE départage (transaction, puis commande), jamais l’identifiant aléatoire', () => {
+    // Le cas du run 45035270381 · quatre consignes puis le devis qui les lit, même milliseconde ·
+    // identifiants choisis CONTRE l'ordre d'écriture (le premier écrit a le plus grand).
+    const le = '2026-11-22T10:00:00.123Z';
+    const consigne = (i: number) => audit('video.consigne_plan.compilee', { id: `z${9 - i}`, le, ecriture: { transaction: 1036 + i, commande: 0 } });
+    const devis = audit('quote.create', { id: 'a0', le, ecriture: { transaction: 1040, commande: 11 } });
+    const version: FaitJournal = { source: 'version', id: 'zzzz', le, acteur: 'Toi', versionN: 1, raison: 'test', ecriture: { transaction: 1035, commande: 2 } };
+    const lu = (f: FaitJournal[]) => journalProjet(f, { projectId: P }).entrees.map((e) => e.phrase);
+    const attendu = ['Devis préparé', ...Array(4).fill('Consigne d’image d’un plan compilée et validée'), 'Version 1 enregistrée'];
+    expect(lu([version, consigne(0), consigne(1), consigne(2), consigne(3), devis])).toEqual(attendu);
+    expect(lu([devis, consigne(3), consigne(2), consigne(1), consigne(0), version]), 'quel que soit l’ordre de lecture').toEqual(attendu);
+    // Une même transaction · la commande départage · le dernier écrit d'abord.
+    const premier = audit('image.consigne.compilee', { id: 'ffff', le, ecriture: { transaction: 7, commande: 1 } });
+    const second = audit('video.consigne_plan.compilee', { id: '0000', le, ecriture: { transaction: 7, commande: 2 } });
+    expect(lu([premier, second])).toEqual(['Consigne d’image d’un plan compilée et validée', 'Consigne d’image compilée et validée']);
+    // Le compteur de transactions repasse par zéro (32 bits) · 5 est écrite APRÈS 4 294 967 290.
+    const avantRepli = audit('image.consigne.compilee', { id: 'ffff', le, ecriture: { transaction: 4_294_967_290, commande: 0 } });
+    const apresRepli = audit('video.consigne_plan.compilee', { id: '0000', le, ecriture: { transaction: 5, commande: 0 } });
+    expect(lu([avantRepli, apresRepli])).toEqual(['Consigne d’image d’un plan compilée et validée', 'Consigne d’image compilée et validée']);
+  });
+
+  it('même instant, ordre d’écriture inconnu · un ordre TOTAL · la même liste quel que soit l’ordre de lecture, l’identifiant en dernier recours', () => {
+    const le = '2026-11-22T10:00:00.123Z';
+    const faits: FaitJournal[] = [
+      audit('image.consigne.compilee', { id: 'b', le, ecriture: { transaction: 20, commande: 0 } }),
+      audit('quote.create', { id: 'a', le, ecriture: { transaction: 21, commande: 0 } }),
+      { source: 'version', id: 'v', le, acteur: null, versionN: 4, raison: '', ecriture: { transaction: 19, commande: 0 } },
+      { source: 'tache', id: 'j:fin', jobId: 'j', le, operation: 'keyframe:s1', etat: 'completed', fini: true },
+      { source: 'note', id: 'n', le, acteur: null, geste: 'ecrite', noeud: 'Plan 1' },
+      audit('project.rename', { id: 'c', le, ecriture: null }),
+    ];
+    const ordre = (f: FaitJournal[]) => journalProjet(f, { projectId: P }).entrees.map((e) => e.id);
+    const reference = ordre(faits);
+    // Sans ordre d'écriture d'abord (tâche, note, puis l'audit sans `ecriture`, par identifiant décroissant) · puis l'ordre d'écriture.
+    expect(reference).toEqual(['tache:j:fin', 'note:n', `audit:c`, 'audit:a', 'audit:b', 'version:v']);
+    for (let k = 0; k < 24; k += 1) {
+      const melange = [...faits].sort((x, y) => ((x.id.charCodeAt(0) * (k + 3)) % 7) - ((y.id.charCodeAt(0) * (k + 3)) % 7));
+      expect(ordre(melange), `lecture ${k}`).toEqual(reference);
+    }
+  });
+
   it('les types offerts sont ceux de l’écran, une seule fois chacun', () => {
     expect(new Set(TYPES_JOURNAL.map((t) => t.cle)).size).toBe(TYPES_JOURNAL.length);
     expect(typeJournal('exports')).toBe('exports');

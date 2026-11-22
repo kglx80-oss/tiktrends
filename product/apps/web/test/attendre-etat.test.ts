@@ -11,7 +11,43 @@ import { attendreEtat, attendreMontageStable, BORNE_ATTENTE_MS, sondeDomInchange
  * charge (un état qui arrive « vers 30 ms » est seulement affirmé arrivé, jamais à l'heure).
  */
 
-const apres = (ms: number) => { const t0 = performance.now(); return () => performance.now() - t0 >= ms; };
+/**
+ * Vraie `ms` après son PREMIER sondage · l'horloge part dans la sonde, jamais avant l'appel ·
+ * `attendreEtat` prend son départ (`debut`) avant ce premier sondage, donc `r.ms` couvre au moins
+ * `ms`. Partie à la création de la sonde, elle laissait `r.ms` à 30 ms moins l'écart entre la
+ * création et l'appel (quelques µs) · excédent mesuré sur 300 passages au mieux de 0,07 ms, assez
+ * près pour qu'un passage sur quelques centaines tombe sous 30.
+ */
+const apres = (ms: number) => { let t0: number | null = null; return () => { const t = performance.now(); t0 ??= t; return t - t0 >= ms; }; };
+
+/**
+ * Le grain des minuteries de Node · une minuterie de `ms` part d'une horloge de boucle tronquée à
+ * la milliseconde et se déclenche quand cette horloge a avancé de `ms` · mesurée par
+ * `performance.now()` (sous-milliseconde), elle peut finir plus tôt (moins de 1 ms sur l'horloge
+ * fine, près de 2 ms sur l'horloge grossière, voir plus bas). Le défaut ne s'ajoute pas d'une
+ * minuterie à l'autre · chaque échéance tombe sur la même grille, donc N pauses enchaînées perdent
+ * ce grain une fois en tout, pas N fois. Mesuré le 22/11/2026, machine de 4 cœurs ·
+ * `attendreEtat(…, { stabilite: 6, intervalleMs: 10 })`, cible (6 - 1) × 10 = 50 ms :
+ *
+ *   régime                    passages   sous 50 ms   déficit max   min        p50        max
+ *   au repos                    300         12          0,385 ms     49,615     50,865     98,485
+ *   au repos (2e série)         300          9          0,267 ms     49,733     50,911    191,187
+ *   12 boucles CPU actives      300          9          0,280 ms     49,720     51,001    159,377
+ *   stabilité 21 × 2 ms (40)    300          0          aucun        40,849     43,315    122,083
+ *
+ * 30 passages sur 900 (3,3 %) sous 50 ms · d'où le rouge du run 45035270381 (49,869). Aucun sous
+ * 49 · le déficit le plus grand mesuré (0,385 ms) reste sous 1 ms.
+ *
+ * Ce tableau vient d'un noyau en HZ=250 (`CONFIG_HZ=250`, lu sur la machine de mesure), où libuv
+ * lit l'horloge fine (`CLOCK_MONOTONIC`). Les machines de la CI sont probablement en HZ=1000 · sur
+ * ce réglage, libuv lit `CLOCK_MONOTONIC_COARSE` (sa résolution, une jiffy de 1 ms, passe sous son
+ * seuil d'une milliseconde), qui retarde lui-même jusqu'à 1 ms sur l'horloge fine · cette lecture
+ * en retard s'ajoute à la troncature, et la borne réelle approche 2 ms. Le grain retenu est donc
+ * 2 ms, pas 1 · il couvre les deux horloges sans mesure locale possible du cas grossier. La garde
+ * exige plus de (N - 1) × intervalle - 2 ms, soit 48 ms · une pause sautée (40 ms), cinq pauses
+ * raccourcies de 2 ms (40 ms) ou toutes sautées (0 ms) tombent.
+ */
+const GRAIN_MINUTERIE_MS = 2;
 
 describe('attendreEtat · sonde une condition jusqu’à ce qu’elle tienne', () => {
   it('condition déjà vraie · un seul sondage, aucun délai', async () => {
@@ -53,10 +89,10 @@ describe('attendreEtat · sonde une condition jusqu’à ce qu’elle tienne', (
 });
 
 describe('attendreEtat · stabilité · l’état doit TENIR N sondages d’affilée', () => {
-  it('un état stable · accepté après exactement N sondages, au moins (N - 1) × intervalle', async () => {
+  it('un état stable · accepté après exactement N sondages, au moins (N - 1) × intervalle, au grain des minuteries près', async () => {
     const r = await attendreEtat('stable', () => true, { stabilite: 6, intervalleMs: 10 });
     expect(r.sondages).toBe(6);
-    expect(r.ms).toBeGreaterThanOrEqual(50);
+    expect(r.ms, 'cinq pauses de 10 ms entre les six sondages').toBeGreaterThan((6 - 1) * 10 - GRAIN_MINUTERIE_MS);
   });
 
   it('un état atteint puis DÉFAIT remet le compte à zéro · attendu jusqu’à ce qu’il tienne', async () => {
