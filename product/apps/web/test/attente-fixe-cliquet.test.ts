@@ -207,7 +207,8 @@ const SOMMEIL = new RegExp(
 /**
  * `Promise.withResolvers()` · `const { promise, resolve } = Promise.withResolvers()` (ou `resolve: r`,
  * ou `const d = …` puis `d.resolve`) suivi d'un MINUTEUR qui appelle son résolveur · le même sommeil,
- * écrit en deux instructions. On lit le premier minuteur qui suit, avant le `withResolvers` suivant.
+ * écrit en deux instructions. On lit le premier minuteur qui suit · deux `withResolvers` qui trouvent
+ * le même ne le comptent qu'une fois (les sommeils sont dédupliqués par position).
  */
 const AVEC_RESOLVEURS = new RegExp(String.raw`(?:const|let|var)\s+(?:\{(?<champs>[^{}]*)\}|(?<objet>${NOM}))\s*(?::[^=;]+)?=\s*Promise\s*\.\s*withResolvers\s*(?:<[^>]*>)?\s*\(\s*\)`, 'g');
 const TIMERS_PROMESSES = /from\s+['"](?:node:)?timers\/promises['"]|require\(\s*['"](?:node:)?timers\/promises['"]\s*\)/g;
@@ -266,17 +267,16 @@ function sommeils(source: string): number[] {
     if (rien(g.val ?? g.val2) || (g.jete && !lueApres(s, fermante(s, ouvre)))) out.add(ouvre);
   }
   const bornes = [...s.matchAll(AVEC_RESOLVEURS)];
-  bornes.forEach((m, k) => {
+  bornes.forEach((m) => {
     const g = m.groups!;
     // Le nom du résolveur · `d.resolve`, `resolve`, ou l'alias de `resolve: fin`.
     const champ = g.objet ? null : new RegExp(String.raw`\bresolve\b(?:\s*:\s*(${NOM}))?`).exec(g.champs!);
     if (!g.objet && !champ) return;
     const nom = g.objet ? String.raw`${g.objet.replace(/\$/g, '\\$')}\s*\.\s*resolve` : (champ![1] ?? 'resolve').replace(/\$/g, '\\$');
-    const fin = bornes[k + 1]?.index ?? s.length;
     const t = new RegExp(String.raw`(?<![\w$.])` + MINUTEUR + rappel(nom), 'g');
     t.lastIndex = m.index! + m[0].length;
     const u = t.exec(s);
-    if (u && u.index < fin && garder(u.index) && !delaiNul(u.groups!.delai) && rien(u.groups!.val ?? u.groups!.val2)) out.add(u.index);
+    if (u && garder(u.index) && !delaiNul(u.groups!.delai) && rien(u.groups!.val ?? u.groups!.val2)) out.add(u.index);
   });
   }
   for (const m of source.matchAll(PAS_DANS_ACT)) if (!delaiNul(m[1])) out.add(m.index!);
@@ -557,8 +557,9 @@ describe('le détecteur · il voit chaque forme de sommeil, et seulement elles',
     // Les deux lectures ne commencent pas au même endroit · une seule attente.
     ['un commentaire en fin de ligne au-dessus · compté une fois', `charger(); // la suite\nawait new Promise((r) => ${Z}(r, 30));`],
     // Un backtick dans une expression régulière ouvre un faux gabarit dans le masque · le brut le voit.
-    ['un backtick dans une expression régulière, au-dessus', `const CODE = /\`([^\`]+)\`/g;\nawait new Promise((r) => ${Z}(r, 400));`],
-    ['`withResolvers`, un backtick dans une expression régulière au-dessus', `const CODE = /\`([^\`]+)\`/g;\nconst { promise, resolve } = Promise.withResolvers();\n${Z}(resolve, 400);\nawait promise;`],
+    // (Trois backticks · le troisième ouvre un faux gabarit que referme le gabarit d'en dessous.)
+    ['un backtick dans une expression régulière, au-dessus', `const CODE = /\`([^\`]+)\`/g;\nawait new Promise((r) => ${Z}(r, 400));\nexpect(md).toContain(\`fin\`);`],
+    ['`withResolvers`, un backtick dans une expression régulière au-dessus', `const CODE = /\`([^\`]+)\`/g;\nconst { promise, resolve } = Promise.withResolvers();\n${Z}(resolve, 400);\nawait promise;\nexpect(md).toContain(\`fin\`);`],
     // La tête d'instruction se lit par-dessus les retours à la ligne.
     ['une valeur jetée · après un retour à la ligne', `charger();\n  await new Promise((r) => ${Z}(() => r(1), 10));`],
     ['deux `withResolvers`, un seul minuteur · compté une fois', `it('a', async () => { const { promise, resolve } = Promise.withResolvers(); resolve(); await promise; });\nit('b', async () => { const { promise, resolve } = Promise.withResolvers(); ${Z}(resolve, 400); await promise; });`],
