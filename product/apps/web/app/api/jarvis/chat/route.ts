@@ -1,7 +1,7 @@
 import { preparerVeilleVisuelle } from '../../../../lib/jarvis/veille-visuelle';
 import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { trimThread, personnalisationAccueil, actionsPromptBlock, costOfTokens, sha256Hex, contexteSelonPuces, consigneOnboardingJarvis, type ChatMessage, messageServiceInactif, lireContexteCorps, REFUS_CONTEXTE_JARVIS, type ContexteJarvisResolu } from '@tiktrends/core';
+import { trimThread, personnalisationAccueil, actionsPromptBlock, costOfTokens, sha256Hex, contexteSelonPuces, consigneOnboardingJarvis, type ChatMessage, messageServiceInactif, lireContexteCorps, NON_CALCULE_LECTURE, REFUS_CONTEXTE_JARVIS, type ContexteJarvisResolu } from '@tiktrends/core';
 import { messagesDeConversation, conversationAppartient, conversationDuProjet, creerConversation, toucherConversation } from '../../../../lib/jarvis/conversations';
 import { messagesOnboarding, insererMessageOnboarding } from '../../../../lib/jarvis/onboarding';
 import { getSession } from '../../../../lib/auth';
@@ -89,10 +89,13 @@ export async function POST(req: Request) {
   // message garde son prix.
   let contexte: ContexteJarvisResolu | null = null;
   if (body?.contexte !== undefined && body?.contexte !== null) {
-    contexte = brand && !body.veille && (!body.brandId || body.brandId === brand.id)
+    const lu = brand && !body.veille && (!body.brandId || body.brandId === brand.id)
       ? await resoudreContexteJarvis(s, brand, lireContexteCorps(body.contexte))
       : null;
-    if (!contexte) return json({ error: REFUS_CONTEXTE_JARVIS }, 404);
+    if (!lu) return json({ error: REFUS_CONTEXTE_JARVIS }, 404);
+    // Une hypothèse dans la portée, rangée dans un lot lu en partie · rien ne part (aucun résumé tiré d'une ad non lue), et le refus serait faux.
+    if (lu.partielle) return json({ error: NON_CALCULE_LECTURE }, 409);
+    contexte = lu;
   }
 
   const client = guardedAnthropic({ workspaceId: s.workspaceId, action: 'jarvis-chat' });

@@ -194,6 +194,35 @@ export function variantesDe<L extends VariantesDuLot<ReadonlyArray<unknown>>>(l:
   return l.partielle ? { partielle: l.partielle } : { ads: l.ads as NonNullable<L['ads']> };
 }
 
+/**
+ * L'ad d'une HYPOTHÈSE dans ce que la lecture des lots a vu · `{ ad }` · dans un lot lu en entier, ou hors lot ·
+ * `{ partielle }` · elle n'a pas été lue (son lot est lu en partie, ou elle passe la borne des annonces hors lot) ·
+ * l'hypothèse compte UNE variante en base, aucune lue · rien n'est tiré d'elle, l'écran dit « non calculé » ·
+ * `null` · introuvable dans la portée · le refus (la même phrase pour « inconnue », « autre marque », « sans droit »).
+ *
+ * `rangement` · le lot de l'ad, relu DANS LA PORTÉE (espace, graphe de la marque) · AVANT d'en rien dire ·
+ * `undefined` · pas relu, ou hors portée · `null` · rangée dans aucun lot. Un lot absent de la lecture (celui
+ * d'une autre marque) ne dit rien · `null`. Avant, une hypothèse d'un lot lu en partie sortait « hors portée » ·
+ * l'écran parlait de droits, la vraie cause était une lecture incomplète.
+ */
+export function hypotheseDansLaLecture<A extends { id: string }>(
+  id: string,
+  lots: ReadonlyArray<{ id: string } & VariantesDuLot<ReadonlyArray<A>>>,
+  horsLot: ReadonlyArray<A>,
+  rangement?: string | null,
+): { ad: A; partielle?: undefined } | { ad?: undefined; partielle: LecturePartielle } | null {
+  for (const l of lots) {
+    const ad = l.partielle ? undefined : l.ads.find((a) => a.id === id);
+    if (ad) return { ad };
+  }
+  const ad = horsLot.find((a) => a.id === id);
+  if (ad) return { ad };
+  const nonLue = { partielle: { variantesEnBase: 1, variantesLues: 0 } };
+  if (rangement === undefined) return null;
+  if (rangement === null) return nonLue;
+  return lots.find((l) => l.id === rangement)?.partielle ? nonLue : null;
+}
+
 /** La raison d'un geste fermé sur un lot lu en partie · vraie (rien n'est calculé), avec le recours. */
 export const RAISON_GESTE_LECTURE_INCOMPLETE = 'Non calculé · lecture incomplète · arbitre depuis la fiche de test d’une variante.';
 

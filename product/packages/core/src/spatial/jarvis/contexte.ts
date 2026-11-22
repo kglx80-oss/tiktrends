@@ -182,6 +182,7 @@ export type EntreeContexteJarvis =
   | { type: 'projet'; brandId: string; id: string; titre: string; etape: string; bloc: string };
 
 export interface ContexteJarvisResolu {
+  partielle?: undefined;
   type: TypeContexteJarvis;
   id: string;
   /** La puce de l'écran · « Lot #12 · Affirmation ou question ? ». */
@@ -195,6 +196,13 @@ export interface ContexteJarvisResolu {
   /** D'autres questions, en puces · chacune PRÉPARE le champ, aucune n'envoie. */
   questions: string[];
 }
+
+/**
+ * Une hypothèse dans la portée, mais rangée dans un lot lu en partie (ou au-delà de la borne des annonces hors lot) ·
+ * ni résumé (rien n'est tiré d'une ad non lue), ni refus (la portée est passée · le refus parlerait de droits) ·
+ * l'écran dit `NON_CALCULE_LECTURE`, rien n'est joint ni envoyé.
+ */
+export interface ContexteJarvisNonLu { partielle: true }
 
 function sortie(type: TypeContexteJarvis, id: string, libelle: string, corps: string[], question: string, questions: string[]): ContexteJarvisResolu {
   const tete = [TITRE_BLOC_CONTEXTE_JARVIS, AVERTISSEMENT];

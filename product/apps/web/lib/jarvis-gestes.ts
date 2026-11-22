@@ -1,7 +1,7 @@
 import 'server-only';
 import { and, eq, inArray } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { variantesDesLotsLus, variantesDe, type VariantesDuLot,
+import { variantesDe, type VariantesDuLot,
   iterationProjetDepuisVariantes, dejaTesteesSurPub, etatLotSpatial, gestesContexteJarvis, parentDepuisPlan, reponseLisible, variablesDuPlan, variantesEssaiProjet,
   type CandidatIteration, type CandidatProjetJarvis, type ChoixVariablesIteration, type DemandeContexteJarvis, type GesteJarvis, type TestedVariable,
   type VarianteEssaiJarvis,
@@ -12,7 +12,7 @@ import { canAccess, FEATURES } from './rbac';
 import { gardeStudio } from './studios/garde';
 import { getActiveBrand } from './brands';
 import { listerVariantes } from './studios/variantes/variantes';
-import { chargerLots, type AdLue, type LotLu } from '../app/(spatial)/sp/adsmap/donnees';
+import { chargerHypothese, chargerLots, type AdLue, type LotLu } from '../app/(spatial)/sp/adsmap/donnees';
 import { iterationPlanAction } from '../app/actions/adsmap-iterate';
 
 /**
@@ -122,29 +122,35 @@ export async function lireCandidatsProjet(s: SessionLue, brandId: string, projec
 }
 
 export interface ContexteGestesLu {
-  /** Les variantes du contexte · celles du lot (TOUTES, ou AUCUNE · `partielle`), ou la seule ad de l'hypothèse · jamais un `[]` à la place d'un lot. */
+  /**
+   * Les variantes du contexte · celles du lot (TOUTES, ou AUCUNE · `partielle`), ou la seule ad de l'hypothèse (ou
+   * AUCUNE · `partielle`, elle est dans la portée mais non lue · son lot est lu en partie) · jamais un `[]` à la place d'un lot.
+   */
   variantes: VariantesDuLot<AdLue[]>;
   /** Le lot à conclure · le lot joint, ou celui de l'hypothèse. */
   lot: LotLu | null;
   etat: ReturnType<typeof etatLotSpatial> | null;
 }
 
-/** Le lot ou l'hypothèse, relu dans la marque active · `null` hors portée (autre marque, sans droit, inconnu). */
+/**
+ * Le lot ou l'hypothèse, relu dans la marque active · `null` hors portée (autre marque, sans droit, inconnu) · une
+ * hypothèse dans la portée mais non lue (`chargerHypothese` · son lot est lu en partie) · ses variantes `partielle`,
+ * son lot et son état · les gestes et l'essai disent « non calculé », jamais le refus de droits.
+ */
 export async function lireContexteGestes(s: SessionLue, brandId: string, demande: DemandeContexteJarvis, maintenant: Date = new Date()): Promise<ContexteGestesLu | null> {
   if (demande.type !== 'lot' && demande.type !== 'hypothese') return null;
   if (!canAccess(effectiveAccess(s), ADSMAP)) return null;
   try {
-    // Le lot joint est lu en entier, hors budget (`lotEntier`), comme sa fiche et le contexte de Jarvis.
-    const d = await chargerLots(s.workspaceId, brandId, maintenant, demande.type === 'lot' ? { lotEntier: demande.id } : {});
-    if (demande.type === 'lot') {
-      const lot = d.lots.find((l) => l.id === demande.id);
-      // Lu en partie (au-delà du plafond d'un lot seul) · aucune variante, état `illisible` · ni « Conclure », ni « Itérer » ne se tirent de rien.
-      return lot ? { variantes: variantesDe(lot), lot, etat: etatLotSpatial(lot, d.ctx) } : null;
+    if (demande.type === 'hypothese') {
+      const h = await chargerHypothese(s.workspaceId, brandId, demande.id, maintenant);
+      if (!h) return null;
+      return { variantes: h.partielle ? { partielle: h.partielle } : { ads: [h.ad] }, lot: h.lot, etat: h.lot ? etatLotSpatial(h.lot, h.d.ctx) : null };
     }
-    const ad = [...variantesDesLotsLus(d.lots), ...d.horsLot].find((a) => a.id === demande.id);
-    if (!ad) return null;
-    const lot = ad.lotId ? d.lots.find((l) => l.id === ad.lotId) ?? null : null;
-    return { variantes: { ads: [ad] }, lot, etat: lot ? etatLotSpatial(lot, d.ctx) : null };
+    // Le lot joint est lu en entier, hors budget (`lotEntier`), comme sa fiche et le contexte de Jarvis.
+    const d = await chargerLots(s.workspaceId, brandId, maintenant, { lotEntier: demande.id });
+    const lot = d.lots.find((l) => l.id === demande.id);
+    // Lu en partie (au-delà du plafond d'un lot seul) · aucune variante, état `illisible` · ni « Conclure », ni « Itérer » ne se tirent de rien.
+    return lot ? { variantes: variantesDe(lot), lot, etat: etatLotSpatial(lot, d.ctx) } : null;
   } catch {
     return null;
   }
