@@ -28,6 +28,9 @@ set -euo pipefail
 # laissait passer `/home/debian//backups` ou un lien vers ce dossier. Un
 # chemin impossible à résoudre (realpath absent) est refusé, jamais comparé à
 # vide. Le dépôt du VPS n'appelle pas realpath : son chemin ne change pas.
+# Ses chemins doivent être ABSOLUS · un `../../backups` relatif, lancé depuis
+# /home/debian, se résout en /backups ici mais en /home/debian/backups après le
+# `cd "$REPO"` de `principal` : la comparaison ne garderait rien.
 # Gardes : apps/web/test/ops-backup-hors-site.test.ts.
 VPS_REPO="/home/debian/tiktrends"
 VPS_SAUVEGARDES="/home/debian/backups"
@@ -54,7 +57,21 @@ configurer() {
       return 2
       ;;
   esac
+  case "$RACINE" in
+    /*) ;;
+    *)
+      echo "[$(date -Is)] ARRÊT · copie d'essai ($RACINE) · TIKTRENDS_REPO n'est pas un chemin absolu : il changerait de sens au \`cd\` de la sauvegarde." >&2
+      return 2
+      ;;
+  esac
   BACKUP_DIR="${TIKTRENDS_SAUVEGARDES:-$RACINE/../sauvegardes}"
+  case "$BACKUP_DIR" in
+    /*) ;;
+    *)
+      echo "[$(date -Is)] ARRÊT · copie d'essai ($RACINE) · TIKTRENDS_SAUVEGARDES=$BACKUP_DIR n'est pas un chemin absolu : il changerait de sens au \`cd\` de la sauvegarde, et pourrait y désigner le dossier de la production." >&2
+      return 2
+      ;;
+  esac
   if ! dossier_reel="$(realpath -m -- "$BACKUP_DIR" 2>/dev/null)" || ! prod_reel="$(realpath -m -- "$VPS_SAUVEGARDES" 2>/dev/null)" || [ -z "$dossier_reel" ] || [ -z "$prod_reel" ]; then
     echo "[$(date -Is)] ARRÊT · copie d'essai ($RACINE) · chemin du dossier de sauvegarde ($BACKUP_DIR) impossible à résoudre (realpath -m) : rien ne prouve que ce n'est pas celui de la production." >&2
     return 2
@@ -98,7 +115,22 @@ principal() {
   local keep=14   # nombre de sauvegardes quotidiennes conservées
   local fichier partiel code
   cd "$REPO"
-  mkdir -p "$BACKUP_DIR"
+  mkdir -p -- "$BACKUP_DIR"
+
+  # Un passage à la fois · un second, lancé à la main pendant celui de 03h30,
+  # supprimait le `.part` du premier (le nettoyage ci-dessous), qui finissait
+  # en « sauvegarde vide », code 1 · et deux passages dans la même seconde
+  # écrivaient le même fichier. Verrou exclusif NON bloquant sur un fichier
+  # caché du dossier (hors du motif `tiktrends-*.sql.gz` : ni la rotation ni la
+  # restauration ne le voient), tenu jusqu'à la fin du processus. Le second
+  # s'arrête sans rien toucher, code 75 (EX_TEMPFAIL : réessayer plus tard).
+  # flock vient d'util-linux (Debian : paquet essentiel).
+  exec 9>"$BACKUP_DIR/.tiktrends-backup.lock"
+  if ! flock -n 9; then
+    echo "[$(date -Is)] ARRÊT · sauvegarde déjà en cours (verrou $BACKUP_DIR/.tiktrends-backup.lock tenu) · ce passage s'arrête sans rien toucher." >&2
+    return 75
+  fi
+
   fichier="$BACKUP_DIR/tiktrends-$(date +%Y%m%d-%H%M%S).sql.gz"
   partiel="$fichier.part"
 
@@ -126,7 +158,7 @@ principal() {
   }
 
   # Garde-fou : un dump vide ou minuscule = échec, on ne le garde pas.
-  if [ ! -s "$partiel" ] || [ "$(stat -c%s "$partiel")" -lt 500 ]; then
+  if [ ! -s "$partiel" ] || [ "$(stat -c%s -- "$partiel")" -lt 500 ]; then
     echo "[$(date -Is)] ERREUR : sauvegarde vide, suppression de $partiel"
     rm -f "$partiel"
     return 1

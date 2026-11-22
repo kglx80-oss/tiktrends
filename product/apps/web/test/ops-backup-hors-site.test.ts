@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { spawn, spawnSync } from 'node:child_process';
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { attendreEtat } from './helpers/attendre-etat';
@@ -25,7 +25,10 @@ import { attendreEtat } from './helpers/attendre-etat';
  *    (`//`, `/./`, `x/../`, lien symbolique) · refus, les chemins sont comparés une fois résolus ;
  *  · un dump TUÉ par un signal (`systemctl stop`, arrêt, redémarrage : SIGTERM à tout le groupe)
  *    · aucun `tiktrends-*.sql.gz` partiel, que la rotation compterait et que la restauration « le
- *    plus récent » choisirait · le dump s'écrit dans `….sql.gz.part`, renommé une fois contrôlé.
+ *    plus récent » choisirait · le dump s'écrit dans `….sql.gz.part`, renommé une fois contrôlé ;
+ *  · un second passage (lancé à la main pendant celui de 03h30) · refusé par le verrou, sans
+ *    toucher au `.part` du premier, qui finit en code 0 ;
+ *  · un chemin RELATIF en copie d'essai · refusé (il change de sens au `cd "$REPO"` de `principal`).
  *
  * Le nom du projet compose de production est `product` · mesuré (22/11/2026) : docker-compose.yml
  * n'a pas de clé `name:`, aucun `.env` versionné ne pose COMPOSE_PROJECT_NAME, et
@@ -57,8 +60,13 @@ const FAUX_DOCKER = `#!/bin/bash
 echo "\${COMPOSE_PROJECT_NAME-<absent>} $*" >> "$JOURNAL_DOCKER"
 # CODE_DOCKER=n · pg_dump interrompu : un début de dump, puis l'échec.
 if [ -n "\${CODE_DOCKER:-}" ]; then echo "-- dump interrompu"; exit "$CODE_DOCKER"; fi
-# TEMOIN_DOCKER=f · dump EN COURS : un début écrit, le témoin posé, puis il dort jusqu'au signal.
-if [ -n "\${TEMOIN_DOCKER:-}" ]; then echo "-- dump commencé"; head -c 3000 /dev/urandom | base64; : > "$TEMOIN_DOCKER"; sleep 60; exit 0; fi
+# TEMOIN_DOCKER=f · dump EN COURS : un début écrit, le témoin posé, puis il attend que LIBERER_DOCKER
+# existe (le test le pose) · sans lui, jusqu'au signal. Le sondage est celui du FAUX, pas du test.
+if [ -n "\${TEMOIN_DOCKER:-}" ]; then
+  echo "-- dump commencé"; head -c 3000 /dev/urandom | base64; : > "$TEMOIN_DOCKER"
+  until [ -e "\${LIBERER_DOCKER:-/nulle-part}" ]; do sleep 0.05; done
+  echo "-- dump terminé"; exit 0
+fi
 # docker compose exec -T db sh -c 'pg_dump …' · un faux dump, assez gros pour le seuil de 500 octets.
 echo "-- faux dump"; head -c 3000 /dev/urandom | base64
 `;
@@ -81,7 +89,7 @@ exit 0
 /** L'environnement du développeur sans ce qui changerait le mode, le seau ou le projet compose. */
 function environnement(env: Record<string, string>): NodeJS.ProcessEnv {
   const base = { ...process.env } as NodeJS.ProcessEnv;
-  for (const k of ['TIKTRENDS_REPO', 'TIKTRENDS_SAUVEGARDES', 'COMPOSE_PROJECT_NAME', 'COMPOSE_FILE', 'OFFSITE_BUCKET', 'REMOTES', 'BAVARD', 'CODE_LISTREMOTES', 'CODE_DOCKER', 'TEMOIN_DOCKER']) delete base[k];
+  for (const k of ['TIKTRENDS_REPO', 'TIKTRENDS_SAUVEGARDES', 'COMPOSE_PROJECT_NAME', 'COMPOSE_FILE', 'OFFSITE_BUCKET', 'REMOTES', 'BAVARD', 'CODE_LISTREMOTES', 'CODE_DOCKER', 'TEMOIN_DOCKER', 'LIBERER_DOCKER']) delete base[k];
   return { ...base, PATH: `${bin}:${process.env.PATH}`, ...env };
 }
 const lignes = (f: string) => (existsSync(f) ? readFileSync(f, 'utf8').trim().split('\n').filter(Boolean) : []);
@@ -124,6 +132,10 @@ function essai(env: Record<string, string> = {}) {
   return { code: r.status, sortie: `${r.stdout}${r.stderr}`, dumps: dumpsDe(join(d, 'sauvegardes')), docker: lignes(journalDocker), rclone: lignes(journalRclone) };
 }
 
+/** Le verrou de `principal` (un passage à la fois) · il reste dans le dossier, caché, hors du motif des dumps. */
+const VERROU = '.tiktrends-backup.lock';
+/** Le dossier de sauvegarde, verrou à part · ce que voient la rotation et la restauration, et les restes. */
+const fichiersDe = (dossier: string) => readdirSync(dossier).filter((f) => f !== VERROU).sort();
 const PRINCIPAL = 'source "$1"; REPO="$2" BACKUP_DIR="$3" OFFSITE="$4"; principal';
 let passages = 0;
 
@@ -149,7 +161,7 @@ function principal(env: Record<string, string> = {}, offsite = '1', d = lieu().d
   return {
     code: r.status,
     sortie: `${r.stdout}${r.stderr}`,
-    fichiers: readdirSync(dossier).sort(),
+    fichiers: fichiersDe(dossier),
     dumps: dumpsDe(dossier).map((f) => join(dossier, f)),
     docker: lignes(journalDocker),
     rclone,
@@ -157,28 +169,32 @@ function principal(env: Record<string, string> = {}, offsite = '1', d = lieu().d
   };
 }
 /**
- * `principal` lancé dans son PROPRE groupe de processus, puis tué en plein dump par SIGTERM envoyé à
- * tout le groupe (bash, le faux docker qui dort, le faux gzip) · ce que fait `systemctl stop`
- * (KillMode=control-group, le défaut) et l'arrêt ou le redémarrage du VPS.
+ * `principal` lancé dans son PROPRE groupe de processus, et rendu une fois EN PLEIN DUMP (le faux
+ * docker a écrit et attend, le dump a des octets sur disque) · `attendreEtat`, jamais une durée.
+ * `tuer` envoie un signal à tout le groupe (bash, le faux docker, le faux gzip) · ce que fait
+ * `systemctl stop` (KillMode=control-group, le défaut) et l'arrêt ou le redémarrage du VPS.
+ * `liberer` laisse le faux docker finir son dump. `fin` · le code ou le signal de bash.
  */
-async function principalTue() {
-  const { d, dossier } = lieu();
+async function principalEnCours(d = lieu().d) {
+  const dossier = join(d, 'backups');
   const temoin = join(d, 'docker-en-cours');
+  const liberation = join(d, 'docker-liberer');
   const enfant = spawn(BASH, ['-c', PRINCIPAL, 'garde', SCRIPT, join(d, 'product'), dossier, '1'], {
     detached: true,
     stdio: 'ignore',
-    env: environnement({ JOURNAL_RCLONE: join(d, 'rclone-tue.log'), JOURNAL_DOCKER: join(d, 'docker-tue.log'), REMOTES: 'ovh:\\n', TEMOIN_DOCKER: temoin }),
+    env: environnement({ JOURNAL_RCLONE: join(d, 'rclone-en-cours.log'), JOURNAL_DOCKER: join(d, 'docker-en-cours.log'), REMOTES: 'ovh:\\n', TEMOIN_DOCKER: temoin, LIBERER_DOCKER: liberation }),
   });
   const fin = new Promise<{ code: number | null; signal: NodeJS.Signals | null }>((res) => enfant.on('exit', (code, signal) => res({ code, signal })));
+  const tuer = (signal: NodeJS.Signals) => process.kill(-enfant.pid!, signal);
+  const nettoyer = () => { try { tuer('SIGKILL'); } catch { /* groupe déjà fini */ } };
   try {
-    // L'état réel « en plein dump » · le faux docker a écrit et dort, et le dump a des octets sur disque.
     await attendreEtat('faux docker en plein dump · témoin posé, dump commencé sur disque', () =>
       existsSync(temoin) && readdirSync(dossier).some((f) => f.startsWith('tiktrends-') && statSync(join(dossier, f)).size > 0));
-    process.kill(-enfant.pid!, 'SIGTERM');
-    return { d, dossier, ...(await fin), fichiers: readdirSync(dossier).sort() };
-  } finally {
-    try { process.kill(-enfant.pid!, 'SIGKILL'); } catch { /* groupe déjà fini */ }
+  } catch (e) {
+    nettoyer();
+    throw e;
   }
+  return { d, dossier, fin, tuer, nettoyer, liberer: () => writeFileSync(liberation, '') };
 }
 
 /**
@@ -376,15 +392,54 @@ describe('ops/backup.sh · principal (le corps du script)', () => {
 
 describe('ops/backup.sh · dump tué par un signal (systemctl stop, arrêt, redémarrage)', () => {
   it('SIGTERM au groupe en plein dump · AUCUN tiktrends-*.sql.gz laissé (rotation et restauration « le plus récent » ne voient rien) · le passage suivant nettoie et produit un vrai dump', async () => {
-    const t = await principalTue();
+    const a = await principalEnCours();
+    let t: Awaited<typeof a.fin>;
+    try {
+      a.tuer('SIGTERM');
+      t = await a.fin;
+    } finally {
+      a.nettoyer();
+    }
     expect(t.signal, `bash pas tué par le signal (code ${t.code})`).toBe('SIGTERM');
-    expect(dumpsDe(t.dossier), `dump PARTIEL laissé sous un nom de sauvegarde, que KEEP=14 compterait et que « ls -t … | head -1 » restaurerait · dossier : ${t.fichiers.join(', ')}`).toEqual([]);
+    expect(dumpsDe(a.dossier), `dump PARTIEL laissé sous un nom de sauvegarde, que KEEP=14 compterait et que « ls -t … | head -1 » restaurerait · dossier : ${fichiersDe(a.dossier).join(', ')}`).toEqual([]);
 
-    const r = principal({}, '1', t.d);
+    // Le reste du passage tué prend un horodatage PASSÉ · sinon le passage suivant, dans la même
+    // seconde, réécrirait le même `.part` puis le renommerait, et le nettoyage ne serait pas gardé.
+    const restes = fichiersDe(a.dossier).filter((f) => f.endsWith('.part'));
+    expect(restes, `le passage tué n’a pas laissé un seul .part · ${restes.join(', ')}`).toHaveLength(1);
+    renameSync(join(a.dossier, restes[0]!), join(a.dossier, 'tiktrends-20000101-000000.sql.gz.part'));
+
+    const r = principal({}, '1', a.d);
     expect(r.code, r.sortie).toBe(0);
     expect(r.dumps, 'pas de dump au passage suivant').toHaveLength(1);
     expect(r.fichiers, `reste du passage interrompu NON nettoyé · ${r.sortie}`).toEqual([r.dumps[0]!.split('/').pop()]);
     expect(r.copies).toEqual([`copy ${r.dumps[0]} ovh:tiktrends-backups/`]);
+  });
+
+  it('un second passage PENDANT le premier · refusé par le verrou (code 75), le .part du premier intact, le premier finit en code 0 avec son dump', async () => {
+    const a = await principalEnCours();
+    try {
+      const partA = fichiersDe(a.dossier).filter((f) => f.endsWith('.part'));
+      expect(partA).toHaveLength(1);
+      const tailleA = statSync(join(a.dossier, partA[0]!)).size;
+
+      const b = principal({}, '1', a.d);
+      expect(b.code, `second passage NON refusé pendant le premier · ${b.sortie}`).toBe(75);
+      expect(b.sortie).toMatch(/ARRÊT · sauvegarde déjà en cours \(verrou .+\/\.tiktrends-backup\.lock tenu\) · ce passage s'arrête sans rien toucher\./);
+      expect(b.docker, 'second passage allé jusqu’à docker').toEqual([]);
+      expect(b.rclone).toEqual([]);
+      expect(fichiersDe(a.dossier), `le second passage a touché au .part du premier · ${b.sortie}`).toEqual(partA);
+      expect(statSync(join(a.dossier, partA[0]!)).size).toBe(tailleA);
+
+      a.liberer();
+      const fa = await a.fin;
+      expect(fa.code, 'le premier passage ne finit pas en code 0').toBe(0);
+      const dumps = dumpsDe(a.dossier);
+      expect(dumps, 'pas de dump du premier passage').toEqual([partA[0]!.replace(/\.part$/, '')]);
+      expect(fichiersDe(a.dossier)).toEqual(dumps);
+    } finally {
+      a.nettoyer();
+    }
   });
 
   it('un .part d’un passage précédent est supprimé · seulement ceux de ce script (avant-migration et autres gardés), les dumps complets gardés', () => {
@@ -471,6 +526,17 @@ describe('ops/backup.sh · copie d’essai qui viserait le dossier de la product
     const r = configurer({ TIKTRENDS_REPO: join(t, 'tiktrends'), COMPOSE_PROJECT_NAME: 'tiktrends-essai-d1' });
     expect(r.code, r.sortie).toBe(2);
     expect(r.sortie).toMatch(ARRET_DOSSIER_PROD);
+  });
+
+  it.each([
+    ['TIKTRENDS_SAUVEGARDES relatif (../../backups, depuis /home/debian il devient /home/debian/backups après le cd de principal)', { TIKTRENDS_REPO: '/srv/essai/tiktrends', TIKTRENDS_SAUVEGARDES: '../../backups' }, /ARRÊT · copie d'essai \(\/srv\/essai\/tiktrends\) · TIKTRENDS_SAUVEGARDES=\.\.\/\.\.\/backups n'est pas un chemin absolu/],
+    ['TIKTRENDS_SAUVEGARDES relatif (backups)', { TIKTRENDS_REPO: '/srv/essai/tiktrends', TIKTRENDS_SAUVEGARDES: 'backups' }, /TIKTRENDS_SAUVEGARDES=backups n'est pas un chemin absolu/],
+    ['TIKTRENDS_REPO relatif (essai/tiktrends)', { TIKTRENDS_REPO: 'essai/tiktrends' }, /ARRÊT · copie d'essai \(essai\/tiktrends\) · TIKTRENDS_REPO n'est pas un chemin absolu/],
+  ])('%s · refus, code 2', (_cas, env: Record<string, string>, phrase) => {
+    const r = configurer({ COMPOSE_PROJECT_NAME: 'tiktrends-essai-d1', ...env });
+    expect(r.code, `chemin RELATIF accepté en copie d’essai · il change de sens au cd de principal · ${r.sortie}`).toBe(2);
+    expect(r.sortie).toMatch(phrase);
+    expect(r.sortie, 'chemins posés malgré le refus').not.toContain('BACKUP_DIR=');
   });
 
   it('realpath introuvable · refus, code 2 (jamais une comparaison à vide qui laisserait passer)', () => {
