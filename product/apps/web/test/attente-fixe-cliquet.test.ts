@@ -390,8 +390,9 @@ function portees(s: string, nom: string, propres: number[]): [number, number][] 
 
 /**
  * Le nom en `i` est-il PASSÉ EN ARGUMENT d'un appel (source masqué) · précédé de `(` ou `,` (après
- * un éventuel `obj.`), dans une parenthèse (pas un tableau, un objet, une déstructuration, un
- * `{ pas: X }`), ouverte par un appel (un nom hors mots-clés et `expect`, ou `)` / `]`). Une liste
+ * un éventuel `obj.`), dans la liste ouverte par un APPEL · un nom hors mots-clés et `expect`, ou
+ * `)` / `]`, juste avant. Un tableau, un objet, une déstructuration, un `{ pas: X }` ne suivent
+ * jamais un nom appelable (`= [`, `({`, `return [`) · ils tombent ici, sans règle à part. Une liste
  * de paramètres (`function f(a, X) {`) a la forme d'un appel · `portees` l'écarte (la portée d'un
  * paramètre commence à sa parenthèse).
  */
@@ -401,7 +402,7 @@ function enArgument(s: string, i: number): boolean {
   while (s[k] === '.') { k--; while (k >= 0 && /[\s\w$?]/.test(s[k]!)) k--; }
   if (s[k] !== '(' && s[k] !== ',') return false;
   const o = ouvrante(s, k);
-  if (o < 0 || s[o] !== '(') return false;
+  if (o < 0) return false;
   const avant = /(?:(?<mot>[A-Za-z_$][\w$]*)|[)\]])\s*$/.exec(s.slice(Math.max(0, o - 40), o));
   if (!avant) return false;
   return !(avant.groups!.mot && PAS_UN_APPEL.has(avant.groups!.mot));
