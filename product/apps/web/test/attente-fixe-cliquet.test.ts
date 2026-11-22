@@ -64,7 +64,8 @@ import { join, relative } from 'node:path';
  * sommeil ni appel · le seul rappel à valeur du dépôt reste `parcours-image-focus-course` (~119),
  * dont la valeur est RENDUE au code testé, pas jetée. Le tour 2 (homonymes écartés, tête
  * d'instruction lue sans `m`, source masqué, valeur sans retour arrière, `indices`) mesuré sur les
- * 680 fichiers de main 513df40a · relevé IDENTIQUE à celui de main.
+ * 680 fichiers de main 513df40a · relevé IDENTIQUE à celui de main. Le tour 3 (union des lectures
+ * brute et masquée, `act<void>(X)`, `f?.(X)`, clé de déstructuration) · relevé IDENTIQUE.
  *
  * Les LIMITES · ce cliquet protège contre l'ERREUR (on recopie une attente fixe voisine, on
  * rappelle l'aide du fichier), pas contre la MALVEILLANCE · il lit le texte, il n'exécute rien.
@@ -79,12 +80,18 @@ import { join, relative } from 'node:path';
  * parenthèses ; un rappel qui fait autre chose avant de résoudre (`setTimeout(() => { fini = true;
  * r(); }, N)`) ; un délai rangé dans le corps (`{ const ms = N; setTimeout(r, ms); }`) ; un rappel
  * `() => void r()` ; une promesse jetée après un mot (`else await …`) ou sans point-virgule au-dessus ;
+ * une aide passée dans une branche de ternaire (`act(c ? x : laisser)`) ;
  * une aide rangée dans un tableau (`[laisser, x].forEach(…)`), passée par une déstructuration de
  * paramètre (`({ laisser }) =>` ne la masque pas) ou passée à `expect` ; un homonyme déclaré dans
  * l'en-tête d'un `for` (sa portée s'arrête à la parenthèse) ; un appel `X(` d'un homonyme (seule la
- * valeur passée en argument est lue par portée) ; un appel d'aide ou un sommeil caché par un
- * littéral d'expression régulière qui contient une apostrophe ou `//` (le relevé blanchit
- * commentaires et textes, pas les expressions régulières).
+ * valeur passée en argument est lue par portée) ; une parenthèse orpheline dans une expression
+ * régulière (`/\(/`), qui fait déborder la portée d'un homonyme jusqu'à la fin du fichier (seuls
+ * les passages en valeur s'y perdent, jamais un appel `X(` · borner par la définition englobante
+ * n'y peut rien, elle se compte avec les mêmes parenthèses) ; une définition ou un appel d'aide
+ * caché par une expression régulière qui contient une apostrophe, `//` ou un BACKTICK (le relevé
+ * des aides blanchit commentaires et textes, pas les expressions régulières · un backtick y ouvre
+ * un faux gabarit qui court sur les lignes suivantes, `e-pas1-recette` ~205 · les SOMMEILS, eux,
+ * se lisent aussi sur le source brut).
  */
 
 const RACINE = __dirname;
@@ -240,13 +247,23 @@ const rien = (v: string | undefined) => v === undefined || /^(?:|undefined|void\
 
 /** Les sommeils à délai non nul d'un source · leur position (promesses, `withResolvers`, appels de `pasDansAct`). */
 function sommeils(source: string): number[] {
-  const out: number[] = [];
-  // Commentaires et textes blanchis · un commentaire avant le minuteur ne masque plus le sommeil.
-  const s = masquer(source);
+  const out = new Set<number>();
+  // Deux lectures, UNIES · le source BRUT, hors commentaires, et le
+  // source MASQUÉ (un commentaire avant le minuteur ne cache plus le sommeil). Le masque seul se
+  // trompe sur une expression régulière qui porte un backtick (`/`([^`]+)`/` lu comme un gabarit ·
+  // les lignes suivantes blanchies, `e-pas1-recette` ~205) · le brut seul, sur un commentaire.
+  // Dédupliquées par la parenthèse du `Promise` · une correspondance commence à `await` dans une
+  // lecture et à `new` dans l'autre quand la ligne d'au-dessus finit par un commentaire (`l0-jalons` ~59).
+  const commentaires: [number, number][] = [];
+  const masque = masquer(source, commentaires);
+  const horsCommentaire = (i: number) => !commentaires.some(([a, b]) => a <= i && i < b);
+  const lectures: [string, (i: number) => boolean][] = [[source, horsCommentaire], [masque, () => true]];
+  for (const [s, garder] of lectures) {
   for (const m of s.matchAll(SOMMEIL)) {
     const g = m.groups!;
-    if (delaiNul(g.delai)) continue;
-    if (rien(g.val ?? g.val2) || (g.jete && !lueApres(s, fermante(s, m.indices!.groups!.ouvre![0])))) out.push(m.index!);
+    if (delaiNul(g.delai) || !garder(m.indices!.groups!.ouvre![0])) continue;
+    const ouvre = m.indices!.groups!.ouvre![0];
+    if (rien(g.val ?? g.val2) || (g.jete && !lueApres(s, fermante(s, ouvre)))) out.add(ouvre);
   }
   const bornes = [...s.matchAll(AVEC_RESOLVEURS)];
   bornes.forEach((m, k) => {
@@ -259,10 +276,11 @@ function sommeils(source: string): number[] {
     const t = new RegExp(String.raw`(?<![\w$.])` + MINUTEUR + rappel(nom), 'g');
     t.lastIndex = m.index! + m[0].length;
     const u = t.exec(s);
-    if (u && u.index < fin && !delaiNul(u.groups!.delai) && rien(u.groups!.val ?? u.groups!.val2)) out.push(u.index);
+    if (u && u.index < fin && garder(u.index) && !delaiNul(u.groups!.delai) && rien(u.groups!.val ?? u.groups!.val2)) out.add(u.index);
   });
-  for (const m of source.matchAll(PAS_DANS_ACT)) if (!delaiNul(m[1])) out.push(m.index!);
-  return out;
+  }
+  for (const m of source.matchAll(PAS_DANS_ACT)) if (!delaiNul(m[1])) out.add(m.index!);
+  return [...out];
 }
 
 const ligneDe = (source: string, i: number) => source.slice(0, i).split('\n').length;
@@ -282,14 +300,14 @@ function attentesFixes(source: string): number[] {
  * Un texte `'…'` / `"…"` s'arrête à la fin de sa ligne (l'apostrophe d'un texte JSX n'ouvre rien
  * au-delà) · un gabarit `` `…` `` est blanchi en entier.
  */
-function masquer(s: string): string {
+function masquer(s: string, commentaires?: [number, number][]): string {
   const o = s.split('');
   const blanc = (a: number, b: number) => { for (let k = a; k < b; k++) if (o[k] !== '\n') o[k] = ' '; };
   let i = 0;
   while (i < s.length) {
     const c = s[i]!;
-    if (c === '/' && s[i + 1] === '/') { const f = s.indexOf('\n', i); const e = f < 0 ? s.length : f; blanc(i, e); i = e; continue; }
-    if (c === '/' && s[i + 1] === '*') { const f = s.indexOf('*/', i + 2); const e = f < 0 ? s.length : f + 2; blanc(i, e); i = e; continue; }
+    if (c === '/' && s[i + 1] === '/') { const f = s.indexOf('\n', i); const e = f < 0 ? s.length : f; blanc(i, e); commentaires?.push([i, e]); i = e; continue; }
+    if (c === '/' && s[i + 1] === '*') { const f = s.indexOf('*/', i + 2); const e = f < 0 ? s.length : f + 2; blanc(i, e); commentaires?.push([i, e]); i = e; continue; }
     if (c === "'" || c === '"' || c === '`') {
       let j = i + 1;
       while (j < s.length && s[j] !== c && (c === '`' || s[j] !== '\n')) j += s[j] === '\\' ? 2 : 1;
@@ -382,16 +400,18 @@ function portees(s: string, nom: string, propres: number[]): [number, number][] 
     if (s[k] === '(' || s[k] === ',') { const c = corpsParametres(s, ouvrante(s, k)); if (c) { out.push(c); continue; } }
     // Une déclaration · `const X`, ou `const [ … X … ] =` / `const { … X … } =` · tout le bloc qui la porte.
     const avant = s.slice(Math.max(0, i - 200), i);
-    const decl = new RegExp(String.raw`\b(?:const|let|var)\s+(?:[\[{][^=;]*)?$`).exec(avant);
-    if (decl) { const o = ouvrante(s, i - avant.length + decl.index - 1); out.push([i, o < 0 ? s.length : fermante(s, o)]); }
+    const decl = new RegExp(String.raw`\b(?:const|let|var)\s+(?:(?<motif>[\[{])[^=;]*)?$`).exec(avant);
+    // Une CLÉ de déstructuration (`const { X: l } = …`) ne déclare pas `X` · elle déclare `l`.
+    const cle = decl?.groups!.motif !== undefined && /^\s*:/.test(s.slice(i + nom.length, i + nom.length + 20));
+    if (decl && !cle) { const o = ouvrante(s, i - avant.length + decl.index - 1); out.push([i, o < 0 ? s.length : fermante(s, o)]); }
   }
   return out;
 }
 
 /**
  * Le nom en `i` est-il PASSÉ EN ARGUMENT d'un appel (source masqué) · précédé de `(` ou `,` (après
- * un éventuel `obj.`), dans la liste ouverte par un APPEL · un nom hors mots-clés et `expect`, ou
- * `)` / `]`, juste avant. Un tableau, un objet, une déstructuration, un `{ pas: X }` ne suivent
+ * un éventuel `obj.`), dans la liste ouverte par un APPEL · un nom hors mots-clés et `expect`,
+ * `)` / `]`, ou le `>` d'un argument de type, juste avant (`?.` permis, `f?.(X)`). Un tableau, un objet, une déstructuration, un `{ pas: X }` ne suivent
  * jamais un nom appelable (`= [`, `({`, `return [`) · ils tombent ici, sans règle à part. Une liste
  * de paramètres (`function f(a, X) {`) a la forme d'un appel · `portees` l'écarte (la portée d'un
  * paramètre commence à sa parenthèse).
@@ -403,7 +423,8 @@ function enArgument(s: string, i: number): boolean {
   if (s[k] !== '(' && s[k] !== ',') return false;
   const o = ouvrante(s, k);
   if (o < 0) return false;
-  const avant = /(?:(?<mot>[A-Za-z_$][\w$]*)|[)\]])\s*$/.exec(s.slice(Math.max(0, o - 40), o));
+  // L'appelé · un nom, `)`, `]`, ou `>` d'un argument de type (`act<void>(X)`, pas le `=>` d'une flèche), puis `?.` facultatif (`f?.(X)`).
+  const avant = /(?:(?<mot>[A-Za-z_$][\w$]*)|[)\]]|(?<!=)>)\s*(?:\?\.\s*)?$/.exec(s.slice(Math.max(0, o - 40), o));
   if (!avant) return false;
   return !(avant.groups!.mot && PAS_UN_APPEL.has(avant.groups!.mot));
 }
@@ -533,6 +554,11 @@ describe('le détecteur · il voit chaque forme de sommeil, et seulement elles',
     ['un commentaire avant le minuteur', `await new Promise((r) => { /* le montage */ ${Z}(r, 400); });`],
     ['un commentaire de ligne avant le minuteur', `await new Promise((r) => { // le montage\n  ${Z}(r, 400);\n});`],
     ['`withResolvers`, un commentaire dans le minuteur', `const { promise, resolve } = Promise.withResolvers();\n${Z}(/* fin */ resolve, 400);\nawait promise;`],
+    // Les deux lectures ne commencent pas au même endroit · une seule attente.
+    ['un commentaire en fin de ligne au-dessus · compté une fois', `charger(); // la suite\nawait new Promise((r) => ${Z}(r, 30));`],
+    // Un backtick dans une expression régulière ouvre un faux gabarit dans le masque · le brut le voit.
+    ['un backtick dans une expression régulière, au-dessus', `const CODE = /\`([^\`]+)\`/g;\nawait new Promise((r) => ${Z}(r, 400));`],
+    ['`withResolvers`, un backtick dans une expression régulière au-dessus', `const CODE = /\`([^\`]+)\`/g;\nconst { promise, resolve } = Promise.withResolvers();\n${Z}(resolve, 400);\nawait promise;`],
     // La tête d'instruction se lit par-dessus les retours à la ligne.
     ['une valeur jetée · après un retour à la ligne', `charger();\n  await new Promise((r) => ${Z}(() => r(1), 10));`],
     ['deux `withResolvers`, un seul minuteur · compté une fois', `it('a', async () => { const { promise, resolve } = Promise.withResolvers(); resolve(); await promise; });\nit('b', async () => { const { promise, resolve } = Promise.withResolvers(); ${Z}(resolve, 400); await promise; });`],
@@ -563,6 +589,8 @@ describe('le détecteur · il voit chaque forme de sommeil, et seulement elles',
     ['une valeur gardée · `expect(` puis retour à la ligne', `expect(\n  await new Promise((r) => ${Z}(() => r(lire()), 10)),\n).toBe(1);`],
     ['une valeur gardée · lue par `.then(use)` à la ligne', `await new Promise((r) => ${Z}(() => r(lire()), 10))\n  .then(use);`],
     ['un sommeil cité en commentaire', `// await new Promise((r) => ${Z}(r, 400));\nconst x = 1;`],
+    ['un sommeil cité en commentaire de bloc', `/* await new Promise((r) => ${Z}(r, 400)); */\nconst x = 1;`],
+    ['un `withResolvers` cité en commentaire', `/*\nconst { promise, resolve } = Promise.withResolvers();\n${Z}(resolve, 400);\n*/`],
   ])('ne compte pas · %s', (_, src) => {
     expect(attentesFixes(src), `le détecteur compte « ${src} »`).toEqual([]);
   });
@@ -624,6 +652,11 @@ describe('les aides · une attente fixe définie une fois est comptée à chaque
     ['`expect(X)` · lue, pas appelée · ne compte pas', `const pause = () => new Promise((r) => ${Z}(r, 30));\nexpect(pause).toBeTypeOf('function');`, [{ nom: 'pause', appels: 0 }]],
     ['`expect(autre.X)` pour une aide membre · ne compte pas', `const faux = { create: async () => { await new Promise((r) => ${Z}(r, 40)); } };\nawait faux.create();\nexpect(autre.create).toHaveBeenCalled();`, [{ nom: 'create', appels: 1 }]],
     ['une aide membre passée en valeur (`.then(faux.X)`) · compte', `const faux = { create: async () => { await new Promise((r) => ${Z}(r, 40)); } };\nawait p.then(faux.create);`, [{ nom: 'create', appels: 1 }]],
+    ['`act<void>(X)` · un argument de type · compte', `const laisser = () => new Promise((r) => ${Z}(r, 30));\nawait act<void>(laisser);`, [{ nom: 'laisser', appels: 1 }]],
+    ['`f?.(X)` · un appel facultatif · compte', `const laisser = () => new Promise((r) => ${Z}(r, 30));\nawait rappel?.(laisser);`, [{ nom: 'laisser', appels: 1 }]],
+    ['`() => (X)` · un groupement après une flèche · ne compte pas', `const laisser = () => new Promise((r) => ${Z}(r, 30));\nconst encore = () => (laisser);`, [{ nom: 'laisser', appels: 0 }]],
+    ['`const { X: l } = …` · une clé, pas un homonyme · l’aide passée dans le bloc compte', `const laisser = () => new Promise((r) => ${Z}(r, 30));\nit('x', async () => {\n  const { laisser: l } = o;\n  await act(laisser);\n});`, [{ nom: 'laisser', appels: 1 }]],
+    ['`const { x: X } = …` · la valeur, un homonyme · ne compte pas', `const laisser = () => new Promise((r) => ${Z}(r, 30));\nit('x', async () => {\n  const { x: laisser } = o;\n  await act(laisser);\n});`, [{ nom: 'laisser', appels: 0 }]],
     ['`if (X) {` · une condition, pas des paramètres · l’aide passée dans le bloc compte', `const pause = () => new Promise((r) => ${Z}(r, 30));\nif (pause) { await act(pause); }`, [{ nom: 'pause', appels: 1 }]],
     ['hors de la portée de l’homonyme, l’aide passée compte', `const laisser = () => new Promise((r) => ${Z}(r, 30));\nit.each([1])('%s', (laisser) => { lire(laisser); });\nawait act(laisser);`, [{ nom: 'laisser', appels: 1 }]],
     // `indices` · le nom n'est pas cherché dans le texte du mot-clé.
