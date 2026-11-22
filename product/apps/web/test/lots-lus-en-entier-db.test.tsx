@@ -40,7 +40,7 @@ const h = vi.hoisted(() => ({
 }));
 vi.hoisted(() => {
   const { randomUUID } = require('node:crypto') as typeof import('node:crypto');
-  for (const k of ['ws', 'b', 'v', 'p', 'uo']) h.ids[k] = randomUUID();
+  for (const k of ['ws', 'b', 'v', 'p', 'm', 'uo']) h.ids[k] = randomUUID();
 });
 
 vi.mock('@tiktrends/db', async (importOriginal) => {
@@ -82,7 +82,8 @@ import ResultatsSpatial from '../app/(spatial)/sp/adsmap/page';
 import BoucleSpatial from '../app/(spatial)/sp/adsmap/boucle/page';
 import { resoudreContexteJarvis } from '../lib/jarvis-contexte';
 import { gestesPourContexte, lireVariantesEssai } from '../lib/jarvis-gestes';
-import { NON_CALCULE_LECTURE, RAISON_CONCLURE_NON_LANCE } from '@tiktrends/core';
+import { NON_CALCULE_LECTURE, RAISON_CONCLURE_NON_LANCE, REFUS_CONTEXTE_JARVIS } from '@tiktrends/core';
+import JarvisSpatial from '../app/(spatial)/sp/jarvis/page';
 import { lireGagnantesDepuis } from '../lib/iterer-gagnante';
 import TestSpatial from '../app/(spatial)/sp/adsmap/tests/[id]/page';
 
@@ -106,6 +107,8 @@ function commeProprietaire(marque: { id: string; name: string } = { id: I.b!, na
 const VASTE = () => ({ id: I.v!, name: 'Vaste' });
 /** « Petite » · deux lots seulement, tous deux au-delà du plafond d'un lot · la vue d'ensemble les montre (« autres lots »). */
 const PETITE = () => ({ id: I.p!, name: 'Petite' });
+/** « Menue » · un seul lot en préparation, lu en entier · une ad au verdict CALCULÉ (mesurée hors lot) y est rangée. */
+const MENUE = () => ({ id: I.m!, name: 'Menue' });
 /**
  * Ce qu'aucune phrase ne doit dire d'un lot lu en partie · elle serait tirée d'une partie (ou de rien) · « Aucune
  * mesure ni aucun verdict ne suit » (la duplication, vraie de toute copie) n'en est pas une.
@@ -193,6 +196,34 @@ async function vaste() {
   for (const x of ids) if (x.b === L.vaste1 || x.b === L.vaste2) L[`${x.b === L.vaste1 ? 'vaste1' : 'vaste2'}:${x.id}`] = x.id;
 }
 
+/**
+ * « Menue » · #1 en préparation, deux variantes · `m2` a un verdict CALCULÉ (l'import de mesures en pose un sur une ad
+ * hors lot, `adsmap-mesures`), puis elle est rangée dans ce lot (`decisionRangementLot` ne refuse que `testing` et
+ * `analyzed`) · « Aucun verdict du moteur n'attend d'être arbitré » serait faux.
+ */
+async function menue() {
+  await db.insert(schema.brands).values({ id: I.m!, workspaceId: I.ws!, name: 'Menue' });
+  const [p] = await db.insert(schema.personas).values({ brandId: I.m!, name: 'P Menue' }).returning();
+  const [d] = await db.insert(schema.desires).values({ workspaceId: I.ws!, personaId: p!.id, label: 'D' }).returning();
+  const [a] = await db.insert(schema.angles).values({ workspaceId: I.ws!, desireId: d!.id, label: 'A', mechanism: 'demo' }).returning();
+  const [c] = await db.insert(schema.concepts).values({ workspaceId: I.ws!, angleId: a!.id, title: 'Menue' }).returning();
+  const [offre] = await db.insert(schema.offers).values({ workspaceId: I.ws!, brandId: I.m!, label: 'Offre' }).returning();
+  const [page] = await db.insert(schema.landingPages).values({ workspaceId: I.ws!, brandId: I.m!, url: 'https://menue.test/p', label: 'Page' }).returning();
+  const [b] = await db.insert(schema.batches).values({ workspaceId: I.ws!, brandId: I.m!, number: 1, status: 'planned', goal: 'Menue préparation' }).returning();
+  L.menue = b!.id;
+  const ads = await db.insert(schema.ads).values([
+    { workspaceId: I.ws!, conceptId: c!.id, batchId: b!.id, variantCode: 'm1', status: 'draft' as const, adType: 'ideation' as const, format: 'static' as const },
+    { workspaceId: I.ws!, conceptId: c!.id, batchId: b!.id, variantCode: 'm2', status: 'live' as const, adType: 'ideation' as const, format: 'static' as const, platform: 'meta' as const,
+      hypothesis: 'Si on montre la preuve chiffrée, alors le coût par achat baisse parce que la cible doute.', testedVariable: 'hook' as const, variableValue: 'Preuve m2',
+      offerId: offre!.id, landingPageId: page!.id, launchedAt: T0 },
+  ]).returning({ id: schema.ads.id, code: schema.ads.variantCode });
+  L.menueCalculee = ads.find((x) => x.code === 'm2')!.id;
+  await db.insert(schema.verdicts).values({
+    adId: L.menueCalculee, workspaceId: I.ws!, computed: 'winner', status: 'computed', comparable: true, computedAt: A(8),
+    metricsAgg: { spend: 150, impressions: 20_000, purchases: 3, cpa: 50, reason: 'Moteur', daysElapsed: 8 },
+  });
+}
+
 /** « Petite » · #2 en préparation, 501 brouillons (dont une gagnante arbitrée rangée là) · #1 en diffusion, 501 variantes sans verdict · aucun n'est lu (plafond d'un lot). */
 async function petite() {
   await db.insert(schema.brands).values({ id: I.p!, workspaceId: I.ws!, name: 'Petite' });
@@ -238,10 +269,15 @@ beforeAll(async () => {
   await lot('grand', 25, Array.from({ length: GRAND }, (_, i) => ({ code: `y${String(i).padStart(4, '0')}`, verdict: GAGNE })));
   await vaste();
   await petite();
+  await menue();
   // L'intrus · une ad de Neva (son graphe) rangée dans un lot de « Vaste » (#3) · la fiche de test ne doit pas mener à ce lot d'une autre marque.
   const ci = await chaine('Intrus');
   const [intrus] = await db.insert(schema.ads).values({ workspaceId: I.ws!, conceptId: ci.concept, batchId: L.vaste3!, variantCode: 'intrus', status: 'draft', adType: 'ideation', format: 'static' }).returning({ id: schema.ads.id });
   L.intrus = intrus!.id;
+  // L'intruse de « Petite » · une ad de Neva (son graphe) rangée dans « Petite » #2, lu en partie · ouverte avec « Petite »
+  // active, elle doit rester le refus · dire « lecture incomplète » révélerait qu'elle existe, dans un lot de cette marque.
+  const [intruse] = await db.insert(schema.ads).values({ workspaceId: I.ws!, conceptId: ci.concept, batchId: L.petitePreparation!, variantCode: 'intruse', status: 'draft', adType: 'ideation', format: 'static' }).returning({ id: schema.ads.id });
+  L.intrusePetite = intruse!.id;
   // Le remplissage · un lot en composition, ses brouillons rangés après les `a…` et avant les `y…` et `z…`.
   const [f] = await db.insert(schema.batches).values({ workspaceId: I.ws!, brandId: I.b!, number: 1, status: 'planned', goal: 'Remplissage' }).returning();
   L.remplissage = f!.id;
@@ -256,6 +292,12 @@ beforeAll(async () => {
 
 afterEach(() => { h.session = null; h.marque = null; });
 
+/** Le contexte de Jarvis RÉSUMÉ · un lot joint n'est jamais `partielle` (seule une hypothèse non lue l'est). */
+async function contexteResume(...a: Parameters<typeof resoudreContexteJarvis>) {
+  const r = await resoudreContexteJarvis(...a);
+  if (r?.partielle) throw new Error('le contexte d’un lot est dit non lu');
+  return r;
+}
 const brut = (el: ReactNode) => renderToStaticMarkup(el as ReactElement);
 const dom = (el: ReactNode) => { const d = document.createElement('div'); d.innerHTML = brut(el); return d; };
 const net = (s: string | null | undefined) => (s ?? '').replace(/\s+/g, ' ').trim();
@@ -441,7 +483,7 @@ describe('aucune vue ne tire une phrase d’un lot non lu (garde « B »)', () =
 
   it('Jarvis · le contexte du grand lot #25 (au-delà du plafond d’un lot seul) · aucune phrase tirée de rien, la question neutre', async () => {
     commeProprietaire();
-    const r = await resoudreContexteJarvis(h.session as never, { id: I.b! }, { type: 'lot', id: L.grand! });
+    const r = await contexteResume(h.session as never, { id: I.b! }, { type: 'lot', id: L.grand! });
     expect(r, 'préalable · le contexte du lot').not.toBeNull();
     const t = [...r!.lignes, r!.question].join('\n');
     expect(phrasesFausses(t), 'le contexte de Jarvis dit une phrase tirée de rien').toEqual([]);
@@ -453,7 +495,7 @@ describe('aucune vue ne tire une phrase d’un lot non lu (garde « B »)', () =
 describe('le lot d’une fiche, de l’import et de Jarvis · lu en entier, hors budget, sans rien changer aux autres', () => {
   it('Jarvis (« Vaste » #1, hors budget) · le contexte compte ses 8 variantes, et « Conclure » est ouvert', async () => {
     commeProprietaire(VASTE());
-    const r = await resoudreContexteJarvis(h.session as never, { id: I.v! }, { type: 'lot', id: L.vaste1! });
+    const r = await contexteResume(h.session as never, { id: I.v! }, { type: 'lot', id: L.vaste1! });
     expect(r!.lignes.join('\n'), 'le contexte de Jarvis ne lit pas le lot joint en entier').toMatch(/· 8 variantes(\n|$)/);
     const g = await gestesPourContexte(h.session as never, I.v!, { type: 'lot', id: L.vaste1! });
     expect(g?.conclure.cible ?? null, 'le geste « Conclure » de Jarvis est calculé sur un lot non lu').toEqual({ type: 'conclure', lotId: L.vaste1 });
@@ -556,5 +598,57 @@ describe('l’essai de Jarvis, les gestes d’un brouillon, la portée de la fic
     const d = dom(avecSpatial(await TestSpatial({ params: Promise.resolve({ id: L.intrus! }), searchParams: Promise.resolve({}) })));
     expect(net(d.textContent), 'préalable · la fiche de test de l’intrus s’ouvre').toContain('intrus');
     expect(d.querySelector(`a[href="/adsmap/lots/${L.vaste3}"]`), 'la fiche de test mène au lot d’une autre marque').toBeNull();
+  });
+});
+
+/** `/jarvis?contexte=…&id=…` rendu · la note de l'écran quand rien n'est joint, et son texte. */
+async function jarvis(contexte: string, id: string) {
+  const d = dom(avecSpatial(await JarvisSpatial({ searchParams: Promise.resolve({ contexte, id }) })));
+  return { note: net(d.querySelector('[data-refus-contexte]')?.textContent) || null, texte: net(d.textContent) };
+}
+
+describe('une hypothèse rangée dans un lot lu en partie (« Petite » #2) · « Non calculé · lecture incomplète », jamais le refus de droits', () => {
+  it('`/jarvis?contexte=hypothese` · la gagnante rangée dans #2 · l’écran dit la lecture incomplète, rien n’est joint', async () => {
+    commeProprietaire(PETITE());
+    const j = await jarvis('hypothese', L.petiteGagnante!);
+    expect(j.note, 'une hypothèse d’un lot lu en partie est dite hors de la portée (droits)').toBe(NON_CALCULE_LECTURE);
+    expect(j.texte, 'le refus de droits est affiché').not.toContain(REFUS_CONTEXTE_JARVIS);
+    expect(phrasesFausses(j.texte), 'l’écran de Jarvis dit une phrase tirée de rien').toEqual([]);
+  });
+
+  it('les gestes et l’essai de cette hypothèse · fermés, la raison tirée du statut · l’essai `{ partielle: true }`', async () => {
+    commeProprietaire(PETITE());
+    const g = await gestesPourContexte(h.session as never, I.p!, { type: 'hypothese', id: L.petiteGagnante! });
+    expect(g && [g.iterer.cible, g.iterer.raison, g.conclure.cible, g.conclure.raison], 'les gestes d’une hypothèse d’un lot lu en partie').toEqual([null, NON_CALCULE_LECTURE, null, RAISON_CONCLURE_NON_LANCE]);
+    expect(await lireVariantesEssai(h.session as never, I.p!, { type: 'hypothese', id: L.petiteGagnante! }), 'l’essai d’une hypothèse d’un lot lu en partie').toEqual({ partielle: true });
+  });
+
+  it('portée d’abord · la même hypothèse avec la marque Neva, et une ad de Neva rangée dans #2 avec « Petite » · le refus, rien sur le lot', async () => {
+    commeProprietaire();
+    const autre = await jarvis('hypothese', L.petiteGagnante!);
+    expect(autre.note, 'une hypothèse d’une autre marque').toBe(REFUS_CONTEXTE_JARVIS);
+    expect(autre.texte, 'l’écran parle du lot d’une autre marque').not.toContain(NON_CALCULE_LECTURE);
+    commeProprietaire(PETITE());
+    const intruse = await jarvis('hypothese', L.intrusePetite!);
+    expect(intruse.note, 'une ad d’une autre marque rangée dans un lot lu en partie · un oracle').toBe(REFUS_CONTEXTE_JARVIS);
+    expect(intruse.texte).not.toContain(NON_CALCULE_LECTURE);
+    expect(await lireVariantesEssai(h.session as never, I.p!, { type: 'hypothese', id: L.intrusePetite! }), 'l’essai d’une ad d’une autre marque').toBeNull();
+    expect(await gestesPourContexte(h.session as never, I.p!, { type: 'hypothese', id: L.intrusePetite! }), 'les gestes d’une ad d’une autre marque').toBeNull();
+  });
+});
+
+describe('un lot en préparation LU EN ENTIER (« Menue » #1) · « Conclure » dit son statut, jamais « Aucun verdict » · un verdict calculé y est rangé', () => {
+  it('la fiche et Jarvis · « Ce lot n’est pas lancé », ni la fiche ni le geste ne disent « Aucun verdict du moteur n’attend »', async () => {
+    commeProprietaire(MENUE());
+    const [v] = await db.select({ statut: schema.verdicts.status, calcule: schema.verdicts.computed }).from(schema.verdicts).where(eq(schema.verdicts.adId, L.menueCalculee!));
+    expect(v, 'préalable · un verdict calculé attend dans le lot').toEqual({ statut: 'computed', calcule: 'winner' });
+    const f = await fiche(L.menue!);
+    expect(f.lecture, 'préalable · le lot est lu en entier').toBeNull();
+    expect(f.variantes, 'préalable · ses deux variantes').toEqual(['m1', 'm2']);
+    expect(f.raccourcis, 'préalable · les raccourcis de la fiche').toContain('Conclure le lot');
+    expect(f.raccourcis, 'la fiche d’un lot en préparation dit « Aucun verdict » alors qu’un verdict calculé y attend').not.toMatch(/Aucun verdict/i);
+    expect(f.raccourcis, 'Conclure · la raison tirée du statut').toContain(RAISON_CONCLURE_NON_LANCE);
+    const g = await gestesPourContexte(h.session as never, I.m!, { type: 'lot', id: L.menue! });
+    expect(g?.conclure.raison ?? null, 'le geste « Conclure » de Jarvis dit « Aucun verdict » d’un lot en préparation').toBe(RAISON_CONCLURE_NON_LANCE);
   });
 });

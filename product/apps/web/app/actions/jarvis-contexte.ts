@@ -26,5 +26,6 @@ export async function contexteJarvisAction(type: unknown, id: unknown): Promise<
   // Chargée à l'appel · la coquille (cliente) importe cette action, la lecture des lots n'a rien à faire à son chargement.
   const { resoudreContexteJarvis } = await import('../../lib/jarvis-contexte');
   const r = await resoudreContexteJarvis(s, brand, demande);
-  return r ? { type: r.type, id: r.id, libelle: r.libelle } : null;
+  // Une hypothèse d'un lot lu en partie (`partielle`) · rien n'est joint (le tiroir n'écrit aucune phrase de refus).
+  return r && !r.partielle ? { type: r.type, id: r.id, libelle: r.libelle } : null;
 }

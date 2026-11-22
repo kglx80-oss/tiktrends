@@ -4,7 +4,7 @@ import { and, asc, desc, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm
 import { db, schema } from '@tiktrends/db';
 import {
   DEFAULT_VERDICT_CONFIG, conclusionLot, manquesAvantTest, etatLotSpatial, presentationLot, referenceConclusion, lireOrigineHypothese, lireProvenanceJarvis, lireProvenanceCommentaire, lireProvenanceNote, sommeRetenues,
-  compteAConclure, compteAImporter, lotsConclusLus, lotsALire, lectureDuLot, estLuEnEntier, BORNES_LECTURE_LOTS, type VariantesDuLot,
+  compteAConclure, compteAImporter, lotsConclusLus, lotsALire, lectureDuLot, estLuEnEntier, hypotheseDansLaLecture, BORNES_LECTURE_LOTS, type VariantesDuLot, type LecturePartielle,
   type EstimationHypothese, type OrigineHypotheseLibre, type ProvenanceJarvis, type ProvenanceCommentaire, type ProvenanceNote, type VerdictConfig, type VerdictValue, type FaitsAdSpatial, type FaitsLotSpatial, type ContexteLots, type AgregatMesures,
   type FaitsHypotheseAd, type CompteAConclure, type FaitsVerdictSpatial, type SeuilMinimumMoteur, type VarianteFinPrevue,
   type CompteAImporter, type FaitsLotAImporter,
@@ -15,6 +15,7 @@ import { effectiveAccess } from '../../../../lib/access';
 import { canAccess, denyReason, FEATURES, roleAtLeast } from '../../../../lib/rbac';
 import { jointureCreaDeLaMarque, vignetteAd } from '../../../../lib/adsmap-medias';
 import { lireJourneesRetenues } from '../../../../lib/adsmap-mesures';
+import { adsDeLaMarque as adsRangeesDansLaMarque } from '../../../../lib/adsmap-marque';
 
 /**
  * Spatial · Résultats · lectures serveur partagées par les écrans de la rubrique.
@@ -304,6 +305,32 @@ export function variantesDesLotsEntiers(d: Pick<DonneesLots, 'lots'>): (lotId: s
 }
 /** Inatteignable depuis `faitsHypotheses` · un identifiant hors des lots lus en entier n'a aucune variante à prêter. */
 const AUCUNE_VARIANTE: readonly AdLue[] = Object.freeze([]);
+
+/**
+ * L'ad d'une HYPOTHÈSE, lue dans la portée (espace, graphe de la marque) · `{ ad }` · lue, avec son lot · `{ partielle }`
+ * · dans la portée mais non lue (son lot est lu en partie même relu en entier, ou elle passe la borne des annonces hors
+ * lot) · l'appelant dit « non calculé · lecture incomplète », jamais le refus de droits · `null` · hors portée ou inconnue.
+ *
+ * Introuvable dans la lecture des lots, son lot est relu DANS LA PORTÉE (`adsDeLaMarque`, la portée de la carte du Studio
+ * et du lien profond d'Adsmap) AVANT d'en rien dire · une ad d'une autre marque reste le refus, même rangée dans un lot
+ * de la marque active lu en partie · puis ce lot est relu en entier, comme sa fiche (`lotEntier`) · la règle · `hypotheseDansLaLecture`.
+ */
+type AdDeLHypothese = { ad: AdLue; partielle?: undefined } | { ad?: undefined; partielle: LecturePartielle };
+export type HypotheseLue = { d: DonneesLots; lot: LotLu | null } & AdDeLHypothese;
+export async function chargerHypothese(workspaceId: string, brandId: string, adId: string, maintenant = new Date()): Promise<HypotheseLue | null> {
+  const avec = (d: DonneesLots, r: AdDeLHypothese, lotId: string | null): HypotheseLue =>
+    ({ d, lot: lotId ? d.lots.find((l) => l.id === lotId) ?? null : null, ...r });
+  const d = await chargerLots(workspaceId, brandId, maintenant);
+  const lue = hypotheseDansLaLecture(adId, d.lots, d.horsLot);
+  if (lue?.ad) return avec(d, lue, lue.ad.lotId);
+  const rangement = (await adsRangeesDansLaMarque(workspaceId, brandId, [adId])).get(adId)?.lotId;
+  // Hors portée · le refus, rien n'est relu ni dit de son lot.
+  if (rangement === undefined) return null;
+  const partiel = !!rangement && !!d.lots.find((l) => l.id === rangement)?.partielle;
+  const d2 = partiel ? await chargerLots(workspaceId, brandId, maintenant, { lotEntier: rangement }) : d;
+  const r = hypotheseDansLaLecture(adId, d2.lots, d2.horsLot, rangement);
+  return r ? avec(d2, r, r.ad ? r.ad.lotId : rangement) : null;
+}
 
 /** Les états des lots, dans l'ordre de la liste. */
 export const etatsLots = (d: DonneesLots) => d.lots.map((l) => etatLotSpatial(l, d.ctx));
