@@ -60,10 +60,15 @@ const FAUX_DOCKER = `#!/bin/bash
 echo "\${COMPOSE_PROJECT_NAME-<absent>} $*" >> "$JOURNAL_DOCKER"
 # CODE_DOCKER=n · pg_dump interrompu : un début de dump, puis l'échec.
 if [ -n "\${CODE_DOCKER:-}" ]; then echo "-- dump interrompu"; exit "$CODE_DOCKER"; fi
-# TEMOIN_DOCKER=f · dump EN COURS : un début écrit, le témoin posé, puis il attend que LIBERER_DOCKER
-# existe (le test le pose) · sans lui, jusqu'au signal. Le sondage est celui du FAUX, pas du test.
+# TEMOIN_DOCKER=f · dump EN COURS : TOUT le début est écrit d'un coup, puis le témoin est posé
+# (atomiquement, par mv) avec le nombre d'octets écrits · ensuite il n'écrit PLUS RIEN et attend que
+# LIBERER_DOCKER existe (le test le pose) · sans lui, jusqu'au signal. Le dump sur disque atteint
+# donc une taille FINALE connue, que la sonde attend exactement (rien ne dépend du rythme de gzip).
+# Le sondage de la libération est celui du FAUX, pas du test.
 if [ -n "\${TEMOIN_DOCKER:-}" ]; then
-  echo "-- dump commencé"; head -c 3000 /dev/urandom | base64; : > "$TEMOIN_DOCKER"
+  { echo "-- dump commencé"; head -c 3000 /dev/urandom | base64; } > "$TEMOIN_DOCKER.contenu"
+  cat "$TEMOIN_DOCKER.contenu"
+  wc -c < "$TEMOIN_DOCKER.contenu" > "$TEMOIN_DOCKER.tmp"; mv "$TEMOIN_DOCKER.tmp" "$TEMOIN_DOCKER"
   until [ -e "\${LIBERER_DOCKER:-/nulle-part}" ]; do sleep 0.05; done
   echo "-- dump terminé"; exit 0
 fi
@@ -170,7 +175,10 @@ function principal(env: Record<string, string> = {}, offsite = '1', d = lieu().d
 }
 /**
  * `principal` lancé dans son PROPRE groupe de processus, et rendu une fois EN PLEIN DUMP (le faux
- * docker a écrit et attend, le dump a des octets sur disque) · `attendreEtat`, jamais une durée.
+ * docker a tout écrit et attend, et le dump sur disque a EXACTEMENT les octets annoncés par son
+ * témoin : il ne grandira plus avant `liberer`) · `attendreEtat`, jamais une durée. Sonder « une
+ * taille non nulle » ne suffisait pas · le dump grandissait encore pendant le test (CI rouge de
+ * #1136, run 45050052617 : 18 octets lus, puis 4 071).
  * `tuer` envoie un signal à tout le groupe (bash, le faux docker, le faux gzip) · ce que fait
  * `systemctl stop` (KillMode=control-group, le défaut) et l'arrêt ou le redémarrage du VPS.
  * `liberer` laisse le faux docker finir son dump. `fin` · le code ou le signal de bash.
@@ -188,8 +196,11 @@ async function principalEnCours(d = lieu().d) {
   const tuer = (signal: NodeJS.Signals) => process.kill(-enfant.pid!, signal);
   const nettoyer = () => { try { tuer('SIGKILL'); } catch { /* groupe déjà fini */ } };
   try {
-    await attendreEtat('faux docker en plein dump · témoin posé, dump commencé sur disque', () =>
-      existsSync(temoin) && readdirSync(dossier).some((f) => f.startsWith('tiktrends-') && statSync(join(dossier, f)).size > 0));
+    await attendreEtat('faux docker en plein dump · témoin posé, dump sur disque à sa taille annoncée', () => {
+      if (!existsSync(temoin)) return false;
+      const annonce = Number(readFileSync(temoin, 'utf8').trim());
+      return annonce > 0 && readdirSync(dossier).some((f) => f.startsWith('tiktrends-') && statSync(join(dossier, f)).size === annonce);
+    });
   } catch (e) {
     nettoyer();
     throw e;
@@ -421,7 +432,7 @@ describe('ops/backup.sh · dump tué par un signal (systemctl stop, arrêt, red�
     try {
       const partA = fichiersDe(a.dossier).filter((f) => f.endsWith('.part'));
       expect(partA).toHaveLength(1);
-      const tailleA = statSync(join(a.dossier, partA[0]!)).size;
+      const avant = statSync(join(a.dossier, partA[0]!));
 
       const b = principal({}, '1', a.d);
       expect(b.code, `second passage NON refusé pendant le premier · ${b.sortie}`).toBe(75);
@@ -429,7 +440,10 @@ describe('ops/backup.sh · dump tué par un signal (systemctl stop, arrêt, red�
       expect(b.docker, 'second passage allé jusqu’à docker').toEqual([]);
       expect(b.rclone).toEqual([]);
       expect(fichiersDe(a.dossier), `le second passage a touché au .part du premier · ${b.sortie}`).toEqual(partA);
-      expect(statSync(join(a.dossier, partA[0]!)).size).toBe(tailleA);
+      // Le MÊME fichier (inode), pas un homonyme réécrit · et son contenu, à sa taille finale, intact.
+      const apres = statSync(join(a.dossier, partA[0]!));
+      expect(apres.ino, 'le .part du premier a été remplacé par un autre fichier du même nom').toBe(avant.ino);
+      expect(apres.size, 'le .part du premier a changé de taille').toBe(avant.size);
 
       a.liberer();
       const fa = await a.fin;
