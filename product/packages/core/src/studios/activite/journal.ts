@@ -84,8 +84,16 @@ export const PHRASE_EVENEMENT_INCONNU = 'Action enregistrée sur ce projet';
  * lues (run 45035270381).
  *
  * Une restauration logique (pg_dump) réécrit `xmin` · toutes les lignes d'une
- * table y partagent une transaction et une commande · le départage retombe
- * alors sur l'identifiant, comme avant · jamais un ordre inventé.
+ * table y partagent une transaction et une commande · entre deux faits de la
+ * même table, le départage retombe alors sur l'identifiant, comme avant · entre
+ * l'audit et les versions, il devient l'ordre dans lequel les tables ont été
+ * restaurées · déterministe, mais arbitraire.
+ *
+ * Jamais d'écriture d'audit (ni de version) dans une transaction IMBRIQUÉE
+ * (savepoint, `tx.transaction(…)` dans une transaction) · une sous-transaction
+ * reçoit son propre numéro, plus grand que celui de la transaction mère · une
+ * écriture de la mère faite APRÈS la sous-transaction porte le plus petit
+ * numéro et se lirait comme antérieure · l'ordre s'y inverse.
  */
 export interface EcritureJournal { transaction: number; commande: number }
 
@@ -411,9 +419,19 @@ function ecartEcriture(a: EcritureJournal, b: EcritureJournal): number {
  * dont on connaît l'ordre d'écriture se disent dans cet ordre (le dernier écrit
  * d'abord) · un fait sans ordre connu (fin de tâche, commentaire, note, copie ·
  * lignes modifiables, ou lues ailleurs) passe au-dessus d'eux · puis
- * l'identifiant, pour qu'un même journal se relise toujours dans le même ordre.
+ * l'identifiant.
  * Un ordre TOTAL (clé lexicographique) · jamais de cycle, quel que soit le
- * mélange de sources au même instant.
+ * mélange de sources au même instant, tant que les faits d'un même instant sont
+ * à moins de 2^31 transactions d'écart (la comparaison modulo 2^32 n'est
+ * transitive qu'à cette condition · des millions de fois au-delà de ce qu'une
+ * milliseconde peut écrire).
+ *
+ * Pour les sources sans ordre d'écriture (tâches, commentaires, notes,
+ * duplications), l'identifiant reste le dernier recours · en production, un
+ * même journal se relit toujours dans le même ordre (les identifiants sont ceux
+ * de la base) · d'une exécution de test à l'autre, en revanche, les uuid
+ * changent · deux de ces faits au même instant ne s'y affirment pas dans un
+ * ordre fixe.
  */
 export function comparerFaitsJournal(a: FaitJournal, b: FaitJournal): number {
   if (a.le !== b.le) return a.le < b.le ? 1 : -1;

@@ -23,9 +23,10 @@ const apres = (ms: number) => { let t0: number | null = null; return () => { con
 /**
  * Le grain des minuteries de Node · une minuterie de `ms` part d'une horloge de boucle tronquée à
  * la milliseconde et se déclenche quand cette horloge a avancé de `ms` · mesurée par
- * `performance.now()` (sous-milliseconde), elle peut finir jusqu'à 1 ms plus tôt. Le défaut ne
- * s'ajoute pas d'une minuterie à l'autre · chaque échéance tombe sur la même grille, donc N pauses
- * enchaînées perdent au plus 1 ms en tout, pas N. Mesuré le 22/11/2026, machine de 4 cœurs ·
+ * `performance.now()` (sous-milliseconde), elle peut finir plus tôt (moins de 1 ms sur l'horloge
+ * fine, près de 2 ms sur l'horloge grossière, voir plus bas). Le défaut ne s'ajoute pas d'une
+ * minuterie à l'autre · chaque échéance tombe sur la même grille, donc N pauses enchaînées perdent
+ * ce grain une fois en tout, pas N fois. Mesuré le 22/11/2026, machine de 4 cœurs ·
  * `attendreEtat(…, { stabilite: 6, intervalleMs: 10 })`, cible (6 - 1) × 10 = 50 ms :
  *
  *   régime                    passages   sous 50 ms   déficit max   min        p50        max
@@ -35,10 +36,18 @@ const apres = (ms: number) => { let t0: number | null = null; return () => { con
  *   stabilité 21 × 2 ms (40)    300          0          aucun        40,849     43,315    122,083
  *
  * 30 passages sur 900 (3,3 %) sous 50 ms · d'où le rouge du run 45035270381 (49,869). Aucun sous
- * 49 · le déficit le plus grand mesuré (0,385 ms) tient 2,6 fois dans le grain. La garde exige
- * donc plus de (N - 1) × intervalle - 1 ms · une pause sautée (40 ms) ou toutes (0 ms) tombe.
+ * 49 · le déficit le plus grand mesuré (0,385 ms) reste sous 1 ms.
+ *
+ * Ce tableau vient d'un noyau en HZ=250 (`CONFIG_HZ=250`, lu sur la machine de mesure), où libuv
+ * lit l'horloge fine (`CLOCK_MONOTONIC`). Les machines de la CI sont probablement en HZ=1000 · sur
+ * ce réglage, libuv lit `CLOCK_MONOTONIC_COARSE` (sa résolution, une jiffy de 1 ms, passe sous son
+ * seuil d'une milliseconde), qui retarde lui-même jusqu'à 1 ms sur l'horloge fine · cette lecture
+ * en retard s'ajoute à la troncature, et la borne réelle approche 2 ms. Le grain retenu est donc
+ * 2 ms, pas 1 · il couvre les deux horloges sans mesure locale possible du cas grossier. La garde
+ * exige plus de (N - 1) × intervalle - 2 ms, soit 48 ms · une pause sautée (40 ms), cinq pauses
+ * raccourcies de 2 ms (40 ms) ou toutes sautées (0 ms) tombent.
  */
-const GRAIN_MINUTERIE_MS = 1;
+const GRAIN_MINUTERIE_MS = 2;
 
 describe('attendreEtat · sonde une condition jusqu’à ce qu’elle tienne', () => {
   it('condition déjà vraie · un seul sondage, aucun délai', async () => {
