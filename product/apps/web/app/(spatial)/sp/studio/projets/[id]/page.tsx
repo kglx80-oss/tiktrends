@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import {
-  REFUS_GESTE_JARVIS, lienJarvisContexte, lireCommentaireCible, lireGesteEssaiJarvis, lireNoeudCible, modeDisposition, modeGraphe, preparationTesterJarvis, segmentReserveProjets,
+  NON_CALCULE_LECTURE, REFUS_GESTE_JARVIS, lienJarvisContexte, lireCommentaireCible, lireGesteEssaiJarvis, lireNoeudCible, modeDisposition, modeGraphe, preparationTesterJarvis, segmentReserveProjets,
   variablesRattachement, type PreparationTesterJarvis,
 } from '@tiktrends/core';
 import { lireGesteEssaiPourProjet } from '../../../../../../lib/jarvis-gestes';
@@ -51,7 +51,8 @@ export default async function ProjetSpatial({ params, searchParams }: { params: 
     const refus: PreparationTesterJarvis = { varianteId: null, mode: null, variable: null, essaiVariable: null, note: REFUS_GESTE_JARVIS };
     const lu = geste.etat === 'ok' ? await lireGesteEssaiPourProjet(s, geste) : null;
     const variantes = r.props.creations.variantes;
-    const p = lu ? preparationTesterJarvis(lu.texte, {
+    // Le lot de la réponse est lu en partie · ni liste, ni refus de portée (qui parlerait de droits) · « non calculé », rien de pré-rempli.
+    const p = lu?.partielle ? { ...refus, note: NON_CALCULE_LECTURE } : lu ? preparationTesterJarvis(lu.texte, {
       projectId: r.props.projet.id, variantes: lu.variantes, exclus: lu.exclus,
       admises: (v) => variablesRattachement(variantes.find((x) => x.id === v.varianteId)?.rattachement.aUnParent ?? false),
     }) : refus;

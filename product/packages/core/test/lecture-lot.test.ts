@@ -3,8 +3,8 @@ import {
   BORNES_LECTURE_LOTS, DEFAULT_VERDICT_CONFIG, MESURE_LECTURE_LOTS, MESURE_LECTURE_LOT_SEUL, PRESENTATION_ETAT_LOT, TITRE_LECTURE_INCOMPLETE,
   compteAConclure, compteAImporter, dansFiltreLots, etatLotSpatial, lotArbitrable, lotImport, lotLuEnEntier, lotsALire, lotsConclusLus,
   noteLectureLots, phraseLotLuEnPartie, presentationLot, syntheseLot, controlesLot, coachLot, conclusionLot, phraseLot, indexAutresLots, resumerContexteJarvis,
-  NON_CALCULE_LECTURE, NON_CALCULE, RAISON_GESTE_RIEN_A_CONCLURE, RAISON_GESTE_SANS_GAGNANTE_LOT, gestesClavierLot, gestesContexteJarvis, variantesDe, RAISON_GESTE_LECTURE_INCOMPLETE, lectureDuLot, nombreVariantes, categorieLot, plateformesLot, hypotheseLot, preparationLot, suiteLot,
-  type FaitsAdSpatial, type FaitsLotSpatial, type FaitsVerdictSpatial, type VerdictValue,
+  NON_CALCULE_LECTURE, NON_CALCULE, RAISON_CONCLURE_NON_LANCE, RAISON_CONCLURE_HISTORIQUE, gestesClavierLot, gestesContexteJarvis, variantesDe, RAISON_GESTE_LECTURE_INCOMPLETE, lectureDuLot, nombreVariantes, categorieLot, plateformesLot, hypotheseLot, preparationLot, suiteLot,
+  type EtatLotSpatial, type FaitsAdSpatial, type FaitsLotSpatial, type FaitsVerdictSpatial, type VerdictValue,
 } from '../src';
 
 /**
@@ -187,13 +187,27 @@ describe('les gestes d’un lot lu en partie · le lot lui-même, une raison vra
     expect([g.iterer.cible, g.conclure.cible]).toEqual([null, null]);
     expect([g.iterer.raison, g.conclure.raison], 'un geste de Jarvis fermé sur un lot lu en partie dit une raison tirée de rien').toEqual([RAISON_GESTE_LECTURE_INCOMPLETE, RAISON_GESTE_LECTURE_INCOMPLETE]);
   });
-  it('lu en partie mais NON lancé (préparation) · la raison ordinaire, vraie · jamais « arbitre depuis la fiche de test » pour un brouillon', () => {
-    const prep = lot('p', 42, [], 900, 'planned');
-    const g = gestesClavierLot({ etat: 'composition', ...variantesDe(prep), planIds: new Set() });
-    expect([g.conclure.raison, g.iterer.raison], 'un lot en préparation lu en partie renvoie à l’arbitrage d’une variante').toEqual([RAISON_GESTE_RIEN_A_CONCLURE, RAISON_GESTE_SANS_GAGNANTE_LOT]);
-    const id = '00000000-0000-4000-8000-000000000042';
-    const j = gestesContexteJarvis({ type: 'lot', id, ...variantesDe(prep), lot: { id, etat: 'composition', ...variantesDe(prep) } })!;
-    expect([j.iterer.raison, j.conclure.raison]).toEqual([RAISON_GESTE_SANS_GAGNANTE_LOT, RAISON_GESTE_RIEN_A_CONCLURE]);
+  it('lu en partie mais NON lancé (préparation, prêt) ou importé · raisons tirées du STATUT · jamais « aucune gagnante » ni « aucun verdict »', () => {
+    // Une gagnante arbitrée hors lot peut être rangée dans un lot en préparation de plus de 500 variantes (`setBatchAdAction`) · la partie
+    // non lue peut la porter · « Aucune variante de ce lot n'est une gagnante arbitrée » serait faux.
+    const cas: Array<[EtatLotSpatial, string, string]> = [
+      ['composition', 'planned', RAISON_CONCLURE_NON_LANCE],
+      ['pret', 'ready', RAISON_CONCLURE_NON_LANCE],
+      ['importe', 'analyzed', RAISON_CONCLURE_HISTORIQUE],
+    ];
+    for (const [etat, statut, conclure] of cas) {
+      const prep = lot('p', 42, [], 900, statut);
+      const g = gestesClavierLot({ etat, ...variantesDe(prep), planIds: new Set() });
+      expect([g.conclure.raison, g.iterer.raison], `raccourcis · ${etat}`).toEqual([conclure, NON_CALCULE_LECTURE]);
+      const id = '00000000-0000-4000-8000-000000000042';
+      const j = gestesContexteJarvis({ type: 'lot', id, ...variantesDe(prep), lot: { id, etat, ...variantesDe(prep) } })!;
+      expect([j.iterer.raison, j.conclure.raison], `Jarvis · ${etat}`).toEqual([NON_CALCULE_LECTURE, conclure]);
+      for (const r of [g.conclure.raison, g.iterer.raison, j.iterer.raison, j.conclure.raison]) {
+        expect(r, `${etat} · une raison tirée d'un contenu non lu`).not.toMatch(/gagnante arbitrée|Aucun verdict|arbitre depuis/i);
+      }
+    }
+    expect(RAISON_CONCLURE_NON_LANCE).toBe('Ce lot n’est pas lancé · il se conclut après sa diffusion.');
+    expect(RAISON_CONCLURE_HISTORIQUE).toBe('Ce lot est un historique importé · il ne se conclut pas ici.');
   });
   it('`variantesDe` · toutes ou aucune, jamais un `[]` à la place', () => {
     expect(variantesDe(partiel)).toEqual({ partielle: { variantesEnBase: 8, variantesLues: 0 } });

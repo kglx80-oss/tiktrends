@@ -64,7 +64,7 @@ vi.mock('next/cache', () => ({ revalidatePath: () => {}, revalidateTag: () => {}
 vi.mock('../app/actions/assistant', () => ({ askAssistant: async () => ({}) }));
 vi.mock('../app/actions/adsmap-attribution', () => ({ attributionViewAction: async () => ({}), creativeTrendAction: async () => ({}) }));
 
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { BORNES_LECTURE_LOTS, variantesDesLotsLus, type VariantesDuLot } from '@tiktrends/core';
 /** Ce que la lecture a vu de chaque lot · `[id, 'entiere', n]` ou `[id, 'partielle', en base, lues]`. */
@@ -82,8 +82,7 @@ import ResultatsSpatial from '../app/(spatial)/sp/adsmap/page';
 import BoucleSpatial from '../app/(spatial)/sp/adsmap/boucle/page';
 import { resoudreContexteJarvis } from '../lib/jarvis-contexte';
 import { gestesPourContexte, lireVariantesEssai } from '../lib/jarvis-gestes';
-import { GestesEssaiTexte } from '../spatial/vues/jarvis/GestesEssaiTexte';
-import { RAISON_GESTE_RIEN_A_CONCLURE, reponseConseilleTest } from '@tiktrends/core';
+import { NON_CALCULE_LECTURE, RAISON_CONCLURE_NON_LANCE } from '@tiktrends/core';
 import { lireGagnantesDepuis } from '../lib/iterer-gagnante';
 import TestSpatial from '../app/(spatial)/sp/adsmap/tests/[id]/page';
 
@@ -111,7 +110,7 @@ const PETITE = () => ({ id: I.p!, name: 'Petite' });
  * Ce qu'aucune phrase ne doit dire d'un lot lu en partie · elle serait tirée d'une partie (ou de rien) · « Aucune
  * mesure ni aucun verdict ne suit » (la duplication, vraie de toute copie) n'en est pas une.
  */
-const PHRASES_FAUSSES = /aucune variante|Aucune mesure(?! ni aucun verdict ne suit)|Durée prévue atteinte|en préparation : 0|à choisir|Aucune hypothèse|Aucun persona|Aucune variante rangée|Pas encore lancé|0 étape|Aucun verdict|n.est une gagnante arbitrée|aucun lot|Aucun test|Aucune pub/i;
+const PHRASES_FAUSSES = /aucune variante|Aucune mesure(?! ni aucun verdict ne suit)|Durée prévue atteinte|en préparation : 0|à choisir|Aucune hypothèse|Aucun persona|Aucune variante rangée|Pas encore lancé|0 étape|Aucun verdict|n.est une gagnante arbitrée|aucune gagnante|aucun lot|Aucun test|Aucune pub/i;
 /**
  * Les phrases tirées de rien dans un texte, avec leur contexte · `[]` attendu. Exemptions NOMMÉES (phrases vraies) ·
  *  · « Aucune mesure ni aucun verdict ne suit » · la duplication, vraie de toute copie (motif) ;
@@ -194,7 +193,7 @@ async function vaste() {
   for (const x of ids) if (x.b === L.vaste1 || x.b === L.vaste2) L[`${x.b === L.vaste1 ? 'vaste1' : 'vaste2'}:${x.id}`] = x.id;
 }
 
-/** « Petite » · #2 en préparation, 501 brouillons · #1 en diffusion, 501 variantes sans verdict · aucun n'est lu (plafond d'un lot). */
+/** « Petite » · #2 en préparation, 501 brouillons (dont une gagnante arbitrée rangée là) · #1 en diffusion, 501 variantes sans verdict · aucun n'est lu (plafond d'un lot). */
 async function petite() {
   await db.insert(schema.brands).values({ id: I.p!, workspaceId: I.ws!, name: 'Petite' });
   const [p] = await db.insert(schema.personas).values({ brandId: I.p!, name: 'P Petite' }).returning();
@@ -213,6 +212,14 @@ async function petite() {
     ...Array.from({ length: n }, (_, k) => ({ workspaceId: I.ws!, conceptId: c!.id, batchId: prep!.id, variantCode: `b${k}`, status: 'draft' as const, adType: 'ideation' as const, format: 'static' as const })),
   ];
   for (let i = 0; i < ads.length; i += 500) await db.insert(schema.ads).values(ads.slice(i, i + 500));
+  // Une gagnante ARBITRÉE hors lot, rangée ensuite dans #2 (`setBatchAdAction` le permet) · dans la partie non lue · « aucune gagnante » serait faux.
+  const [gagnante] = await db.select({ id: schema.ads.id }).from(schema.ads).where(and(eq(schema.ads.batchId, prep!.id), eq(schema.ads.variantCode, `b${n - 1}`)));
+  L.petiteGagnante = gagnante!.id;
+  await db.update(schema.ads).set({ status: 'done' }).where(eq(schema.ads.id, gagnante!.id));
+  await db.insert(schema.verdicts).values({
+    adId: gagnante!.id, workspaceId: I.ws!, computed: 'winner', validated: 'winner', status: 'validated', comparable: true, computedAt: A(8),
+    metricsAgg: { spend: 150, impressions: 20_000, purchases: 9, cpa: 16, reason: 'Moteur', daysElapsed: 8 },
+  });
 }
 
 const GAGNE: Verdict = { calcule: 'winner' };
@@ -294,8 +301,7 @@ async function fiche(id: string) {
       return s ? `${net(s.querySelector('h2')?.textContent)} · ${net(s.querySelector('p')?.textContent)}` : null;
     })(),
     texte: net(d.textContent),
-    /** Le texte hors des raccourcis (« Conclure », « Itérer ») · pour un lot NON lancé, leurs raisons ordinaires sont vraies (gardées à part). */
-    texteSansRaccourcis: (() => { const c = d.cloneNode(true) as HTMLElement; c.querySelector('[data-raccourcis-lot]')?.remove(); return net(c.textContent); })(),
+    raccourcis: net(d.querySelector('[data-raccourcis-lot]')?.textContent),
     tests: d.querySelector<HTMLAnchorElement>('[data-lecture-incomplete] a[data-geste="tests-du-lot"]')?.getAttribute('href') ?? null,
   };
 }
@@ -376,8 +382,9 @@ describe('un lot en préparation lu en partie · son état vient du statut, le r
     commeProprietaire(undefined, 'member');
     const f = await fiche(L.remplissage!);
     expect(f.lecture ?? '(aucune réserve)', 'la fiche d’un lot en préparation lu en partie ne le dit pas').toMatch(/^Lecture incomplète · 0 variante lue sur 1\s995 · ses variantes ne sont pas affichées, aucune n’est tirée d’une partie du lot\. /);
-    // Les raccourcis d'un brouillon disent la raison ordinaire (« Aucun verdict du moteur n'attend… »), vraie · gardés à part (« Petite » #2).
-    expect(phrasesFausses(f.texteSansRaccourcis), 'la fiche d’un lot lu en partie dit une phrase tirée de rien').toEqual([]);
+    // La fiche ENTIÈRE, raccourcis compris · leurs raisons viennent du statut (« Ce lot n'est pas lancé… », « Non calculé… »), rien n'est mis à part.
+    expect(phrasesFausses(f.texte), 'la fiche d’un lot lu en partie dit une phrase tirée de rien').toEqual([]);
+    expect(f.raccourcis, 'les raccourcis sont rendus, leur raison tirée du statut').toContain(RAISON_CONCLURE_NON_LANCE);
   });
 });
 
@@ -525,23 +532,23 @@ describe('`lotsALire` en base · le lot d’une fiche ne change JAMAIS les autre
 });
 
 describe('l’essai de Jarvis, les gestes d’un brouillon, la portée de la fiche de test (tour court)', () => {
-  it('l’essai du grand lot #25 · `null` (l’écran ne le pose pas) · jamais « Aucune pub de ce contexte ne vient d’un projet Studio »', async () => {
+  it('l’essai du grand lot #25 · `{ partielle: true }` · ni une liste (« Aucune pub de ce contexte ne vient d’un projet Studio »), ni le refus de portée', async () => {
     commeProprietaire();
-    const e = await lireVariantesEssai(h.session as never, I.b!, { type: 'lot', id: L.grand! });
-    const texte = 'Je te conseille de tester la variante y0001 sur une nouvelle audience.';
-    expect(reponseConseilleTest(texte), 'préalable · la réponse conseille un test').toBe(true);
-    const html = e ? brut(<GestesEssaiTexte texte={texte} reponse="00000000-0000-4000-8000-000000000099" contexte={{ type: 'lot', id: L.grand! }} variantes={e.variantes} exclus={e.exclus} taille={11} />) : '';
-    const d = document.createElement('div'); d.innerHTML = html;
-    expect(phrasesFausses(net(d.textContent)), 'l’essai d’un lot non lu dit une phrase tirée de rien').toEqual([]);
-    expect(e, 'l’essai d’un lot non lu est posé').toBeNull();
+    // Le RÉSULTAT lu · l'écran de Jarvis ne pose pas l'essai, la fiche d'un projet dit « non calculé » (rendus · `lot5q-jarvis-mesure-db`).
+    expect(await lireVariantesEssai(h.session as never, I.b!, { type: 'lot', id: L.grand! }), 'l’essai d’un lot lu en partie').toEqual({ partielle: true });
   });
 
-  it('« Petite » #2 (en préparation, lu en partie) · les raccourcis disent la raison ordinaire, jamais « arbitre depuis la fiche de test »', async () => {
+  it('« Petite » #2 (en préparation, lu en partie, une gagnante ARBITRÉE dans sa partie non lue) · ni « aucune gagnante », ni « aucun verdict »', async () => {
     commeProprietaire(PETITE());
-    const d = dom(avecSpatial(await LotSpatial({ params: Promise.resolve({ id: L.petitePreparation! }), searchParams: Promise.resolve({}) })));
-    const r = net(d.querySelector('[data-raccourcis-lot]')?.textContent);
-    expect(r, 'un brouillon lu en partie renvoie à l’arbitrage d’une variante').not.toContain('arbitre depuis la fiche de test');
-    expect(r, 'la raison ordinaire d’un lot sans verdict').toContain(RAISON_GESTE_RIEN_A_CONCLURE);
+    const [g] = await db.select({ statut: schema.verdicts.status, valide: schema.verdicts.validated }).from(schema.verdicts).where(eq(schema.verdicts.adId, L.petiteGagnante!));
+    expect(g, 'préalable · une gagnante arbitrée est rangée dans le lot').toEqual({ statut: 'validated', valide: 'winner' });
+    const f = await fiche(L.petitePreparation!);
+    expect(f.lecture ?? '(aucune réserve)', 'préalable · le lot est lu en partie').toMatch(/^Lecture incomplète · 0 variante lue sur 501/);
+    // « aucune gagnante », « n'est une gagnante arbitrée », « aucun verdict » sont dans le motif · la gagnante non lue les rendrait fausses.
+    expect(phrasesFausses(f.texte), 'la fiche dit une phrase que sa gagnante non lue rend fausse').toEqual([]);
+    expect(f.raccourcis, 'Conclure · la raison tirée du statut').toContain(RAISON_CONCLURE_NON_LANCE);
+    expect(f.raccourcis, 'Itérer · non calculé, sans recours d’arbitrage').toContain(NON_CALCULE_LECTURE);
+    expect(f.raccourcis, 'un brouillon lu en partie renvoie à l’arbitrage d’une variante').not.toContain('arbitre depuis la fiche de test');
   });
 
   it('portée · une ad de Neva rangée dans un lot de « Vaste » · sa fiche de test ne mène pas à ce lot', async () => {

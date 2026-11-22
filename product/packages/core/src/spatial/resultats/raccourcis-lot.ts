@@ -1,7 +1,7 @@
-import { ANCRE_CONCLURE_LOT, RAISON_GESTE_RIEN_A_CONCLURE, RAISON_GESTE_SANS_GAGNANTE_LOT, gagnanteArbitree } from '../jarvis/gestes';
+import { ANCRE_CONCLURE_LOT, RAISON_GESTE_RIEN_A_CONCLURE, RAISON_GESTE_SANS_GAGNANTE_LOT, gagnanteArbitree, raisonsLotLuEnPartie } from '../jarvis/gestes';
 import { lienIterationVariable } from '../studios/iterer-variable';
 import { lotConcluable, type EtatLotSpatial, type FaitsAdSpatial } from './lots';
-import { RAISON_GESTE_LECTURE_INCOMPLETE, type VariantesDuLot } from './lecture-lot';
+import type { VariantesDuLot } from './lecture-lot';
 import type { GesteGagnante } from '../../studios/activite/iterer-gagnante';
 
 /**
@@ -78,11 +78,10 @@ function itererDepuisGagnante(f: FaitsClavierLot & { ads: readonly FaitsAdSpatia
 }
 
 export function gestesClavierLot(f: FaitsClavierLot): { conclure: GesteClavierLot; iterer: GesteClavierIterer } {
-  // Lu en partie · LANCÉ (`illisible`) · ni « aucun verdict n'attend », ni « aucune gagnante » · rien n'est calculé, le recours est la fiche de
-  // test d'une variante · NON lancé (préparation, prêt, historique) · aucun verdict ne peut attendre · la raison ordinaire est vraie.
+  // Lu en partie · rien n'est tiré du contenu · jamais « aucune gagnante » ni « aucun verdict » · les raisons viennent du statut seul.
   if (f.partielle) {
-    const r = f.etat === 'illisible' ? RAISON_GESTE_LECTURE_INCOMPLETE : null;
-    return { conclure: { href: null, raison: r ?? RAISON_GESTE_RIEN_A_CONCLURE }, iterer: { href: null, adId: null, raison: r ?? RAISON_GESTE_SANS_GAGNANTE_LOT } };
+    const r = raisonsLotLuEnPartie(f.etat);
+    return { conclure: { href: null, raison: r.conclure }, iterer: { href: null, adId: null, raison: r.iterer } };
   }
   const concluable = lotConcluable(f.etat, f.ads);
   const gagnantes = f.ads.filter(gagnanteArbitree).map((a) => a.id);

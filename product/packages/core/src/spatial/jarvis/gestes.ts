@@ -2,7 +2,7 @@ import type { TestedVariable } from '../../adsmap/types';
 import { estGagnanteValidee } from '../../adsmap/verdict-libelle';
 import { LIBELLE_CHOIX_VARIABLE, type ChoixVariablesIteration } from '../studios/iterer-variable';
 import { lienLotSpatial, lotConcluable, type EtatLotSpatial, type FaitsAdSpatial } from '../resultats/lots';
-import { RAISON_GESTE_LECTURE_INCOMPLETE, type VariantesDuLot } from '../resultats/lecture-lot';
+import { NON_CALCULE_LECTURE, RAISON_GESTE_LECTURE_INCOMPLETE, type VariantesDuLot } from '../resultats/lecture-lot';
 import { demandeContexteJarvis, lienJarvisContexte, nettoyerContexteJarvis, type DemandeContexteJarvis, type TypeContexteJarvis } from './contexte';
 
 /**
@@ -102,6 +102,22 @@ export const RAISON_GESTE_SANS_GAGNANTE_LOT = 'Aucune variante de ce lot n’est
 export const RAISON_GESTE_SANS_GAGNANTE_HYPOTHESE = 'Cette hypothèse n’a pas de verdict gagnant arbitré · une itération part d’une gagnante.';
 export const RAISON_GESTE_HORS_LOT = 'Cette hypothèse n’est rangée dans aucun lot · il n’y a pas de lot à conclure.';
 export const RAISON_GESTE_RIEN_A_CONCLURE = 'Aucun verdict du moteur n’attend d’être arbitré dans ce lot · il se conclut quand le moteur a tranché ses variantes.';
+/** Conclure un lot lu en partie et NON lancé · tiré du STATUT seul (un brouillon ne s'arbitre pas), vrai quel que soit son contenu. */
+export const RAISON_CONCLURE_NON_LANCE = 'Ce lot n’est pas lancé · il se conclut après sa diffusion.';
+/** Conclure un lot lu en partie et importé · tiré du STATUT seul (un historique ne s'arbitre pas ici), vrai quel que soit son contenu. */
+export const RAISON_CONCLURE_HISTORIQUE = 'Ce lot est un historique importé · il ne se conclut pas ici.';
+
+/**
+ * Les raisons des deux gestes fermés d'un lot LU EN PARTIE · rien n'y est tiré du contenu (on ne le lit pas en entier) :
+ * lancé (`illisible`) · rien n'est calculé, le recours est la fiche de test d'une variante · non lancé ou importé · Conclure dit le
+ * statut (un tel lot ne s'arbitre jamais), Itérer dit « non calculé » · jamais « aucune gagnante » · une gagnante arbitrée hors lot
+ * peut être rangée dans un lot en préparation, dans la partie non lue.
+ */
+export function raisonsLotLuEnPartie(etat: EtatLotSpatial | null): { conclure: string; iterer: string } {
+  if (etat === 'composition' || etat === 'pret') return { conclure: RAISON_CONCLURE_NON_LANCE, iterer: NON_CALCULE_LECTURE };
+  if (etat === 'importe') return { conclure: RAISON_CONCLURE_HISTORIQUE, iterer: NON_CALCULE_LECTURE };
+  return { conclure: RAISON_GESTE_LECTURE_INCOMPLETE, iterer: RAISON_GESTE_LECTURE_INCOMPLETE };
+}
 export const EFFET_GESTES_JARVIS = 'Ouvre l’écran, pré-rempli · rien n’est créé ni conclu sans ton clic là-bas.';
 
 export interface GesteJarvis {
@@ -133,21 +149,20 @@ const gagnante = gagnanteArbitree;
 export function gestesContexteJarvis(f: FaitsGestesJarvis): { iterer: GesteJarvis; conclure: GesteJarvis } | null {
   const d = demandeContexteJarvis(f.type, f.id);
   if (!d || !TYPES_GESTES_JARVIS.includes(d.type)) return null;
-  // Lu en partie ET lancé (`illisible`) · ni « aucune gagnante », ni « aucun verdict n'attend » · rien n'est calculé, la raison le dit ·
-  // lu en partie et NON lancé (préparation, prêt, historique) · aucun verdict ne peut attendre · la raison ordinaire est vraie.
+  // Lu en partie · rien n'est tiré du contenu · les raisons viennent du statut du lot (`raisonsLotLuEnPartie`).
   const l = f.lot;
-  const nonCalcule = (x: { partielle?: unknown; etat?: EtatLotSpatial } | null) => !!x?.partielle && x.etat === 'illisible';
+  const partiel = raisonsLotLuEnPartie(l?.etat ?? null);
   const iterable = !f.partielle && f.ads.some(gagnante);
   const iterer: GesteJarvis = {
     cle: 'iterer', libelle: 'Créer l’itération',
     cible: iterable ? { type: 'iterer', contexte: d } : null,
-    raison: iterable ? null : f.partielle && nonCalcule(l) ? RAISON_GESTE_LECTURE_INCOMPLETE : d.type === 'lot' ? RAISON_GESTE_SANS_GAGNANTE_LOT : RAISON_GESTE_SANS_GAGNANTE_HYPOTHESE,
+    raison: iterable ? null : f.partielle ? partiel.iterer : d.type === 'lot' ? RAISON_GESTE_SANS_GAGNANTE_LOT : RAISON_GESTE_SANS_GAGNANTE_HYPOTHESE,
   };
   const concluable = !!l && !l.partielle && lotConcluable(l.etat, l.ads);
   const conclure: GesteJarvis = {
     cle: 'conclure', libelle: 'Conclure le lot',
     cible: concluable ? { type: 'conclure', lotId: l!.id } : null,
-    raison: concluable ? null : !l ? RAISON_GESTE_HORS_LOT : nonCalcule(l) ? RAISON_GESTE_LECTURE_INCOMPLETE : RAISON_GESTE_RIEN_A_CONCLURE,
+    raison: concluable ? null : !l ? RAISON_GESTE_HORS_LOT : l.partielle ? partiel.conclure : RAISON_GESTE_RIEN_A_CONCLURE,
   };
   return { iterer, conclure };
 }

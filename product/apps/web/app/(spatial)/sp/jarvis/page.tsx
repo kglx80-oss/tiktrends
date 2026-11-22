@@ -102,7 +102,8 @@ export default async function JarvisSpatial({ searchParams }: { searchParams?: P
       // Lot 5 ter · « Autre variable » et « Pourquoi ? » lisent la liste FERMÉE des candidates (plan de la marque) sous chaque réponse.
       ...(gestes ? { gestes: { iterer: gestes.iterer, conclure: gestes.conclure }, suite: { candidats: gestes.candidats, exclus: gestes.exclus } } : {}),
       // Lot 5 quater · « Tester » et « Corriger le texte » lisent la liste FERMÉE des variantes Studio du contexte sous la réponse.
-      ...(gestes && essai ? { essai } : {}),
+      // Lot lu en partie (`partielle`) · on ne sait pas quelles pubs viennent d'un projet Studio · l'essai n'est pas posé.
+      ...(gestes && essai && !essai.partielle ? { essai } : {}),
     };
   }
   // La question de l'adresse (`q`) l'emporte · sinon celle que le contexte prépare. Jamais envoyée seule.

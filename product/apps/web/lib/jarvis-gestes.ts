@@ -177,6 +177,12 @@ export async function gestesPourContexte(s: SessionLue, brandId: string, demande
 /* ───────────────────────── lot 5 quater · « Tester » et « Corriger le texte » ───────────────────────── */
 
 /**
+ * La liste fermée des variantes d'un essai · lue (`variantes`, `exclus`) · ou `{ partielle: true }` · le lot du contexte est lu en partie,
+ * on ne sait pas quelles pubs viennent d'un projet Studio (ni liste, ni refus de portée) · `null` · hors portée ou illisible.
+ */
+export type VariantesEssaiLues = { variantes: VarianteEssaiJarvis[]; exclus: string[]; partielle?: undefined } | { partielle: true; variantes?: undefined; exclus?: undefined };
+
+/**
  * La liste FERMÉE des variantes Studio d'un contexte, relue dans la portée ·
  *  · un PROJET · ses variantes (garde studio, marque visible ET active,
  *    `listerVariantes`), nommées par leur libellé d'écran ;
@@ -186,7 +192,7 @@ export async function gestesPourContexte(s: SessionLue, brandId: string, demande
  *    contexte sont des `exclus` (nommée seule, l'une d'elles ne désigne rien).
  * `null` hors portée (autre marque, autre espace, sans droit, inconnu) · aucune écriture.
  */
-export async function lireVariantesEssai(s: SessionLue, brandId: string, demande: DemandeContexteJarvis, maintenant: Date = new Date()): Promise<{ variantes: VarianteEssaiJarvis[]; exclus: string[] } | null> {
+export async function lireVariantesEssai(s: SessionLue, brandId: string, demande: DemandeContexteJarvis, maintenant: Date = new Date()): Promise<VariantesEssaiLues | null> {
   if (!db || !UUID.test(demande.id)) return null;
   try {
     if (demande.type === 'projet') {
@@ -201,8 +207,9 @@ export async function lireVariantesEssai(s: SessionLue, brandId: string, demande
     const c = await lireContexteGestes(s, brandId, demande, maintenant);
     if (!c) return null;
     // Lu en partie · on ne sait pas quelles pubs viennent d'un projet Studio · une liste vide ferait dire « aucune pub de ce contexte ne vient
-    // d'un projet Studio », ce qui est faux · `null` · l'écran ne pose pas l'essai (comme hors portée).
-    if (c.variantes.partielle) return null;
+    // d'un projet Studio », et `null` ferait dire le refus de portée · tous deux faux · `{ partielle: true }` · Jarvis ne pose pas l'essai,
+    // la fiche du projet dit « non calculé · lecture incomplète ».
+    if (c.variantes.partielle) return { partielle: true };
     const ads = c.variantes.ads;
     const g = await gardeStudio('studio.read');
     const ids = ads.map((a) => a.id);
@@ -231,14 +238,18 @@ export async function lireVariantesEssai(s: SessionLue, brandId: string, demande
  * dans la portée (espace, marque ACTIVE, personne · et le fil LIÉ au projet
  * quand le contexte est un projet), la liste fermée des variantes du contexte
  * relue de même · `null` · la phrase de refus (`REFUS_GESTE_JARVIS`), rien de
- * pré-rempli. Aucune écriture, aucun modèle.
+ * pré-rempli · `{ partielle: true }` · la réponse est dans la portée mais son
+ * lot est lu en partie · l'écran dit « non calculé · lecture incomplète », pas
+ * le refus (qui parlerait de droits). Aucune écriture, aucun modèle.
  */
-export async function lireGesteEssaiPourProjet(s: SessionLue, geste: { reponse: string; contexte: DemandeContexteJarvis }): Promise<{ texte: string; variantes: VarianteEssaiJarvis[]; exclus: string[] } | null> {
+export async function lireGesteEssaiPourProjet(s: SessionLue, geste: { reponse: string; contexte: DemandeContexteJarvis }): Promise<{ texte: string; variantes: VarianteEssaiJarvis[]; exclus: string[]; partielle?: undefined } | { partielle: true } | null> {
   const active = await getActiveBrand(s.workspaceId).catch(() => null);
   if (!active) return null;
   const [texte, l] = await Promise.all([
     lireReponseJarvis(s, active.id, geste.reponse, geste.contexte.type === 'projet' ? { projectId: geste.contexte.id } : {}),
     lireVariantesEssai(s, active.id, geste.contexte),
   ]);
-  return texte && l ? { texte, ...l } : null;
+  // Hors portée (réponse illisible) · le refus, même quand le lot est lu en partie · rien n'est dit du lot d'une réponse qu'on ne peut pas lire.
+  if (!texte || !l) return null;
+  return l.partielle ? { partielle: true } : { texte, variantes: l.variantes, exclus: l.exclus };
 }

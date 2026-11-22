@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { REFUS_GESTE_JARVIS, lireGesteEssaiJarvis, preparationCorrigerJarvis, type PreparationCorrigerJarvis } from '@tiktrends/core';
+import { NON_CALCULE_LECTURE, REFUS_GESTE_JARVIS, lireGesteEssaiJarvis, preparationCorrigerJarvis, type PreparationCorrigerJarvis } from '@tiktrends/core';
 import { getSession } from '../../../../../../../lib/auth';
 import { lireGesteEssaiPourProjet } from '../../../../../../../lib/jarvis-gestes';
 import { lireTextesProjet } from '../../../../../../actions/studios/textes';
@@ -34,8 +34,11 @@ export default async function TextesSpatial({ params, searchParams }: { params: 
   let jarvis: PreparationCorrigerJarvis | null = null;
   if (geste.etat !== 'absente') {
     const lu = geste.etat === 'ok' ? await lireGesteEssaiPourProjet(s, geste) : null;
-    jarvis = lu ? preparationCorrigerJarvis(lu.texte, { projectId: r.vue.projet.id, variantes: lu.variantes, exclus: lu.exclus })
-      : { varianteId: null, type: null, consigne: null, proposition: null, note: REFUS_GESTE_JARVIS };
+    // Le lot de la réponse est lu en partie · ni liste, ni refus de portée (qui parlerait de droits) · « non calculé », rien de pré-rempli.
+    const neutre = { varianteId: null, type: null, consigne: null, proposition: null };
+    jarvis = lu?.partielle ? { ...neutre, note: NON_CALCULE_LECTURE }
+      : lu ? preparationCorrigerJarvis(lu.texte, { projectId: r.vue.projet.id, variantes: lu.variantes, exclus: lu.exclus })
+        : { ...neutre, note: REFUS_GESTE_JARVIS };
   }
   return <Textes vue={r.vue} atelier={await atelierDuProjet(s, r.vue.projet.id)} {...(jarvis ? { jarvis } : {})} />;
 }
