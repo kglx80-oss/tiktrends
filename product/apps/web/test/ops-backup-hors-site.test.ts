@@ -28,6 +28,11 @@ import { attendreEtat } from './helpers/attendre-etat';
  *    plus récent » choisirait · le dump s'écrit dans `….sql.gz.part`, renommé une fois contrôlé ;
  *  · un second passage (lancé à la main pendant celui de 03h30) · refusé par le verrou, sans
  *    toucher au `.part` du premier, qui finit en code 0 ;
+ *  · le verrou tenu sur le DOSSIER lui-même (aucun fichier à ouvrir en écriture) · un ancien
+ *    fichier de verrou laissé par un `sudo bash ops/backup.sh` (root:root 0644) ne bloque plus le
+ *    service, qui tourne en `debian` ;
+ *  · le dépôt du VPS écrit autrement (`/./`, `//`, `x/../`, lien) · le mode VPS, jamais celui
+ *    d'une copie d'essai · et sans TIKTRENDS_REPO, aucun appel à realpath ;
  *  · un chemin RELATIF en copie d'essai · refusé (il change de sens au `cd "$REPO"` de `principal`).
  *
  * Le nom du projet compose de production est `product` · mesuré (22/11/2026) : docker-compose.yml
@@ -137,10 +142,17 @@ function essai(env: Record<string, string> = {}) {
   return { code: r.status, sortie: `${r.stdout}${r.stderr}`, dumps: dumpsDe(join(d, 'sauvegardes')), docker: lignes(journalDocker), rclone: lignes(journalRclone) };
 }
 
-/** Le verrou de `principal` (un passage à la fois) · il reste dans le dossier, caché, hors du motif des dumps. */
-const VERROU = '.tiktrends-backup.lock';
-/** Le dossier de sauvegarde, verrou à part · ce que voient la rotation et la restauration, et les restes. */
-const fichiersDe = (dossier: string) => readdirSync(dossier).filter((f) => f !== VERROU).sort();
+/**
+ * Le dossier de sauvegarde, TOUT ce qu'il contient · le verrou de `principal` est tenu sur le dossier
+ * lui-même, il n'y laisse aucun fichier : ce qu'on lit est ce que voient la rotation et la restauration.
+ */
+const fichiersDe = (dossier: string) => readdirSync(dossier).sort();
+/**
+ * Bash SANS le passe-droit de root sur les permissions (CAP_DAC_OVERRIDE retirée) · un fichier en
+ * lecture seule (chmod) refuse alors l'écriture à ce bash comme à `debian` sur le VPS. Sous un
+ * utilisateur ordinaire (la CI), bash tel quel. Le test vérifie que la simulation refuse vraiment.
+ */
+const BASH_SANS_PASSE_DROIT = process.getuid?.() === 0 ? ['setpriv', '--bounding-set=-dac_override', '--inh-caps=-dac_override', BASH] : [BASH];
 const PRINCIPAL = 'source "$1"; REPO="$2" BACKUP_DIR="$3" OFFSITE="$4"; principal';
 let passages = 0;
 
@@ -153,12 +165,13 @@ function lieu() {
 }
 
 /** `principal` seule, script sourcé : REPO, BACKUP_DIR et OFFSITE posés à la main, dossiers neufs (ou ceux de `d`). */
-function principal(env: Record<string, string> = {}, offsite = '1', d = lieu().d) {
+function principal(env: Record<string, string> = {}, offsite = '1', d = lieu().d, bash: string[] = [BASH]) {
   const repo = join(d, 'product');
   const dossier = join(d, 'backups');
+  // Les journaux à côté du dossier de sauvegarde, jamais dedans.
   const journalRclone = join(d, `rclone-${++passages}.log`);
   const journalDocker = join(d, `docker-${passages}.log`);
-  const r = spawnSync(BASH, ['-c', PRINCIPAL, 'garde', SCRIPT, repo, dossier, offsite], {
+  const r = spawnSync(bash[0]!, [...bash.slice(1), '-c', PRINCIPAL, 'garde', SCRIPT, repo, dossier, offsite], {
     encoding: 'utf8',
     env: environnement({ JOURNAL_RCLONE: journalRclone, JOURNAL_DOCKER: journalDocker, REMOTES: 'ovh:\\n', ...env }),
   });
@@ -281,6 +294,8 @@ describe('ops/backup.sh · copie hors-site vers le remote ovh', () => {
   });
 });
 
+const ARRET_VPS = /ARRÊT · dépôt du VPS \(\/home\/debian\/tiktrends\) avec COMPOSE_PROJECT_NAME=.+ · ce n'est pas le projet compose de production \(product\) : son dump prendrait la place des vrais\./;
+
 describe('ops/backup.sh · chemins du VPS par défaut (environnement vide)', () => {
   const VPS = 'REPO=/home/debian/tiktrends/product\nBACKUP_DIR=/home/debian/backups\nOFFSITE=1\n';
   it.each([
@@ -295,6 +310,50 @@ describe('ops/backup.sh · chemins du VPS par défaut (environnement vide)', () 
     const r = configurer(env);
     expect(r.code, `chemins du VPS REFUSÉS (pris pour une copie d’essai) · ${r.sortie}`).toBe(0);
     expect(r.sortie, 'chemins du VPS changés').toBe(VPS);
+  });
+
+  /**
+   * Le dépôt du VPS écrit AUTREMENT · comparé une fois résolu (`realpath -m`, comme le dossier de
+   * sauvegarde d'une copie d'essai), il donne le mode VPS, chemins du VPS tels quels. La comparaison
+   * du texte en faisait une copie d'essai (refus sans projet compose distinct : prudent, incohérent).
+   */
+  it.each([
+    ['/home/debian/./tiktrends (point)', () => '/home/debian/./tiktrends'],
+    ['/home/debian//tiktrends (barre doublée)', () => '/home/debian//tiktrends'],
+    ['/home/debian/x/../tiktrends (remontée)', () => '/home/debian/x/../tiktrends'],
+    ['//home/debian/tiktrends (deux barres en tête)', () => '//home/debian/tiktrends'],
+    ['/home/debian/./tiktrends/ (point et barre finale)', () => '/home/debian/./tiktrends/'],
+    ['un lien vers /home/debian/tiktrends', () => { const t = mkdtempSync(join(racine, 'lien-depot-')); symlinkSync('/home/debian/tiktrends', join(t, 'lien')); return join(t, 'lien'); }],
+  ])('TIKTRENDS_REPO=%s · mode VPS, chemins du VPS, aucun refus', (_cas, depot) => {
+    const r = configurer({ TIKTRENDS_REPO: depot() });
+    expect(r.code, `dépôt du VPS pris pour une copie d’essai · ${r.sortie}`).toBe(0);
+    expect(r.sortie, 'dépôt du VPS écrit autrement · pas le mode VPS').toBe(VPS);
+  });
+
+  it.each([
+    ['/home/debian/./tiktrends', '/home/debian/./tiktrends'],
+    ['/home/debian//tiktrends', '/home/debian//tiktrends'],
+  ])('TIKTRENDS_REPO=%s avec COMPOSE_PROJECT_NAME=tiktrends-essai-d1 · le refus du dépôt du VPS', (_cas, depot) => {
+    const r = configurer({ TIKTRENDS_REPO: depot, COMPOSE_PROJECT_NAME: 'tiktrends-essai-d1' });
+    expect(r.code, r.sortie).toBe(2);
+    expect(r.sortie, `dépôt du VPS écrit autrement · refusé comme une copie d’essai, pas comme le VPS · ${r.sortie}`).toMatch(ARRET_VPS);
+  });
+
+  /** Sans TIKTRENDS_REPO (le service), ou avec son texte exact · realpath n'est JAMAIS appelé. */
+  it.each([
+    ['aucune variable', {}],
+    ['TIKTRENDS_REPO vide', { TIKTRENDS_REPO: '' }],
+    ['TIKTRENDS_REPO du VPS, texte exact', { TIKTRENDS_REPO: '/home/debian/tiktrends' }],
+    ['TIKTRENDS_REPO du VPS, barre finale', { TIKTRENDS_REPO: '/home/debian/tiktrends/' }],
+  ])('%s · mode VPS sans un seul appel à realpath', (_cas, env: Record<string, string>) => {
+    const faux = mkdtempSync(join(racine, 'faux-realpath-'));
+    const journal = join(faux, 'realpath.log');
+    writeFileSync(join(faux, 'realpath'), `#!/bin/bash\necho "$*" >> ${JSON.stringify(journal)}\nexit 1\n`);
+    chmodSync(join(faux, 'realpath'), 0o755);
+    const r = configurer({ PATH: `${faux}:${bin}:/usr/bin:/bin`, ...env });
+    expect(lignes(journal), 'realpath appelé sur le chemin par défaut du VPS').toEqual([]);
+    expect(r.code, r.sortie).toBe(0);
+    expect(r.sortie).toBe(VPS);
   });
 });
 
@@ -330,8 +389,6 @@ describe('ops/backup.sh · copie d’essai (TIKTRENDS_REPO ailleurs que sur le V
     expect(r.dumps, `dump PARTIEL laissé, que la rotation garderait et que « le plus récent » restaurerait · ${r.sortie}`).toEqual([]);
   });
 });
-
-const ARRET_VPS = /ARRÊT · dépôt du VPS \(\/home\/debian\/tiktrends\) avec COMPOSE_PROJECT_NAME=.+ · ce n'est pas le projet compose de production \(product\) : son dump prendrait la place des vrais\./;
 
 describe('ops/backup.sh · dépôt du VPS avec un autre projet compose', () => {
   it.each([
@@ -399,6 +456,28 @@ describe('ops/backup.sh · principal (le corps du script)', () => {
     expect(r.rclone, 'copie hors-site lancée après un dump en échec').toEqual([]);
     expect(r.sortie).toMatch(/ÉCHEC · dump de la base interrompu \(code 3\), fichier partiel supprimé : .+tiktrends-\d{8}-\d{6}\.sql\.gz/);
   });
+
+  /**
+   * Un `sudo bash ops/backup.sh` lancé une fois, quand le verrou était un FICHIER du dossier,
+   * l'a créé en root:root 0644 · le service (User=debian) échouait ensuite chaque nuit sur
+   * `exec 9>` (Permission denied), code 1, erreur bash brute. Simulé sans root : le fichier en
+   * lecture seule, et un bash à qui ce fichier refuse VRAIMENT l'écriture (vérifié d'abord).
+   */
+  it('un ancien fichier de verrou en lecture seule (laissé par un sudo) · le passage ne bloque pas : un dump, sa copie, le fichier laissé tel quel', () => {
+    const { d, dossier } = lieu();
+    const vieux = join(dossier, '.tiktrends-backup.lock');
+    writeFileSync(vieux, '');
+    chmodSync(vieux, 0o444);
+    const ouverture = spawnSync(BASH_SANS_PASSE_DROIT[0]!, [...BASH_SANS_PASSE_DROIT.slice(1), '-c', 'exec 9>"$1"', 'garde', vieux], { encoding: 'utf8' });
+    expect(ouverture.status, `simulation inopérante · ce bash peut écrire dans un fichier en lecture seule : ${ouverture.stderr}`).not.toBe(0);
+
+    const r = principal({}, '1', d, BASH_SANS_PASSE_DROIT);
+    expect(r.code, `passage bloqué par un fichier de verrou en lecture seule · ${r.sortie}`).toBe(0);
+    expect(r.dumps, `aucun dump · ${r.sortie}`).toHaveLength(1);
+    expect(r.copies).toEqual([`copy ${r.dumps[0]} ovh:tiktrends-backups/`]);
+    expect(r.fichiers, 'le dossier ne contient pas le dump et l’ancien fichier, intact').toEqual(['.tiktrends-backup.lock', r.dumps[0]!.split('/').pop()].sort());
+    expect(statSync(vieux).mode & 0o777, 'l’ancien fichier de verrou touché').toBe(0o444);
+  });
 });
 
 describe('ops/backup.sh · dump tué par un signal (systemctl stop, arrêt, redémarrage)', () => {
@@ -436,7 +515,7 @@ describe('ops/backup.sh · dump tué par un signal (systemctl stop, arrêt, red�
 
       const b = principal({}, '1', a.d);
       expect(b.code, `second passage NON refusé pendant le premier · ${b.sortie}`).toBe(75);
-      expect(b.sortie).toMatch(/ARRÊT · sauvegarde déjà en cours \(verrou .+\/\.tiktrends-backup\.lock tenu\) · ce passage s'arrête sans rien toucher\./);
+      expect(b.sortie).toMatch(/ARRÊT · sauvegarde déjà en cours \(verrou du dossier .+\/backups tenu\) · ce passage s'arrête sans rien toucher\./);
       expect(b.docker, 'second passage allé jusqu’à docker').toEqual([]);
       expect(b.rclone).toEqual([]);
       expect(fichiersDe(a.dossier), `le second passage a touché au .part du premier · ${b.sortie}`).toEqual(partA);

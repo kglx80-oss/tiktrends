@@ -15,8 +15,14 @@ set -euo pipefail
 # les vraies dans /home/debian/backups, envoyée vers `ovh:`, et la rotation
 # supprimerait un vrai dump pour lui faire place · refus avant tout appel docker.
 #
-# TIKTRENDS_REPO qui désigne un AUTRE dépôt (barres finales ignorées) = copie
-# d'essai (ops/README.md, « Déploiement »). Comme deploy.sh, elle exige alors
+# TIKTRENDS_REPO qui désigne un AUTRE dépôt = copie d'essai (ops/README.md,
+# « Déploiement »). Le dépôt du VPS écrit autrement (`/home/debian/./tiktrends`,
+# `//`, `x/../`, un lien) est reconnu une fois résolu (`realpath -m`), comme le
+# dossier de sauvegarde ci-dessous · la comparaison du texte en faisait une
+# copie d'essai. Sans TIKTRENDS_REPO (le service), ou avec le texte exact du
+# dépôt du VPS (barres finales ignorées), realpath n'est jamais appelé ; un
+# chemin impossible à résoudre reste une copie d'essai (qui refuse alors, faute
+# de pouvoir résoudre son dossier de sauvegarde). Comme deploy.sh, elle exige alors
 # son propre projet compose : sans lui, `docker compose` viserait le projet
 # `product` et c'est la base de PRODUCTION qui serait dumpée. Ses dumps restent
 # à côté d'elle, jamais dans le dossier de la production, et ne partent JAMAIS
@@ -27,7 +33,7 @@ set -euo pipefail
 # symboliques, sans exiger que le chemin existe) · la comparaison du texte
 # laissait passer `/home/debian//backups` ou un lien vers ce dossier. Un
 # chemin impossible à résoudre (realpath absent) est refusé, jamais comparé à
-# vide. Le dépôt du VPS n'appelle pas realpath : son chemin ne change pas.
+# vide. En mode VPS, le dossier de sauvegarde n'est pas comparé (aucun realpath).
 # Ses chemins doivent être ABSOLUS · un `../../backups` relatif, lancé depuis
 # /home/debian, se résout en /backups ici mais en /home/debian/backups après le
 # `cd "$REPO"` de `principal` : la comparaison ne garderait rien.
@@ -35,9 +41,12 @@ set -euo pipefail
 VPS_REPO="/home/debian/tiktrends"
 VPS_SAUVEGARDES="/home/debian/backups"
 configurer() {
-  local dossier_reel prod_reel
+  local dossier_reel prod_reel racine_reelle vps_reel
   RACINE="${TIKTRENDS_REPO:-$VPS_REPO}"
   RACINE="${RACINE%"${RACINE##*[!/]}"}"
+  if [ "$RACINE" != "$VPS_REPO" ] && racine_reelle="$(realpath -m -- "$RACINE" 2>/dev/null)" && vps_reel="$(realpath -m -- "$VPS_REPO" 2>/dev/null)" && [ -n "$racine_reelle" ] && [ "$racine_reelle" = "$vps_reel" ]; then
+    RACINE="$VPS_REPO"
+  fi
   REPO="$RACINE/product"
   if [ "$RACINE" = "$VPS_REPO" ]; then
     case "${COMPOSE_PROJECT_NAME:-}" in
@@ -120,14 +129,19 @@ principal() {
   # Un passage à la fois · un second, lancé à la main pendant celui de 03h30,
   # supprimait le `.part` du premier (le nettoyage ci-dessous), qui finissait
   # en « sauvegarde vide », code 1 · et deux passages dans la même seconde
-  # écrivaient le même fichier. Verrou exclusif NON bloquant sur un fichier
-  # caché du dossier (hors du motif `tiktrends-*.sql.gz` : ni la rotation ni la
-  # restauration ne le voient), tenu jusqu'à la fin du processus. Le second
-  # s'arrête sans rien toucher, code 75 (EX_TEMPFAIL : réessayer plus tard).
-  # flock vient d'util-linux (Debian : paquet essentiel).
-  exec 9>"$BACKUP_DIR/.tiktrends-backup.lock"
+  # écrivaient le même fichier. Verrou exclusif NON bloquant sur le DOSSIER
+  # lui-même (ouvert en lecture : flock accepte un dossier), tenu jusqu'à la
+  # fin du processus. Le second s'arrête sans rien toucher, code 75
+  # (EX_TEMPFAIL : réessayer plus tard). flock vient d'util-linux (Debian :
+  # paquet essentiel).
+  # Jamais un fichier de verrou ouvert en ÉCRITURE (`exec 9>…`) · un `sudo bash
+  # ops/backup.sh` le créait en root:root 0644, et le service (User=debian)
+  # échouait ensuite chaque nuit sur « Permission denied », code 1. Le dossier,
+  # lui, doit déjà être lisible par qui écrit les dumps dedans.
+  # Garde : apps/web/test/ops-backup-hors-site.test.ts.
+  exec 9<"$BACKUP_DIR"
   if ! flock -n 9; then
-    echo "[$(date -Is)] ARRÊT · sauvegarde déjà en cours (verrou $BACKUP_DIR/.tiktrends-backup.lock tenu) · ce passage s'arrête sans rien toucher." >&2
+    echo "[$(date -Is)] ARRÊT · sauvegarde déjà en cours (verrou du dossier $BACKUP_DIR tenu) · ce passage s'arrête sans rien toucher." >&2
     return 75
   fi
 
