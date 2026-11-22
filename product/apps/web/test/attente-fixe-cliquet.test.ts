@@ -38,7 +38,7 @@ import { join, relative } from 'node:path';
  * le tour de boucle `setTimeout(r, 0)` (ou sans délai), une valeur rendue, affectée ou passée
  * (`mockImplementation(() => new Promise((r) => setTimeout(() => r(v), 10)))`, un faux qui RÉPOND
  * après une latence · `const v = await …`, `Promise.race([…])`, `.then(use)`), un délai de garde qui
- * REJETTE (`setTimeout(() => rej(…))`), une COURSE · le résolveur part aussi ailleurs (`em.once('pret',
+ * REJETTE (`setTimeout(() => rej(…))`), une COURSE · le résolveur part aussi ailleurs, appelé ou passé en argument (`em.once('pret',
  * r); setTimeout(r, 1000)` · un état, avec un délai de secours).
  *
  * C'est plus large que « un sommeil suivi d'un `expect` » · une attente cachée dans une AIDE
@@ -99,8 +99,10 @@ import { join, relative } from 'node:path';
  * fonction) résolu par un minuteur ; un résolveur passé par une autre fonction avant le minuteur. Un
  * membre se reconnaît à son NOM · `autre.X(` compte pour la propriété `X` de n'importe quel objet (sans
  * types, l'objet n'est pas résolu). Le résolveur d'un `withResolvers` et celui d'un exécuteur se
- * reconnaissent à leur nom dans leur portée, sans résolution · un homonyme qui l'y masque se lit
- * comme lui.
+ * reconnaissent à leur SYMBOLE · un départ est un appel ou un passage en argument, ailleurs que dans
+ * un minuteur. Une course dont l'événement ne vient jamais est un sommeil de fait · elle ne compte
+ * pas. Une aide exportée et importée ailleurs n'est comptée dans aucun des deux fichiers (le
+ * vérificateur ne lit qu'un fichier, sans import).
  */
 
 const RACINE = __dirname;
@@ -317,17 +319,36 @@ function minuteursResolvant(racine: ts.Node, estRes: (e: ts.Expression) => boole
 }
 
 /**
- * Le résolveur ne part-il QUE dans des minuteurs · s'il part aussi ailleurs (`em.once('pret', r);
- * setTimeout(r, 1000)`), c'est une course entre un état et un délai de secours, pas un sommeil.
+ * Le résolveur ne part-il QUE dans des minuteurs · s'il PART aussi ailleurs, appelé ou passé en
+ * argument (`em.once('pret', r); setTimeout(r, 1000)`, `em.on('x', () => r())`), c'est une course
+ * entre un état et un délai de secours, pas un sommeil. Une mention n'est pas un départ (`void r;`,
+ * une clé `{ ok: … }`, un type) · un homonyme non plus (`[1].map((r) => r)`), `estRes` compare les
+ * SYMBOLES.
  */
 function seulementPar(racine: ts.Node, estRes: (e: ts.Expression) => boolean, appels: ts.CallExpression[], apres = -1): boolean {
   let seul = true;
   visiter(racine, (n) => {
-    if (!seul || n.pos < apres || !(ts.isIdentifier(n) || ts.isPropertyAccessExpression(n)) || !estRes(n)) return;
-    if (ts.isPropertyAccessExpression(n.parent) && n.parent.name === n) return;
+    if (!seul || n.pos < apres || !(ts.isIdentifier(n) || ts.isPropertyAccessExpression(n))) return;
+    if (role(n) === null || !estRes(n)) return;
     seul = appels.some((a) => a.arguments[0]!.pos <= n.pos && n.end <= a.arguments[0]!.end);
   });
   return seul;
+}
+
+/**
+ * Le résolveur par son SYMBOLE · un nom (le paramètre d'un exécuteur, l'élément `resolve` d'une
+ * déstructuration) ou `d.resolve` pour `const d = Promise.withResolvers()`. Le texte d'abord (rien
+ * à résoudre pour un autre nom), le vérificateur ensuite · un homonyme d'une fonction imbriquée ou
+ * d'une autre promesse du bloc désigne autre chose.
+ */
+function designe(lu: Lu, nom: ts.Identifier, propriete?: string): (e: ts.Expression) => boolean {
+  let sym: ts.Symbol | undefined | null = null;
+  const lui = (e: ts.Expression) => {
+    if (!ts.isIdentifier(e) || e.text !== nom.text) return false;
+    if (sym === null) sym = verificateur(lu).getSymbolAtLocation(nom);
+    return sym !== undefined && verificateur(lu).getSymbolAtLocation(e) === sym;
+  };
+  return propriete === undefined ? lui : (e) => ts.isPropertyAccessExpression(e) && e.name.text === propriete && lui(e.expression);
 }
 
 /**
@@ -365,7 +386,7 @@ function sommeils(lu: Lu): Sommeil[] {
       if (!estFonction(ex)) return;
       const res = ex.parameters[0]?.name;
       if (!res || !ts.isIdentifier(res)) return;
-      const estRes = (e: ts.Expression) => ts.isIdentifier(e) && e.text === res.text;
+      const estRes = designe(lu, res);
       const tous = minuteursResolvant(ex.body, estRes, minuteurs);
       const trouves = tous.filter((t) => !t.nul);
       if (trouves.length === 0 || !seulementPar(ex.body, estRes, tous.map((t) => t.appel))) return;
@@ -378,12 +399,10 @@ function sommeils(lu: Lu): Sommeil[] {
       const c = nu(i.expression);
       if (!ts.isPropertyAccessExpression(c) || !ts.isIdentifier(c.expression) || c.expression.text !== 'Promise' || c.name.text !== 'withResolvers') return;
       let estRes: ((e: ts.Expression) => boolean) | null = null;
-      if (ts.isIdentifier(n.name)) {
-        const d = n.name.text;
-        estRes = (e) => ts.isPropertyAccessExpression(e) && ts.isIdentifier(e.expression) && e.expression.text === d && e.name.text === 'resolve';
-      } else if (ts.isObjectBindingPattern(n.name)) {
+      if (ts.isIdentifier(n.name)) estRes = designe(lu, n.name, 'resolve');
+      else if (ts.isObjectBindingPattern(n.name)) {
         const el = n.name.elements.find((b) => ((b.propertyName && ts.isIdentifier(b.propertyName) ? b.propertyName : b.name) as ts.Node).getText() === 'resolve');
-        if (el && ts.isIdentifier(el.name)) { const r = el.name.text; estRes = (e) => ts.isIdentifier(e) && e.text === r; }
+        if (el && ts.isIdentifier(el.name)) estRes = designe(lu, el.name);
       }
       if (!estRes) return;
       // La portée · le bloc (ou le fichier) qui porte la déclaration, après elle · CHAQUE minuteur qui la résout.
@@ -637,6 +656,13 @@ describe('le détecteur · il voit chaque forme de sommeil, et seulement elles',
     ['un alias du minuteur · `const st = setTimeout`', `const st = ${Z};\nawait new Promise((r) => st(r, 400));`],
     ['un alias du minuteur · importé de `node:timers`', `import { ${Z} as st } from 'node:timers';\nawait new Promise((r) => st(r, 400));`],
     ['un alias de `pasDansAct` · `import { pasDansAct as p }`', "import { pasDansAct as p } from './helpers/attendre-etat';\nawait p(400);"],
+    // Un DÉPART du résolveur est un appel ou un passage en argument, par son SYMBOLE · une mention, une clé, un homonyme n'en sont pas.
+    ['une clé homonyme du résolveur · `{ ok: false }`', `await new Promise((ok) => { ${Z}(ok, 400); etat = { ok: false }; });`],
+    ['un paramètre homonyme dans une fonction imbriquée', `await new Promise((r) => { ${Z}(r, 400); [1].map((r) => r); });`],
+    ['un paramètre homonyme passé dans une fonction imbriquée', `await new Promise((r) => { ${Z}(r, 400); [1].forEach((r) => lire(r)); });`],
+    ['`withResolvers` · une clé `resolve:` plus loin dans le bloc', `const { promise, resolve } = Promise.withResolvers();\n${Z}(resolve, 400);\nconst o = { resolve: 1 };\nawait promise;`],
+    ['`withResolvers` · une autre promesse `(resolve) =>` plus loin dans le bloc', `const { promise, resolve } = Promise.withResolvers();\n${Z}(resolve, 400);\nawait promise;\nawait new Promise((resolve) => em.once('pret', resolve));`],
+    ['une simple mention du résolveur · `void r;`', `await new Promise((r) => { ${Z}(r, 400); void r; });`],
   ])('compte · %s', (_, src) => {
     expect(attentesFixes(src), `le détecteur ne voit pas « ${src} »`).toHaveLength(1);
   });
