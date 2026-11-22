@@ -335,8 +335,8 @@ function finDefinition(s: string, debut: number, bloc: boolean): number {
   return s.length;
 }
 
-/** Les mots qui ouvrent une parenthèse sans appeler · une condition, une liste de paramètres, `expect(X)` (on lit, on n'appelle pas). */
-const PAS_UN_APPEL = new Set([...MOTS_CLES, 'async', 'await', 'typeof', 'new', 'expect']);
+/** Les mots qui ouvrent une parenthèse sans appeler · une condition, `expect(X)` (on lit, on n'appelle pas). */
+const PAS_UN_APPEL = new Set([...MOTS_CLES, 'expect']);
 /** Les mots dont la parenthèse est une CONDITION · `if (x) {` n'est pas une liste de paramètres. */
 const CONDITIONS = new Set(['if', 'for', 'while', 'switch', 'with']);
 
@@ -391,8 +391,9 @@ function portees(s: string, nom: string, propres: number[]): [number, number][] 
 /**
  * Le nom en `i` est-il PASSÉ EN ARGUMENT d'un appel (source masqué) · précédé de `(` ou `,` (après
  * un éventuel `obj.`), dans une parenthèse (pas un tableau, un objet, une déstructuration, un
- * `{ pas: X }`), ouverte par un appel (un nom hors mots-clés et `expect`, ou `)` / `]`), qui n'est
- * pas une liste de paramètres (`function f(a, X) {`, `X(a, X): T {`).
+ * `{ pas: X }`), ouverte par un appel (un nom hors mots-clés et `expect`, ou `)` / `]`). Une liste
+ * de paramètres (`function f(a, X) {`) a la forme d'un appel · `portees` l'écarte (la portée d'un
+ * paramètre commence à sa parenthèse).
  */
 function enArgument(s: string, i: number): boolean {
   let k = i - 1;
@@ -403,8 +404,7 @@ function enArgument(s: string, i: number): boolean {
   if (o < 0 || s[o] !== '(') return false;
   const avant = /(?:(?<mot>[A-Za-z_$][\w$]*)|[)\]])\s*$/.exec(s.slice(Math.max(0, o - 40), o));
   if (!avant) return false;
-  if (avant.groups!.mot && PAS_UN_APPEL.has(avant.groups!.mot)) return false;
-  return corpsParametres(s, o) === null;
+  return !(avant.groups!.mot && PAS_UN_APPEL.has(avant.groups!.mot));
 }
 
 interface Aide {
@@ -613,11 +613,12 @@ describe('les aides · une attente fixe définie une fois est comptée à chaque
     ['`X =>` · un paramètre seul · ne compte pas', `const pause = () => new Promise((r) => ${Z}(r, 30));\nlignes.forEach(async pause => { await lire(pause); });`, [{ nom: 'pause', appels: 0 }]],
     ['`function f(a, X)` · un paramètre · ne compte pas, `f` n’en hérite pas', `const pause = () => new Promise((r) => ${Z}(r, 30));\nfunction f(a, pause) { return lire(a, pause); }\nf(1);`, [{ nom: 'pause', appels: 0 }]],
     ['une méthode `m(a, X): T {` · un paramètre · ne compte pas', `const pause = () => new Promise((r) => ${Z}(r, 30));\nclass C {\n  m(a, pause): number {\n    return lire(pause);\n  }\n}`, [{ nom: 'pause', appels: 0 }]],
-    ['`[X, y]` · un tableau · ne compte pas', `const pause = () => new Promise((r) => ${Z}(r, 30));\nconst l = [pause, x];`, [{ nom: 'pause', appels: 0 }]],
-    ['`{ X, y }` · un objet · ne compte pas', `const pause = () => new Promise((r) => ${Z}(r, 30));\nconst o = { pause, x };`, [{ nom: 'pause', appels: 0 }]],
+    ['`[X, y]` · un tableau · ne compte pas', `const pause = () => new Promise((r) => ${Z}(r, 30));\nconst l = [pause, x];\nconst m = [x, pause];`, [{ nom: 'pause', appels: 0 }]],
+    ['`{ X, y }` · un objet · ne compte pas', `const pause = () => new Promise((r) => ${Z}(r, 30));\nconst o = { pause, x };\nconst p = { x, pause };`, [{ nom: 'pause', appels: 0 }]],
     ['`const [X, setX] = useState()` · une déstructuration, puis l’homonyme passé · ne compte pas', `const pause = () => new Promise((r) => ${Z}(r, 30));\nfunction Ecran() {\n  const [pause, setPause] = useState(false);\n  return basculer(pause, setPause);\n}`, [{ nom: 'pause', appels: 0 }]],
     ['`const X = …` dans un bloc, puis l’homonyme passé · ne compte pas', `const pause = () => new Promise((r) => ${Z}(r, 30));\nit('x', () => {\n  const pause = 'p';\n  appuyer(pause);\n});`, [{ nom: 'pause', appels: 0 }]],
     ['`(X)` · une parenthèse de groupement, pas un appel · ne compte pas', `const pause = () => new Promise((r) => ${Z}(r, 30));\nconst encore = (pause);\nconst deux = (0, pause);`, [{ nom: 'pause', appels: 0 }]],
+    ['`act(X.name)`, `lire(X + 1)` · lue en argument, pas passée · ne compte pas', `const pause = () => new Promise((r) => ${Z}(r, 30));\nact(pause.name);\nlire(pause + 1);`, [{ nom: 'pause', appels: 0 }]],
     ['`expect(X)` · lue, pas appelée · ne compte pas', `const pause = () => new Promise((r) => ${Z}(r, 30));\nexpect(pause).toBeTypeOf('function');`, [{ nom: 'pause', appels: 0 }]],
     ['`expect(autre.X)` pour une aide membre · ne compte pas', `const faux = { create: async () => { await new Promise((r) => ${Z}(r, 40)); } };\nawait faux.create();\nexpect(autre.create).toHaveBeenCalled();`, [{ nom: 'create', appels: 1 }]],
     ['une aide membre passée en valeur (`.then(faux.X)`) · compte', `const faux = { create: async () => { await new Promise((r) => ${Z}(r, 40)); } };\nawait p.then(faux.create);`, [{ nom: 'create', appels: 1 }]],
