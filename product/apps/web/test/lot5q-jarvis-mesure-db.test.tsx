@@ -56,7 +56,7 @@ vi.mock('../lib/jarvis-memory', async (importOriginal) => ({
 
 import { db, schema, eq } from '@tiktrends/db';
 import {
-  BORNES_LECTURE_LOTS, BORNE_MESURE_JARVIS, NON_CALCULE_LECTURE, REFUS_GESTE_JARVIS, lienCorrigerJarvis, lienJarvisContexte, lienTesterJarvis, MESURE_TEMPS_MESURE_JARVIS,
+  BORNES_LECTURE_LOTS, BORNE_MESURE_JARVIS, NON_CALCULE_LECTURE, REFUS_CONTEXTE_JARVIS, REFUS_GESTE_JARVIS, lienCorrigerJarvis, lienJarvisContexte, lienTesterJarvis, MESURE_TEMPS_MESURE_JARVIS,
 } from '@tiktrends/core';
 import { semer, session } from './studios-semis';
 import { ctxDe } from './l3-harnais';
@@ -482,6 +482,60 @@ describe('lot 5 quater · « Tester » et « Corriger le texte » d’un lot dev
       await demander(lienJarvisContexte('lot', Lp)!, 'Après · la V1 l’emporte. Teste-la contre une nouvelle accroche plus directe.');
       expect(document.querySelector('[data-gestes-jarvis]'), 'préalable · les gestes du lot sont là').toBeTruthy();
       expect(document.querySelector('[data-essai-jarvis]'), 'Jarvis ne pose pas l’essai d’un lot lu en partie').toBeNull();
+    } finally {
+      await db.update(schema.ads).set({ batchId: S.L1 }).where(eq(schema.ads.id, S.adTestee));
+    }
+  });
+});
+
+/* ───────────────────────────── une hypothèse rangée dans un lot lu en partie ───────────────────────────── */
+
+describe('lot 5 quater · « Tester » et « Corriger le texte » d’une HYPOTHÈSE rangée dans un lot lu en partie · « non calculé », jamais le refus de droits', () => {
+  it('le cas de « Petite » #2 (en préparation, au-delà du plafond d’un lot seul) · la fiche du projet, l’atelier Textes et `/jarvis` le disent · la portée passe d’abord', async () => {
+    // Un lot en préparation · la V1 (testée, gagnante arbitrée) y est rangée, comme la gagnante de « Petite » #2.
+    const [b] = await db.insert(schema.batches).values({ workspaceId: ids.wsA, brandId: ids.brandA1, number: 10, goal: 'Un brouillon qui grandit', status: 'planned' }).returning({ id: schema.batches.id });
+    const Lh = b!.id;
+    await db.update(schema.ads).set({ batchId: Lh }).where(eq(schema.ads.id, S.adTestee));
+    // Une ad d'une AUTRE marque (A2, son graphe) rangée dans ce lot · ouverte depuis A1, elle doit rester le refus (aucun oracle).
+    const [intruse] = await db.insert(schema.ads).values({ workspaceId: ids.wsA, conceptId: await chaine(ids.wsA, ids.brandA2, 'Intruse'), batchId: Lh, variantCode: 'X1', status: 'draft' }).returning({ id: schema.ads.id });
+    try {
+      const contexte = { type: 'hypothese' as const, id: S.adTestee };
+      const msg = await message({ contenu: 'La V1 l’emporte. Teste-la contre une nouvelle accroche. Reformule l’accroche de la V1 : « Dormez enfin, sans pilule ».' });
+      const ouvrir = async (href: string, page: 'projet' | 'textes') => dom(renderToStaticMarkup(avecSpatial((page === 'projet'
+        ? await ProjetSpatial({ params: Promise.resolve({ id: S.P1 }), searchParams: Promise.resolve(params(href)) })
+        : await TextesSpatial({ params: Promise.resolve({ id: S.P1 }), searchParams: Promise.resolve(params(href)) })) as ReactElement)));
+      const jarvis = async (id: string) => dom(renderToStaticMarkup(avecSpatial((await JarvisSpatial({ searchParams: Promise.resolve(params(lienJarvisContexte('hypothese', id)!)) })) as ReactElement)));
+      const tester = lienTesterJarvis(S.P1, contexte, msg)!;
+      const corriger = lienCorrigerJarvis(S.P1, contexte, msg)!;
+
+      // Le témoin · le lot lu en entier · le lien est accepté, l'essai préparé.
+      expect((await ouvrir(tester, 'projet')).querySelector('[data-note-jarvis]')?.textContent, 'témoin · Tester').toContain('V1 a déjà son test');
+      expect((await ouvrir(corriger, 'textes')).querySelector('[data-consigne-jarvis]')?.textContent, 'témoin · Corriger').toContain('Dormez enfin');
+
+      // Le lot grandit au-delà de ce qu'une fiche lit en entier.
+      const c = await chaine(ids.wsA, ids.brandA1, 'Brouillons');
+      await db.insert(schema.ads).values(Array.from({ length: BORNES_LECTURE_LOTS.plafondLotSeul }, (_, i) => ({ workspaceId: ids.wsA, conceptId: c, batchId: Lh, variantCode: `B${i + 1}`, status: 'draft' as const })));
+      const avant = await traces();
+
+      const t = await ouvrir(tester, 'projet');
+      expect(t.querySelector('[data-note-jarvis]')?.textContent, 'Tester · une hypothèse d’un lot lu en partie n’est pas un refus de droits').toBe(NON_CALCULE_LECTURE);
+      expect(t.querySelectorAll('[data-formulaire-test]'), 'rien d’ouvert').toHaveLength(0);
+      expect(t.querySelectorAll('[data-essai-variante][aria-pressed="true"]'), 'rien de présélectionné').toHaveLength(0);
+      const x = await ouvrir(corriger, 'textes');
+      expect(x.querySelector('[data-note-jarvis]')?.textContent, 'Corriger · une hypothèse d’un lot lu en partie n’est pas un refus de droits').toContain(NON_CALCULE_LECTURE);
+      expect(x.querySelector('[data-note-jarvis]')?.textContent).not.toContain(REFUS_GESTE_JARVIS);
+      expect(x.querySelector('[data-consigne-jarvis]'), 'rien de pré-rempli').toBeNull();
+      const j = await jarvis(S.adTestee);
+      expect(j.querySelector('[data-refus-contexte]')?.textContent, '`/jarvis` · une hypothèse d’un lot lu en partie n’est pas un refus de droits').toBe(NON_CALCULE_LECTURE);
+
+      // La portée passe d'abord · l'ad d'une autre marque rangée dans CE lot · le refus, rien n'est dit du lot.
+      const r = await ouvrir(lienTesterJarvis(S.P1, { type: 'hypothese', id: intruse!.id }, msg)!, 'projet');
+      expect(r.querySelector('[data-note-jarvis]')?.textContent, 'hors portée · Tester · le refus').toBe(REFUS_GESTE_JARVIS);
+      const rx = await ouvrir(lienCorrigerJarvis(S.P1, { type: 'hypothese', id: intruse!.id }, msg)!, 'textes');
+      expect(rx.querySelector('[data-note-jarvis]')?.textContent, 'hors portée · Corriger · le refus').toContain(REFUS_GESTE_JARVIS);
+      expect(rx.querySelector('[data-note-jarvis]')?.textContent).not.toContain(NON_CALCULE_LECTURE);
+      expect((await jarvis(intruse!.id)).querySelector('[data-refus-contexte]')?.textContent, 'hors portée · `/jarvis` · le refus').toBe(REFUS_CONTEXTE_JARVIS);
+      expect(await traces(), 'rien d’écrit, aucun appel').toEqual(avant);
     } finally {
       await db.update(schema.ads).set({ batchId: S.L1 }).where(eq(schema.ads.id, S.adTestee));
     }
