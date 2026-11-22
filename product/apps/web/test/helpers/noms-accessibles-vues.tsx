@@ -104,7 +104,7 @@ export const VUES_NOMS: Record<string, () => ReactElement> = {
       prochaine={{ titre: 'Conclure le lot #1', phrase: 'p', bouton: 'Conclure le lot', href: '/adsmap/lots/l1' }}
       idees={[1, 2].map((i) => ({ id: `i${i}`, icone: 'chat', teinte: 'bleu' as const, origine: 'Suite', texte: `Idée ${i}`, categorie: 'Accroche', action: { libelle: 'Formuler', href: `/adsmap/suites?depuis=${i}` } }))}
       ajouter="/adsmap/suites"
-      preparation={[3, 4].map((i) => ({ id: `p${i}`, titre: `Lot #${i}`, categorie: 'Visuel', action: { libelle: 'Compléter', href: `/adsmap/lots/l${i}` }, fait: 2, sur: 4 }))}
+      preparation={[3, 4].map((i) => ({ id: `p${i}`, titre: `Lot #${i}`, categorie: 'Visuel', action: { libelle: 'Compléter', href: `/adsmap/lots/l${i}` }, preparation: { part: 50, texte: 'Préparation 2/4' } }))}
       diffusion={[5, 6].map((i) => ({ id: `d${i}`, titre: `Lot #${i}`, categorie: 'Format', action: { libelle: 'Suivre', href: `/adsmap/lots/l${i}` }, image: IMG, r916: false, part: 43, jour: 'J6 / 14', bilan: 'b' }))}
       analyse={[7, 8].map((i) => ({ id: `a${i}`, titre: `Lot #${i}`, categorie: 'Accroche', pubs: [], detail: 'd', statut: { libelle: 'À conclure', classe: 'g' }, action: { libelle: 'Conclure', href: `/adsmap/lots/l${i}` } }))}
       apprentissages={[]} alimenter={[]} />

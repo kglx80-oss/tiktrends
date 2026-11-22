@@ -5,7 +5,7 @@ import {
   bilanProvenances, cibleDuTest, cibleSeDetache, entreesLectureGroupes, gestesLectureGroupe, lectureParGroupe, libelleOrigine,
   lireDemandeProvenanceOffre, lireOrigineHypothese, noteDepartLectureOffre, noteGestesSilenceFiche, offreDuTest, personaDuTest,
   provenanceCarte, provenanceDuTest, provenanceOffreAdmise, refOrigineHypothese,
-  type EntreeLecturePersona, type FaitsAdSpatial, type FaitsLotSpatial, type ProvenanceTest,
+  type EntreeLecturePersona, type FaitsAdSpatial, type FaitsLotSpatialEntier, type ProvenanceTest,
 } from '../src';
 
 /**
@@ -93,7 +93,7 @@ const ad = (id: string, v: 'winner' | 'loser'): FaitsAdSpatial => ({
   id, variante: id, statut: 'done', hypothese: 'Si on teste, alors ça baisse, parce que.', variable: 'hook', plateforme: 'meta', texte: null, image: null, manques: [],
   verdict: { calcule: v, retenu: v, statut: 'validated', comparable: true, raison: null, depense: 1, impressions: 1, achats: 1, cpa: 1 },
 });
-const lot = (id: string, numero: number, ads: FaitsAdSpatial[]): FaitsLotSpatial => ({ id, numero, but: null, statut: 'testing', lanceLe: '2026-09-01T00:00:00Z', ads, protocole: null });
+const lot = (id: string, numero: number, ads: FaitsAdSpatial[]): FaitsLotSpatialEntier => ({ id, numero, but: null, statut: 'testing', lanceLe: '2026-09-01T00:00:00Z', ads, protocole: null });
 
 describe('la fiche d’un test · son persona, son offre, leur lecture, les gestes seulement au détachement', () => {
   const LEA = { id: 'lea', nom: 'Léa, 34 ans' }, MAX = { id: 'max', nom: 'Max' };

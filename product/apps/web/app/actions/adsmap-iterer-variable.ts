@@ -197,7 +197,8 @@ async function provenanceJarvis(g: AdsMapGuardOk, brut: unknown, parentAdId: str
       lireReponseJarvis(g.s, g.brand.id, demande.reponseId, projet ? { projectId: demande.contexte.id } : {}),
       projet
         ? lireCandidatsProjet(g.s, g.brand.id, demande.contexte.id).then((l) => l && l.candidats.map((c) => c.adId))
-        : lireContexteGestes(g.s, g.brand.id, demande.contexte).then((c) => c && c.ads.map((a) => a.id)),
+        // Un lot lu en partie n'expose aucune pub · la provenance ne s'y admet pas (le geste « Itérer » de Jarvis y est fermé).
+        : lireContexteGestes(g.s, g.brand.id, demande.contexte).then((c) => (c && !c.variantes.partielle ? c.variantes.ads.map((a) => a.id) : null)),
     ]);
     return provenanceJarvisAdmise(demande, { reponseLue: texte !== null, parentAdId, adsDuContexte: ads });
   } catch {

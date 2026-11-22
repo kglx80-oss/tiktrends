@@ -6,7 +6,8 @@ import {
   entreesLectureOffres, lectureOffres, libelleAttributionOffre, regleLectureOffres, SANS_OFFRE_TEST,
   apprentissagesDepuisReponse, lireGesteConclusion, REFUS_GESTE_JARVIS, gestesPersonaLot, choixIterationSpatial,
   accesHypothese, gestesLectureGroupe, noteDepartLectureOffre, gagnanteArbitree, gestesClavierLot,
-  importFicheLot, reserveFenetreIncomplete, TITRE_FENETRE_INCOMPLETE,
+  importFicheLot, reserveFenetreIncomplete, TITRE_FENETRE_INCOMPLETE, phraseLotLuEnPartie, TITRE_LECTURE_INCOMPLETE,
+  adresseTests, nombreVariantes, variantesDesLotsLus, variantesDe,
 } from '@tiktrends/core';
 import { gagnantesDuLot, gestesGagnantesLot } from '@tiktrends/core';
 import { roleAtLeast } from '../../../../../../lib/rbac';
@@ -21,7 +22,7 @@ import { ActionsLot, DupliquerLot, type PropsActionsLot } from '../../../../../.
 import { RefusResultats } from '../../../../../../spatial/vues/resultats/communs';
 import { RaccourcisLot } from '../../../../../../spatial/vues/resultats/RaccourcisLot';
 import { ImporterMesuresLot } from '../../../../../../spatial/vues/resultats/ImporterMesuresLot';
-import { chargerLots, gardeResultats } from '../../donnees';
+import { chargerLots, gardeResultats, type DonneesLots, type LotLu } from '../../donnees';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,45 +47,51 @@ export default async function LotSpatial({ params, searchParams }: { params: Pro
   const g = await gardeResultats();
   if (!g.ok) return <RefusResultats titre="Lot de test" raison={g.raison} />;
 
-  const [d, pt, ot] = await Promise.all([chargerLots(g.s.workspaceId, g.marque.id), personasEtTests(g.s.workspaceId, g.marque.id), offresEtTests(g.s.workspaceId, g.marque.id)]);
+  // La fiche lit SON lot en entier, hors budget de la marque (`lotEntier`) · un lot ancien reste arbitrable ici.
+  const [d, pt, ot] = await Promise.all([chargerLots(g.s.workspaceId, g.marque.id, new Date(), { lotEntier: id }), personasEtTests(g.s.workspaceId, g.marque.id), offresEtTests(g.s.workspaceId, g.marque.id)]);
   const l = d.lots.find((x) => x.id === id);
   if (!l) notFound();
+  // Lu en partie (au-delà du plafond d'un lot seul) · AUCUNE variante n'est exposée (`VariantesDuLot`) · sa fiche est à part (`FicheLotPartiel`) ·
+  // ni variantes, ni personas, ni offres, ni composition, ni import · les gestes reçoivent le lot lui-même et se ferment avec une raison vraie.
+  if (l.partielle) return <FicheLotPartiel l={l} d={d} admin={g.admin} jarvis={g.jarvis} />;
+  const ads = l.ads;
+  const marque = variantesDesLotsLus(d.lots);
   // Lot 9 · le persona de chaque variante (carte ou brief, jamais fusionnés) et la lecture par persona de TOUTE la marque.
   const attribution = (adId: string) => pt.parAd.get(adId) ?? null;
   const lecture = lecturePersonas(entreesLecturePersonas(d.lots, (adId) => attribution(adId)?.persona ?? null), pt.personas);
-  const duLot = new Set(l.ads.map((a) => attribution(a.id)?.persona?.id).filter((x): x is string => !!x));
+  const duLot = new Set(ads.map((a) => attribution(a.id)?.persona?.id).filter((x): x is string => !!x));
   // Lot 9 bis · l'offre de chaque variante (test ou brief, jamais fusionnés) et la lecture par offre de TOUTE la marque (même règle).
   const offreDe = (adId: string) => ot.parAd.get(adId) ?? null;
   const lectureO = lectureOffres(entreesLectureOffres(d.lots, (adId) => offreDe(adId)?.offre ?? null), ot.offres);
-  const offresDuLot = new Set(l.ads.map((a) => offreDe(a.id)?.offre?.id).filter((x): x is string => !!x));
+  const offresDuLot = new Set(ads.map((a) => offreDe(a.id)?.offre?.id).filter((x): x is string => !!x));
   // VB P06 · les gestes d'un persona OU d'une offre du lot qui SE DÉTACHE · le plan d'itération n'est lu que dans ce cas · les pubs
   // retenues sont celles que l'écran Itérer proposera, sélectionnables (`choixIterationSpatial`, la même règle).
   const detaches = lecture.groupes.filter((x) => duLot.has(x.persona.id) && (x.lecture === 'au_dessus' || x.lecture === 'en_dessous'));
   const offresDetachees = lectureO.groupes.some((x) => offresDuLot.has(x.ref.id) && (x.lecture === 'au_dessus' || x.lecture === 'en_dessous'));
   // Lot 13 bis · la touche T (Itérer depuis la gagnante) lit le même plan, dès que le lot a une gagnante arbitrée.
-  const planLu = detaches.length || offresDetachees || l.ads.some(gagnanteArbitree) ? await iterationPlanAction() : null;
+  const planLu = detaches.length || offresDetachees || ads.some(gagnanteArbitree) ? await iterationPlanAction() : null;
   const planIds = planLu
     ? new Set(choixIterationSpatial(planLu.view?.rows ?? [], () => undefined, { peutIterer: true }).filter((c) => c.selectionnable).map((c) => c.adId))
     : new Set<string>();
   const testsDe = (ads: readonly { id: string }[], personaId: string) => ads.filter((a) => attribution(a.id)?.persona?.id === personaId).map((a) => a.id);
   const gestes = (x: (typeof lecture.groupes)[number]) => gestesPersonaLot(x, {
-    numeroLot: l.numero, testsDuLot: testsDe(l.ads, x.persona.id), testsDeLaMarque: testsDe(d.lots.flatMap((y) => y.ads), x.persona.id), planIds,
+    numeroLot: l.numero, testsDuLot: testsDe(ads, x.persona.id), testsDeLaMarque: testsDe(marque, x.persona.id), planIds,
   });
   // Les gestes d'une offre du lot qui se détache · la règle et la brique des personas (`gestesLectureGroupe`) · source « offre »,
   // relue par le serveur dans la marque active · rien n'est écrit sans le clic.
   const testsDeLOffre = (ads: readonly { id: string }[], offreId: string) => ads.filter((a) => offreDe(a.id)?.offre?.id === offreId).map((a) => a.id);
   const gestesOffre = (x: (typeof lectureO.groupes)[number]) => gestesLectureGroupe({ ref: x.ref, lecture: x.lecture, k: x.k, n: x.n, reference: x.reference }, {
-    groupe: 'offre', note: noteDepartLectureOffre(l.numero), prioritaires: testsDeLOffre(l.ads, x.ref.id), testsDeLaMarque: testsDeLOffre(d.lots.flatMap((y) => y.ads), x.ref.id), planIds,
+    groupe: 'offre', note: noteDepartLectureOffre(l.numero), prioritaires: testsDeLOffre(ads, x.ref.id), testsDeLaMarque: testsDeLOffre(marque, x.ref.id), planIds,
   });
   const hypothese = accesHypothese({ adsmap: roleAtLeast(g.s.role, 'member') ? 'ok' : 'role', marqueActive: true });
 
   const pres = presentationLot(l, d.ctx);
   const syn = syntheseLot(l, d.config.targetCpa);
-  const barres = barresCpa(l.ads);
+  const barres = barresCpa(ads);
   const conclusion = conclusionLot(l, pres.etat, referenceConclusion(d.lots, l.id));
   // « Itérer depuis la gagnante » · chaque variante arbitrée gagnante d'un lot CONCLU (`gestesGagnantesLot`, la règle du fil) · la porte de
   // l'écran Itérer, puis ce que le plan (déjà lu) et la lignée disent de chacune · lus seulement s'il y en a une, sans écriture.
-  const lotG = { id: l.id, numero: l.numero, etat: pres.etat, conclusion, ads: l.ads };
+  const lotG = { id: l.id, numero: l.numero, etat: pres.etat, conclusion, ads };
   const aIterer = gagnantesDuLot(lotG);
   const gagnantes = aIterer.length
     ? gestesGagnantesLot(lotG, {
@@ -94,7 +101,7 @@ export default async function LotSpatial({ params, searchParams }: { params: Pro
     : {};
   // Lot 13 bis · ce que C et T ouvrent (une navigation) · fermé, la raison du geste · lot CONCLU avec une gagnante · T ouvre le
   // MÊME geste que le bouton de sa variante (`depuisGagnante` · les gestes ci-dessus, jamais une adresse recopiée).
-  const clavier = gestesClavierLot({ etat: pres.etat, ads: l.ads, gagnante: syn.gagnante ?? null, planIds, depuisGagnante: gagnantes });
+  const clavier = gestesClavierLot({ etat: pres.etat, ...variantesDe(l), gagnante: syn.gagnante ?? null, planIds, depuisGagnante: gagnantes });
   // « Mesures à importer » · l'import EXISTANT ouvert sur CE lot, sous SA garde (`import`) · fermé, sa raison.
   const importer = importFicheLot({ etat: pres.etat, lot: l, variantes: l.ads, seuil: d.config, acces: { refus: g.refusImport }, fenetre: { ...d.ctx, lanceLe: l.lanceLe } });
   // Un lot qu'on arbitre au-delà de la borne de relecture, mesures arrêtées avant la fin de la fenêtre · l'arbitre le lit, et l'import de CE lot (sous sa garde).
@@ -107,7 +114,7 @@ export default async function LotSpatial({ params, searchParams }: { params: Pro
     const detail = new Map((fiche.detail?.ads ?? []).map((a) => [a.id, a]));
     actions = {
       mode: 'composition', lotId: l.id, pret: pres.etat === 'pret',
-      variantes: l.ads.map((a) => ({
+      variantes: ads.map((a) => ({
         id: a.id, variante: a.variante, concept: a.concept, manques: a.manques, nom: a.nomGenere,
         blocage: detail.get(a.id)?.blocking ?? null, avis: detail.get(a.id)?.prelaunch?.summary ?? null, adset: detail.get(a.id)?.adsetName ?? null,
       })),
@@ -117,7 +124,7 @@ export default async function LotSpatial({ params, searchParams }: { params: Pro
       brief: b ? { campagne: b.campaignName, structure: b.structure, budgetJour: b.dailyBudgetPerAd, jours: b.durationDays, audience: b.audienceRule, total: b.totalBudget, conclusivite: b.conclusiveness } : null,
     };
   } else if (lotArbitrable(pres.etat)) {
-    const aArbitrer = l.ads.filter(attendArbitrage);
+    const aArbitrer = ads.filter(attendArbitrage);
     // Depuis une réponse de Jarvis · relue dans la portée, pré-remplit sans rien valider.
     const geste = lireGesteConclusion(sp);
     const texte = geste.etat === 'ok' ? await lireReponseJarvis(g.s, g.marque.id, geste.reponse) : null;
@@ -136,15 +143,15 @@ export default async function LotSpatial({ params, searchParams }: { params: Pro
 
   return (
     <Lot
-      sous={[`Lot #${l.numero}`, LIBELLE_NATURE_LOT[natureLot({ status: l.statut, launchedAt: l.lanceLe })].court, plateformesLot(l), `${d.ctx.fenetreJours} jours`].filter(Boolean).join(' · ')}
+      sous={sousFiche(l, plateformesLot(l), d.ctx.fenetreJours)}
       titre={l.but?.trim() || `Lot #${l.numero}`}
       verdict={{ gagnant: !!syn.gagnante, titre: syn.titre, phrase: syn.phrase, niveau: syn.niveau }}
-      variantes={l.ads.map((a, i) => {
+      variantes={ads.map((a, i) => {
         const v = verdictAffiche(a.verdict);
         return { id: a.id, texte: a.texte ?? ' ', image: a.image, gagnante: syn.gagnante === a.id, barre: barres[i]!, tag: `${a.variante} · ${v ? LIBELLE_VERDICT[v].court.toLowerCase() : 'en mesure'}` };
       })}
       controles={controlesLot(l, pres, d.config.minImpressions)}
-      coach={coachLot(pres, syn, l.ads.length)}
+      coach={coachLot(pres, syn, l)}
       conclusion={conclusion}
       personas={{
         variantes: l.ads.map((a) => {
@@ -169,13 +176,56 @@ export default async function LotSpatial({ params, searchParams }: { params: Pro
         {importer && <ImporterMesuresLot lotId={l.id} f={importer} />}
         {fenetreIncomplete && <ImporterMesuresLot lotId={l.id} f={fenetreIncomplete} fenetreIncomplete={{ titre: TITRE_FENETRE_INCOMPLETE }} />}
         {actions && <ActionsLot {...actions} />}
-        <DupliquerLot lotId={l.id} numero={l.numero} variantes={l.ads.length} raison={g.admin ? null : 'Dupliquer un lot est réservé aux admins de l’espace, comme en créer un.'} />
+        <DupliquerLot lotId={l.id} numero={l.numero} variantes={nombreVariantes(l)} raison={g.admin ? null : 'Dupliquer un lot est réservé aux admins de l’espace, comme en créer un.'} />
       </>}
-      reserves={[LIBELLE_NATURE_LOT[natureLot({ status: l.statut, launchedAt: l.lanceLe })].phrase, l.protocole?.resume ?? null].filter((x): x is string => !!x)}
-      fiches={l.ads.map((a) => {
+      reserves={reservesFiche(l)}
+      fiches={ads.map((a) => {
         const v = verdictAffiche(a.verdict);
         return { href: lienFicheTest(a.id), libelle: `${a.variante} · ${a.concept}`, detail: `${libelleStatutTest(a.statut)} · ${v ? LIBELLE_VERDICT[v].court : 'pas de verdict'}`, ...(gagnantes[a.id] ? { gagnante: gagnantes[a.id] } : {}) };
       })}
+    />
+  );
+}
+
+/** Le sous-titre de la fiche · `Lot #n · nature · plateformes · N jours` · lu en partie, sans plateforme (aucune n'est tirée de rien). */
+const sousFiche = (l: LotLu, plateformes: string | null, jours: number) =>
+  [`Lot #${l.numero}`, LIBELLE_NATURE_LOT[natureLot({ status: l.statut, launchedAt: l.lanceLe })].court, plateformes, `${jours} jours`].filter(Boolean).join(' · ');
+const reservesFiche = (l: LotLu) =>
+  [LIBELLE_NATURE_LOT[natureLot({ status: l.statut, launchedAt: l.lanceLe })].phrase, l.protocole?.resume ?? null].filter((x): x is string => !!x);
+
+/**
+ * La fiche d'un lot lu en PARTIE (au-delà du plafond d'un lot seul) · la
+ * réserve en tête et le recours (les tests de ce lot, où chaque variante
+ * s'arbitre seule) · synthèse, contrôles, conseil et conclusion « non
+ * calculés » (noyau) · les gestes reçoivent le lot lui-même (`variantesDe`) et
+ * se ferment avec une raison vraie · ni variante, ni persona, ni offre, ni
+ * composition, ni import · « Dupliquer » compte les variantes en base.
+ */
+function FicheLotPartiel({ l, d, admin, jarvis }: { l: Extract<LotLu, { partielle: object }>; d: DonneesLots; admin: boolean; jarvis: boolean }) {
+  const pres = presentationLot(l, d.ctx);
+  const syn = syntheseLot(l, d.config.targetCpa);
+  const clavier = gestesClavierLot({ etat: pres.etat, ...variantesDe(l), planIds: new Set() });
+  const href = jarvis ? lienJarvisContexte('lot', l.id) : null;
+  return (
+    <Lot
+      sous={sousFiche(l, null, d.ctx.fenetreJours)}
+      titre={l.but?.trim() || `Lot #${l.numero}`}
+      verdict={{ gagnant: false, titre: syn.titre, phrase: syn.phrase, niveau: syn.niveau }}
+      variantes={[]}
+      controles={controlesLot(l, pres, d.config.minImpressions)}
+      coach={coachLot(pres, syn, l)}
+      conclusion={conclusionLot(l, pres.etat, referenceConclusion(d.lots, l.id))}
+      jarvis={href ? { href } : null}
+      actions={<>
+        <RaccourcisLot conclure={clavier.conclure} iterer={clavier.iterer} />
+        <DupliquerLot lotId={l.id} numero={l.numero} variantes={nombreVariantes(l)} raison={admin ? null : 'Dupliquer un lot est réservé aux admins de l’espace, comme en créer un.'} />
+      </>}
+      lecture={{
+        lotId: l.id, titre: TITRE_LECTURE_INCOMPLETE,
+        phrase: phraseLotLuEnPartie(l, { etatCalcule: pres.etat !== 'illisible', fiche: true })!,
+        tests: { libelle: 'Ouvrir les tests de ce lot', href: adresseTests({ batchId: l.id }) },
+      }}
+      reserves={reservesFiche(l)}
     />
   );
 }

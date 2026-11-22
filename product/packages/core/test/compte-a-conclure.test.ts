@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   FILTRES_LOTS, LIEN_A_CONCLURE, PARAM_FILTRE_LOTS, aFaireMaintenant, compteAConclure, dansFiltreLots, etapesBoucleAccueil, etatLotSpatial,
   filtreInitialLots, gestesListeLots, lotConcluAccueil, lotsConclusLus, lotsFinPrevuePassee, pastilleAConclure, phraseFinPrevuePassee, selectionAConclure,
-  type FaitsAdSpatial, type FaitsEtatLot, type FaitsLotSpatial, type FaitsVerdictSpatial, type LotAccueil, type VerdictValue,
+  type FaitsAdSpatial, type FaitsEtatLot, type FaitsLotSpatialEntier, type FaitsVerdictSpatial, type LotAccueil, type VerdictValue,
 } from '../src';
 
 /**
@@ -27,12 +27,12 @@ const valide = (v: VerdictValue) => verdict(v, { statut: 'validated', retenu: v 
 const ad = (id: string, v: FaitsVerdictSpatial | null): FaitsAdSpatial => ({
   id, variante: id, statut: 'live', hypothese: 'h', variable: 'hook', plateforme: 'meta', texte: 't', image: null, manques: [], verdict: v,
 });
-const lot = (id: string, numero: number, o: Partial<FaitsLotSpatial> = {}): FaitsLotSpatial => ({
+const lot = (id: string, numero: number, o: Partial<FaitsLotSpatialEntier> = {}): FaitsLotSpatialEntier => ({
   id, numero, but: null, statut: 'testing', lanceLe: ilYa(10), protocole: null, ads: [ad('v1', verdict('winner')), ad('v2', verdict('loser'))], ...o,
 });
 
 /** Un lot par état réel · seuls `conclure` (tranché en attente) et `muet` (non concluant, des verdicts attendent) se concluent. */
-const CORPUS: FaitsLotSpatial[] = [
+const CORPUS: FaitsLotSpatialEntier[] = [
   lot('conclure', 9),
   lot('muet', 8, { ads: [ad('v1', verdict('inconclusive')), ad('v2', verdict('insufficient_delivery'))] }),
   lot('diffusion', 7, { lanceLe: ilYa(2) }),

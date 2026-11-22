@@ -2,14 +2,14 @@ import {
   bilanProvenances, cartesHypotheses, entreesBilanProvenances, provenanceDuTest, sousNavResultats,
   NOTE_JARVIS_PROVENANCE, NOTE_OFFRE_PROVENANCE, NOTE_COMMENTAIRE_PROVENANCE, NOTE_NOTE_PROVENANCE, PROVENANCES_TEST, RESERVE_ESTIMATION,
   REFUS_HYPOTHESE_NOTE, departHypotheseDepuisNote, lireGesteHypotheseNote,
-  gagnantesDesHypotheses, gestesGagnantesHypotheses,
+  gagnantesDesHypotheses, gestesGagnantesHypotheses, variantesDesLotsLus,
 } from '@tiktrends/core';
 import { planDesGagnantes, porteIterationGagnante } from '../../../../../lib/iterer-gagnante';
 import { iterationPlanAction } from '../../../../actions/adsmap-iterate';
 import { completerHypotheseAction, creerHypotheseAction } from '../../../../actions/adsmap-hypotheses';
 import { Hypotheses } from '../../../../../spatial/vues/resultats/Hypotheses';
 import { RefusResultats } from '../../../../../spatial/vues/resultats/communs';
-import { chargerLots, faitsHypotheses, gardeResultats, type AdLue } from '../donnees';
+import { chargerLots, faitsHypotheses, gardeResultats, variantesDesLotsEntiers, type AdLue } from '../donnees';
 import { lireNotePourHypothese } from '../../../../../lib/studios/commentaire-iterer';
 import type { DepuisNoteHypothese } from '../../../../../spatial/vues/resultats/Hypotheses';
 
@@ -58,8 +58,9 @@ export default async function HypothesesSpatial({ searchParams }: { searchParams
   const suites = (plan.view?.rows ?? []).slice(0, 12).map((r) => ({
     adId: r.adId, libelle: r.label, variable: r.changedVariable, etape: r.stageLabel, raison: r.rationale, priorite: r.priority,
   }));
-  const parAd = new Map<string, AdLue>(d.lots.flatMap((l) => l.ads.map((a) => [a.id, a] as const)));
-  const adsDuLot = (lotId: string) => d.lots.find((l) => l.id === lotId)?.ads ?? [];
+  const parAd = new Map<string, AdLue>(variantesDesLotsLus(d.lots).map((a) => [a.id, a] as const));
+  // Les lots lus en entier seulement · un lot lu en partie n'expose aucune variante (`VariantesDuLot`), aucune gagnante ne se tire de lui.
+  const adsDuLot = variantesDesLotsEntiers(d);
   const aIterer = gagnantesDesHypotheses(ads, adsDuLot);
   const gagnantes = aIterer.length
     ? gestesGagnantesHypotheses(ads, adsDuLot, {

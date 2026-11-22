@@ -4,7 +4,7 @@ import {
   accesTestsOffre, bilanProvenances, bilanTestsOffre, gestesLectureGroupe, gestesPersonaLot, lectureOffres, lireDemandeProvenanceJarvis,
   lireProvenanceJarvis, lotsDuGroupe, provenanceJarvisAdmise, refProvenanceJarvis, testsDeLOffre, testsDuGroupe, lecturePersonas,
   versGestesLecture, entreesLectureOffres,
-  type EntreeLecturePersona, type FaitsAdSpatial, type FaitsLotSpatial, type ProvenanceTest,
+  type EntreeLecturePersona, type FaitsAdSpatial, type FaitsLotSpatialEntier, type ProvenanceTest,
 } from '../src';
 
 /**
@@ -19,7 +19,7 @@ const ad = (id: string, v: 'winner' | 'loser'): FaitsAdSpatial => ({
   id, variante: id, statut: 'done', hypothese: 'Si on teste, alors ça baisse, parce que.', variable: 'hook', plateforme: 'meta', texte: null, image: null, manques: [],
   verdict: { calcule: v, retenu: v, statut: 'validated', comparable: true, raison: null, depense: 1, impressions: 1, achats: 1, cpa: 1 },
 });
-const lot = (id: string, numero: number, but: string | null, ads: FaitsAdSpatial[]): FaitsLotSpatial => ({ id, numero, but, statut: 'testing', lanceLe: '2026-09-01T00:00:00Z', ads, protocole: null });
+const lot = (id: string, numero: number, but: string | null, ads: FaitsAdSpatial[]): FaitsLotSpatialEntier => ({ id, numero, but, statut: 'testing', lanceLe: '2026-09-01T00:00:00Z', ads, protocole: null });
 
 describe('« Dans les tests » · les lots d’un groupe, sa lecture', () => {
   const REMISE = { id: 'remise', nom: 'Remise de bienvenue' };

@@ -2,6 +2,7 @@ import { wilsonInterval, type Interval } from '../../adsmap/stats';
 import { estLotImporte } from '../../adsmap/lot-nature';
 import type { VerdictValue } from '../../adsmap/types';
 import { verdictAffiche, type EtatLotSpatial, type FaitsAdSpatial, type FaitsLotSpatial } from './lots';
+import { compteLecture, variantesDesLotsLus } from './lecture-lot';
 
 /**
  * Spatial · Résultats · la CONCLUSION d'un lot entier, et l'écart d'une
@@ -102,7 +103,8 @@ function compter(ads: readonly FaitsAdSpatial[]): Compte {
 
 /** La référence de la marque pour un lot · les verdicts tranchés de ses AUTRES lots suivis (un historique importé n'est pas comparable). */
 export function referenceConclusion(lots: readonly FaitsLotSpatial[], lotId: string): Compte {
-  return compter(lots.filter((l) => l.id !== lotId && !estLotImporte({ status: l.statut, launchedAt: l.lanceLe })).flatMap((l) => l.ads));
+  // Un lot lu en partie n'apporte aucun verdict à la référence · on ne sait pas lesquels ont été coupés.
+  return compter(variantesDesLotsLus(lots.filter((l) => l.id !== lotId && !estLotImporte({ status: l.statut, launchedAt: l.lanceLe }))));
 }
 
 export type ConclusionLot = 'confirmee' | 'infirmee' | 'non_concluante' | 'en_attente';
@@ -148,6 +150,12 @@ export function conclusionLot(l: FaitsLotSpatial, etat: EtatLotSpatial, referenc
   if (etat === 'importe') {
     return { conclusion: 'non_concluante', motif: 'importe', titre: titre('non_concluante'), lot: null, reference: null,
       phrase: 'Historique repris du tableau · ses verdicts n’ont pas été mesurés au protocole, le lot ne peut rien confirmer.' };
+  }
+  // Lu en partie · ni « il suffit d'attendre », ni une conclusion tirée d'une partie du lot.
+  if (l.partielle) {
+    const lu = compteLecture(l)!;
+    return { conclusion: 'en_attente', motif: 'pas_pret', titre: 'Non calculée · lecture incomplète', lot: null, reference: null,
+      phrase: `${lu.charAt(0).toUpperCase()}${lu.slice(1)} · aucune conclusion n’est tirée d’une partie du lot.` };
   }
   if (!LISIBLES.has(etat)) {
     return { conclusion: 'en_attente', motif: 'pas_pret', titre: titre('en_attente'), lot: null, reference: null,

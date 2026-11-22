@@ -1,5 +1,5 @@
 import {
-  attendArbitrage, etatApprentissage, iconeApprentissage, lienLotSpatial, niveauPreuveApprentissage, piedApprentissage,
+  attendArbitrage, estLuEnEntier, etatApprentissage, iconeApprentissage, lienLotSpatial, niveauPreuveApprentissage, piedApprentissage,
   preuveApprentissage, sousNavResultats, syntheseLot, etatLotSpatial, actionApprentissage, tiroirApprentissage, refusVersRegles,
   conclusionLot, referenceConclusion, regleDejaPresente, departDepuisApprentissage, noteDepartApprentissage, type FaitsApprentissage, type LectureConclusion,
 } from '@tiktrends/core';
@@ -8,7 +8,7 @@ import { db, schema } from '@tiktrends/db';
 import { refusJarvis, TEXTE_REFUS_JARVIS } from '../../../../../lib/jarvis-acces';
 import { Apprentissages, type CarteApprentissage } from '../../../../../spatial/vues/resultats/Apprentissages';
 import { RefusResultats } from '../../../../../spatial/vues/resultats/communs';
-import { chargerApprentissages, chargerLots, gardeResultats, type AdLue, type LotLu } from '../donnees';
+import { chargerApprentissages, chargerLots, gardeResultats, type AdLue, type LotLuEntier } from '../donnees';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,15 +32,16 @@ export default async function ApprentissagesSpatial() {
     // Le texte RÉEL des règles de la marque · « déjà dans les règles » s'y lit, pas dans une trace.
     db ? db.select({ r: schema.brands.creativeRules }).from(schema.brands).where(eq(schema.brands.id, g.marque.id)).limit(1).then((x) => x[0]?.r ?? '') : Promise.resolve(''),
   ]);
-  const parAd = new Map<string, { ad: AdLue; lot: LotLu | null }>();
-  for (const l of d.lots) for (const a of l.ads) parAd.set(a.id, { ad: a, lot: l });
+  // Les variantes des lots lus en entier · un lot lu en partie n'en expose aucune (`estLuEnEntier`).
+  const parAd = new Map<string, { ad: AdLue; lot: LotLuEntier | null }>();
+  for (const l of d.lots.filter(estLuEnEntier)) for (const a of l.ads) parAd.set(a.id, { ad: a, lot: l });
   for (const a of d.horsLot) parAd.set(a.id, { ad: a, lot: null });
   const conclusions = new Map<string, LectureConclusion>(d.lots.map((l) => [l.id, conclusionLot(l, etatLotSpatial(l, d.ctx), referenceConclusion(d.lots, l.id))]));
   const refusJ = refusJarvis(g.s);
   const fermeRegles = !g.admin ? 'Passer un apprentissage dans les règles est réservé aux admins de l’espace, comme écrire une règle.' : refusJ ? TEXTE_REFUS_JARVIS[refusJ] : null;
 
   // « À valider » · un lot prêt à conclure attend son apprentissage.
-  const aValider: CarteApprentissage[] = d.lots.filter((l) => etatLotSpatial(l, d.ctx) === 'a_conclure').map((l) => {
+  const aValider: CarteApprentissage[] = d.lots.filter(estLuEnEntier).filter((l) => etatLotSpatial(l, d.ctx) === 'a_conclure').map((l) => {
     const s = syntheseLot(l, d.config.targetCpa);
     const n = l.ads.filter(attendArbitrage).length;
     return {

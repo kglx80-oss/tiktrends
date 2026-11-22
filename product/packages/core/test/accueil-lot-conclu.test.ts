@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   compteAConclure, etapesBoucleAccueil, etatLotSpatial, finPrevueAuLancement, lotConcluAccueil, lotsConclusLus, lotsFinPrevuePassee, phraseFinPrevuePassee,
-  type FaitsAdSpatial, type FaitsLotSpatial, type FaitsVerdictSpatial, type LotAccueil, type VerdictValue,
+  type FaitsAdSpatial, type FaitsLotSpatialEntier, type FaitsVerdictSpatial, type LotAccueil, type VerdictValue,
 } from '../src';
 
 /**
@@ -24,7 +24,7 @@ const valide = (v: VerdictValue) => verdict(v, { statut: 'validated', retenu: v 
 const ad = (id: string, v: FaitsVerdictSpatial | null): FaitsAdSpatial => ({
   id, variante: id, statut: 'live', hypothese: 'h', variable: 'hook', plateforme: 'meta', texte: 't', image: null, manques: [], verdict: v,
 });
-const faits = (id: string, numero: number, ads: FaitsAdSpatial[]): FaitsLotSpatial => ({
+const faits = (id: string, numero: number, ads: FaitsAdSpatial[]): FaitsLotSpatialEntier => ({
   id, numero, but: null, statut: 'testing', lanceLe: LANCE.toISOString(), protocole: null, ads,
 });
 

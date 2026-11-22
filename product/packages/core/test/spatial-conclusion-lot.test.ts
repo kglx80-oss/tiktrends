@@ -4,7 +4,7 @@ import {
   NIVEAU_CONCLUSION_LOT, MIN_VARIANTES_CONCLUSION, MIN_REFERENCE_CONCLUSION, ERREUR_TOLEREE_CONCLUSION,
   etatApprentissage, actionApprentissage, tiroirApprentissage, regleDepuisApprentissage, refusVersRegles,
   dansFiltreEtatApprentissage, FILTRES_ETAT_APPRENTISSAGE, regleDejaPresente, lireReglesMarque, LONGUEUR_MAX_REGLES, lienIterationStudio,
-  type FaitsAdSpatial, type FaitsLotSpatial, type FaitsVerdictSpatial, type VerdictValue, type FaitsApprentissage,
+  type FaitsAdSpatial, type FaitsLotSpatialEntier, type FaitsVerdictSpatial, type VerdictValue, type FaitsApprentissage,
 } from '../src';
 
 const verdict = (calcule: VerdictValue | null, o: Partial<FaitsVerdictSpatial> = {}): FaitsVerdictSpatial => ({
@@ -15,7 +15,7 @@ const ad = (v: FaitsVerdictSpatial | null, o: Partial<FaitsAdSpatial> = {}): Fai
   id: `a${++seq}`, variante: `v${seq}`, statut: 'live', hypothese: 'h', variable: 'hook', plateforme: 'meta', texte: 't', image: null, manques: [], verdict: v, ...o,
 });
 /** Un lot de `k` gagnantes et `n - k` perdantes, toutes au protocole. */
-const lotDe = (k: number, n: number, o: Partial<FaitsLotSpatial> = {}): FaitsLotSpatial => ({
+const lotDe = (k: number, n: number, o: Partial<FaitsLotSpatialEntier> = {}): FaitsLotSpatialEntier => ({
   id: `l${++seq}`, numero: seq, but: null, statut: 'analyzed', lanceLe: '2026-10-01T00:00:00Z', protocole: null,
   ads: Array.from({ length: n }, (_, i) => ad(verdict(i < k ? 'winner' : 'loser'))), ...o,
 });

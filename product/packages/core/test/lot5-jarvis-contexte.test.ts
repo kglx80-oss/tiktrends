@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   BORNES_CONTEXTE_JARVIS, REFUS_CONTEXTE_JARVIS, TITRE_BLOC_CONTEXTE_JARVIS, SEPARATEUR_CONSIGNE,
   demandeContexteJarvis, lienJarvisCarteHypothese, lienJarvisContexte, lireContexteAdresse, lireContexteCorps, resumerContexteJarvis,
-  type EntreeContexteJarvis, type FaitsAdSpatial, type FaitsLotSpatial,
+  type EntreeContexteJarvis, type FaitsAdSpatial, type FaitsLotSpatialEntier,
 } from '../src';
 
 /**
@@ -25,7 +25,7 @@ const ad = (id: string, variante: string, o: Partial<FaitsAdSpatial> = {}): Fait
   verdict: { calcule: 'winner', retenu: null, statut: 'computed', comparable: true, raison: 'CPA sous la cible.', depense: 120, impressions: 18000, achats: 12, cpa: 10 },
   ...o,
 });
-const lot = (ads: FaitsAdSpatial[], o: Partial<FaitsLotSpatial> = {}): FaitsLotSpatial => ({
+const lot = (ads: FaitsAdSpatial[], o: Partial<FaitsLotSpatialEntier> = {}): FaitsLotSpatialEntier => ({
   id: LOT, numero: 12, but: 'Affirmation ou question ?', statut: 'testing', lanceLe: '2026-10-20T10:00:00Z', ads, protocole: null, ...o,
 });
 
