@@ -14,14 +14,20 @@ import { join, relative } from 'node:path';
  * Ce qu'on compte · dans `apps/web/test` (tous les `.ts` / `.tsx`, sous-dossiers compris), chaque
  * PROMESSE DE SOMMEIL · `new Promise((r) => setTimeout(r, N))` dont le délai N n'est pas `0`, sous
  * toutes ses écritures courantes (détail sur `SOMMEIL`) · résolveur entre parenthèses ou non, typé
- * (`(r: () => void)`), suivi d'un second paramètre (`(r, _j)`), ou en `function (r) {` · minuteur
- * nu ou `globalThis.setTimeout` · rappel qui est le résolveur (`r`) ou qui l'appelle sans valeur
- * (`() => r()`). Un délai écrit par une variable (`ms`, `faux.latenceMs`) compte aussi, il n'est
- * pas 0 par construction. Comptent encore · chaque APPEL de `pasDansAct(N)` à délai non nul (le
- * sommeil qu'exporte l'utilitaire exclu ci-dessous · `{ pas: pasDansAct }` n'en est pas un) et
- * chaque import de `timers/promises` (le même sommeil, sous un autre nom). Ne comptent PAS · le
- * tour de boucle `setTimeout(r, 0)` (ou sans délai), une valeur rendue en différé
- * (`setTimeout(() => r(v), 10)`), un délai de garde qui REJETTE (`setTimeout(() => rej(…))`).
+ * (`(r: () => void)`), suivi d'un second paramètre (`(r, _j)`), `async (r)`, ou en `function (r) {`
+ * · minuteur nu ou `globalThis.setTimeout`, gardé (`const t = setTimeout(…)`, `t = …`) ou jeté
+ * (`void setTimeout(…)`) · rappel qui est le résolveur, transtypé ou non (`r`, `r as () => void`),
+ * ou qui l'appelle avec RIEN (`() => r()`, `r(undefined)`, `r(void 0)`) ou avec une valeur JETÉE
+ * (`await new Promise((r) => setTimeout(() => r(true), 400));` en tête d'instruction · le résultat
+ * ne va nulle part, il ne reste que la durée). Un délai écrit par une variable (`ms`,
+ * `faux.latenceMs`) compte aussi, il n'est pas 0 par construction. Comptent encore · le même
+ * sommeil en deux instructions (`Promise.withResolvers()` puis `setTimeout(resolve, N)`), chaque
+ * APPEL de `pasDansAct(N)` à délai non nul (le sommeil qu'exporte l'utilitaire exclu ci-dessous ·
+ * `{ pas: pasDansAct }` n'en est pas un) et chaque import de `timers/promises` (le même sommeil,
+ * sous un autre nom). Ne comptent PAS · le tour de boucle `setTimeout(r, 0)` (ou sans délai), une
+ * valeur rendue, affectée ou passée (`mockImplementation(() => new Promise((r) => setTimeout(() =>
+ * r(v), 10)))`, un faux qui RÉPOND après une latence · `const v = await …`, `Promise.race([…])`),
+ * un délai de garde qui REJETTE (`setTimeout(() => rej(…))`).
  *
  * C'est plus large que « un sommeil suivi d'un `expect` » · une attente cachée dans une AIDE
  * (`const laisser = (ms = 400) => … setTimeout(r, ms) …`, puis `await laisser(); expect(…)`) est le
@@ -29,9 +35,15 @@ import { join, relative } from 'node:path';
  * aide est la définition nommée la plus proche qui englobe un sommeil (`const X = (…) =>`,
  * `function X(`, une propriété `X: () =>`, une méthode `X() {`), puis, de proche en proche, celle
  * qui appelle une aide (`cliquer` qui appelle `attendre`). Ses appels dans le fichier sont COMPTÉS
- * et FIGÉS (`appels`) au même titre que les sommeils · une aide sans compte figé vaut 0 appel. Le
- * cas légitime (un faux qui simule une latence, un `dormir` injecté au code testé) se DÉCLARE ici,
- * avec sa raison.
+ * et FIGÉS (`appels`) au même titre que les sommeils · un appel `X(`, ou l'aide passée en VALEUR en
+ * argument d'un appel (`.then(X)`, `act(X)`, `.map(X)`, `beforeEach(X)`) · une aide sans compte
+ * figé vaut 0 appel. N'est PAS l'aide passée en valeur · un nom dans un tableau, un objet ou une
+ * déstructuration (`[X, y]`, `{ X, y }`, `{ pas: X }` · le pas d'un sondage), un PARAMÈTRE
+ * (`(nom, X) =>`, `function f(a, X) {`), ce qu'on lit sans l'appeler (`expect(X)`), et un HOMONYME ·
+ * dans le corps d'une fonction qui prend `X` en paramètre (`it.each(…)('…', (X) => …)`) ou dans le
+ * bloc qui déclare `X` (`const [X, setX] = useState()`), le nom désigne autre chose que l'aide. Le comptage de proche en proche termine sur un
+ * cycle (`a` ↔ `b`, une récursion) · chaque aide n'est relevée qu'une fois. Le cas légitime (un
+ * faux qui simule une latence, un `dormir` injecté au code testé) se DÉCLARE ici, avec sa raison.
  *
  * Exclus · `helpers/attendre-etat.ts` (le seul sommeil légitime · le pas entre deux sondages) et
  * ce fichier (il décrit les formes qu'il cherche).
@@ -46,16 +58,40 @@ import { join, relative } from 'node:path';
  * (b86d4762) · 46 aides dans 25 fichiers. Les formes élargies (rappel `() => r()`, `function (r)`,
  * résolveur typé ou à deux paramètres, `globalThis.setTimeout`, `pasDansAct(N)`) n'y trouvent
  * AUCUN usage de plus · aucune exemption nouvelle (`parcours-image-focus-course`, ligne ~119, rend
- * une VALEUR en différé · `() => r({ ok, vue })` · ce n'est pas un sommeil).
+ * une VALEUR en différé · `() => r({ ok, vue })` · ce n'est pas un sommeil). Les formes de la suite
+ * (valeur rien ou jetée, transtypage, minuteur gardé ou `void`, `async (r)`, `withResolvers`, aide
+ * passée en valeur) mesurées sur tout `apps/web/test` (main 28856104) · AUCUN compte ne bouge, ni
+ * sommeil ni appel · le seul rappel à valeur du dépôt reste `parcours-image-focus-course` (~119),
+ * dont la valeur est RENDUE au code testé, pas jetée. Le tour 2 (homonymes écartés, tête
+ * d'instruction lue sans `m`, source masqué, valeur sans retour arrière, `indices`) mesuré sur les
+ * 680 fichiers de main 513df40a · relevé IDENTIQUE à celui de main. Le tour 3 (union des lectures
+ * brute et masquée, `act<void>(X)`, `f?.(X)`, clé de déstructuration) · relevé IDENTIQUE.
  *
  * Les LIMITES · ce cliquet protège contre l'ERREUR (on recopie une attente fixe voisine, on
  * rappelle l'aide du fichier), pas contre la MALVEILLANCE · il lit le texte, il n'exécute rien.
  * Il ne voit pas · `promisify(setTimeout)` ; une boucle de `setTimeout(r, 0)` (chaque tour est un
  * tour de boucle, la somme est une durée) ; un nom calculé ou un alias (`globalThis['set' +
  * 'Timeout']`, `const st = setTimeout`, `import { pasDansAct as p }`, `const encore = laisser`) ;
- * une aide passée en valeur puis appelée sous un autre nom ; un appel d'aide caché par un littéral
- * d'expression régulière qui contient une apostrophe ou `//` (le relevé des appels blanchit
- * commentaires et textes, pas les expressions régulières).
+ * une aide rangée dans un objet (`{ onFin: laisser }`) ou appelée par un autre nom ; une valeur
+ * constante GARDÉE (`const v = await new Promise((r) => setTimeout(() => r(1), N))` · on la croit
+ * utile) ; une promesse à valeur attendue plus loin (`const p = new Promise(… r(v) …); await p`) ;
+ * un second minuteur sur un `withResolvers` (seul le premier qui le résout est lu) ; un
+ * `differe()` maison résolu par un minuteur ; une valeur imbriquée sur plus de deux niveaux de
+ * parenthèses ; un rappel qui fait autre chose avant de résoudre (`setTimeout(() => { fini = true;
+ * r(); }, N)`) ; un délai rangé dans le corps (`{ const ms = N; setTimeout(r, ms); }`) ; un rappel
+ * `() => void r()` ; une promesse jetée après un mot (`else await …`) ou sans point-virgule au-dessus ;
+ * une aide passée dans une branche de ternaire (`act(c ? x : laisser)`) ;
+ * une aide rangée dans un tableau (`[laisser, x].forEach(…)`), passée par une déstructuration de
+ * paramètre (`({ laisser }) =>` ne la masque pas) ou passée à `expect` ; un homonyme déclaré dans
+ * l'en-tête d'un `for` (sa portée s'arrête à la parenthèse) ; un appel `X(` d'un homonyme (seule la
+ * valeur passée en argument est lue par portée) ; une parenthèse orpheline dans une expression
+ * régulière (`/\(/`), qui fait déborder la portée d'un homonyme jusqu'à la fin du fichier (seuls
+ * les passages en valeur s'y perdent, jamais un appel `X(` · borner par la définition englobante
+ * n'y peut rien, elle se compte avec les mêmes parenthèses) ; une définition ou un appel d'aide
+ * caché par une expression régulière qui contient une apostrophe, `//` ou un BACKTICK (le relevé
+ * des aides blanchit commentaires et textes, pas les expressions régulières · un backtick y ouvre
+ * un faux gabarit qui court sur les lignes suivantes, `e-pas1-recette` ~205 · les SOMMEILS, eux,
+ * se lisent aussi sur le source brut).
  */
 
 const RACINE = __dirname;
@@ -128,22 +164,53 @@ const EXEMPTIONS: Readonly<Record<string, Exemption>> = {
 const NOM = String.raw`[A-Za-z_$][\w$]*`;
 /** L'annotation d'un paramètre · `: number`, `: () => void`, `: (v: unknown) => void`. */
 const TYPE = String.raw`(?:\s*:\s*(?:\([^()]*\)\s*=>\s*[\w$.<>\[\]| ]+?|[\w$.<>\[\]| ]+?))?`;
+/** Un transtypage · `as () => void`, `as never`, `as unknown as () => void`. */
+const CAST = String.raw`(?:\s+as\s+(?:\([^()]*\)\s*=>\s*[\w$.<>\[\]| ]+?|[\w$.<>\[\]| ]+?))*`;
+/** Le MINUTEUR · `setTimeout`, ou `globalThis.` / `window.` / `global.` / `self.setTimeout`, précédé ou non de `void`, `const t =`, `t =`. */
+const MINUTEUR = String.raw`(?:(?:(?:const|let|var)\s+${NOM}${TYPE}\s*=(?!=)|${NOM}(?:\s*\.\s*${NOM})*\s*=(?!=)|void)\s*)?`
+  + String.raw`(?:(?:globalThis|window|global|self)\s*\.\s*)?setTimeout\s*\(\s*`;
 /**
- * Une promesse de sommeil · `new Promise[<T>](RÉSOLVEUR => [{] MINUTEUR(RAPPEL[, délai])` où
- *  · RÉSOLVEUR · `(r)`, `r`, `(r: () => void)`, `(r, _j)`, ou `function [nom](r) {` ;
- *  · MINUTEUR · `setTimeout`, ou `globalThis.` / `window.` / `global.` / `self.setTimeout` ;
- *  · RAPPEL · le résolveur LUI-MÊME (`r`), ou un rappel qui l'appelle SANS valeur (`() => r()`,
- *    `() => { r(); }`, `function () { r(); }`) · avec une valeur (`() => r(v)`), c'est une valeur
- *    différée, pas un sommeil.
- * Groupe 1 · le nom du résolveur · groupe 2 · le délai.
+ * La valeur passée au résolveur · des parenthèses imbriquées sur deux niveaux (`r({ vue: vueImage({…}) })`).
+ * Sans `\s*` autour · `[^()]` lit déjà les blancs, et trois quantificateurs sur les mêmes blancs
+ * reviennent en arrière au cube (2000 blancs sans parenthèse fermante · 5,5 s mesurées). `rien()` élague.
+ */
+const VALEUR = String.raw`(?<val>(?:[^()]|\((?:[^()]|\([^()]*\))*\))*?)`;
+/**
+ * Le RAPPEL du minuteur, pour un résolveur `res` (un motif) · le résolveur LUI-MÊME, transtypé ou
+ * non (`r`, `r as () => void`), ou un rappel qui l'appelle (`() => r(…)`, `() => { r(…); }`,
+ * `function () { r(…); }`) · puis le délai. Groupes · `val` (la valeur, absente pour le résolveur
+ * lui-même) · `delai`.
+ */
+const rappel = (res: string) => String.raw`(?:${res}${CAST}|\(\s*\)\s*=>\s*(?:\{\s*)?${res}\s*\(${VALEUR}\)\s*;?\s*\}?|function\s*\(\s*\)\s*\{\s*${res}\s*\(${VALEUR.replace('?<val>', '?<val2>')}\)\s*;?\s*\})`
+  + String.raw`\s*(?:,\s*(?<delai>[^)]*?)\s*)?\)`;
+/**
+ * Une promesse de sommeil · `[await] new Promise[<T>](RÉSOLVEUR => [{] MINUTEUR(RAPPEL[, délai])` où
+ *  · RÉSOLVEUR · `(r)`, `r`, `async (r)`, `(r: () => void)`, `(r, _j)`, ou `function [nom](r) {` ;
+ *  · MINUTEUR, RAPPEL · ci-dessus.
+ * Un rappel qui rend une VALEUR (`() => r(v)`) est un sommeil quand la valeur est RIEN (`r()`,
+ * `r(undefined)`, `r(void 0)`) ou quand elle est JETÉE · la promesse est attendue en tête
+ * d'instruction (`; await new Promise(…)`, `{ await …`), son résultat ne va nulle part, il ne reste
+ * que la durée. Une valeur rendue, affectée ou passée (`mockImplementation(() => new Promise((r) =>
+ * setTimeout(() => r({ ok, vue }), 10)))`, une latence simulée qui RÉPOND) n'en est pas un.
+ * La tête d'instruction se lit sur le source entier (pas de drapeau `m`) · `const vue =\n  await …`
+ * prolonge l'instruction d'au-dessus. Une promesse jetée n'est pas suivie d'un `.` (`.then(use)` lit
+ * la valeur). Groupes · `jete` (la promesse est attendue en tête d'instruction) · `ouvre` (sa
+ * parenthèse) · `res` · `val` / `val2` · `delai`.
  */
 const SOMMEIL = new RegExp(
-  String.raw`new\s+Promise\s*(?:<[^>]*>)?\s*\(\s*(?:function\s*(?:${NOM}\s*)?)?\(?\s*(${NOM})${TYPE}\s*(?:,\s*${NOM}${TYPE}\s*)?\)?\s*(?:=>)?\s*\{?\s*`
-  + String.raw`(?:(?:globalThis|window|global|self)\s*\.\s*)?setTimeout\s*\(\s*`
-  + String.raw`(?:\1|\(\s*\)\s*=>\s*(?:\{\s*)?\1\s*\(\s*\)\s*;?\s*\}?|function\s*\(\s*\)\s*\{\s*\1\s*\(\s*\)\s*;?\s*\})`
-  + String.raw`\s*(?:,\s*([^)]*?)\s*)?\)`,
-  'g',
+  // `await` d'abord, puis le regard en arrière · tenté à chaque position, il remonterait chaque suite de blancs (quadratique).
+  String.raw`(?:(?<jete>await)(?<=(?:^|[;{})])\s*await)\s+)?`
+  + String.raw`new\s+Promise\s*(?:<[^>]*>)?\s*(?<ouvre>\()\s*(?:async\s+)?(?:function\s*(?:${NOM}\s*)?)?\(?\s*(?<res>${NOM})${TYPE}\s*(?:,\s*${NOM}${TYPE}\s*)?\)?\s*(?:=>)?\s*\{?\s*`
+  + MINUTEUR + rappel(String.raw`\k<res>`),
+  'gd',
 );
+/**
+ * `Promise.withResolvers()` · `const { promise, resolve } = Promise.withResolvers()` (ou `resolve: r`,
+ * ou `const d = …` puis `d.resolve`) suivi d'un MINUTEUR qui appelle son résolveur · le même sommeil,
+ * écrit en deux instructions. On lit le premier minuteur qui suit · deux `withResolvers` qui trouvent
+ * le même ne le comptent qu'une fois (les sommeils sont dédupliqués par position).
+ */
+const AVEC_RESOLVEURS = new RegExp(String.raw`(?:const|let|var)\s+(?:\{(?<champs>[^{}]*)\}|(?<objet>${NOM}))\s*(?::[^=;]+)?=\s*Promise\s*\.\s*withResolvers\s*(?:<[^>]*>)?\s*\(\s*\)`, 'g');
 const TIMERS_PROMESSES = /from\s+['"](?:node:)?timers\/promises['"]|require\(\s*['"](?:node:)?timers\/promises['"]\s*\)/g;
 /**
  * `pasDansAct(ms)` · le sommeil (dans `act`) qu'exporte l'utilitaire exclu · un APPEL à délai non
@@ -152,14 +219,68 @@ const TIMERS_PROMESSES = /from\s+['"](?:node:)?timers\/promises['"]|require\(\s*
  */
 const PAS_DANS_ACT = /(?<![\w$.])pasDansAct\s*\(\s*([^)]*?)\s*\)/g;
 
-const delaiNul = (d: string | undefined) => { const t = (d ?? '').trim(); return t === '' || /^0+$/.test(t); };
+/** La parenthèse, le crochet ou l'accolade qui referme celle ouverte en `o` (source masqué). */
+function fermante(s: string, o: number): number {
+  let prof = 0;
+  for (let j = o; j < s.length; j++) {
+    const c = s[j]!;
+    if (c === '(' || c === '[' || c === '{') prof += 1;
+    else if ((c === ')' || c === ']' || c === '}') && --prof === 0) return j;
+  }
+  return s.length;
+}
+/** Celle, encore ouverte en `k`, qui l'englobe · -1 au niveau du fichier. */
+function ouvrante(s: string, k: number): number {
+  let prof = 0;
+  for (let j = k; j >= 0; j--) {
+    const c = s[j]!;
+    if (c === ')' || c === ']' || c === '}') prof += 1;
+    else if ((c === '(' || c === '[' || c === '{') && prof-- === 0) return j;
+  }
+  return -1;
+}
+/** L'expression qui finit en `f` est-elle LUE par la suite · `.then(use)`, `?.x`, `[0]` ? */
+const lueApres = (s: string, f: number) => /^\s*(?:\??\.|\[)/.test(s.slice(f + 1, f + 200));
 
-/** Les sommeils à délai non nul d'un source · leur position (promesses et appels de `pasDansAct`). */
+const delaiNul = (d: string | undefined) => { const t = (d ?? '').trim(); return t === '' || /^0+$/.test(t); };
+/** Une valeur qui n'en est pas une · `r()`, `r(undefined)`, `r(void 0)`. */
+const rien = (v: string | undefined) => v === undefined || /^(?:|undefined|void\s+0)$/.test(v.trim());
+
+/** Les sommeils à délai non nul d'un source · leur position (promesses, `withResolvers`, appels de `pasDansAct`). */
 function sommeils(source: string): number[] {
-  const out: number[] = [];
-  for (const m of source.matchAll(SOMMEIL)) if (!delaiNul(m[2])) out.push(m.index!);
-  for (const m of source.matchAll(PAS_DANS_ACT)) if (!delaiNul(m[1])) out.push(m.index!);
-  return out;
+  const out = new Set<number>();
+  // Deux lectures, UNIES · le source BRUT, hors commentaires, et le
+  // source MASQUÉ (un commentaire avant le minuteur ne cache plus le sommeil). Le masque seul se
+  // trompe sur une expression régulière qui porte un backtick (`/`([^`]+)`/` lu comme un gabarit ·
+  // les lignes suivantes blanchies, `e-pas1-recette` ~205) · le brut seul, sur un commentaire.
+  // Dédupliquées par la parenthèse du `Promise` · une correspondance commence à `await` dans une
+  // lecture et à `new` dans l'autre quand la ligne d'au-dessus finit par un commentaire (`l0-jalons` ~59).
+  const commentaires: [number, number][] = [];
+  const masque = masquer(source, commentaires);
+  const horsCommentaire = (i: number) => !commentaires.some(([a, b]) => a <= i && i < b);
+  const lectures: [string, (i: number) => boolean][] = [[source, horsCommentaire], [masque, () => true]];
+  for (const [s, garder] of lectures) {
+  for (const m of s.matchAll(SOMMEIL)) {
+    const g = m.groups!;
+    if (delaiNul(g.delai) || !garder(m.indices!.groups!.ouvre![0])) continue;
+    const ouvre = m.indices!.groups!.ouvre![0];
+    if (rien(g.val ?? g.val2) || (g.jete && !lueApres(s, fermante(s, ouvre)))) out.add(ouvre);
+  }
+  const bornes = [...s.matchAll(AVEC_RESOLVEURS)];
+  bornes.forEach((m) => {
+    const g = m.groups!;
+    // Le nom du résolveur · `d.resolve`, `resolve`, ou l'alias de `resolve: fin`.
+    const champ = g.objet ? null : new RegExp(String.raw`\bresolve\b(?:\s*:\s*(${NOM}))?`).exec(g.champs!);
+    if (!g.objet && !champ) return;
+    const nom = g.objet ? String.raw`${g.objet.replace(/\$/g, '\\$')}\s*\.\s*resolve` : (champ![1] ?? 'resolve').replace(/\$/g, '\\$');
+    const t = new RegExp(String.raw`(?<![\w$.])` + MINUTEUR + rappel(nom), 'g');
+    t.lastIndex = m.index! + m[0].length;
+    const u = t.exec(s);
+    if (u && garder(u.index) && !delaiNul(u.groups!.delai) && rien(u.groups!.val ?? u.groups!.val2)) out.add(u.index);
+  });
+  }
+  for (const m of source.matchAll(PAS_DANS_ACT)) if (!delaiNul(m[1])) out.add(m.index!);
+  return [...out];
 }
 
 const ligneDe = (source: string, i: number) => source.slice(0, i).split('\n').length;
@@ -179,14 +300,14 @@ function attentesFixes(source: string): number[] {
  * Un texte `'…'` / `"…"` s'arrête à la fin de sa ligne (l'apostrophe d'un texte JSX n'ouvre rien
  * au-delà) · un gabarit `` `…` `` est blanchi en entier.
  */
-function masquer(s: string): string {
+function masquer(s: string, commentaires?: [number, number][]): string {
   const o = s.split('');
   const blanc = (a: number, b: number) => { for (let k = a; k < b; k++) if (o[k] !== '\n') o[k] = ' '; };
   let i = 0;
   while (i < s.length) {
     const c = s[i]!;
-    if (c === '/' && s[i + 1] === '/') { const f = s.indexOf('\n', i); const e = f < 0 ? s.length : f; blanc(i, e); i = e; continue; }
-    if (c === '/' && s[i + 1] === '*') { const f = s.indexOf('*/', i + 2); const e = f < 0 ? s.length : f + 2; blanc(i, e); i = e; continue; }
+    if (c === '/' && s[i + 1] === '/') { const f = s.indexOf('\n', i); const e = f < 0 ? s.length : f; blanc(i, e); commentaires?.push([i, e]); i = e; continue; }
+    if (c === '/' && s[i + 1] === '*') { const f = s.indexOf('*/', i + 2); const e = f < 0 ? s.length : f + 2; blanc(i, e); commentaires?.push([i, e]); i = e; continue; }
     if (c === "'" || c === '"' || c === '`') {
       let j = i + 1;
       while (j < s.length && s[j] !== c && (c === '`' || s[j] !== '\n')) j += s[j] === '\\' ? 2 : 1;
@@ -207,7 +328,7 @@ const DEFINITION = new RegExp([
   String.raw`\bfunction\s*\*?\s*(${NOM})\s*\(`,
   String.raw`(?<![\w$.?])(${NOM})\s*:\s*${VALEUR_FONCTION}`,
   String.raw`^[ \t]*(?:async\s+)?(${NOM})\s*\([^()]*\)\s*(?::[^{;\n]+)?\{`,
-].join('|'), 'gm');
+].join('|'), 'gmd');
 const MOTS_CLES = new Set(['if', 'for', 'while', 'switch', 'catch', 'with', 'return', 'function']);
 
 /**
@@ -232,12 +353,90 @@ function finDefinition(s: string, debut: number, bloc: boolean): number {
   return s.length;
 }
 
+/** Les mots qui ouvrent une parenthèse sans appeler · une condition, `expect(X)` (on lit, on n'appelle pas). */
+const PAS_UN_APPEL = new Set([...MOTS_CLES, 'expect']);
+/** Les mots dont la parenthèse est une CONDITION · `if (x) {` n'est pas une liste de paramètres. */
+const CONDITIONS = new Set(['if', 'for', 'while', 'switch', 'with']);
+
+/**
+ * Le CORPS d'une fonction dont la liste de paramètres s'ouvre en `o` (source masqué) · `(…) => …`,
+ * `(…) => { … }`, `function f(…) {`, une méthode `X(…): T {`, `catch (e) {` · `null` si la
+ * parenthèse n'ouvre pas de paramètres (un appel, une condition, un groupement).
+ */
+function corpsParametres(s: string, o: number): [number, number] | null {
+  if (s[o] !== '(') return null;
+  const mot = /([A-Za-z_$][\w$]*)\s*$/.exec(s.slice(Math.max(0, o - 40), o))?.[1];
+  if (mot && CONDITIONS.has(mot)) return null;
+  const f = fermante(s, o);
+  const reste = s.slice(f + 1, f + 400);
+  const fleche = /^\s*(?::[^;{}()]*?)?=>\s*/.exec(reste);
+  if (fleche) {
+    const b = f + 1 + fleche[0].length;
+    return [o, s[b] === '{' ? fermante(s, b) + 1 : finDefinition(s, b, false)];
+  }
+  const bloc = /^\s*(?::\s*[\w$][\w$.<>\[\]| ]*)?\{/.exec(reste);
+  return bloc ? [o, fermante(s, f + bloc[0].length) + 1] : null;
+}
+
+/**
+ * Les PORTÉES où `nom` désigne un HOMONYME, pas l'aide · le corps d'une fonction qui le prend en
+ * paramètre (`(touche) => …`, `touche => …`, `function f(a, touche) {`), le bloc qui le déclare
+ * (`const touche = 'a'`, `const [touche, setTouche] = …`). Hors les définitions de l'aide (`propres`).
+ */
+function portees(s: string, nom: string, propres: number[]): [number, number][] {
+  const out: [number, number][] = [];
+  const n = nom.replace(/\$/g, '\\$');
+  for (const m of s.matchAll(new RegExp(String.raw`(?<![\w$.])${n}(?![\w$])`, 'g'))) {
+    const i = m.index!;
+    if (propres.includes(i)) continue;
+    const fleche = new RegExp(String.raw`^\s*=>\s*`).exec(s.slice(i + nom.length, i + nom.length + 40));
+    if (fleche && !/[\w$.)\]]\s*$/.test(s.slice(Math.max(0, i - 40), i).replace(/\basync\s*$/, ''))) {
+      const b = i + nom.length + fleche[0].length;
+      out.push([i, s[b] === '{' ? fermante(s, b) + 1 : finDefinition(s, b, false)]);
+      continue;
+    }
+    let k = i - 1;
+    while (k >= 0 && /\s/.test(s[k]!)) k--;
+    if (s[k] === '(' || s[k] === ',') { const c = corpsParametres(s, ouvrante(s, k)); if (c) { out.push(c); continue; } }
+    // Une déclaration · `const X`, ou `const [ … X … ] =` / `const { … X … } =` · tout le bloc qui la porte.
+    const avant = s.slice(Math.max(0, i - 200), i);
+    const decl = new RegExp(String.raw`\b(?:const|let|var)\s+(?:(?<motif>[\[{])[^=;]*)?$`).exec(avant);
+    // Une CLÉ de déstructuration (`const { X: l } = …`) ne déclare pas `X` · elle déclare `l`.
+    const cle = decl?.groups!.motif !== undefined && /^\s*:/.test(s.slice(i + nom.length, i + nom.length + 20));
+    if (decl && !cle) { const o = ouvrante(s, i - avant.length + decl.index - 1); out.push([i, o < 0 ? s.length : fermante(s, o)]); }
+  }
+  return out;
+}
+
+/**
+ * Le nom en `i` est-il PASSÉ EN ARGUMENT d'un appel (source masqué) · précédé de `(` ou `,` (après
+ * un éventuel `obj.`), dans la liste ouverte par un APPEL · un nom hors mots-clés et `expect`,
+ * `)` / `]`, ou le `>` d'un argument de type, juste avant (`?.` permis, `f?.(X)`). Un tableau, un objet, une déstructuration, un `{ pas: X }` ne suivent
+ * jamais un nom appelable (`= [`, `({`, `return [`) · ils tombent ici, sans règle à part. Une liste
+ * de paramètres (`function f(a, X) {`) a la forme d'un appel · `portees` l'écarte (la portée d'un
+ * paramètre commence à sa parenthèse).
+ */
+function enArgument(s: string, i: number): boolean {
+  let k = i - 1;
+  while (k >= 0 && /\s/.test(s[k]!)) k--;
+  while (s[k] === '.') { k--; while (k >= 0 && /[\s\w$?]/.test(s[k]!)) k--; }
+  if (s[k] !== '(' && s[k] !== ',') return false;
+  const o = ouvrante(s, k);
+  if (o < 0) return false;
+  // L'appelé · un nom, `)`, `]`, ou `>` d'un argument de type (`act<void>(X)`, pas le `=>` d'une flèche), puis `?.` facultatif (`f?.(X)`).
+  const avant = /(?:(?<mot>[A-Za-z_$][\w$]*)|[)\]]|(?<!=)>)\s*(?:\?\.\s*)?$/.exec(s.slice(Math.max(0, o - 40), o));
+  if (!avant) return false;
+  return !(avant.groups!.mot && PAS_UN_APPEL.has(avant.groups!.mot));
+}
+
 interface Aide {
   nom: string;
   /** La ligne de sa définition. */
   ligne: number;
   /** Ses appels dans le fichier. */
   appels: number;
+  /** Les lignes de ces appels. */
+  lignes: number[];
   /** L'aide qu'elle appelle, si elle n'est une attente fixe que par elle. */
   via?: string;
 }
@@ -253,21 +452,29 @@ function aides(source: string): Aide[] {
   const s = masquer(source);
   const defs: { nom: string; at: number; debut: number; fin: number; membre: boolean }[] = [];
   for (const m of s.matchAll(DEFINITION)) {
-    const nom = m[1] ?? m[2] ?? m[3] ?? m[4]!;
+    const g = [1, 2, 3, 4].find((k) => m[k] !== undefined)!;
+    const nom = m[g]!;
     if (MOTS_CLES.has(nom)) continue;
     // Un bloc se lit depuis sa parenthèse (`function X(`) ou son accolade (`X(…) {`) · une valeur, après `=` ou `:`.
     const bloc = m[2] !== undefined || m[4] !== undefined;
     const fin = finDefinition(s, m.index! + m[0].length - (bloc ? 1 : 0), bloc);
-    defs.push({ nom, at: m.index! + m[0].indexOf(nom), debut: m.index!, fin, membre: m[3] !== undefined || m[4] !== undefined });
+    // `indices` · `m[0].indexOf(nom)` tombe dans le mot-clé (`n` de `function n(`, `c` de `const c =`).
+    defs.push({ nom, at: m.indices![g]![0], debut: m.index!, fin, membre: m[3] !== undefined || m[4] !== undefined });
   }
   const englobante = (i: number, sauf?: string) => defs.filter((x) => x.debut <= i && i < x.fin && x.nom !== sauf).sort((a, b) => b.debut - a.debut)[0];
   const parNom = new Map<string, Aide & { sites: number[] }>();
   const ajouter = (d: (typeof defs)[number], via?: string) => {
     if (parNom.has(d.nom)) return;
-    const appel = new RegExp(String.raw`(?<![\w$${d.membre ? '' : '.'}])${d.nom.replace(/\$/g, '\\$')}\s*\(`, 'g');
+    const nom = String.raw`(?<![\w$${d.membre ? '' : '.'}])${d.nom.replace(/\$/g, '\\$')}`;
+    // Un appel `X(` · ou l'aide passée en VALEUR, en argument d'un appel (`.then(X)`, `act(X)`, `beforeEach(X)`),
+    // là où le nom la désigne bien (pas un paramètre ni une variable homonymes, `enArgument`, `portees`).
+    const appel = new RegExp(String.raw`${nom}(?<appel>\s*\()|${nom}(?=\s*[,)])`, 'g');
     const propres = defs.filter((x) => x.nom === d.nom).map((x) => x.at);
-    const sites = [...s.matchAll(appel)].map((m) => m.index!).filter((i) => !propres.includes(i));
-    parNom.set(d.nom, { nom: d.nom, ligne: ligneDe(source, d.at), appels: sites.length, sites, ...(via ? { via } : {}) });
+    const masques = portees(s, d.nom, propres);
+    const sites = [...s.matchAll(appel)]
+      .filter((m) => m.groups!.appel !== undefined || (enArgument(s, m.index!) && !masques.some(([a, b]) => a <= m.index! && m.index! < b)))
+      .map((m) => m.index!).filter((i) => !propres.includes(i));
+    parNom.set(d.nom, { nom: d.nom, ligne: ligneDe(source, d.at), appels: sites.length, lignes: sites.map((i) => ligneDe(source, i)), sites, ...(via ? { via } : {}) });
     for (const i of sites) { const e = englobante(i, d.nom); if (e) ajouter(e, d.nom); }
   };
   for (const i of sommeils(source)) { const d = englobante(i); if (d) ajouter(d); }
@@ -285,7 +492,28 @@ function sources(dir: string): string[] {
   return out.sort();
 }
 
-const VERS = 'attendre un ÉTAT, jamais une durée · passe par `attendreEtat` (un état qu’on attend de voir venir) ou `attendreAbsence` (une absence tenue dans la durée), `test/helpers/attendre-etat.ts` · ou, pour une latence simulée ou un `dormir` injecté, déclare-la dans `EXEMPTIONS` de `test/attente-fixe-cliquet.test.ts` avec sa raison';
+const ETAT = 'attendre un ÉTAT, jamais une durée · passe par `attendreEtat` (un état qu’on attend de voir venir) ou `attendreAbsence` (une absence tenue dans la durée), `test/helpers/attendre-etat.ts`';
+const VERS = `${ETAT} · ou, pour une latence simulée ou un \`dormir\` injecté, déclare-la dans \`EXEMPTIONS\` de \`test/attente-fixe-cliquet.test.ts\` avec sa raison`;
+
+/**
+ * Les fautes d'un fichier sur ses AIDES · chaque aide trouvée comparée à son compte figé. Un appel de
+ * plus nomme le CHAMP à écrire (`appels.X: N` à l'entrée du fichier) · un renommage d'aide arrive
+ * ici, et « déclare-la dans EXEMPTIONS » seul ne dit pas quoi écrire.
+ */
+function fautesAides(f: string, texte: string, figes: Readonly<Record<string, number>>): string[] {
+  const fautes: string[] = [];
+  const trouvees = aides(texte);
+  for (const a of trouvees) {
+    const fige = figes[a.nom] ?? 0;
+    const quoi = `${f} · l’aide \`${a.nom}\` (ligne ${a.ligne}, ${a.via ? `elle appelle \`${a.via}\`` : 'une attente fixe'}) est appelée ${a.appels} fois pour ${fige} figé(s)${a.lignes.length ? `, ligne(s) ${a.lignes.join(', ')}` : ''}`;
+    if (a.appels > fige) fautes.push(`${quoi} · un appel de plus est une attente fixe nouvelle · ${ETAT} · ou, si c’est un renommage ou une latence légitime, ajoute \`appels.${a.nom}: ${a.appels}\` à l’entrée de \`${f}\` dans \`EXEMPTIONS\``);
+    if (a.appels < fige) fautes.push(`${quoi} · compte périmé, abaisse \`appels.${a.nom}\` à ${a.appels}${a.appels === 0 ? ' (retire-la)' : ''}`);
+  }
+  for (const nom of Object.keys(figes)) {
+    if (!trouvees.some((a) => a.nom === nom)) fautes.push(`${f} · appels figés pour \`${nom}\`, qui n’est plus une aide à attente fixe · retire \`appels.${nom}\``);
+  }
+  return fautes;
+}
 
 describe('le détecteur · il voit chaque forme de sommeil, et seulement elles', () => {
   const Z = 'setTime' + 'out';
@@ -304,6 +532,37 @@ describe('le détecteur · il voit chaque forme de sommeil, et seulement elles',
     ['le minuteur de `globalThis`', `await new Promise((r) => globalThis.${Z}(r, 400));`],
     ['tout à la fois', `await new Promise<void>(function attendre(r: (v?: unknown) => void, _j: unknown) { globalThis.${Z}(function () { r(); }, 400); });`],
     ['un appel de `pasDansAct` à délai non nul', 'await pasDansAct(400);'],
+    // Une valeur RIEN, ou une valeur JETÉE · le sommeil reste un sommeil.
+    ['une valeur jetée · attendue en tête d’instruction', `await new Promise((r) => ${Z}(() => r(true), 400));`],
+    ['une valeur jetée · dans un bloc (`{ await …`)', `await act(async () => { await new Promise((r) => ${Z}(() => r(1), 5)); });`],
+    ['une valeur jetée · rappel `function`', `await new Promise(function (r) { ${Z}(function () { r(true); }, 400); });`],
+    ['une valeur jetée · des parenthèses sur deux niveaux', `await new Promise((r) => ${Z}(() => r(lire(a, f(b))), 400));`],
+    ['`r(undefined)`, promesse gardée', `const p = new Promise((r) => ${Z}(() => r(undefined), 400));`],
+    ['`r(void 0)`, promesse gardée', `const p = new Promise((r) => ${Z}(() => { r(void 0); }, 400));`],
+    // Le résolveur transtypé, le minuteur affecté ou jeté, le résolveur `async`.
+    ['un résolveur transtypé', `await new Promise((resolve) => ${Z}(resolve as () => void, 400));`],
+    ['un résolveur transtypé deux fois', `await new Promise((resolve) => ${Z}(resolve as unknown as () => void, 400));`],
+    ['un minuteur gardé dans une constante', `await new Promise((r) => { const t = ${Z}(r, 400); void t; });`],
+    ['un minuteur gardé dans une variable', `await new Promise((r) => { minuteur = ${Z}(r, 400); });`],
+    ['un minuteur jeté par `void`', `await new Promise((r) => void ${Z}(r, 400));`],
+    ['un résolveur `async`', `await new Promise(async (r) => { ${Z}(r, 400); });`],
+    // `Promise.withResolvers()` · le même sommeil, en deux instructions.
+    ['`withResolvers` déstructuré', `const { promise, resolve } = Promise.withResolvers<void>();\n${Z}(resolve, 400);\nawait promise;`],
+    ['`withResolvers` déstructuré sous un alias', `const { promise: p, resolve: fin } = Promise.withResolvers();\n${Z}(() => fin(), 400);\nawait p;`],
+    ['`withResolvers` gardé dans un objet', `const d = Promise.withResolvers();\n${Z}(d.resolve, 400);\nawait d.promise;`],
+    // Le source est masqué · un commentaire ne cache plus le minuteur.
+    ['un commentaire avant le minuteur', `await new Promise((r) => { /* le montage */ ${Z}(r, 400); });`],
+    ['un commentaire de ligne avant le minuteur', `await new Promise((r) => { // le montage\n  ${Z}(r, 400);\n});`],
+    ['`withResolvers`, un commentaire dans le minuteur', `const { promise, resolve } = Promise.withResolvers();\n${Z}(/* fin */ resolve, 400);\nawait promise;`],
+    // Les deux lectures ne commencent pas au même endroit · une seule attente.
+    ['un commentaire en fin de ligne au-dessus · compté une fois', `charger(); // la suite\nawait new Promise((r) => ${Z}(r, 30));`],
+    // Un backtick dans une expression régulière ouvre un faux gabarit dans le masque · le brut le voit.
+    // (Trois backticks · le troisième ouvre un faux gabarit que referme le gabarit d'en dessous.)
+    ['un backtick dans une expression régulière, au-dessus', `const CODE = /\`([^\`]+)\`/g;\nawait new Promise((r) => ${Z}(r, 400));\nexpect(md).toContain(\`fin\`);`],
+    ['`withResolvers`, un backtick dans une expression régulière au-dessus', `const CODE = /\`([^\`]+)\`/g;\nconst { promise, resolve } = Promise.withResolvers();\n${Z}(resolve, 400);\nawait promise;\nexpect(md).toContain(\`fin\`);`],
+    // La tête d'instruction se lit par-dessus les retours à la ligne.
+    ['une valeur jetée · après un retour à la ligne', `charger();\n  await new Promise((r) => ${Z}(() => r(1), 10));`],
+    ['deux `withResolvers`, un seul minuteur · compté une fois', `it('a', async () => { const { promise, resolve } = Promise.withResolvers(); resolve(); await promise; });\nit('b', async () => { const { promise, resolve } = Promise.withResolvers(); ${Z}(resolve, 400); await promise; });`],
   ])('compte · %s', (_, src) => {
     expect(attentesFixes(src), `le détecteur ne voit pas « ${src} »`).toHaveLength(1);
   });
@@ -317,8 +576,44 @@ describe('le détecteur · il voit chaque forme de sommeil, et seulement elles',
     ['un minuteur nu', `${Z}(() => champ.focus(), 50);`],
     ['`pasDansAct` passé en option à `attendreEtat`', "await attendreEtat('x', () => ok, { pas: pasDansAct });"],
     ['`pasDansAct(0)`', 'await pasDansAct(0);'],
+    // Une valeur RENDUE, affectée ou passée · une latence simulée qui répond (`parcours-image-focus-course`).
+    ['une valeur rendue par un faux', `m.lire.mockImplementation(() => new Promise((r) => ${Z}(() => r({ ok: true, vue: vueImage({ devis: D as never }) }), 10)));`],
+    ['une valeur gardée · affectée', `const vue = await new Promise((r) => ${Z}(() => r(lire()), 10));`],
+    ['une valeur gardée · rendue', `return await new Promise((r) => ${Z}(() => r(lire()), 10));`],
+    ['une valeur gardée · garde de course', `const v = await Promise.race([travail(), new Promise((r) => ${Z}(() => r('DELAI'), 500))]);`],
+    ['un minuteur jeté par `void`, tour de boucle', `await new Promise((r) => void ${Z}(r, 0));`],
+    ['`withResolvers`, tour de boucle', `const { promise, resolve } = Promise.withResolvers();\n${Z}(resolve, 0);\nawait promise;`],
+    ['`withResolvers`, le minuteur rejette', `const { promise, reject } = Promise.withResolvers();\n${Z}(reject, 400);\nawait promise;`],
+    ['`withResolvers`, une valeur rendue', `const { promise, resolve } = Promise.withResolvers();\n${Z}(() => resolve(lire()), 10);\nreturn promise;`],
+    // Une ligne qui prolonge l'instruction d'au-dessus n'est pas une tête d'instruction (plus de drapeau `m`).
+    ['une valeur gardée · `const v =` puis retour à la ligne', `const vue =\n    await new Promise((r) => ${Z}(() => r(lire()), 10));`],
+    ['une valeur gardée · `expect(` puis retour à la ligne', `expect(\n  await new Promise((r) => ${Z}(() => r(lire()), 10)),\n).toBe(1);`],
+    ['une valeur gardée · lue par `.then(use)` à la ligne', `await new Promise((r) => ${Z}(() => r(lire()), 10))\n  .then(use);`],
+    ['un sommeil cité en commentaire', `// await new Promise((r) => ${Z}(r, 400));\nconst x = 1;`],
+    ['un sommeil cité en commentaire de bloc', `/* await new Promise((r) => ${Z}(r, 400)); */\nconst x = 1;`],
+    ['un `withResolvers` cité en commentaire', `/*\nconst { promise, resolve } = Promise.withResolvers();\n${Z}(resolve, 400);\n*/`],
   ])('ne compte pas · %s', (_, src) => {
     expect(attentesFixes(src), `le détecteur compte « ${src} »`).toEqual([]);
+  });
+  it.each([
+    ['un rappel', (b: string) => `await new Promise((r) => ${Z}(() => r(${b}`],
+    ['un rappel `function`', (b: string) => `await new Promise(function (r) { ${Z}(function () { r(${b}`],
+    ['`withResolvers`', (b: string) => `const { promise, resolve } = Promise.withResolvers();\n${Z}(() => resolve(${b}`],
+  ])('une valeur faite de blancs, jamais fermée · %s · se lit sous 50 ms (ni retour arrière, ni regard en arrière à chaque blanc)', (_, src) => {
+    // Le meilleur de trois lectures · un ramasse-miettes ne fait pas tomber le cas. Mesuré · 2000 blancs
+    // 0,2 ms (5,5 s avec `\s*` autour de la valeur) · 20000 blancs 1 à 4 ms (530 à 790 ms quand le
+    // regard en arrière précède `await`).
+    for (const n of [2000, 20000]) {
+      const texte = src(' '.repeat(n));
+      let meilleur = Infinity;
+      for (let k = 0; k < 3 && meilleur >= 50; k++) {
+        const t0 = performance.now();
+        attentesFixes(texte);
+        aides(texte);
+        meilleur = Math.min(meilleur, performance.now() - t0);
+      }
+      expect(meilleur, `${n} blancs · le détecteur revient en arrière`).toBeLessThan(50);
+    }
   });
 });
 
@@ -333,8 +628,54 @@ describe('les aides · une attente fixe définie une fois est comptée à chaque
     ['une propriété d’un faux · appelée par `obj.X(`', `const faux = { create: async () => { await new Promise((r) => ${Z}(r, 40)); } };\nawait faux.create();`, [{ nom: 'create', appels: 1 }]],
     ['un `pasDansAct` dans une aide', 'const souffler = () => pasDansAct(400);\nawait souffler();', [{ nom: 'souffler', appels: 1 }]],
     ['un sommeil hors de toute définition nommée · aucune aide', `it('x', async () => {\n  await new Promise((r) => ${Z}(r, 40));\n});`, []],
+    // Une aide passée en VALEUR · l'appel a lieu ailleurs, la durée est la même.
+    ['passée à `.then`', `const laisser = () => new Promise((r) => ${Z}(r, 30));\nawait charger().then(laisser);`, [{ nom: 'laisser', appels: 1 }]],
+    ['passée à `act`, en premier de deux arguments', `const laisser = async () => { await new Promise((r) => ${Z}(r, 30)); };\nawait act(laisser, 1);`, [{ nom: 'laisser', appels: 1 }]],
+    ['passée à `.map`, puis à `beforeEach`', `const laisser = () => new Promise((r) => ${Z}(r, 30));\nawait Promise.all(lignes.map(laisser));\nbeforeEach(laisser);`, [{ nom: 'laisser', appels: 2 }]],
+    ['passée en valeur DANS une aide · celle-ci en hérite', `const laisser = () => new Promise((r) => ${Z}(r, 30));\nconst cliquer = async (e) => { e.click(); await act(laisser); };\nawait cliquer(a);`, [{ nom: 'laisser', appels: 1 }, { nom: 'cliquer', appels: 1, via: 'laisser' }]],
+    ['passée en option `{ pas: X }` · ne compte pas', `const souffler = () => new Promise((r) => ${Z}(r, 5));\nawait attendreEtat('x', () => ok, { pas: souffler });`, [{ nom: 'souffler', appels: 0 }]],
+    ['passée en option `{ pas: X, … }` · ne compte pas', `const souffler = () => new Promise((r) => ${Z}(r, 5));\nawait attendreEtat('x', () => ok, { pas: souffler, borneMs: 50 });`, [{ nom: 'souffler', appels: 0 }]],
+    ['lue hors argument (`typeof X`, `X.name`) · ne compte pas', `const laisser = () => new Promise((r) => ${Z}(r, 30));\ntype L = ReturnType<typeof laisser>;\nconst n = laisser.name;`, [{ nom: 'laisser', appels: 0 }]],
+    ['`obj.X` en valeur est un autre nom qu’une variable `X`', `const laisser = () => new Promise((r) => ${Z}(r, 30));\nawait p.then(w.laisser);`, [{ nom: 'laisser', appels: 0 }]],
+    // Un HOMONYME, un paramètre, un tableau, un objet, `expect(X)` · le nom ne désigne pas l'aide passée en valeur.
+    ['`it.each(…)(…, (touche) => …)` · un paramètre homonyme · ne compte pas', `const touche = async (k) => { await new Promise((r) => ${Z}(r, 30)); };\nawait touche('a');\nit.each(['ArrowRight', 'ArrowLeft'])('la touche %s', (touche) => { expect(touche).toBeTruthy(); appuyer(touche); });`, [{ nom: 'touche', appels: 1 }]],
+    ['`(nom, X) =>` · un paramètre · ne compte pas', `const pause = () => new Promise((r) => ${Z}(r, 30));\nconst f = (nom, pause) => lire(nom, pause);`, [{ nom: 'pause', appels: 0 }]],
+    ['`X =>` · un paramètre seul · ne compte pas', `const pause = () => new Promise((r) => ${Z}(r, 30));\nlignes.forEach(async pause => { await lire(pause); });`, [{ nom: 'pause', appels: 0 }]],
+    ['`function f(a, X)` · un paramètre · ne compte pas, `f` n’en hérite pas', `const pause = () => new Promise((r) => ${Z}(r, 30));\nfunction f(a, pause) { return lire(a, pause); }\nf(1);`, [{ nom: 'pause', appels: 0 }]],
+    ['une méthode `m(a, X): T {` · un paramètre · ne compte pas', `const pause = () => new Promise((r) => ${Z}(r, 30));\nclass C {\n  m(a, pause): number {\n    return lire(pause);\n  }\n}`, [{ nom: 'pause', appels: 0 }]],
+    ['`[x, X, y]` · au milieu d’un tableau passé à un appel · ne compte pas', `const pause = () => new Promise((r) => ${Z}(r, 30));\nlire([x, pause, y]);`, [{ nom: 'pause', appels: 0 }]],
+    ['`[X, y]` · un tableau · ne compte pas', `const pause = () => new Promise((r) => ${Z}(r, 30));\nconst l = [pause, x];\nconst m = [x, pause];\nconst n = [x, pause, y];`, [{ nom: 'pause', appels: 0 }]],
+    ['`{ X, y }` · un objet · ne compte pas', `const pause = () => new Promise((r) => ${Z}(r, 30));\nconst o = { pause, x };\nconst p = { x, pause };\nconst q = lire({ x, pause, y });`, [{ nom: 'pause', appels: 0 }]],
+    ['`const [X, setX] = useState()` · une déstructuration, puis l’homonyme passé · ne compte pas', `const pause = () => new Promise((r) => ${Z}(r, 30));\nfunction Ecran() {\n  const [pause, setPause] = useState(false);\n  return basculer(pause, setPause);\n}`, [{ nom: 'pause', appels: 0 }]],
+    ['`const X = …` dans un bloc, puis l’homonyme passé · ne compte pas', `const pause = () => new Promise((r) => ${Z}(r, 30));\nit('x', () => {\n  const pause = 'p';\n  appuyer(pause);\n});`, [{ nom: 'pause', appels: 0 }]],
+    ['`(X)` · une parenthèse de groupement, pas un appel · ne compte pas', `const pause = () => new Promise((r) => ${Z}(r, 30));\nconst encore = (pause);\nconst deux = (0, pause);`, [{ nom: 'pause', appels: 0 }]],
+    ['`act(X.name)`, `lire(X + 1)` · lue en argument, pas passée · ne compte pas', `const pause = () => new Promise((r) => ${Z}(r, 30));\nact(pause.name);\nlire(pause + 1);`, [{ nom: 'pause', appels: 0 }]],
+    ['`expect(X)` · lue, pas appelée · ne compte pas', `const pause = () => new Promise((r) => ${Z}(r, 30));\nexpect(pause).toBeTypeOf('function');`, [{ nom: 'pause', appels: 0 }]],
+    ['`expect(autre.X)` pour une aide membre · ne compte pas', `const faux = { create: async () => { await new Promise((r) => ${Z}(r, 40)); } };\nawait faux.create();\nexpect(autre.create).toHaveBeenCalled();`, [{ nom: 'create', appels: 1 }]],
+    ['une aide membre passée en valeur (`.then(faux.X)`) · compte', `const faux = { create: async () => { await new Promise((r) => ${Z}(r, 40)); } };\nawait p.then(faux.create);`, [{ nom: 'create', appels: 1 }]],
+    ['`act<void>(X)` · un argument de type · compte', `const laisser = () => new Promise((r) => ${Z}(r, 30));\nawait act<void>(laisser);`, [{ nom: 'laisser', appels: 1 }]],
+    ['`f?.(X)` · un appel facultatif · compte', `const laisser = () => new Promise((r) => ${Z}(r, 30));\nawait rappel?.(laisser);`, [{ nom: 'laisser', appels: 1 }]],
+    ['`() => (X)` · un groupement après une flèche · ne compte pas', `const laisser = () => new Promise((r) => ${Z}(r, 30));\nconst encore = () => (laisser);`, [{ nom: 'laisser', appels: 0 }]],
+    ['`const { X: l } = …` · une clé, pas un homonyme · l’aide passée dans le bloc compte', `const laisser = () => new Promise((r) => ${Z}(r, 30));\nit('x', async () => {\n  const { laisser: l } = o;\n  await act(laisser);\n});`, [{ nom: 'laisser', appels: 1 }]],
+    ['`const { x: X } = …` · la valeur, un homonyme · ne compte pas', `const laisser = () => new Promise((r) => ${Z}(r, 30));\nit('x', async () => {\n  const { x: laisser } = o;\n  await act(laisser);\n});`, [{ nom: 'laisser', appels: 0 }]],
+    ['`if (X) {` · une condition, pas des paramètres · l’aide passée dans le bloc compte', `const pause = () => new Promise((r) => ${Z}(r, 30));\nif (pause) { await act(pause); }`, [{ nom: 'pause', appels: 1 }]],
+    ['hors de la portée de l’homonyme, l’aide passée compte', `const laisser = () => new Promise((r) => ${Z}(r, 30));\nit.each([1])('%s', (laisser) => { lire(laisser); });\nawait act(laisser);`, [{ nom: 'laisser', appels: 1 }]],
+    // `indices` · le nom n'est pas cherché dans le texte du mot-clé.
+    ['`async function n()` · le nom contenu dans `function`', `async function n() { await new Promise((r) => ${Z}(r, 10)); }\nawait n();`, [{ nom: 'n', appels: 1 }]],
+    ['`const c = …` · le nom contenu dans `const`', `const c = () => new Promise((r) => ${Z}(r, 10));\nawait c();`, [{ nom: 'c', appels: 1 }]],
+    // Les CYCLES · le comptage transitif termine, chaque aide comptée une fois.
+    ['cycle · `a` ↔ `b`', `const a = async () => { await new Promise((r) => ${Z}(r, 10)); await b(); };\nconst b = async () => { await a(); };\nawait b();`, [{ nom: 'a', appels: 1 }, { nom: 'b', appels: 2, via: 'a' }]],
+    ['cycle · une récursion', `async function boucle(n) {\n  await new Promise((r) => ${Z}(r, 10));\n  if (n > 0) await boucle(n - 1);\n}\nawait boucle(3);`, [{ nom: 'boucle', appels: 2 }]],
   ])('%s', (_, src, attendu) => {
     expect(aides(src).map(({ nom, appels, via }) => ({ nom, appels, ...(via ? { via } : {}) })), `les aides de « ${src} »`).toEqual(attendu);
+  });
+
+  it('un appel de plus nomme le champ à écrire · `appels.X: N` à l’entrée du fichier', () => {
+    const src = `const laisser = () => new Promise((r) => ${Z}(r, 30));\nawait laisser();\nawait laisser();`;
+    const [faute, ...reste] = fautesAides('x-ecran.test.tsx', src, { laisser: 1 });
+    expect(reste).toEqual([]);
+    expect(faute).toContain('l’aide `laisser` (ligne 1, une attente fixe) est appelée 2 fois pour 1 figé(s), ligne(s) 2, 3 ·');
+    expect(faute).toMatch(/ou, si c’est un renommage ou une latence légitime, ajoute `appels\.laisser: 2` à l’entrée de `x-ecran\.test\.tsx` dans `EXEMPTIONS`$/);
   });
 });
 
@@ -369,20 +710,7 @@ describe('cliquet · aucune attente fixe nouvelle dans les tests de apps/web', (
   });
 
   it('une aide à attente fixe garde EXACTEMENT ses appels · un appel de plus est une attente nouvelle, un de moins un compte périmé', () => {
-    const fautes: string[] = [];
-    for (const [f, t] of textes) {
-      const trouvees = aides(t);
-      const figes = EXEMPTIONS[f]?.appels ?? {};
-      for (const a of trouvees) {
-        const fige = figes[a.nom] ?? 0;
-        const quoi = `${f} · l’aide \`${a.nom}\` (ligne ${a.ligne}, ${a.via ? `elle appelle \`${a.via}\`` : 'une attente fixe'}) est appelée ${a.appels} fois pour ${fige} figé(s)`;
-        if (a.appels > fige) fautes.push(`${quoi} · un appel de plus est une attente fixe nouvelle · ${VERS}`);
-        if (a.appels < fige) fautes.push(`${quoi} · compte périmé, abaisse \`appels.${a.nom}\` à ${a.appels}${a.appels === 0 ? ' (retire-la)' : ''}`);
-      }
-      for (const nom of Object.keys(figes)) {
-        if (!trouvees.some((a) => a.nom === nom)) fautes.push(`${f} · appels figés pour \`${nom}\`, qui n’est plus une aide à attente fixe · retire \`appels.${nom}\``);
-      }
-    }
+    const fautes = [...textes].flatMap(([f, t]) => fautesAides(f, t, EXEMPTIONS[f]?.appels ?? {}));
     expect(fautes).toEqual([]);
   });
 });
