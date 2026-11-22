@@ -12,7 +12,7 @@ import { canAccess, FEATURES } from './rbac';
 import { gardeStudio } from './studios/garde';
 import { getActiveBrand } from './brands';
 import { listerVariantes } from './studios/variantes/variantes';
-import { chargerHypothese, chargerLots, type AdLue, type LotLu } from '../app/(spatial)/sp/adsmap/donnees';
+import { chargerHypothese, chargerLotsPartages, type AdLue, type LotLu, type PartageLots } from '../app/(spatial)/sp/adsmap/donnees';
 import { iterationPlanAction } from '../app/actions/adsmap-iterate';
 
 /**
@@ -137,17 +137,17 @@ export interface ContexteGestesLu {
  * hypothèse dans la portée mais non lue (`chargerHypothese` · son lot est lu en partie) · ses variantes `partielle`,
  * son lot et son état · les gestes et l'essai disent « non calculé », jamais le refus de droits.
  */
-export async function lireContexteGestes(s: SessionLue, brandId: string, demande: DemandeContexteJarvis, maintenant: Date = new Date()): Promise<ContexteGestesLu | null> {
+export async function lireContexteGestes(s: SessionLue, brandId: string, demande: DemandeContexteJarvis, maintenant: Date = new Date(), partage?: PartageLots): Promise<ContexteGestesLu | null> {
   if (demande.type !== 'lot' && demande.type !== 'hypothese') return null;
   if (!canAccess(effectiveAccess(s), ADSMAP)) return null;
   try {
     if (demande.type === 'hypothese') {
-      const h = await chargerHypothese(s.workspaceId, brandId, demande.id, maintenant);
+      const h = await chargerHypothese(s.workspaceId, brandId, demande.id, maintenant, partage);
       if (!h) return null;
       return { variantes: h.partielle ? { partielle: h.partielle } : { ads: [h.ad] }, lot: h.lot, etat: h.lot ? etatLotSpatial(h.lot, h.d.ctx) : null };
     }
     // Le lot joint est lu en entier, hors budget (`lotEntier`), comme sa fiche et le contexte de Jarvis.
-    const d = await chargerLots(s.workspaceId, brandId, maintenant, { lotEntier: demande.id });
+    const d = await chargerLotsPartages(s.workspaceId, brandId, maintenant, { lotEntier: demande.id }, partage);
     const lot = d.lots.find((l) => l.id === demande.id);
     // Lu en partie (au-delà du plafond d'un lot seul) · aucune variante, état `illisible` · ni « Conclure », ni « Itérer » ne se tirent de rien.
     return lot ? { variantes: variantesDe(lot), lot, etat: etatLotSpatial(lot, d.ctx) } : null;
@@ -163,9 +163,9 @@ export async function lireContexteGestes(s: SessionLue, brandId: string, demande
  * « Pourquoi ? » les lit sous CHAQUE réponse (`suiteReponseJarvis`, noyau) ·
  * vide quand le plan est illisible (aucune suite proposée, l'écran Itérer relit tout).
  */
-export async function gestesPourContexte(s: SessionLue, brandId: string, demande: DemandeContexteJarvis, maintenant: Date = new Date()):
+export async function gestesPourContexte(s: SessionLue, brandId: string, demande: DemandeContexteJarvis, maintenant: Date = new Date(), partage?: PartageLots):
   Promise<{ iterer: GesteJarvis; conclure: GesteJarvis; candidats: CandidatIteration[]; exclus: string[] } | null> {
-  const c = await lireContexteGestes(s, brandId, demande, maintenant);
+  const c = await lireContexteGestes(s, brandId, demande, maintenant, partage);
   if (!c) return null;
   // Le lot lui-même (TOUTES ses variantes ou AUCUNE) · la règle ferme les gestes d'un lot lu en partie, avec une raison vraie.
   const g = gestesContexteJarvis({
@@ -198,7 +198,7 @@ export type VariantesEssaiLues = { variantes: VarianteEssaiJarvis[]; exclus: str
  *    contexte sont des `exclus` (nommée seule, l'une d'elles ne désigne rien).
  * `null` hors portée (autre marque, autre espace, sans droit, inconnu) · aucune écriture.
  */
-export async function lireVariantesEssai(s: SessionLue, brandId: string, demande: DemandeContexteJarvis, maintenant: Date = new Date()): Promise<VariantesEssaiLues | null> {
+export async function lireVariantesEssai(s: SessionLue, brandId: string, demande: DemandeContexteJarvis, maintenant: Date = new Date(), partage?: PartageLots): Promise<VariantesEssaiLues | null> {
   if (!db || !UUID.test(demande.id)) return null;
   try {
     if (demande.type === 'projet') {
@@ -210,7 +210,7 @@ export async function lireVariantesEssai(s: SessionLue, brandId: string, demande
       const r = await listerVariantes(g.ctx, { projectId: p.id }, { adsmapAcces: canAccess(effectiveAccess(s), ADSMAP), relecture: { disponible: false, raison: null, coutMaxUsd: null } });
       return r.ok ? { variantes: variantesEssaiProjet(p.id, r.donnees), exclus: [] } : null;
     }
-    const c = await lireContexteGestes(s, brandId, demande, maintenant);
+    const c = await lireContexteGestes(s, brandId, demande, maintenant, partage);
     if (!c) return null;
     // Lu en partie · on ne sait pas quelles pubs viennent d'un projet Studio · une liste vide ferait dire « aucune pub de ce contexte ne vient
     // d'un projet Studio », et `null` ferait dire le refus de portée · tous deux faux · `{ partielle: true }` · Jarvis ne pose pas l'essai,

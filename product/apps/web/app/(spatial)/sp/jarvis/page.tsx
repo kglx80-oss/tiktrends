@@ -13,6 +13,7 @@ import { projetsPourColonneJarvis } from '../../../../lib/studios/jarvis-projets
 import { ficheMarqueLue } from '../../../../lib/jarvis-fiche';
 import { lireChiffresClesMeta } from '../../../../lib/chiffres-cles-meta';
 import { resoudreContexteJarvis } from '../../../../lib/jarvis-contexte';
+import type { PartageLots } from '../adsmap/donnees';
 import { gestesPourContexte, lireVariantesEssai } from '../../../../lib/jarvis-gestes';
 import { Jarvis, type ContexteJoint, type ConversationArchive } from '../../../../spatial/vues/jarvis/Jarvis';
 import { RefusJarvis } from '../../../../spatial/vues/jarvis/RefusJarvis';
@@ -82,10 +83,12 @@ export default async function JarvisSpatial({ searchParams }: { searchParams?: P
   }
 
   const chiffresOuverts = canAccess(effectiveAccess(s), ANALYTICS);
+  // Les lectures de lots du rendu · le contexte, les gestes et l'essai lisent le même lot · une lecture, partagée (`PartageLots`).
+  const partage: PartageLots = {};
   const [r, fiche, projets, lus, resolution] = await Promise.all([
     chatThreadAction(null), ficheMarqueLue(brand.id), projetsPourColonneJarvis(brand.id),
     chiffresOuverts ? lireChiffresClesMeta(brand.id, s.workspaceId, maintenant).catch(() => null) : Promise.resolve(null),
-    resoudreContexteJarvis(s, brand, demande, maintenant),
+    resoudreContexteJarvis(s, brand, demande, maintenant, partage),
   ]);
   // Une hypothèse dans la portée, rangée dans un lot lu en partie · rien n'est joint, l'écran dit « non calculé », jamais le refus de droits.
   const nonLu = !!resolution?.partielle;
@@ -97,7 +100,7 @@ export default async function JarvisSpatial({ searchParams }: { searchParams?: P
     // Lot 5 bis · un lot ou une hypothèse portent les gestes « Créer l'itération » et « Conclure le lot » (relus dans la marque, rien n'est appliqué).
     const lotOuHypothese = resolu.type === 'lot' || resolu.type === 'hypothese';
     const [gestes, essai] = lotOuHypothese
-      ? await Promise.all([gestesPourContexte(s, brand.id, { type: resolu.type, id: resolu.id }, maintenant), lireVariantesEssai(s, brand.id, { type: resolu.type, id: resolu.id }, maintenant)])
+      ? await Promise.all([gestesPourContexte(s, brand.id, { type: resolu.type, id: resolu.id }, maintenant, partage), lireVariantesEssai(s, brand.id, { type: resolu.type, id: resolu.id }, maintenant, partage)])
       : [null, null];
     contexte = {
       type: resolu.type, id: resolu.id, libelle: resolu.libelle, lignes: resolu.lignes, questions: resolu.questions,

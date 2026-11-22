@@ -4,7 +4,7 @@ import type { Session } from './auth';
 import { effectiveAccess } from './access';
 import { canAccess, FEATURES } from './rbac';
 import { conceptPourJarvis } from './studios/jarvis-projets';
-import { chargerHypothese, chargerLots } from '../app/(spatial)/sp/adsmap/donnees';
+import { chargerHypothese, chargerLotsPartages, type PartageLots } from '../app/(spatial)/sp/adsmap/donnees';
 
 /**
  * « Demander à Jarvis » en contexte (lot 5 V5) · le côté serveur. La règle de
@@ -36,7 +36,8 @@ const ADSMAP = FEATURES.find((f) => f.key === 'adsmap')!;
 
 type SessionLue = Pick<Session, 'workspaceId' | 'role' | 'plan' | 'user' | 'equipe'>;
 
-export async function resoudreContexteJarvis(s: SessionLue, brand: { id: string }, demande: DemandeContexteJarvis | null, maintenant: Date = new Date()): Promise<ContexteJarvisResolu | ContexteJarvisNonLu | null> {
+/** `partage` · les lectures de lots du rendu (`PartageLots`) · `/jarvis` le partage avec les gestes et l'essai, la route n'en a pas. */
+export async function resoudreContexteJarvis(s: SessionLue, brand: { id: string }, demande: DemandeContexteJarvis | null, maintenant: Date = new Date(), partage?: PartageLots): Promise<ContexteJarvisResolu | ContexteJarvisNonLu | null> {
   if (!demande) return null;
   try {
     if (demande.type === 'projet') {
@@ -46,13 +47,13 @@ export async function resoudreContexteJarvis(s: SessionLue, brand: { id: string 
     }
     if (!canAccess(effectiveAccess(s), ADSMAP)) return null;
     if (demande.type === 'hypothese') {
-      const h = await chargerHypothese(s.workspaceId, brand.id, demande.id, maintenant);
+      const h = await chargerHypothese(s.workspaceId, brand.id, demande.id, maintenant, partage);
       if (!h) return null;
       if (h.partielle) return { partielle: true };
       return resumerContexteJarvis({ type: 'hypothese', brandId: brand.id, ad: h.ad, lot: h.lot, ctx: h.d.ctx }, { brandId: brand.id });
     }
     // Le lot joint est lu en entier, hors budget (`lotEntier`), comme sa fiche · Jarvis ne dit pas « 0 variante lue » d'un lot que la fiche montre.
-    const d = await chargerLots(s.workspaceId, brand.id, maintenant, demande.type === 'lot' ? { lotEntier: demande.id } : {});
+    const d = await chargerLotsPartages(s.workspaceId, brand.id, maintenant, demande.type === 'lot' ? { lotEntier: demande.id } : {}, partage);
     const cibleCpa = d.config.targetCpa ?? null;
     if (demande.type === 'lot') {
       const lot = d.lots.find((l) => l.id === demande.id);

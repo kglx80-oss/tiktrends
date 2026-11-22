@@ -101,7 +101,20 @@ export function lienConclusionJarvis(lotId: string, reponse: string): string | n
 export const RAISON_GESTE_SANS_GAGNANTE_LOT = 'Aucune variante de ce lot n’est une gagnante arbitrée · une itération part d’une gagnante.';
 export const RAISON_GESTE_SANS_GAGNANTE_HYPOTHESE = 'Cette hypothèse n’a pas de verdict gagnant arbitré · une itération part d’une gagnante.';
 export const RAISON_GESTE_HORS_LOT = 'Cette hypothèse n’est rangée dans aucun lot · il n’y a pas de lot à conclure.';
+/** Conclure un lot où RIEN n'attend · `conclu` (chaque verdict arbitré, ou plus rien ne se mesure ni ne se tranche) · jamais dit d'un lot où un verdict calculé attend. */
 export const RAISON_GESTE_RIEN_A_CONCLURE = 'Aucun verdict du moteur n’attend d’être arbitré dans ce lot · il se conclut quand le moteur a tranché ses variantes.';
+/**
+ * Conclure un lot EN DIFFUSION (`diffusion` · lancé, fenêtre d'évaluation de la marque pas écoulée, ou sans date de lancement
+ * lisible) · tiré de l'ÉTAT seul, vrai quel que soit son contenu · un verdict calculé à J1 y attend souvent (la synchro le
+ * recalcule chaque nuit) · il ne s'arbitre qu'une fois la fenêtre écoulée (`lotArbitrable`).
+ */
+export const RAISON_CONCLURE_EN_DIFFUSION = 'Ce lot est en diffusion · sa fenêtre d’évaluation n’est pas écoulée, il se conclut ensuite.';
+/**
+ * Conclure un lot dont des MESURES MANQUENT (`a_importer` · fenêtre écoulée, mais une variante sans verdict, un verdict sans
+ * valeur, ou une mesure arrêtée avant la fin de la fenêtre, `mesureArretee`) · tiré de l'ÉTAT seul · vrai même quand un
+ * verdict calculé et tranché attend à côté (V1 gagnante, V2 pas encore mesurée).
+ */
+export const RAISON_CONCLURE_MESURES_MANQUANTES = 'La fenêtre est écoulée mais des mesures manquent · le lot se conclut quand chaque variante est mesurée sur toute sa fenêtre.';
 /** Conclure un lot NON lancé · tiré du STATUT seul (un brouillon ne s'arbitre pas), vrai quel que soit son contenu, lu en entier ou en partie. */
 export const RAISON_CONCLURE_NON_LANCE = 'Ce lot n’est pas lancé · il se conclut après sa diffusion.';
 /** Conclure un lot importé · tiré du STATUT seul (un historique ne s'arbitre pas ici), vrai quel que soit son contenu, lu en entier ou en partie. */
@@ -119,13 +132,26 @@ export function raisonConclureStatut(etat: EtatLotSpatial | null): string | null
 }
 
 /**
- * « Conclure » fermé sur un lot LU EN ENTIER · le statut d'abord, sinon « aucun verdict n'attend » · UNE règle pour
- * la touche C de la fiche (`gestesClavierLot`) et le geste sous une réponse de Jarvis (`gestesContexteJarvis`).
- * Avant, un lot en préparation disait « Aucun verdict du moteur n'attend d'être arbitré » · faux quand une ad au
- * verdict calculé (mesurée hors lot, à l'import) y est rangée (`decisionRangementLot` ne refuse que `testing` et `analyzed`).
+ * « Conclure » fermé sur un lot LU EN ENTIER · la raison tirée de son ÉTAT, vraie quel que soit son contenu · UNE règle
+ * pour la touche C de la fiche (`gestesClavierLot`) et le geste sous une réponse de Jarvis (`gestesContexteJarvis`).
+ *  · non lancé, importé · le statut (`raisonConclureStatut`) ;
+ *  · en diffusion · la fenêtre court · des mesures manquent · la fenêtre est écoulée, une variante n'est pas mesurée en entier ;
+ *  · lu en partie · rien n'est tiré du contenu ;
+ *  · « aucun verdict n'attend » · seulement là où c'est vrai · `conclu` · et `a_conclure` ou `non_concluant` quand
+ *    tout y est arbitré (sinon le lot est concluable, `lotConcluable`, et rien n'est fermé).
+ * Avant, tout lot lancé non concluable disait « Aucun verdict du moteur n'attend d'être arbitré » · faux d'un lot en
+ * diffusion ou « Mesures à importer » où V1 a un verdict calculé gagnant qui attend (V2 pas encore mesurée), comme d'un
+ * lot en préparation où une ad au verdict calculé est rangée (`decisionRangementLot` ne refuse que `testing` et `analyzed`).
  */
 export function raisonConclureFerme(etat: EtatLotSpatial): string {
-  return raisonConclureStatut(etat) ?? RAISON_GESTE_RIEN_A_CONCLURE;
+  const statut = raisonConclureStatut(etat);
+  if (statut) return statut;
+  switch (etat) {
+    case 'diffusion': return RAISON_CONCLURE_EN_DIFFUSION;
+    case 'a_importer': return RAISON_CONCLURE_MESURES_MANQUANTES;
+    case 'illisible': return RAISON_GESTE_LECTURE_INCOMPLETE;
+    default: return RAISON_GESTE_RIEN_A_CONCLURE;
+  }
 }
 
 /**

@@ -40,7 +40,7 @@ const h = vi.hoisted(() => ({
 }));
 vi.hoisted(() => {
   const { randomUUID } = require('node:crypto') as typeof import('node:crypto');
-  for (const k of ['ws', 'b', 'v', 'p', 'm', 'uo']) h.ids[k] = randomUUID();
+  for (const k of ['ws', 'ws2', 'b', 'v', 'p', 'm', 'c', 'uo']) h.ids[k] = randomUUID();
 });
 
 vi.mock('@tiktrends/db', async (importOriginal) => {
@@ -82,7 +82,9 @@ import ResultatsSpatial from '../app/(spatial)/sp/adsmap/page';
 import BoucleSpatial from '../app/(spatial)/sp/adsmap/boucle/page';
 import { resoudreContexteJarvis } from '../lib/jarvis-contexte';
 import { gestesPourContexte, lireVariantesEssai } from '../lib/jarvis-gestes';
-import { NON_CALCULE_LECTURE, RAISON_CONCLURE_NON_LANCE, REFUS_CONTEXTE_JARVIS } from '@tiktrends/core';
+import { NON_CALCULE_LECTURE, etatLotSpatial, RAISON_CONCLURE_EN_DIFFUSION, RAISON_CONCLURE_MESURES_MANQUANTES, RAISON_CONCLURE_NON_LANCE, REFUS_CONTEXTE_JARVIS } from '@tiktrends/core';
+import { PGlite } from '@electric-sql/pglite';
+import { randomUUID } from 'node:crypto';
 import JarvisSpatial from '../app/(spatial)/sp/jarvis/page';
 import { lireGagnantesDepuis } from '../lib/iterer-gagnante';
 import TestSpatial from '../app/(spatial)/sp/adsmap/tests/[id]/page';
@@ -109,6 +111,8 @@ const VASTE = () => ({ id: I.v!, name: 'Vaste' });
 const PETITE = () => ({ id: I.p!, name: 'Petite' });
 /** « Menue » · un seul lot en préparation, lu en entier · une ad au verdict CALCULÉ (mesurée hors lot) y est rangée. */
 const MENUE = () => ({ id: I.m!, name: 'Menue' });
+/** « Courante » · un seul lot, lancé HIER (fenêtre en cours) · `c1` calculée gagnante qui attend, `c2` sans mesure · « En diffusion ». */
+const COURANTE = () => ({ id: I.c!, name: 'Courante' });
 /**
  * Ce qu'aucune phrase ne doit dire d'un lot lu en partie · elle serait tirée d'une partie (ou de rien) · « Aucune
  * mesure ni aucun verdict ne suit » (la duplication, vraie de toute copie) n'en est pas une.
@@ -224,6 +228,33 @@ async function menue() {
   });
 }
 
+/**
+ * « Courante » · #1 lancé HIER · la fenêtre (7 jours) court · `c1` a un verdict CALCULÉ gagnant qui attend (la synchro de
+ * la nuit le recalcule chaque jour), `c2` n'est pas encore mesurée · « Aucun verdict du moteur n'attend » serait faux.
+ */
+async function courante() {
+  await db.insert(schema.brands).values({ id: I.c!, workspaceId: I.ws!, name: 'Courante' });
+  const [p] = await db.insert(schema.personas).values({ brandId: I.c!, name: 'P Courante' }).returning();
+  const [d] = await db.insert(schema.desires).values({ workspaceId: I.ws!, personaId: p!.id, label: 'D' }).returning();
+  const [a] = await db.insert(schema.angles).values({ workspaceId: I.ws!, desireId: d!.id, label: 'A', mechanism: 'demo' }).returning();
+  const [c] = await db.insert(schema.concepts).values({ workspaceId: I.ws!, angleId: a!.id, title: 'Courante' }).returning();
+  const [offre] = await db.insert(schema.offers).values({ workspaceId: I.ws!, brandId: I.c!, label: 'Offre' }).returning();
+  const [page] = await db.insert(schema.landingPages).values({ workspaceId: I.ws!, brandId: I.c!, url: 'https://courante.test/p', label: 'Page' }).returning();
+  const hier = new Date(Date.now() - J);
+  const [b] = await db.insert(schema.batches).values({ workspaceId: I.ws!, brandId: I.c!, number: 1, status: 'testing', launchedAt: hier, plannedEndAt: new Date(hier.getTime() + 7 * J), goal: 'Courante diffusion' }).returning();
+  L.courante = b!.id;
+  const ads = await db.insert(schema.ads).values(['c1', 'c2'].map((code) => ({
+    workspaceId: I.ws!, conceptId: c!.id, batchId: b!.id, variantCode: code, status: 'live' as const, adType: 'ideation' as const, format: 'static' as const, platform: 'meta' as const,
+    hypothesis: 'Si on montre la preuve chiffrée, alors le coût par achat baisse parce que la cible doute.', testedVariable: 'hook' as const, variableValue: `Preuve ${code}`,
+    offerId: offre!.id, landingPageId: page!.id, launchedAt: hier,
+  }))).returning({ id: schema.ads.id, code: schema.ads.variantCode });
+  L.couranteCalculee = ads.find((x) => x.code === 'c1')!.id;
+  await db.insert(schema.verdicts).values({
+    adId: L.couranteCalculee, workspaceId: I.ws!, computed: 'winner', status: 'computed', comparable: true, computedAt: new Date(),
+    metricsAgg: { spend: 150, impressions: 20_000, purchases: 3, cpa: 50, reason: 'Moteur', daysElapsed: 1 },
+  });
+}
+
 /** « Petite » · #2 en préparation, 501 brouillons (dont une gagnante arbitrée rangée là) · #1 en diffusion, 501 variantes sans verdict · aucun n'est lu (plafond d'un lot). */
 async function petite() {
   await db.insert(schema.brands).values({ id: I.p!, workspaceId: I.ws!, name: 'Petite' });
@@ -270,6 +301,7 @@ beforeAll(async () => {
   await vaste();
   await petite();
   await menue();
+  await courante();
   // L'intrus · une ad de Neva (son graphe) rangée dans un lot de « Vaste » (#3) · la fiche de test ne doit pas mener à ce lot d'une autre marque.
   const ci = await chaine('Intrus');
   const [intrus] = await db.insert(schema.ads).values({ workspaceId: I.ws!, conceptId: ci.concept, batchId: L.vaste3!, variantCode: 'intrus', status: 'draft', adType: 'ideation', format: 'static' }).returning({ id: schema.ads.id });
@@ -278,6 +310,12 @@ beforeAll(async () => {
   // active, elle doit rester le refus · dire « lecture incomplète » révélerait qu'elle existe, dans un lot de cette marque.
   const [intruse] = await db.insert(schema.ads).values({ workspaceId: I.ws!, conceptId: ci.concept, batchId: L.petitePreparation!, variantCode: 'intruse', status: 'draft', adType: 'ideation', format: 'static' }).returning({ id: schema.ads.id });
   L.intrusePetite = intruse!.id;
+  // L'étrangère · une ad d'un AUTRE ESPACE, greffée sur le graphe de « Petite » et rangée dans #2, lu en partie · ouverte avec
+  // « Petite » active, elle doit rester le refus · seule la portée d'espace (`ads.workspace_id`) l'écarte.
+  await db.insert(schema.workspaces).values({ id: I.ws2!, name: 'Autre espace', plan: 'plus', onboardedAt: T0 });
+  const [cp] = await db.select({ id: schema.concepts.id }).from(schema.concepts).where(eq(schema.concepts.title, 'Petite'));
+  const [etrangere] = await db.insert(schema.ads).values({ workspaceId: I.ws2!, conceptId: cp!.id, batchId: L.petitePreparation!, variantCode: 'etrangere', status: 'draft', adType: 'ideation', format: 'static' }).returning({ id: schema.ads.id });
+  L.etrangerePetite = etrangere!.id;
   // Le remplissage · un lot en composition, ses brouillons rangés après les `a…` et avant les `y…` et `z…`.
   const [f] = await db.insert(schema.batches).values({ workspaceId: I.ws!, brandId: I.b!, number: 1, status: 'planned', goal: 'Remplissage' }).returning();
   L.remplissage = f!.id;
@@ -635,6 +673,20 @@ describe('une hypothèse rangée dans un lot lu en partie (« Petite » #2) · �
     expect(await lireVariantesEssai(h.session as never, I.p!, { type: 'hypothese', id: L.intrusePetite! }), 'l’essai d’une ad d’une autre marque').toBeNull();
     expect(await gestesPourContexte(h.session as never, I.p!, { type: 'hypothese', id: L.intrusePetite! }), 'les gestes d’une ad d’une autre marque').toBeNull();
   });
+
+  it('aucun oracle · une ad d’un AUTRE ESPACE rangée dans #2, et un identifiant inconnu · la même réponse que l’autre marque', async () => {
+    commeProprietaire(PETITE());
+    const [e] = await db.select({ ws: schema.ads.workspaceId, lot: schema.ads.batchId }).from(schema.ads).where(eq(schema.ads.id, L.etrangerePetite!));
+    expect(e, 'préalable · l’étrangère est d’un autre espace, rangée dans #2').toEqual({ ws: I.ws2, lot: L.petitePreparation });
+    for (const [nom, id] of [['une ad d’un autre espace', L.etrangerePetite!], ['un identifiant inconnu', randomUUID()]] as const) {
+      const j = await jarvis('hypothese', id);
+      expect(j.note, `${nom} · le refus, la même phrase`).toBe(REFUS_CONTEXTE_JARVIS);
+      expect(j.texte, `${nom} · l’écran parle d’un lot lu en partie · un oracle`).not.toContain(NON_CALCULE_LECTURE);
+      expect(await resoudreContexteJarvis(h.session as never, PETITE(), { type: 'hypothese', id }), `${nom} · le contexte`).toBeNull();
+      expect(await gestesPourContexte(h.session as never, I.p!, { type: 'hypothese', id }), `${nom} · les gestes`).toBeNull();
+      expect(await lireVariantesEssai(h.session as never, I.p!, { type: 'hypothese', id }), `${nom} · l’essai`).toBeNull();
+    }
+  });
 });
 
 describe('un lot en préparation LU EN ENTIER (« Menue » #1) · « Conclure » dit son statut, jamais « Aucun verdict » · un verdict calculé y est rangé', () => {
@@ -650,5 +702,73 @@ describe('un lot en préparation LU EN ENTIER (« Menue » #1) · « Conclure »
     expect(f.raccourcis, 'Conclure · la raison tirée du statut').toContain(RAISON_CONCLURE_NON_LANCE);
     const g = await gestesPourContexte(h.session as never, I.m!, { type: 'lot', id: L.menue! });
     expect(g?.conclure.raison ?? null, 'le geste « Conclure » de Jarvis dit « Aucun verdict » d’un lot en préparation').toBe(RAISON_CONCLURE_NON_LANCE);
+  });
+});
+
+describe('« Conclure » fermé dit l’ÉTAT du lot, jamais « Aucun verdict » · un verdict calculé attend dans le lot', () => {
+  it('Neva #21 · « Mesures à importer » · `a2` calculée gagnante attend, `z2` sans mesure · la fiche et Jarvis disent que des mesures manquent', async () => {
+    commeProprietaire();
+    const [v] = await db.select({ statut: schema.verdicts.status, calcule: schema.verdicts.computed }).from(schema.verdicts).where(eq(schema.verdicts.adId, L['fauxConclure:a2']!));
+    expect(v, 'préalable · un verdict calculé attend dans le lot').toEqual({ statut: 'computed', calcule: 'winner' });
+    expect((await liste()).etats.get(L.fauxConclure!), 'préalable · l’état du lot').toBe('Mesures à importer');
+    const f = await fiche(L.fauxConclure!);
+    expect(f.lecture, 'préalable · le lot est lu en entier').toBeNull();
+    expect(f.raccourcis, 'préalable · les raccourcis de la fiche').toContain('Conclure le lot');
+    expect(f.raccourcis, 'la fiche d’un lot « Mesures à importer » dit « Aucun verdict » alors qu’un verdict calculé y attend').not.toMatch(/Aucun verdict/i);
+    expect(f.raccourcis, 'Conclure · la raison tirée de l’état').toContain(RAISON_CONCLURE_MESURES_MANQUANTES);
+    for (const demande of [{ type: 'lot', id: L.fauxConclure! }, { type: 'hypothese', id: L['fauxConclure:a2']! }] as const) {
+      const g = await gestesPourContexte(h.session as never, I.b!, demande);
+      expect(g && [g.conclure.cible, g.conclure.raison], `Jarvis · ${demande.type} · « Conclure » dit « Aucun verdict » d’un lot dont des mesures manquent`).toEqual([null, RAISON_CONCLURE_MESURES_MANQUANTES]);
+    }
+  });
+
+  it('Courante #1 · « En diffusion » (lancé hier) · `c1` calculée gagnante attend · la fiche et Jarvis disent que la fenêtre court', async () => {
+    commeProprietaire(COURANTE());
+    const [v] = await db.select({ statut: schema.verdicts.status, calcule: schema.verdicts.computed }).from(schema.verdicts).where(eq(schema.verdicts.adId, L.couranteCalculee!));
+    expect(v, 'préalable · un verdict calculé attend dans le lot').toEqual({ statut: 'computed', calcule: 'winner' });
+    const d = await chargerLots(I.ws!, I.c!);
+    expect(d.lots.map((l) => etatLotSpatial(l, d.ctx)), 'préalable · l’état du lot').toEqual(['diffusion']);
+    const f = await fiche(L.courante!);
+    expect(f.lecture, 'préalable · le lot est lu en entier').toBeNull();
+    expect(f.variantes, 'préalable · ses deux variantes').toEqual(['c1', 'c2']);
+    expect(f.raccourcis, 'préalable · les raccourcis de la fiche').toContain('Conclure le lot');
+    expect(f.raccourcis, 'la fiche d’un lot en diffusion dit « Aucun verdict » alors qu’un verdict calculé y attend').not.toMatch(/Aucun verdict/i);
+    expect(f.raccourcis, 'Conclure · la raison tirée de l’état').toContain(RAISON_CONCLURE_EN_DIFFUSION);
+    for (const demande of [{ type: 'lot', id: L.courante! }, { type: 'hypothese', id: L.couranteCalculee! }] as const) {
+      const g = await gestesPourContexte(h.session as never, I.c!, demande);
+      expect(g && [g.conclure.cible, g.conclure.raison], `Jarvis · ${demande.type} · « Conclure » dit « Aucun verdict » d’un lot en diffusion`).toEqual([null, RAISON_CONCLURE_EN_DIFFUSION]);
+    }
+  });
+});
+
+/**
+ * Un rendu de `/jarvis` lit les lots de la marque UNE fois · avant (mesuré ici), une hypothèse rangée dans un lot hors
+ * budget de la liste mais lisible seul (« Vaste » #1) les lisait six fois (le contexte, les gestes et l'essai · deux
+ * `chargerLots` chacun), une hypothèse d'un lot lu trois, un lot joint trois, une hypothèse d'un lot non lu deux. Compté sur le RÉSULTAT ·
+ * les requêtes reçues par la base qui comptent les variantes de chaque lot (`lotsAvecComptes`, une par `chargerLots`).
+ */
+describe('un rendu de `/jarvis` lit les lots UNE fois', () => {
+  it('une hypothèse d’un lot non lu (« Petite » #2), d’un lot hors budget (« Vaste » #1), d’un lot lu, un lot joint · une lecture des lots chacun', async () => {
+    const q = vi.spyOn(PGlite.prototype, 'query');
+    const lectures = () => q.mock.calls.filter(([sql]) => typeof sql === 'string' && sql.includes('"comptes"')).length;
+    try {
+      const cas = [
+        ['« Petite » #2 · hypothèse d’un lot lu en partie', PETITE(), 'hypothese', L.petiteGagnante!],
+        ['« Vaste » #1 · hypothèse d’un lot hors budget, lu par lui seul', VASTE(), 'hypothese', L[Object.keys(L).find((k) => k.startsWith('vaste1:'))!]!],
+        ['Neva #20 · hypothèse d’un lot lu', { id: I.b!, name: 'Neva' }, 'hypothese', L['conclure:z1']!],
+        ['« Vaste » #1 · lot joint, hors budget', VASTE(), 'lot', L.vaste1!],
+      ] as const;
+      const vus: Record<string, number> = {};
+      for (const [nom, marque, contexte, id] of cas) {
+        commeProprietaire(marque);
+        q.mockClear();
+        const j = await jarvis(contexte, id);
+        expect(j.texte, `préalable · ${nom} · l’écran s’ouvre`).not.toContain(REFUS_CONTEXTE_JARVIS);
+        vus[nom] = lectures();
+      }
+      expect(vus, 'un rendu de /jarvis relit les lots de la marque plusieurs fois').toEqual(Object.fromEntries(cas.map(([nom]) => [nom, 1])));
+    } finally {
+      q.mockRestore();
+    }
   });
 });

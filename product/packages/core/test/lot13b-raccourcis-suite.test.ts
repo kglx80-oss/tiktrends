@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   RACCOURCIS, PORTEES_RACCOURCIS, PORTEES_AIDE_PROJET, TOUCHES_RECENSEES, REGLES_CLAVIER, ANCRE_CONCLURE_LOT,
   RAISON_GESTE_RIEN_A_CONCLURE, RAISON_GESTE_SANS_GAGNANTE_LOT, RAISON_ITERER_HORS_PLAN_LOT, RAISON_CONCLURE_NON_LANCE, RAISON_CONCLURE_HISTORIQUE,
-  gestesContexteJarvis,
+  RAISON_CONCLURE_EN_DIFFUSION, RAISON_CONCLURE_MESURES_MANQUANTES, RAISON_GESTE_LECTURE_INCOMPLETE,
+  gestesContexteJarvis, etatLotSpatial, attendArbitrage, lotConcluable, raisonConclureFerme, type EtatLotSpatial,
   conflitsRaccourcis, raccourciDeLaFrappe, raccourciFicheLot, raccourciDeVue, groupesAideRaccourcis, libelleAideFiltree,
   astuceRaccourcisAccueil, messageRaccourciFerme, gestesClavierLot, exigeCoupure, lienIterationVariable, sansTiretCadratin,
   type ContexteFrappeVue, type FaitsAdSpatial, type FrappeClavier, type Raccourci,
@@ -101,16 +102,56 @@ describe('Lot 13 bis · `gestesClavierLot` · la règle des gestes, rien de plus
     const attend = ad(1, { statut: 'computed', retenu: null });
     expect(gestesClavierLot({ etat: 'a_conclure', ads: [attend], planIds: new Set() }).conclure).toEqual({ href: `#${ANCRE_CONCLURE_LOT}`, raison: null });
     expect(gestesClavierLot({ etat: 'non_concluant', ads: [attend], planIds: new Set() }).conclure.href).toBe('#conclure');
-    for (const etat of ['diffusion', 'a_importer', 'conclu'] as const) {
-      expect(gestesClavierLot({ etat, ads: [attend], planIds: new Set() }).conclure, etat).toEqual({ href: null, raison: RAISON_GESTE_RIEN_A_CONCLURE });
-    }
-    // Un brouillon ou un historique · le STATUT dit pourquoi · « aucun verdict n'attend » serait faux · `attend` y est rangée.
-    for (const [etat, raison] of [['composition', RAISON_CONCLURE_NON_LANCE], ['pret', RAISON_CONCLURE_NON_LANCE], ['importe', RAISON_CONCLURE_HISTORIQUE]] as const) {
+    // Un lot conclu · rien n'attend (chaque verdict est arbitré, ou plus rien ne se mesure ni ne se tranche) · la seule raison qui le dise.
+    expect(gestesClavierLot({ etat: 'conclu', ads: [ad(1, {})], planIds: new Set() }).conclure, 'conclu').toEqual({ href: null, raison: RAISON_GESTE_RIEN_A_CONCLURE });
+    // Un brouillon, un historique, un lot en diffusion, un lot dont des mesures manquent · l'ÉTAT dit pourquoi · « aucun verdict
+    // n'attend » serait faux · `attend` y est rangée (un verdict calculé attend, le lot ne s'arbitre pas encore).
+    for (const [etat, raison] of [
+      ['composition', RAISON_CONCLURE_NON_LANCE], ['pret', RAISON_CONCLURE_NON_LANCE], ['importe', RAISON_CONCLURE_HISTORIQUE],
+      ['diffusion', RAISON_CONCLURE_EN_DIFFUSION], ['a_importer', RAISON_CONCLURE_MESURES_MANQUANTES],
+    ] as const) {
       expect(gestesClavierLot({ etat, ads: [attend], planIds: new Set() }).conclure, `fiche · ${etat}`).toEqual({ href: null, raison });
       const j = gestesContexteJarvis({ type: 'lot', id: ID(9), ads: [attend], lot: { id: ID(9), etat, ads: [attend] } })!;
       expect([j.conclure.cible, j.conclure.raison], `Jarvis · ${etat} · la même raison que la fiche`).toEqual([null, raison]);
     }
     expect(gestesClavierLot({ etat: 'a_conclure', ads: [ad(1, {})], planIds: new Set() }).conclure, 'tout est arbitré').toEqual({ href: null, raison: RAISON_GESTE_RIEN_A_CONCLURE });
+  });
+  it('C · « Aucun verdict n’attend » n’est JAMAIS dit d’un lot où un verdict calculé attend · chaque état, tiré des FAITS', () => {
+    // Le scénario de la relecture · lancé, fenêtre écoulée · V1 calculée gagnante qui attend, V2 sans mesure · « Mesures à importer ».
+    const ctx = { maintenant: new Date('2020-02-01T12:00:00Z'), fenetreJours: 7 };
+    const v1 = { verdict: { statut: 'computed' as const, calcule: 'winner' as const, calculeLe: '2020-01-20T03:00:00Z' } };
+    const lance = (lanceLe: string, ads: ReadonlyArray<typeof v1 | { verdict: null }>) => etatLotSpatial({ statut: 'testing', lanceLe, ads }, ctx);
+    expect(lance('2020-01-06T09:00:00Z', [v1, { verdict: null }]), 'préalable · des mesures manquent').toBe('a_importer');
+    expect(raisonConclureFerme('a_importer'), 'Mesures à importer · la raison de l’état').toBe(RAISON_CONCLURE_MESURES_MANQUANTES);
+    expect(lance('2020-01-30T09:00:00Z', [v1, { verdict: null }]), 'préalable · la fenêtre court').toBe('diffusion');
+    expect(raisonConclureFerme('diffusion'), 'En diffusion · la raison de l’état').toBe(RAISON_CONCLURE_EN_DIFFUSION);
+    // La règle, sur les FAITS · chaque statut, chaque lancement, chaque paire de verdicts · l'état vient de `etatLotSpatial` ·
+    // fermé alors qu'un verdict calculé attend, la raison n'est jamais « aucun verdict n'attend ».
+    type V = { verdict: { statut: 'computed' | 'validated'; calcule: 'winner' | 'inconclusive' | null; calculeLe: string } | null };
+    const verdicts: V[] = [
+      v1, { verdict: { statut: 'computed', calcule: 'inconclusive', calculeLe: '2020-01-20T03:00:00Z' } },
+      { verdict: { statut: 'computed', calcule: 'winner', calculeLe: '2020-01-08T03:00:00Z' } }, // mesure arrêtée avant la fin de la fenêtre
+      { verdict: { statut: 'validated', calcule: 'winner', calculeLe: '2020-01-20T03:00:00Z' } },
+      { verdict: { statut: 'computed', calcule: null, calculeLe: '2020-01-20T03:00:00Z' } }, { verdict: null },
+    ];
+    const fermesQuiAttendent = new Map<EtatLotSpatial, number>();
+    for (const statut of ['planned', 'in_production', 'ready', 'testing', 'analyzed']) {
+      for (const lanceLe of [null, '2020-01-06T09:00:00Z', '2020-01-30T09:00:00Z']) {
+        for (const a of verdicts) for (const b of verdicts) {
+          const ads = [a, b];
+          const etat = etatLotSpatial({ statut, lanceLe, ads }, ctx);
+          if (!ads.some(attendArbitrage) || lotConcluable(etat, ads)) continue;
+          fermesQuiAttendent.set(etat, (fermesQuiAttendent.get(etat) ?? 0) + 1);
+          expect(raisonConclureFerme(etat), `${statut} · ${lanceLe} · ${JSON.stringify(ads)} · ${etat} · fermé, un verdict calculé attend`).not.toBe(RAISON_GESTE_RIEN_A_CONCLURE);
+        }
+      }
+    }
+    expect([...fermesQuiAttendent.keys()].sort(), 'préalable · les états fermés où un verdict calculé attend').toEqual(['a_importer', 'composition', 'diffusion', 'importe', 'pret']);
+    expect(raisonConclureFerme('illisible'), 'lu en partie · rien n’est tiré du contenu').toBe(RAISON_GESTE_LECTURE_INCOMPLETE);
+    for (const r of [RAISON_CONCLURE_EN_DIFFUSION, RAISON_CONCLURE_MESURES_MANQUANTES]) {
+      expect(sansTiretCadratin(r)).toBe(r);
+      expect(r, 'une raison d’état ne parle pas des verdicts comme s’ils étaient lus').not.toMatch(/aucun verdict/i);
+    }
   });
   it('T · la gagnante ARBITRÉE du lot que le plan propose · celle du verdict d’abord · sinon la raison', () => {
     const g1 = ad(1, {}); const g2 = ad(2, {}); const perdante = ad(3, { calcule: 'loser', retenu: 'loser' }); const calculee = ad(4, { statut: 'computed' });
