@@ -7,7 +7,7 @@ import {
   libelleAuteurVersion, lireHistoriqueCommentaire, objetDansPortee, quandJournal, validerTexteCommentaire, vueVariantes, cibleCommentaire,
   gesteIterationCommentaire, aPrevenirMentions, historiqueAvecMentions, lireMentions,
   nomAffichageMention, prevenusApres, proprietairePrevenuSansMention, resultatsCommentaire, segmentsCommentaire, gestesGagnantesFil,
-  type ErreurStudio, type FaitJournal, type JournalProjet, type CommentairePourGeste, type IterationDuCommentaire, type MembreBrut,
+  type EcritureJournal, type ErreurStudio, type FaitJournal, type JournalProjet, type CommentairePourGeste, type IterationDuCommentaire, type MembreBrut,
 } from '@tiktrends/core';
 import type { ContexteStudio } from './garde';
 import { membresDeLEspace, mentionnablesDe, mentionsDuTexte } from './membres-mentions';
@@ -83,9 +83,22 @@ async function noms(ctx: ContexteStudio, ids: ReadonlyArray<string | null>): Pro
   };
 }
 
+/**
+ * L'ordre d'écriture d'une ligne IMMUABLE (`EcritureJournal`, noyau) · `xmin` et `cmin`, colonnes
+ * système de Postgres · à ne lire que sur une table qu'un déclencheur interdit de modifier (audit,
+ * versions) · ailleurs, une mise à jour les réécrit.
+ */
+const colonnesEcriture = (t: typeof schema.studioAuditEvents | typeof schema.studioProjectVersions) => ({
+  ecritureXid: sql<string>`${t}.xmin::text`, ecritureCid: sql<string>`${t}.cmin::text`,
+});
+const ecritureLue = (x: { ecritureXid: string; ecritureCid: string }): EcritureJournal | null => {
+  const transaction = Number(x.ecritureXid); const commande = Number(x.ecritureCid);
+  return Number.isSafeInteger(transaction) && Number.isSafeInteger(commande) ? { transaction, commande } : null;
+};
+
 interface Contexte {
   projet: ProjetStudio;
-  versions: Array<{ id: string; n: number; reason: string; authorId: string | null; createdAt: Date }>;
+  versions: Array<{ id: string; n: number; reason: string; authorId: string | null; createdAt: Date; ecritureXid: string; ecritureCid: string }>;
   /** Les créations du projet (sorties livrées des lots), avec leur libellé d'écran · lues par `listerVariantes`. */
   creations: Map<string, string>;
   /** Le test de la variante de chaque création (média) qui en a un · la pub dont « Itérer depuis ce commentaire » part. */
@@ -96,7 +109,7 @@ async function contexte(ctx: ContexteStudio, projectId: unknown): Promise<Result
   const p = await lireProjet(ctx, projectId);
   if (!p.ok) return p;
   const V = schema.studioProjectVersions;
-  const versions = await db.select({ id: V.id, n: V.n, reason: V.reason, authorId: V.authorId, createdAt: V.createdAt }).from(V)
+  const versions = await db.select({ id: V.id, n: V.n, reason: V.reason, authorId: V.authorId, createdAt: V.createdAt, ...colonnesEcriture(V) }).from(V)
     .where(and(eq(V.projectId, p.projet.id), duProjet(V, ctx, p.projet))).orderBy(desc(V.n)).limit(LECTURE_MAX_JOURNAL);
   const creations = new Map<string, string>();
   const tests = new Map<string, NonNullable<CommentairePourGeste['test']>>();
@@ -147,7 +160,7 @@ export async function lireJournalPour(ctx: ContexteStudio, e: { projectId: unkno
   ].filter((x): x is SQL => !!x);
   const evenements = await db.select({
     id: E.id, le: E.occurredAt, acteur: E.actorId, action: E.action, targetType: E.targetType, targetId: E.targetId,
-    versionAfter: E.versionAfter, reason: E.reason, details: E.details, workspaceId: E.workspaceId, brandId: E.brandId,
+    versionAfter: E.versionAfter, reason: E.reason, details: E.details, workspaceId: E.workspaceId, brandId: E.brandId, ...colonnesEcriture(E),
   }).from(E).where(and(eq(E.workspaceId, ctx.workspaceId), eq(E.brandId, projet.brandId), inArray(E.brandId, ctx.marques), or(...cibles)))
     .orderBy(desc(E.occurredAt)).limit(LECTURE_MAX_JOURNAL);
 
@@ -169,10 +182,10 @@ export async function lireJournalPour(ctx: ContexteStudio, e: { projectId: unkno
     faits.push({
       source: 'audit', id: x.id, le: x.le.toISOString(), acteur: nom(x.acteur), action: x.action, cible: { type: x.targetType, id: x.targetId },
       versionApresId: vId, versionN: vId ? versionN.get(vId)! : null, etatApres: x.versionAfter && !estUuid(x.versionAfter) ? x.versionAfter : null,
-      raison: x.reason, raisonVersion: vId ? raisonV.get(vId) ?? null : null, details: x.details,
+      raison: x.reason, raisonVersion: vId ? raisonV.get(vId) ?? null : null, details: x.details, ecriture: ecritureLue(x),
     });
   }
-  for (const v of c.versions) faits.push({ source: 'version', id: v.id, le: v.createdAt.toISOString(), acteur: nom(v.authorId), versionN: v.n, raison: v.reason });
+  for (const v of c.versions) faits.push({ source: 'version', id: v.id, le: v.createdAt.toISOString(), acteur: nom(v.authorId), versionN: v.n, raison: v.reason, ecriture: ecritureLue(v) });
   for (const j of jobs) {
     faits.push({ source: 'tache', id: `${j.id}:debut`, jobId: j.id, le: j.createdAt.toISOString(), operation: j.operation, etat: j.state, fini: false });
     if (j.finishedAt) faits.push({ source: 'tache', id: `${j.id}:fin`, jobId: j.id, le: j.finishedAt.toISOString(), operation: j.operation, etat: j.state, fini: true });

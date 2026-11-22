@@ -21,10 +21,21 @@ set -euo pipefail
 # `product` et c'est la base de PRODUCTION qui serait dumpée. Ses dumps restent
 # à côté d'elle, jamais dans le dossier de la production, et ne partent JAMAIS
 # vers `ovh:` (ils y prendraient le nom des vrais).
+#
+# Son dossier de sauvegarde est comparé à celui de la production une fois les
+# DEUX chemins résolus (`realpath -m` : `//`, `/./`, `x/../` et liens
+# symboliques, sans exiger que le chemin existe) · la comparaison du texte
+# laissait passer `/home/debian//backups` ou un lien vers ce dossier. Un
+# chemin impossible à résoudre (realpath absent) est refusé, jamais comparé à
+# vide. Le dépôt du VPS n'appelle pas realpath : son chemin ne change pas.
+# Ses chemins doivent être ABSOLUS · un `../../backups` relatif, lancé depuis
+# /home/debian, se résout en /backups ici mais en /home/debian/backups après le
+# `cd "$REPO"` de `principal` : la comparaison ne garderait rien.
 # Gardes : apps/web/test/ops-backup-hors-site.test.ts.
 VPS_REPO="/home/debian/tiktrends"
 VPS_SAUVEGARDES="/home/debian/backups"
 configurer() {
+  local dossier_reel prod_reel
   RACINE="${TIKTRENDS_REPO:-$VPS_REPO}"
   RACINE="${RACINE%"${RACINE##*[!/]}"}"
   REPO="$RACINE/product"
@@ -46,9 +57,27 @@ configurer() {
       return 2
       ;;
   esac
+  case "$RACINE" in
+    /*) ;;
+    *)
+      echo "[$(date -Is)] ARRÊT · copie d'essai ($RACINE) · TIKTRENDS_REPO n'est pas un chemin absolu : il changerait de sens au \`cd\` de la sauvegarde." >&2
+      return 2
+      ;;
+  esac
   BACKUP_DIR="${TIKTRENDS_SAUVEGARDES:-$RACINE/../sauvegardes}"
-  if [ "${BACKUP_DIR%"${BACKUP_DIR##*[!/]}"}" = "$VPS_SAUVEGARDES" ]; then
-    echo "[$(date -Is)] ARRÊT · copie d'essai ($RACINE) avec TIKTRENDS_SAUVEGARDES=$BACKUP_DIR · c'est le dossier des sauvegardes de production, la rotation y supprimerait les vraies." >&2
+  case "$BACKUP_DIR" in
+    /*) ;;
+    *)
+      echo "[$(date -Is)] ARRÊT · copie d'essai ($RACINE) · TIKTRENDS_SAUVEGARDES=$BACKUP_DIR n'est pas un chemin absolu : il changerait de sens au \`cd\` de la sauvegarde, et pourrait y désigner le dossier de la production." >&2
+      return 2
+      ;;
+  esac
+  if ! dossier_reel="$(realpath -m -- "$BACKUP_DIR" 2>/dev/null)" || ! prod_reel="$(realpath -m -- "$VPS_SAUVEGARDES" 2>/dev/null)" || [ -z "$dossier_reel" ] || [ -z "$prod_reel" ]; then
+    echo "[$(date -Is)] ARRÊT · copie d'essai ($RACINE) · chemin du dossier de sauvegarde ($BACKUP_DIR) impossible à résoudre (realpath -m) : rien ne prouve que ce n'est pas celui de la production." >&2
+    return 2
+  fi
+  if [ "$dossier_reel" = "$prod_reel" ]; then
+    echo "[$(date -Is)] ARRÊT · copie d'essai ($RACINE) avec TIKTRENDS_SAUVEGARDES=$BACKUP_DIR · c'est le dossier des sauvegardes de production, la rotation y supprimerait les vraies. Chemin réel : $dossier_reel." >&2
     return 2
   fi
   OFFSITE=0
@@ -84,31 +113,57 @@ copie_hors_site() {
 # garde, script sourcé, avec des dossiers temporaires).
 principal() {
   local keep=14   # nombre de sauvegardes quotidiennes conservées
-  local fichier code
+  local fichier partiel code
   cd "$REPO"
-  mkdir -p "$BACKUP_DIR"
+  mkdir -p -- "$BACKUP_DIR"
+
+  # Un passage à la fois · un second, lancé à la main pendant celui de 03h30,
+  # supprimait le `.part` du premier (le nettoyage ci-dessous), qui finissait
+  # en « sauvegarde vide », code 1 · et deux passages dans la même seconde
+  # écrivaient le même fichier. Verrou exclusif NON bloquant sur un fichier
+  # caché du dossier (hors du motif `tiktrends-*.sql.gz` : ni la rotation ni la
+  # restauration ne le voient), tenu jusqu'à la fin du processus. Le second
+  # s'arrête sans rien toucher, code 75 (EX_TEMPFAIL : réessayer plus tard).
+  # flock vient d'util-linux (Debian : paquet essentiel).
+  exec 9>"$BACKUP_DIR/.tiktrends-backup.lock"
+  if ! flock -n 9; then
+    echo "[$(date -Is)] ARRÊT · sauvegarde déjà en cours (verrou $BACKUP_DIR/.tiktrends-backup.lock tenu) · ce passage s'arrête sans rien toucher." >&2
+    return 75
+  fi
+
   fichier="$BACKUP_DIR/tiktrends-$(date +%Y%m%d-%H%M%S).sql.gz"
+  partiel="$fichier.part"
+
+  # Le dump s'écrit dans `….sql.gz.part`, et ne prend son nom (`mv`, un
+  # renommage dans le même dossier) qu'une fois contrôlé. Un bash TUÉ en plein
+  # dump (`systemctl stop`, arrêt ou redémarrage du VPS : SIGTERM à tout le
+  # groupe, aucun `||` ne tourne) laissait un `tiktrends-*.sql.gz` partiel,
+  # compté par la rotation et choisi par la restauration « le plus récent »
+  # (ops/README.md). Le `.part` n'a pas leur motif : ni l'une ni l'autre ne le
+  # voit, et le passage suivant le supprime (les seuls `tiktrends-*.sql.gz.part`,
+  # jamais ceux de deploy.sh ni d'autrui).
+  rm -f -- "$BACKUP_DIR"/tiktrends-*.sql.gz.part
 
   # Dump depuis le conteneur db (identifiants lus dans l'environnement du
   # conteneur, aucun secret n'apparaît ici). -T = pas de TTY.
-  # Un pg_dump en échec laissait un `tiktrends-*.sql.gz` partiel (20 octets avec
-  # gzip) : compté par la rotation, choisi par la restauration « le plus
-  # récent » (ops/README.md). Il est supprimé, et le code du tube est rendu tel
-  # quel (sous `pipefail`, celui de la commande en échec).
+  # Un pg_dump en échec laisse un partiel (20 octets avec gzip) : il est
+  # supprimé, et le code du tube est rendu tel quel (sous `pipefail`, celui de
+  # la commande en échec).
   # shellcheck disable=SC2016  # les variables sont celles du conteneur db
-  docker compose exec -T db sh -c 'PGPASSWORD="$POSTGRES_PASSWORD" pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists' | gzip > "$fichier" || {
+  docker compose exec -T db sh -c 'PGPASSWORD="$POSTGRES_PASSWORD" pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists' | gzip > "$partiel" || {
     code=$?
-    rm -f "$fichier"
-    echo "[$(date -Is)] ÉCHEC · dump de la base interrompu (code $code), fichier partiel supprimé : $fichier" >&2
+    rm -f "$partiel"
+    echo "[$(date -Is)] ÉCHEC · dump de la base interrompu (code $code), fichier partiel supprimé : $partiel" >&2
     return "$code"
   }
 
   # Garde-fou : un dump vide ou minuscule = échec, on ne le garde pas.
-  if [ ! -s "$fichier" ] || [ "$(stat -c%s "$fichier")" -lt 500 ]; then
-    echo "[$(date -Is)] ERREUR : sauvegarde vide, suppression de $fichier"
-    rm -f "$fichier"
+  if [ ! -s "$partiel" ] || [ "$(stat -c%s -- "$partiel")" -lt 500 ]; then
+    echo "[$(date -Is)] ERREUR : sauvegarde vide, suppression de $partiel"
+    rm -f "$partiel"
     return 1
   fi
+  mv -f -- "$partiel" "$fichier"
 
   echo "[$(date -Is)] Sauvegarde OK : $fichier ($(du -h "$fichier" | cut -f1))"
 

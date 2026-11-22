@@ -46,7 +46,8 @@ export const INTERVALLE_ATTENTE_MS = 10;
 
 /**
  * Une ABSENCE (« rien ne part tout seul ») ne se constate que dans la durée · l'état doit tenir
- * `SONDAGES_ABSENCE` sondages d'affilée à l'intervalle par défaut, soit au moins 200 ms dans `act`.
+ * `SONDAGES_ABSENCE` sondages d'affilée à l'intervalle par défaut, soit 200 ms dans `act` (à 2 ms
+ * près, le grain des minuteries).
  * La fenêtre couvre le délai MESURÉ du geste positif correspondant (une question envoyée jusqu'à
  * la réponse écrite et le fil relu · pire 91 ms, tableau ci-dessus) plus de deux fois.
  */
@@ -59,7 +60,8 @@ export interface OptionsAttente {
   intervalleMs?: number;
   /**
    * Nombre de sondages CONSÉCUTIFS où la condition doit tenir · défaut 1 (la première fois
-   * suffit). Avec N, l'état tient au moins (N - 1) × intervalle · un état atteint puis défait
+   * suffit). Avec N, l'état tient au moins (N - 1) × intervalle, au grain des minuteries près
+   * (moins de 2 ms en tout, `attendre-etat.test.ts`) · un état atteint puis défait
    * remet le compte à zéro.
    */
   stabilite?: number;

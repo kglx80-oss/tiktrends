@@ -24,8 +24,9 @@
  * · jamais son code brut, jamais ses détails. Les détails sont lus de façon
  * défensive · une valeur absente ou d'un autre type ne se dit pas.
  *
- * `journalProjet` trie (du plus récent au plus ancien), filtre par type et
- * pagine (`PAR_PAGE_JOURNAL`) · le compte par type ne dépend pas du filtre.
+ * `journalProjet` trie (du plus récent au plus ancien, `comparerFaitsJournal`),
+ * filtre par type et pagine (`PAR_PAGE_JOURNAL`) · le compte par type ne
+ * dépend pas du filtre.
  */
 
 import { etatReprise, libelleOperationConnu } from '../execution/reprise';
@@ -64,6 +65,38 @@ export const LECTURE_MAX_JOURNAL = 500;
 /** Ce qu'une phrase neutre dit d'un événement inconnu · jamais son code. */
 export const PHRASE_EVENEMENT_INCONNU = 'Action enregistrée sur ce projet';
 
+/**
+ * L'ordre d'ÉCRITURE en base d'une ligne IMMUABLE · la transaction qui l'a
+ * insérée (`xmin`, numéro attribué à la première écriture de la transaction)
+ * et la commande dans cette transaction (`cmin`). Lu seulement sur les deux
+ * tables qu'un déclencheur interdit de modifier (`studio_audit_events_ajout_seul`,
+ * `studio_project_versions_immuables`) · leurs `xmin` et `cmin` restent ceux de
+ * l'insertion, à vie.
+ *
+ * Il départage deux faits du MÊME instant · l'horodatage ne suffit pas.
+ * `occurred_at` vaut `now()`, le début de la transaction · deux écritures d'une
+ * même transaction portent le même, à la microseconde. Et l'instant arrive
+ * tronqué à la milliseconde dans un `Date` · deux commandes enchaînées dans la
+ * même milliseconde se confondent (la base de test, pglite, n'a d'ailleurs que
+ * la milliseconde · mesuré · 200 insertions enchaînées, 129 instants distincts).
+ * L'identifiant (`gen_random_uuid()`) ne dit aucun ordre · départager par lui
+ * rendait « Devis préparé » tantôt avant, tantôt après les consignes qu'il a
+ * lues (run 45035270381).
+ *
+ * Une restauration logique (pg_dump) réécrit `xmin` · toutes les lignes d'une
+ * table y partagent une transaction et une commande · entre deux faits de la
+ * même table, le départage retombe alors sur l'identifiant, comme avant · entre
+ * l'audit et les versions, il devient l'ordre dans lequel les tables ont été
+ * restaurées · déterministe, mais arbitraire.
+ *
+ * Jamais d'écriture d'audit (ni de version) dans une transaction IMBRIQUÉE
+ * (savepoint, `tx.transaction(…)` dans une transaction) · une sous-transaction
+ * reçoit son propre numéro, plus grand que celui de la transaction mère · une
+ * écriture de la mère faite APRÈS la sous-transaction porte le plus petit
+ * numéro et se lirait comme antérieure · l'ordre s'y inverse.
+ */
+export interface EcritureJournal { transaction: number; commande: number }
+
 /** Un fait de l'audit · `cible` et `versionApresId` servent à ne pas dire deux fois la même chose. */
 export interface FaitAudit {
   source: 'audit';
@@ -82,9 +115,11 @@ export interface FaitAudit {
   /** La raison écrite sur la version produite (`studio_project_versions.reason`), si l'événement en produit une. */
   raisonVersion: string | null;
   details: unknown;
+  /** L'ordre d'écriture de la ligne d'audit · absent, le départage retombe sur l'identifiant. */
+  ecriture?: EcritureJournal | null;
 }
 
-export interface FaitVersion { source: 'version'; id: string; le: string; acteur: string | null; versionN: number; raison: string }
+export interface FaitVersion { source: 'version'; id: string; le: string; acteur: string | null; versionN: number; raison: string; ecriture?: EcritureJournal | null }
 
 /** Une tâche donne deux faits · son lancement (`fini: false`, à sa création) et sa fin (`fini: true`, à `finished_at`). */
 export interface FaitTache { source: 'tache'; id: string; jobId: string; le: string; operation: string; etat: string; fini: boolean }
@@ -367,11 +402,50 @@ export function pageJournal(x: unknown, pages: number): number {
   return Math.min(n, Math.max(1, pages));
 }
 
+const ecritureDe = (f: FaitJournal): EcritureJournal | null => ((f.source === 'audit' || f.source === 'version') && f.ecriture ? f.ecriture : null);
+
+/**
+ * Deux numéros de transaction · comparés modulo 2^32, comme Postgres
+ * (`TransactionIdPrecedes`) · le compteur qui repasse par zéro ne renverse pas
+ * l'ordre. Négatif · `a` écrite avant `b`.
+ */
+function ecartEcriture(a: EcritureJournal, b: EcritureJournal): number {
+  const t = (a.transaction - b.transaction) | 0;
+  return t !== 0 ? t : a.commande - b.commande;
+}
+
+/**
+ * L'ordre du journal · du plus récent au plus ancien. À instant égal · les faits
+ * dont on connaît l'ordre d'écriture se disent dans cet ordre (le dernier écrit
+ * d'abord) · un fait sans ordre connu (fin de tâche, commentaire, note, copie ·
+ * lignes modifiables, ou lues ailleurs) passe au-dessus d'eux · puis
+ * l'identifiant.
+ * Un ordre TOTAL (clé lexicographique) · jamais de cycle, quel que soit le
+ * mélange de sources au même instant, tant que les faits d'un même instant sont
+ * à moins de 2^31 transactions d'écart (la comparaison modulo 2^32 n'est
+ * transitive qu'à cette condition · des millions de fois au-delà de ce qu'une
+ * milliseconde peut écrire).
+ *
+ * Pour les sources sans ordre d'écriture (tâches, commentaires, notes,
+ * duplications), l'identifiant reste le dernier recours · en production, un
+ * même journal se relit toujours dans le même ordre (les identifiants sont ceux
+ * de la base) · d'une exécution de test à l'autre, en revanche, les uuid
+ * changent · deux de ces faits au même instant ne s'y affirment pas dans un
+ * ordre fixe.
+ */
+export function comparerFaitsJournal(a: FaitJournal, b: FaitJournal): number {
+  if (a.le !== b.le) return a.le < b.le ? 1 : -1;
+  const ea = ecritureDe(a); const eb = ecritureDe(b);
+  if (!ea !== !eb) return ea ? 1 : -1;
+  if (ea && eb) { const d = ecartEcriture(ea, eb); if (d !== 0) return d < 0 ? 1 : -1; }
+  const ia = `${a.source}:${a.id}`; const ib = `${b.source}:${b.id}`;
+  return ia < ib ? 1 : ia > ib ? -1 : 0;
+}
+
 /** Le journal d'un projet · trié du plus récent au plus ancien, filtré, paginé. */
 export function journalProjet(faits: readonly FaitJournal[], o: { projectId: string; type?: unknown; page?: unknown; parPage?: number }): JournalProjet {
   const parPage = o.parPage && o.parPage > 0 ? Math.floor(o.parPage) : PAR_PAGE_JOURNAL;
-  const toutes = faitsSansDoublon(faits).map((f) => entreeJournal(f, { projectId: o.projectId }))
-    .sort((a, b) => (a.le === b.le ? (a.id < b.id ? 1 : a.id > b.id ? -1 : 0) : a.le < b.le ? 1 : -1));
+  const toutes = faitsSansDoublon(faits).sort(comparerFaitsJournal).map((f) => entreeJournal(f, { projectId: o.projectId }));
   const type = typeJournal(o.type);
   const gardees = type ? toutes.filter((e) => e.type === type) : toutes;
   const pages = Math.max(1, Math.ceil(gardees.length / parPage));
