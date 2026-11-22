@@ -435,6 +435,16 @@ describe('lot 5 bis · le tiroir de la coquille reçoit le contexte de la page (
       { pas: pasDansAct, stabilite: 3 },
     );
   };
+  /**
+   * Sonde d'une ABSENCE · EXACTEMENT `attendues` relectures parties depuis `avant`, et pas une de
+   * plus pendant toute la fenêtre · une relecture parasite partie APRÈS `relecturesRepondues` (qui
+   * conclut en trois sondages) la viole, et le constat la compte.
+   */
+  const relecturesTenues = (avant: number, attendues: number) => {
+    const parties = h.contextes.demandes - avant;
+    if (parties !== attendues) throw new Error(`${parties} relecture(s) du contexte partie(s) depuis le montage pour ${attendues} attendue(s) · une relecture parasite`);
+    return true;
+  };
 
   it('la fiche d’un lot · relue, affichée, envoyée comme `{ type, id }` · retirée, elle ne part plus', async () => {
     await monter(tiroir(`/adsmap/lots/${S.L1}`));
@@ -465,8 +475,12 @@ describe('lot 5 bis · le tiroir de la coquille reçoit le contexte de la page (
       await monter(tiroir(chemin));
       await relecturesRepondues(avant, doitRelire);
       if (!doitRelire) expect(h.contextes.demandes, `${chemin} · aucune relecture attendue`).toBe(avant);
-      // Rien de joint, rien de l'autre marque · tenu dans la durée (un joint posé en retard la viole).
-      await attendreAbsence(`${chemin} · rien de joint au tiroir, rien de l’autre marque`, () => !document.querySelector('[data-contexte-page]') && !/SECRET/.test(document.body.innerHTML));
+      // Rien de joint, rien de l'autre marque, aucune relecture de plus · tenu dans la durée (un joint
+      // posé en retard, une relecture parasite partie après coup la violent).
+      await attendreAbsence(
+        `${chemin} · rien de joint au tiroir, rien de l’autre marque, aucune relecture de plus`,
+        () => relecturesTenues(avant, doitRelire ? 1 : 0) && !document.querySelector('[data-contexte-page]') && !/SECRET/.test(document.body.innerHTML),
+      );
       expect(document.querySelector('[data-contexte-page]'), chemin).toBeNull();
       expect(pleinEcran(), chemin).toBe('/jarvis');
       expect(document.body.innerHTML, chemin).not.toMatch(/SECRET/);
@@ -476,7 +490,7 @@ describe('lot 5 bis · le tiroir de la coquille reçoit le contexte de la page (
     await monter(tiroir(`/studio/projets/${projet}`));
     await relecturesRepondues(avant, false);
     expect(h.contextes.demandes, 'un projet n’est pas joint au tiroir · aucune relecture').toBe(avant);
-    await attendreAbsence('un projet · rien de joint au tiroir', () => !document.querySelector('[data-contexte-page]'));
+    await attendreAbsence('un projet · rien de joint au tiroir, aucune relecture', () => relecturesTenues(avant, 0) && !document.querySelector('[data-contexte-page]'));
     expect(document.querySelector('[data-contexte-page]')).toBeNull();
     expect(pleinEcran()).toBe(lienJarvisContexte('projet', projet));
   });
