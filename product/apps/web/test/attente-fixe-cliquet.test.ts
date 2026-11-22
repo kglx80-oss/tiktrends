@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import ts from 'typescript';
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join, relative } from 'node:path';
 
@@ -11,39 +12,53 @@ import { join, relative } from 'node:path';
  * attend un ÉTAT · `attendreEtat` (un état qu'on attend de voir venir) ou `attendreAbsence` (une
  * absence tenue dans la durée), `test/helpers/attendre-etat.ts`.
  *
+ * La LECTURE · chaque fichier est lu par le parseur TypeScript (`ts.createSourceFile`), plus aucune
+ * expression régulière sur le source · commentaires, textes, gabarits et expressions régulières ne
+ * sont que des jetons (un backtick ou une parenthèse dans `/…/` ne déborde plus), la grammaire dit
+ * où finit une instruction (`else`, sans point-virgule). Les NOMS des aides sont résolus par le
+ * vérificateur de TypeScript sur ce seul fichier (sans bibliothèque ni import) · ses vraies portées
+ * (paramètre, `const`/`let`/`var`, déstructuration, en-tête de `for`, `catch`, fonction hissée).
+ *
  * Ce qu'on compte · dans `apps/web/test` (tous les `.ts` / `.tsx`, sous-dossiers compris), chaque
- * PROMESSE DE SOMMEIL · `new Promise((r) => setTimeout(r, N))` dont le délai N n'est pas `0`, sous
- * toutes ses écritures courantes (détail sur `SOMMEIL`) · résolveur entre parenthèses ou non, typé
- * (`(r: () => void)`), suivi d'un second paramètre (`(r, _j)`), `async (r)`, ou en `function (r) {`
- * · minuteur nu ou `globalThis.setTimeout`, gardé (`const t = setTimeout(…)`, `t = …`) ou jeté
- * (`void setTimeout(…)`) · rappel qui est le résolveur, transtypé ou non (`r`, `r as () => void`),
- * ou qui l'appelle avec RIEN (`() => r()`, `r(undefined)`, `r(void 0)`) ou avec une valeur JETÉE
- * (`await new Promise((r) => setTimeout(() => r(true), 400));` en tête d'instruction · le résultat
- * ne va nulle part, il ne reste que la durée). Un délai écrit par une variable (`ms`,
- * `faux.latenceMs`) compte aussi, il n'est pas 0 par construction. Comptent encore · le même
- * sommeil en deux instructions (`Promise.withResolvers()` puis `setTimeout(resolve, N)`), chaque
- * APPEL de `pasDansAct(N)` à délai non nul (le sommeil qu'exporte l'utilitaire exclu ci-dessous ·
- * `{ pas: pasDansAct }` n'en est pas un) et chaque import de `timers/promises` (le même sommeil,
- * sous un autre nom). Ne comptent PAS · le tour de boucle `setTimeout(r, 0)` (ou sans délai), une
- * valeur rendue, affectée ou passée (`mockImplementation(() => new Promise((r) => setTimeout(() =>
- * r(v), 10)))`, un faux qui RÉPOND après une latence · `const v = await …`, `Promise.race([…])`),
- * un délai de garde qui REJETTE (`setTimeout(() => rej(…))`).
+ * PROMESSE DE SOMMEIL · `new Promise(EXÉCUTEUR)` dont l'exécuteur (flèche ou `function`, `async`
+ * ou non, résolveur typé ou non, un second paramètre ou non) arme un MINUTEUR à délai non nul ·
+ * `setTimeout`, `globalThis.` / `window.` / `global.` / `self.setTimeout`, ou un alias (`const st =
+ * setTimeout`, `import { setTimeout as st } from 'node:timers'`), gardé (`const t = …`), jeté
+ * (`void …`) ou rangé n'importe où dans l'exécuteur (`{ const ms = N; setTimeout(r, ms); }`) · dont
+ * le RAPPEL est le résolveur, transtypé ou non (`r`, `r as () => void`), ou une fonction qui l'appelle
+ * dans une de ses instructions (`() => r()`, `() => void r()`, `() => { fini = true; r(); }`) avec
+ * RIEN (`r()`, `r(undefined)`, `r(void 0)`) ou avec une valeur JETÉE (`await new Promise((r) =>
+ * setTimeout(() => r(true), 400));` en tête d'instruction · le résultat ne va nulle part, il ne
+ * reste que la durée). Un délai écrit par une variable (`ms`, `faux.latenceMs`) compte aussi, il
+ * n'est pas 0 par construction. Comptent encore · le même sommeil en deux instructions
+ * (`Promise.withResolvers()` puis CHAQUE minuteur qui appelle son résolveur, dans la portée de la
+ * déclaration), chaque APPEL de `pasDansAct(N)` à délai non nul (le sommeil qu'exporte l'utilitaire
+ * exclu ci-dessous, ou son alias `import { pasDansAct as p }` · `{ pas: pasDansAct }` n'en est pas
+ * un) et chaque import de `timers/promises` (le même sommeil, sous un autre nom). Ne comptent PAS ·
+ * le tour de boucle `setTimeout(r, 0)` (ou sans délai), une valeur rendue, affectée ou passée
+ * (`mockImplementation(() => new Promise((r) => setTimeout(() => r(v), 10)))`, un faux qui RÉPOND
+ * après une latence · `const v = await …`, `Promise.race([…])`, `.then(use)`), un délai de garde qui
+ * REJETTE (`setTimeout(() => rej(…))`), une COURSE · le résolveur part aussi ailleurs (`em.once('pret',
+ * r); setTimeout(r, 1000)` · un état, avec un délai de secours).
  *
  * C'est plus large que « un sommeil suivi d'un `expect` » · une attente cachée dans une AIDE
  * (`const laisser = (ms = 400) => … setTimeout(r, ms) …`, puis `await laisser(); expect(…)`) est le
  * même pari. Le sommeil ne s'écrit qu'une fois, dans la définition · c'est l'APPEL qui attend. Une
  * aide est la définition nommée la plus proche qui englobe un sommeil (`const X = (…) =>`,
- * `function X(`, une propriété `X: () =>`, une méthode `X() {`), puis, de proche en proche, celle
- * qui appelle une aide (`cliquer` qui appelle `attendre`). Ses appels dans le fichier sont COMPTÉS
- * et FIGÉS (`appels`) au même titre que les sommeils · un appel `X(`, ou l'aide passée en VALEUR en
- * argument d'un appel (`.then(X)`, `act(X)`, `.map(X)`, `beforeEach(X)`) · une aide sans compte
- * figé vaut 0 appel. N'est PAS l'aide passée en valeur · un nom dans un tableau, un objet ou une
- * déstructuration (`[X, y]`, `{ X, y }`, `{ pas: X }` · le pas d'un sondage), un PARAMÈTRE
- * (`(nom, X) =>`, `function f(a, X) {`), ce qu'on lit sans l'appeler (`expect(X)`), et un HOMONYME ·
- * dans le corps d'une fonction qui prend `X` en paramètre (`it.each(…)('…', (X) => …)`) ou dans le
- * bloc qui déclare `X` (`const [X, setX] = useState()`), le nom désigne autre chose que l'aide. Le comptage de proche en proche termine sur un
- * cycle (`a` ↔ `b`, une récursion) · chaque aide n'est relevée qu'une fois. Le cas légitime (un
- * faux qui simule une latence, un `dormir` injecté au code testé) se DÉCLARE ici, avec sa raison.
+ * `function X(` ou `function X<T>(`, une propriété `X: () =>`, une méthode `X() {`, un champ de classe
+ * `X = () =>`), puis, de proche en proche, celle qui appelle une aide (`cliquer` qui appelle
+ * `attendre`). Ses appels dans le fichier sont COMPTÉS et FIGÉS (`appels`) au même titre que les
+ * sommeils · un appel `X(` (`X<T>(`, `X?.(`, `new X(`), ou l'aide passée en VALEUR en argument d'un
+ * appel (`.then(X)`, `act(X)`, `.map(X)`, `beforeEach(X)`, `act(c ? x : X)`) · par son nom ou par un
+ * ALIAS (`const encore = laisser`, puis `encore()`) · une aide sans compte figé vaut 0 appel. N'est
+ * PAS l'aide · un nom dans un tableau, un objet ou une déstructuration (`[X, y]`, `{ X, y }`, `{ pas:
+ * X }` · le pas d'un sondage), ce qu'on lit sans l'appeler (`expect(X)`, `X.name`, `typeof X`), et un
+ * HOMONYME, appelé ou passé · un paramètre (`(nom, X) =>`, `({ X }) =>`, `it.each(…)('…', (X) => …)`),
+ * une variable d'un autre bloc (`const [X, setX] = useState()`, `for (const X of l)`). Pour une
+ * propriété ou une méthode, `obj.X` est bien elle (quel que soit `obj`) et un `X` nu un homonyme. Le
+ * comptage de proche en proche termine sur un cycle (`a` ↔ `b`, une récursion) · chaque aide n'est
+ * relevée qu'une fois. Le cas légitime (un faux qui simule une latence, un `dormir` injecté au code
+ * testé) se DÉCLARE ici, avec sa raison.
  *
  * Exclus · `helpers/attendre-etat.ts` (le seul sommeil légitime · le pas entre deux sondages) et
  * ce fichier (il décrit les formes qu'il cherche).
@@ -65,33 +80,27 @@ import { join, relative } from 'node:path';
  * dont la valeur est RENDUE au code testé, pas jetée. Le tour 2 (homonymes écartés, tête
  * d'instruction lue sans `m`, source masqué, valeur sans retour arrière, `indices`) mesuré sur les
  * 680 fichiers de main 513df40a · relevé IDENTIQUE à celui de main. Le tour 3 (union des lectures
- * brute et masquée, `act<void>(X)`, `f?.(X)`, clé de déstructuration) · relevé IDENTIQUE.
+ * brute et masquée, `act<void>(X)`, `f?.(X)`, clé de déstructuration) · relevé IDENTIQUE. Le tour 4
+ * (l'AST, les vraies portées, les alias, le ternaire) mesuré sur les 680 fichiers de main 1c1ee457 ·
+ * sommeils IDENTIQUES (49 dans 41 fichiers, mêmes lignes), aides et appels IDENTIQUES (46 dans 25
+ * fichiers, mêmes lignes) À DEUX ÉCARTS PRÈS, deux faux négatifs des regex, figés ici avec leur
+ * raison · `sousEspion<T>(` (`l0-api-ad` ~94, 7 appels · `l0-jalons` ~54, 1 appel) · son paramètre de
+ * type cachait la définition à `function X\s*\(`, chaque appel attend 30 ms.
  *
  * Les LIMITES · ce cliquet protège contre l'ERREUR (on recopie une attente fixe voisine, on
- * rappelle l'aide du fichier), pas contre la MALVEILLANCE · il lit le texte, il n'exécute rien.
- * Il ne voit pas · `promisify(setTimeout)` ; une boucle de `setTimeout(r, 0)` (chaque tour est un
- * tour de boucle, la somme est une durée) ; un nom calculé ou un alias (`globalThis['set' +
- * 'Timeout']`, `const st = setTimeout`, `import { pasDansAct as p }`, `const encore = laisser`) ;
- * une aide rangée dans un objet (`{ onFin: laisser }`) ou appelée par un autre nom ; une valeur
- * constante GARDÉE (`const v = await new Promise((r) => setTimeout(() => r(1), N))` · on la croit
- * utile) ; une promesse à valeur attendue plus loin (`const p = new Promise(… r(v) …); await p`) ;
- * un second minuteur sur un `withResolvers` (seul le premier qui le résout est lu) ; un
- * `differe()` maison résolu par un minuteur ; une valeur imbriquée sur plus de deux niveaux de
- * parenthèses ; un rappel qui fait autre chose avant de résoudre (`setTimeout(() => { fini = true;
- * r(); }, N)`) ; un délai rangé dans le corps (`{ const ms = N; setTimeout(r, ms); }`) ; un rappel
- * `() => void r()` ; une promesse jetée après un mot (`else await …`) ou sans point-virgule au-dessus ;
- * une aide passée dans une branche de ternaire (`act(c ? x : laisser)`) ;
- * une aide rangée dans un tableau (`[laisser, x].forEach(…)`), passée par une déstructuration de
- * paramètre (`({ laisser }) =>` ne la masque pas) ou passée à `expect` ; un homonyme déclaré dans
- * l'en-tête d'un `for` (sa portée s'arrête à la parenthèse) ; un appel `X(` d'un homonyme (seule la
- * valeur passée en argument est lue par portée) ; une parenthèse orpheline dans une expression
- * régulière (`/\(/`), qui fait déborder la portée d'un homonyme jusqu'à la fin du fichier (seuls
- * les passages en valeur s'y perdent, jamais un appel `X(` · borner par la définition englobante
- * n'y peut rien, elle se compte avec les mêmes parenthèses) ; une définition ou un appel d'aide
- * caché par une expression régulière qui contient une apostrophe, `//` ou un BACKTICK (le relevé
- * des aides blanchit commentaires et textes, pas les expressions régulières · un backtick y ouvre
- * un faux gabarit qui court sur les lignes suivantes, `e-pas1-recette` ~205 · les SOMMEILS, eux,
- * se lisent aussi sur le source brut).
+ * rappelle l'aide du fichier), pas contre la MALVEILLANCE · il lit le source, il n'exécute rien et
+ * ne type rien. Il ne voit pas · `promisify(setTimeout)` ; une boucle de `setTimeout(r, 0)` (chaque
+ * tour est un tour de boucle, la somme est une durée) ; un nom calculé (`globalThis['set' +
+ * 'Timeout']`) ; une aide rangée dans un objet ou un tableau (`{ onFin: laisser }`, `[laisser,
+ * x].forEach(…)`), passée à `expect`, ou dont l'alias passe par une affectation (`let a; a =
+ * laisser`) ou une déstructuration ; une valeur constante GARDÉE (`const v = await new Promise((r) =>
+ * setTimeout(() => r(1), N))` · on la croit utile) ; une promesse à valeur attendue plus loin (`const
+ * p = new Promise(… r(v) …); await p`) ; un `differe()` maison (`{ p, resoudre }` rendu par une
+ * fonction) résolu par un minuteur ; un résolveur passé par une autre fonction avant le minuteur. Un
+ * membre se reconnaît à son NOM · `autre.X(` compte pour la propriété `X` de n'importe quel objet (sans
+ * types, l'objet n'est pas résolu). Le résolveur d'un `withResolvers` et celui d'un exécuteur se
+ * reconnaissent à leur nom dans leur portée, sans résolution · un homonyme qui l'y masque se lit
+ * comme lui.
  */
 
 const RACINE = __dirname;
@@ -133,8 +142,9 @@ const EXEMPTIONS: Readonly<Record<string, Exemption>> = {
   'iterer-gagnante-db.test.tsx': { n: 1, raison: SONDAGE },
   'lot9-personas-db.test.tsx': { n: 2, raison: SONDAGE },
   'lot9bis-offres-db.test.tsx': { n: 1, appels: { attendreQue: 4 }, raison: SONDAGE },
-  'l0-api-ad.test.ts': { n: 1, raison: FEU },
-  'l0-jalons.test.ts': { n: 1, raison: FEU },
+  // `sousEspion<T>(` · le paramètre de type cachait la définition aux regex (tour 4, AST) · chaque appel attend 30 ms.
+  'l0-api-ad.test.ts': { n: 1, appels: { sousEspion: 7 }, raison: FEU },
+  'l0-jalons.test.ts': { n: 1, appels: { sousEspion: 1 }, raison: FEU },
   // Les aides `attendre` / `laisser` / `monter` à durée fixe.
   'analyse-crea-marque-db.test.tsx': { n: 1, appels: { laisser: 1, attendre: 2 }, raison: FIXE },
   'boucles-hypothese-db.test.tsx': { n: 1, appels: { cliquer: 11 }, raison: FIXE },
@@ -161,272 +171,298 @@ const EXEMPTIONS: Readonly<Record<string, Exemption>> = {
   'studios-video-ecran-design.test.tsx': { n: 1, appels: { laisser: 7 }, raison: FIXE },
 };
 
-const NOM = String.raw`[A-Za-z_$][\w$]*`;
-/** L'annotation d'un paramètre · `: number`, `: () => void`, `: (v: unknown) => void`. */
-const TYPE = String.raw`(?:\s*:\s*(?:\([^()]*\)\s*=>\s*[\w$.<>\[\]| ]+?|[\w$.<>\[\]| ]+?))?`;
-/** Un transtypage · `as () => void`, `as never`, `as unknown as () => void`. */
-const CAST = String.raw`(?:\s+as\s+(?:\([^()]*\)\s*=>\s*[\w$.<>\[\]| ]+?|[\w$.<>\[\]| ]+?))*`;
-/** Le MINUTEUR · `setTimeout`, ou `globalThis.` / `window.` / `global.` / `self.setTimeout`, précédé ou non de `void`, `const t =`, `t =`. */
-const MINUTEUR = String.raw`(?:(?:(?:const|let|var)\s+${NOM}${TYPE}\s*=(?!=)|${NOM}(?:\s*\.\s*${NOM})*\s*=(?!=)|void)\s*)?`
-  + String.raw`(?:(?:globalThis|window|global|self)\s*\.\s*)?setTimeout\s*\(\s*`;
-/**
- * La valeur passée au résolveur · des parenthèses imbriquées sur deux niveaux (`r({ vue: vueImage({…}) })`).
- * Sans `\s*` autour · `[^()]` lit déjà les blancs, et trois quantificateurs sur les mêmes blancs
- * reviennent en arrière au cube (2000 blancs sans parenthèse fermante · 5,5 s mesurées). `rien()` élague.
- */
-const VALEUR = String.raw`(?<val>(?:[^()]|\((?:[^()]|\([^()]*\))*\))*?)`;
-/**
- * Le RAPPEL du minuteur, pour un résolveur `res` (un motif) · le résolveur LUI-MÊME, transtypé ou
- * non (`r`, `r as () => void`), ou un rappel qui l'appelle (`() => r(…)`, `() => { r(…); }`,
- * `function () { r(…); }`) · puis le délai. Groupes · `val` (la valeur, absente pour le résolveur
- * lui-même) · `delai`.
- */
-const rappel = (res: string) => String.raw`(?:${res}${CAST}|\(\s*\)\s*=>\s*(?:\{\s*)?${res}\s*\(${VALEUR}\)\s*;?\s*\}?|function\s*\(\s*\)\s*\{\s*${res}\s*\(${VALEUR.replace('?<val>', '?<val2>')}\)\s*;?\s*\})`
-  + String.raw`\s*(?:,\s*(?<delai>[^)]*?)\s*)?\)`;
-/**
- * Une promesse de sommeil · `[await] new Promise[<T>](RÉSOLVEUR => [{] MINUTEUR(RAPPEL[, délai])` où
- *  · RÉSOLVEUR · `(r)`, `r`, `async (r)`, `(r: () => void)`, `(r, _j)`, ou `function [nom](r) {` ;
- *  · MINUTEUR, RAPPEL · ci-dessus.
- * Un rappel qui rend une VALEUR (`() => r(v)`) est un sommeil quand la valeur est RIEN (`r()`,
- * `r(undefined)`, `r(void 0)`) ou quand elle est JETÉE · la promesse est attendue en tête
- * d'instruction (`; await new Promise(…)`, `{ await …`), son résultat ne va nulle part, il ne reste
- * que la durée. Une valeur rendue, affectée ou passée (`mockImplementation(() => new Promise((r) =>
- * setTimeout(() => r({ ok, vue }), 10)))`, une latence simulée qui RÉPOND) n'en est pas un.
- * La tête d'instruction se lit sur le source entier (pas de drapeau `m`) · `const vue =\n  await …`
- * prolonge l'instruction d'au-dessus. Une promesse jetée n'est pas suivie d'un `.` (`.then(use)` lit
- * la valeur). Groupes · `jete` (la promesse est attendue en tête d'instruction) · `ouvre` (sa
- * parenthèse) · `res` · `val` / `val2` · `delai`.
- */
-const SOMMEIL = new RegExp(
-  // `await` d'abord, puis le regard en arrière · tenté à chaque position, il remonterait chaque suite de blancs (quadratique).
-  String.raw`(?:(?<jete>await)(?<=(?:^|[;{})])\s*await)\s+)?`
-  + String.raw`new\s+Promise\s*(?:<[^>]*>)?\s*(?<ouvre>\()\s*(?:async\s+)?(?:function\s*(?:${NOM}\s*)?)?\(?\s*(?<res>${NOM})${TYPE}\s*(?:,\s*${NOM}${TYPE}\s*)?\)?\s*(?:=>)?\s*\{?\s*`
-  + MINUTEUR + rappel(String.raw`\k<res>`),
-  'gd',
-);
-/**
- * `Promise.withResolvers()` · `const { promise, resolve } = Promise.withResolvers()` (ou `resolve: r`,
- * ou `const d = …` puis `d.resolve`) suivi d'un MINUTEUR qui appelle son résolveur · le même sommeil,
- * écrit en deux instructions. On lit le premier minuteur qui suit · deux `withResolvers` qui trouvent
- * le même ne le comptent qu'une fois (les sommeils sont dédupliqués par position).
- */
-const AVEC_RESOLVEURS = new RegExp(String.raw`(?:const|let|var)\s+(?:\{(?<champs>[^{}]*)\}|(?<objet>${NOM}))\s*(?::[^=;]+)?=\s*Promise\s*\.\s*withResolvers\s*(?:<[^>]*>)?\s*\(\s*\)`, 'g');
-const TIMERS_PROMESSES = /from\s+['"](?:node:)?timers\/promises['"]|require\(\s*['"](?:node:)?timers\/promises['"]\s*\)/g;
-/**
- * `pasDansAct(ms)` · le sommeil (dans `act`) qu'exporte l'utilitaire exclu · un APPEL à délai non
- * nul est une attente fixe. Le passer en option (`{ pas: pasDansAct }`) n'en est pas un ·
- * `attendreEtat` s'en sert entre deux sondages.
- */
-const PAS_DANS_ACT = /(?<![\w$.])pasDansAct\s*\(\s*([^)]*?)\s*\)/g;
+/* ─────────── La LECTURE · le parseur TypeScript, jamais une expression régulière ─────────── */
 
-/** La parenthèse, le crochet ou l'accolade qui referme celle ouverte en `o` (source masqué). */
-function fermante(s: string, o: number): number {
-  let prof = 0;
-  for (let j = o; j < s.length; j++) {
-    const c = s[j]!;
-    if (c === '(' || c === '[' || c === '{') prof += 1;
-    else if ((c === ')' || c === ']' || c === '}') && --prof === 0) return j;
-  }
-  return s.length;
+interface Lu {
+  sf: ts.SourceFile;
+  /** Le vérificateur, créé à la première résolution de nom (seuls les fichiers à sommeil en ont besoin). */
+  verif?: ts.TypeChecker;
+  /** Ses sommeils, relevés une fois. */
+  sommeils?: Sommeil[];
 }
-/** Celle, encore ouverte en `k`, qui l'englobe · -1 au niveau du fichier. */
-function ouvrante(s: string, k: number): number {
-  let prof = 0;
-  for (let j = k; j >= 0; j--) {
-    const c = s[j]!;
-    if (c === ')' || c === ']' || c === '}') prof += 1;
-    else if ((c === '(' || c === '[' || c === '{') && prof-- === 0) return j;
+const LUS = new Map<string, Lu>();
+
+/**
+ * Le source lu par le parseur TypeScript (`.tsx` en JSX), une fois par texte · le relevé lit chaque
+ * fichier deux fois (sommeils, puis aides). Commentaires, textes, gabarits et expressions régulières
+ * ne sont plus que des jetons · plus rien à blanchir.
+ */
+function lire(source: string, fichier: string): Lu {
+  const cle = `${fichier}\n${source}`;
+  let lu = LUS.get(cle);
+  if (!lu) {
+    lu = { sf: ts.createSourceFile(`/${fichier}`, source, ts.ScriptTarget.Latest, true, fichier.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS) };
+    LUS.set(cle, lu);
   }
-  return -1;
+  return lu;
 }
-/** L'expression qui finit en `f` est-elle LUE par la suite · `.then(use)`, `?.x`, `[0]` ? */
-const lueApres = (s: string, f: number) => /^\s*(?:\??\.|\[)/.test(s.slice(f + 1, f + 200));
 
-const delaiNul = (d: string | undefined) => { const t = (d ?? '').trim(); return t === '' || /^0+$/.test(t); };
-/** Une valeur qui n'en est pas une · `r()`, `r(undefined)`, `r(void 0)`. */
-const rien = (v: string | undefined) => v === undefined || /^(?:|undefined|void\s+0)$/.test(v.trim());
+/**
+ * Le vérificateur d'un seul fichier, sans bibliothèque ni import résolu · il ne type rien, il
+ * RÉSOUT les noms par leurs vraies portées (paramètre, `const`/`let`/`var`, déstructuration, en-tête
+ * de `for`, `catch`, fonction hissée). Un nom qu'il ne résout pas est un global.
+ */
+function verificateur(lu: Lu): ts.TypeChecker {
+  if (lu.verif) return lu.verif;
+  const { sf } = lu;
+  const hote: ts.CompilerHost = {
+    getSourceFile: (n) => (n === sf.fileName ? sf : undefined),
+    getDefaultLibFileName: () => '/lib.d.ts',
+    writeFile: () => undefined,
+    getCurrentDirectory: () => '/',
+    getDirectories: () => [],
+    getCanonicalFileName: (n) => n,
+    useCaseSensitiveFileNames: () => true,
+    getNewLine: () => '\n',
+    fileExists: (n) => n === sf.fileName,
+    readFile: () => undefined,
+  };
+  const options: ts.CompilerOptions = { noLib: true, noResolve: true, types: [], target: ts.ScriptTarget.Latest, jsx: ts.JsxEmit.Preserve };
+  lu.verif = ts.createProgram({ rootNames: [sf.fileName], options, host: hote }).getTypeChecker();
+  return lu.verif;
+}
 
-/** Les sommeils à délai non nul d'un source · leur position (promesses, `withResolvers`, appels de `pasDansAct`). */
-function sommeils(source: string): number[] {
-  const out = new Set<number>();
-  // Deux lectures, UNIES · le source BRUT, hors commentaires, et le
-  // source MASQUÉ (un commentaire avant le minuteur ne cache plus le sommeil). Le masque seul se
-  // trompe sur une expression régulière qui porte un backtick (`/`([^`]+)`/` lu comme un gabarit ·
-  // les lignes suivantes blanchies, `e-pas1-recette` ~205) · le brut seul, sur un commentaire.
-  // Dédupliquées par la parenthèse du `Promise` · une correspondance commence à `await` dans une
-  // lecture et à `new` dans l'autre quand la ligne d'au-dessus finit par un commentaire (`l0-jalons` ~59).
-  const commentaires: [number, number][] = [];
-  const masque = masquer(source, commentaires);
-  const horsCommentaire = (i: number) => !commentaires.some(([a, b]) => a <= i && i < b);
-  const lectures: [string, (i: number) => boolean][] = [[source, horsCommentaire], [masque, () => true]];
-  for (const [s, garder] of lectures) {
-  for (const m of s.matchAll(SOMMEIL)) {
-    const g = m.groups!;
-    if (delaiNul(g.delai) || !garder(m.indices!.groups!.ouvre![0])) continue;
-    const ouvre = m.indices!.groups!.ouvre![0];
-    if (rien(g.val ?? g.val2) || (g.jete && !lueApres(s, fermante(s, ouvre)))) out.add(ouvre);
-  }
-  const bornes = [...s.matchAll(AVEC_RESOLVEURS)];
-  bornes.forEach((m) => {
-    const g = m.groups!;
-    // Le nom du résolveur · `d.resolve`, `resolve`, ou l'alias de `resolve: fin`.
-    const champ = g.objet ? null : new RegExp(String.raw`\bresolve\b(?:\s*:\s*(${NOM}))?`).exec(g.champs!);
-    if (!g.objet && !champ) return;
-    const nom = g.objet ? String.raw`${g.objet.replace(/\$/g, '\\$')}\s*\.\s*resolve` : (champ![1] ?? 'resolve').replace(/\$/g, '\\$');
-    const t = new RegExp(String.raw`(?<![\w$.])` + MINUTEUR + rappel(nom), 'g');
-    t.lastIndex = m.index! + m[0].length;
-    const u = t.exec(s);
-    if (u && garder(u.index) && !delaiNul(u.groups!.delai) && rien(u.groups!.val ?? u.groups!.val2)) out.add(u.index);
+/** Sans ces trois mots, un fichier n'a aucun sommeil (un alias s'écrit avec le nom qu'il renomme) · il n'est pas parsé. */
+const PEUT_DORMIR = /setTimeout|pasDansAct|timers\/promises/;
+
+const ligne = (sf: ts.SourceFile, pos: number) => sf.getLineAndCharacterOfPosition(pos).line + 1;
+
+/** L'expression sous ses parenthèses et transtypages · `(r)`, `r as () => void`, `r!`, `r satisfies T`. */
+function nu(e: ts.Expression): ts.Expression {
+  while (ts.isParenthesizedExpression(e) || ts.isAsExpression(e) || ts.isTypeAssertionExpression(e) || ts.isNonNullExpression(e) || ts.isSatisfiesExpression(e)) e = e.expression;
+  return e;
+}
+/** Le premier parent qui n'est ni une parenthèse ni un transtypage. */
+function parentNu(n: ts.Node): ts.Node {
+  let p = n.parent;
+  while (ts.isParenthesizedExpression(p) || ts.isAsExpression(p) || ts.isTypeAssertionExpression(p) || ts.isNonNullExpression(p) || ts.isSatisfiesExpression(p)) p = p.parent;
+  return p;
+}
+const estFonction = (e: ts.Expression): e is ts.ArrowFunction | ts.FunctionExpression => ts.isArrowFunction(e) || ts.isFunctionExpression(e);
+
+function visiter(n: ts.Node, f: (n: ts.Node) => void): void {
+  f(n);
+  ts.forEachChild(n, (c) => visiter(c, f));
+}
+
+const GLOBAUX = new Set(['globalThis', 'window', 'global', 'self']);
+const estGlobalMinuteur = (e: ts.Expression) => ts.isPropertyAccessExpression(e) && ts.isIdentifier(e.expression) && GLOBAUX.has(e.expression.text) && e.name.text === 'setTimeout';
+
+/**
+ * Les noms locaux du minuteur et de `pasDansAct` · le nom lui-même, puis ses ALIAS ·
+ * `const st = setTimeout` (ou `globalThis.setTimeout`), `import { setTimeout as st } from 'node:timers'`,
+ * `import { pasDansAct as p }`, `const p = pasDansAct`, de proche en proche.
+ */
+function nomsDormeurs(sf: ts.SourceFile): { minuteurs: Set<string>; pas: Set<string> } {
+  const minuteurs = new Set(['setTimeout']);
+  const pas = new Set(['pasDansAct']);
+  const liens: [string, ts.Expression][] = [];
+  visiter(sf, (n) => {
+    if (ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.initializer) liens.push([n.name.text, nu(n.initializer)]);
+    if (ts.isImportSpecifier(n)) {
+      const origine = (n.propertyName ?? n.name).text;
+      if (origine === 'setTimeout') minuteurs.add(n.name.text);
+      if (origine === 'pasDansAct') pas.add(n.name.text);
+    }
   });
+  for (let change = true; change;) {
+    change = false;
+    for (const [nom, v] of liens) {
+      const cible = ts.isIdentifier(v) && (minuteurs.has(v.text) ? minuteurs : pas.has(v.text) ? pas : null);
+      const ens = estGlobalMinuteur(v) ? minuteurs : cible || null;
+      if (ens && !ens.has(nom)) { ens.add(nom); change = true; }
+    }
   }
-  for (const m of source.matchAll(PAS_DANS_ACT)) if (!delaiNul(m[1])) out.add(m.index!);
-  return [...out];
+  return { minuteurs, pas };
 }
 
-const ligneDe = (source: string, i: number) => source.slice(0, i).split('\n').length;
+/** Un délai NUL · absent (`setTimeout(r)`) ou écrit `0` · un tour de boucle, pas une durée. */
+const delaiNul = (d: ts.Expression | undefined) => d === undefined || (ts.isNumericLiteral(d) && /^0+$/.test(d.getText()));
+/** Une valeur qui n'en est pas une · `r()`, `r(undefined)`, `r(void …)`. */
+const rien = (v: ts.Expression | undefined) => v === undefined || (ts.isIdentifier(nu(v)) && (nu(v) as ts.Identifier).text === 'undefined') || ts.isVoidExpression(nu(v));
+
+/**
+ * Le RAPPEL du minuteur résout-il, et avec quoi · le résolveur LUI-MÊME (`r`, `r as () => void`) ·
+ * ou une fonction qui l'appelle (`() => r(v)`, `() => void r()`, `function () { r(v); }`, `() => {
+ * fini = true; r(); }` · une instruction de son corps). `null` · le rappel ne résout pas.
+ */
+function resolution(rappel: ts.Expression, estRes: (e: ts.Expression) => boolean): { valeur?: ts.Expression } | null {
+  const e = nu(rappel);
+  if (estRes(e)) return {};
+  if (!estFonction(e)) return null;
+  const appel = (x: ts.Expression) => {
+    let y = nu(x);
+    if (ts.isVoidExpression(y)) y = nu(y.expression);
+    return ts.isCallExpression(y) && estRes(nu(y.expression)) ? { valeur: y.arguments[0] } : null;
+  };
+  if (!ts.isBlock(e.body)) return appel(e.body);
+  for (const st of e.body.statements) {
+    const r = ts.isExpressionStatement(st) ? appel(st.expression) : null;
+    if (r) return r;
+  }
+  return null;
+}
+
+/** Les minuteurs de `racine` dont le rappel résout `estRes` · la valeur qu'ils rendent, et si leur délai est nul. */
+function minuteursResolvant(racine: ts.Node, estRes: (e: ts.Expression) => boolean, minuteurs: Set<string>, apres = -1): { appel: ts.CallExpression; valeur?: ts.Expression; nul: boolean }[] {
+  const out: { appel: ts.CallExpression; valeur?: ts.Expression; nul: boolean }[] = [];
+  visiter(racine, (n) => {
+    if (!ts.isCallExpression(n) || n.pos < apres || n.arguments.length === 0) return;
+    const c = nu(n.expression);
+    if (!(ts.isIdentifier(c) && minuteurs.has(c.text)) && !estGlobalMinuteur(c)) return;
+    const r = resolution(n.arguments[0]!, estRes);
+    if (r) out.push({ appel: n, valeur: r.valeur, nul: delaiNul(n.arguments[1]) });
+  });
+  return out;
+}
+
+/**
+ * Le résolveur ne part-il QUE dans des minuteurs · s'il part aussi ailleurs (`em.once('pret', r);
+ * setTimeout(r, 1000)`), c'est une course entre un état et un délai de secours, pas un sommeil.
+ */
+function seulementPar(racine: ts.Node, estRes: (e: ts.Expression) => boolean, appels: ts.CallExpression[], apres = -1): boolean {
+  let seul = true;
+  visiter(racine, (n) => {
+    if (!seul || n.pos < apres || !(ts.isIdentifier(n) || ts.isPropertyAccessExpression(n)) || !estRes(n)) return;
+    if (ts.isPropertyAccessExpression(n.parent) && n.parent.name === n) return;
+    seul = appels.some((a) => a.arguments[0]!.pos <= n.pos && n.end <= a.arguments[0]!.end);
+  });
+  return seul;
+}
+
+/**
+ * La promesse est-elle attendue en TÊTE D'INSTRUCTION · `await new Promise(…);` seul, son résultat ne
+ * va nulle part (après `;`, `{`, `else`, sans point-virgule au-dessus · la grammaire le dit, pas le
+ * caractère d'avant). `.then(use)`, `const v = await …`, `return await …`, `expect(await …)` la lisent.
+ */
+function jetee(promesse: ts.NewExpression): boolean {
+  const a = parentNu(promesse);
+  return ts.isAwaitExpression(a) && ts.isExpressionStatement(parentNu(a));
+}
+
+interface Sommeil {
+  noeud: ts.Node;
+  /** La position lue pour la ligne · la parenthèse du `Promise`, le minuteur, l'appel. */
+  pos: number;
+}
+
+/**
+ * Les sommeils à délai non nul d'un source · une PROMESSE `new Promise(EXÉCUTEUR)` dont l'exécuteur
+ * (flèche ou `function`, `async` ou non, résolveur typé ou non, un second paramètre ou non) arme un
+ * minuteur qui résout avec RIEN, ou avec une valeur JETÉE · le minuteur d'un `Promise.withResolvers()`
+ * qui résout avec rien, dans la portée de sa déclaration · un appel de `pasDansAct(N)`.
+ */
+function sommeils(lu: Lu): Sommeil[] {
+  const { sf } = lu;
+  if (lu.sommeils) return lu.sommeils;
+  const { minuteurs, pas } = nomsDormeurs(sf);
+  const out: Sommeil[] = [];
+  const vus = new Set<ts.Node>();
+  visiter(sf, (n) => {
+    // La promesse · le résolveur est le PREMIER paramètre, un nom.
+    if (ts.isNewExpression(n) && ts.isIdentifier(n.expression) && n.expression.text === 'Promise' && n.arguments?.length) {
+      const ex = nu(n.arguments[0]!);
+      if (!estFonction(ex)) return;
+      const res = ex.parameters[0]?.name;
+      if (!res || !ts.isIdentifier(res)) return;
+      const estRes = (e: ts.Expression) => ts.isIdentifier(e) && e.text === res.text;
+      const tous = minuteursResolvant(ex.body, estRes, minuteurs);
+      const trouves = tous.filter((t) => !t.nul);
+      if (trouves.length === 0 || !seulementPar(ex.body, estRes, tous.map((t) => t.appel))) return;
+      if (trouves.some((t) => rien(t.valeur)) || jetee(n)) out.push({ noeud: n, pos: n.arguments.pos - 1 });
+    }
+    // `Promise.withResolvers()` · `{ resolve }`, `{ resolve: fin }`, ou `d` puis `d.resolve`.
+    if (ts.isVariableDeclaration(n) && n.initializer) {
+      const i = nu(n.initializer);
+      if (!ts.isCallExpression(i)) return;
+      const c = nu(i.expression);
+      if (!ts.isPropertyAccessExpression(c) || !ts.isIdentifier(c.expression) || c.expression.text !== 'Promise' || c.name.text !== 'withResolvers') return;
+      let estRes: ((e: ts.Expression) => boolean) | null = null;
+      if (ts.isIdentifier(n.name)) {
+        const d = n.name.text;
+        estRes = (e) => ts.isPropertyAccessExpression(e) && ts.isIdentifier(e.expression) && e.expression.text === d && e.name.text === 'resolve';
+      } else if (ts.isObjectBindingPattern(n.name)) {
+        const el = n.name.elements.find((b) => ((b.propertyName && ts.isIdentifier(b.propertyName) ? b.propertyName : b.name) as ts.Node).getText() === 'resolve');
+        if (el && ts.isIdentifier(el.name)) { const r = el.name.text; estRes = (e) => ts.isIdentifier(e) && e.text === r; }
+      }
+      if (!estRes) return;
+      // La portée · le bloc (ou le fichier) qui porte la déclaration, après elle · CHAQUE minuteur qui la résout.
+      const portee = n.parent.parent.parent;
+      const tous = minuteursResolvant(portee, estRes, minuteurs, n.end);
+      if (!seulementPar(portee, estRes, tous.map((t) => t.appel), n.end)) return;
+      for (const t of tous) {
+        if (!t.nul && rien(t.valeur) && !vus.has(t.appel)) { vus.add(t.appel); out.push({ noeud: t.appel, pos: t.appel.getStart() }); }
+      }
+    }
+    // `pasDansAct(N)` à délai non nul · le passer en valeur (`{ pas: pasDansAct }`) n'est pas un appel.
+    if (ts.isCallExpression(n) && ts.isIdentifier(n.expression) && pas.has(n.expression.text) && !delaiNul(n.arguments[0])) out.push({ noeud: n, pos: n.getStart() });
+  });
+  lu.sommeils = out.sort((a, b) => a.pos - b.pos);
+  return lu.sommeils;
+}
+
+/** `timers/promises` · un import, un `export … from`, un `require(…)`, un `import(…)`. */
+const TIMERS_PROMESSES = /^(?:node:)?timers\/promises$/;
+function importsTimers(sf: ts.SourceFile): number[] {
+  const out: number[] = [];
+  if (!sf.text.includes('timers/promises')) return out;
+  visiter(sf, (n) => {
+    const spec = (ts.isImportDeclaration(n) || ts.isExportDeclaration(n)) ? n.moduleSpecifier
+      : ts.isExternalModuleReference(n) ? n.expression
+        : ts.isCallExpression(n) && ((ts.isIdentifier(n.expression) && n.expression.text === 'require') || n.expression.kind === ts.SyntaxKind.ImportKeyword) ? n.arguments[0]
+          : undefined;
+    if (spec && ts.isStringLiteralLike(spec) && TIMERS_PROMESSES.test(spec.text)) out.push(ligne(sf, spec.getStart()));
+  });
+  return out;
+}
 
 /** Les attentes fixes d'un source · leurs lignes (1 = première). */
-function attentesFixes(source: string): number[] {
-  const lignes = sommeils(source).map((i) => ligneDe(source, i));
-  for (const m of source.matchAll(TIMERS_PROMESSES)) lignes.push(ligneDe(source, m.index!));
-  return lignes.sort((a, b) => a - b);
+function attentesFixes(source: string, fichier = 'cas.ts'): number[] {
+  if (!PEUT_DORMIR.test(source)) return [];
+  const lu = lire(source, fichier);
+  return [...sommeils(lu).map((s) => ligne(lu.sf, s.pos)), ...importsTimers(lu.sf)].sort((a, b) => a - b);
 }
 
 /* ─────────── Les AIDES · une attente fixe définie une fois, appelée ailleurs dans le fichier ─────────── */
 
 /**
- * Le source, commentaires et textes blanchis (positions et retours à la ligne gardés) · un appel
- * cité dans un commentaire ne compte pas, une accolade dans un texte ne fausse pas la profondeur.
- * Un texte `'…'` / `"…"` s'arrête à la fin de sa ligne (l'apostrophe d'un texte JSX n'ouvre rien
- * au-delà) · un gabarit `` `…` `` est blanchi en entier.
- */
-function masquer(s: string, commentaires?: [number, number][]): string {
-  const o = s.split('');
-  const blanc = (a: number, b: number) => { for (let k = a; k < b; k++) if (o[k] !== '\n') o[k] = ' '; };
-  let i = 0;
-  while (i < s.length) {
-    const c = s[i]!;
-    if (c === '/' && s[i + 1] === '/') { const f = s.indexOf('\n', i); const e = f < 0 ? s.length : f; blanc(i, e); commentaires?.push([i, e]); i = e; continue; }
-    if (c === '/' && s[i + 1] === '*') { const f = s.indexOf('*/', i + 2); const e = f < 0 ? s.length : f + 2; blanc(i, e); commentaires?.push([i, e]); i = e; continue; }
-    if (c === "'" || c === '"' || c === '`') {
-      let j = i + 1;
-      while (j < s.length && s[j] !== c && (c === '`' || s[j] !== '\n')) j += s[j] === '\\' ? 2 : 1;
-      if (j < s.length && s[j] === c) { blanc(i + 1, j); i = j + 1; continue; }
-    }
-    i += 1;
-  }
-  return o.join('');
-}
-
-/**
  * Une définition NOMMÉE dont la valeur est une fonction · `const|let|var X = [async] (…) =>` (ou
- * `function`), `function X(`, une propriété `X: [async] (…) =>`, une méthode `X(…) {` en tête de ligne.
+ * `function`), `function X(` (déclarée ou nommée en expression), une propriété `X: () =>`, une
+ * méthode `X() {`, un champ de classe `X = () =>` · les trois derniers sont des MEMBRES.
  */
-const VALEUR_FONCTION = String.raw`(?=(?:async\s+)?(?:function\b|\(|${NOM}\s*=>))`;
-const DEFINITION = new RegExp([
-  String.raw`\b(?:const|let|var)\s+(${NOM})\s*(?::[^=;\n]+)?=\s*${VALEUR_FONCTION}`,
-  String.raw`\bfunction\s*\*?\s*(${NOM})\s*\(`,
-  String.raw`(?<![\w$.?])(${NOM})\s*:\s*${VALEUR_FONCTION}`,
-  String.raw`^[ \t]*(?:async\s+)?(${NOM})\s*\([^()]*\)\s*(?::[^{;\n]+)?\{`,
-].join('|'), 'gmd');
-const MOTS_CLES = new Set(['if', 'for', 'while', 'switch', 'catch', 'with', 'return', 'function']);
-
-/**
- * Fin de l'étendue d'une définition (source masqué) · un `bloc` (fonction, méthode) finit à
- * l'accolade qui referme son corps · une valeur finit au `;` ou à la `,` de même profondeur, ou
- * au retour à la ligne qui ne la prolonge pas (une ligne finie par `=>`, `=`, `,`, `(`… continue).
- */
-function finDefinition(s: string, debut: number, bloc: boolean): number {
-  let prof = 0;
-  let dernier = '';
-  for (let k = debut; k < s.length; k++) {
-    const c = s[k]!;
-    if (c === '(' || c === '[' || c === '{') prof += 1;
-    else if (c === ')' || c === ']' || c === '}') {
-      prof -= 1;
-      if (prof < 0) return k;
-      if (bloc && prof === 0 && c === '}') return k + 1;
-    } else if (!bloc && prof === 0 && (c === ';' || c === ',')) return k;
-    else if (!bloc && prof === 0 && c === '\n' && !/[=>,(?:|&+]$/.test(dernier)) return k;
-    if (!/\s/.test(c)) dernier = c;
-  }
-  return s.length;
+function definition(n: ts.Node): { nom: ts.Identifier; membre: boolean } | null {
+  if (ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.initializer && estFonction(nu(n.initializer))) return { nom: n.name, membre: false };
+  if ((ts.isFunctionDeclaration(n) || ts.isFunctionExpression(n)) && n.name) return { nom: n.name, membre: false };
+  if ((ts.isPropertyAssignment(n) || ts.isPropertyDeclaration(n)) && ts.isIdentifier(n.name) && n.initializer && estFonction(nu(n.initializer))) return { nom: n.name, membre: true };
+  if (ts.isMethodDeclaration(n) && ts.isIdentifier(n.name) && n.body) return { nom: n.name, membre: true };
+  return null;
 }
 
-/** Les mots qui ouvrent une parenthèse sans appeler · une condition, `expect(X)` (on lit, on n'appelle pas). */
-const PAS_UN_APPEL = new Set([...MOTS_CLES, 'expect']);
-/** Les mots dont la parenthèse est une CONDITION · `if (x) {` n'est pas une liste de paramètres. */
-const CONDITIONS = new Set(['if', 'for', 'while', 'switch', 'with']);
-
-/**
- * Le CORPS d'une fonction dont la liste de paramètres s'ouvre en `o` (source masqué) · `(…) => …`,
- * `(…) => { … }`, `function f(…) {`, une méthode `X(…): T {`, `catch (e) {` · `null` si la
- * parenthèse n'ouvre pas de paramètres (un appel, une condition, un groupement).
- */
-function corpsParametres(s: string, o: number): [number, number] | null {
-  if (s[o] !== '(') return null;
-  const mot = /([A-Za-z_$][\w$]*)\s*$/.exec(s.slice(Math.max(0, o - 40), o))?.[1];
-  if (mot && CONDITIONS.has(mot)) return null;
-  const f = fermante(s, o);
-  const reste = s.slice(f + 1, f + 400);
-  const fleche = /^\s*(?::[^;{}()]*?)?=>\s*/.exec(reste);
-  if (fleche) {
-    const b = f + 1 + fleche[0].length;
-    return [o, s[b] === '{' ? fermante(s, b) + 1 : finDefinition(s, b, false)];
+/** La définition nommée la plus proche qui englobe `n` · hors celles qui s'appellent `sauf` (une récursion remonte au-dessus). */
+function englobante(n: ts.Node, sauf?: string): { noeud: ts.Node; nom: ts.Identifier; membre: boolean } | null {
+  for (let p = n.parent; p; p = p.parent) {
+    const d = definition(p);
+    if (d && d.nom.text !== sauf) return { noeud: p, ...d };
   }
-  const bloc = /^\s*(?::\s*[\w$][\w$.<>\[\]| ]*)?\{/.exec(reste);
-  return bloc ? [o, fermante(s, f + bloc[0].length) + 1] : null;
+  return null;
 }
 
 /**
- * Les PORTÉES où `nom` désigne un HOMONYME, pas l'aide · le corps d'une fonction qui le prend en
- * paramètre (`(touche) => …`, `touche => …`, `function f(a, touche) {`), le bloc qui le déclare
- * (`const touche = 'a'`, `const [touche, setTouche] = …`). Hors les définitions de l'aide (`propres`).
+ * Le rôle d'un nom (`X`, ou `obj.X`) · `appel` (`X(`, `X<T>(`, `X?.(`, `new X(`) · `valeur` (passé
+ * en ARGUMENT d'un appel, `.then(X)`, `act<void>(X)`, `f?.(X)`, entre parenthèses ou dans une
+ * branche de ternaire, `act(c ? x : X)` · sauf à `expect`, qui lit sans appeler) · `null` sinon (un
+ * tableau, un objet, une affectation, `X.name`, `X + 1`, `typeof X`).
  */
-function portees(s: string, nom: string, propres: number[]): [number, number][] {
-  const out: [number, number][] = [];
-  const n = nom.replace(/\$/g, '\\$');
-  for (const m of s.matchAll(new RegExp(String.raw`(?<![\w$.])${n}(?![\w$])`, 'g'))) {
-    const i = m.index!;
-    if (propres.includes(i)) continue;
-    const fleche = new RegExp(String.raw`^\s*=>\s*`).exec(s.slice(i + nom.length, i + nom.length + 40));
-    if (fleche && !/[\w$.)\]]\s*$/.test(s.slice(Math.max(0, i - 40), i).replace(/\basync\s*$/, ''))) {
-      const b = i + nom.length + fleche[0].length;
-      out.push([i, s[b] === '{' ? fermante(s, b) + 1 : finDefinition(s, b, false)]);
-      continue;
-    }
-    let k = i - 1;
-    while (k >= 0 && /\s/.test(s[k]!)) k--;
-    if (s[k] === '(' || s[k] === ',') { const c = corpsParametres(s, ouvrante(s, k)); if (c) { out.push(c); continue; } }
-    // Une déclaration · `const X`, ou `const [ … X … ] =` / `const { … X … } =` · tout le bloc qui la porte.
-    const avant = s.slice(Math.max(0, i - 200), i);
-    const decl = new RegExp(String.raw`\b(?:const|let|var)\s+(?:(?<motif>[\[{])[^=;]*)?$`).exec(avant);
-    // Une CLÉ de déstructuration (`const { X: l } = …`) ne déclare pas `X` · elle déclare `l`.
-    const cle = decl?.groups!.motif !== undefined && /^\s*:/.test(s.slice(i + nom.length, i + nom.length + 20));
-    if (decl && !cle) { const o = ouvrante(s, i - avant.length + decl.index - 1); out.push([i, o < 0 ? s.length : fermante(s, o)]); }
-  }
-  return out;
-}
-
-/**
- * Le nom en `i` est-il PASSÉ EN ARGUMENT d'un appel (source masqué) · précédé de `(` ou `,` (après
- * un éventuel `obj.`), dans la liste ouverte par un APPEL · un nom hors mots-clés et `expect`,
- * `)` / `]`, ou le `>` d'un argument de type, juste avant (`?.` permis, `f?.(X)`). Un tableau, un objet, une déstructuration, un `{ pas: X }` ne suivent
- * jamais un nom appelable (`= [`, `({`, `return [`) · ils tombent ici, sans règle à part. Une liste
- * de paramètres (`function f(a, X) {`) a la forme d'un appel · `portees` l'écarte (la portée d'un
- * paramètre commence à sa parenthèse).
- */
-function enArgument(s: string, i: number): boolean {
-  let k = i - 1;
-  while (k >= 0 && /\s/.test(s[k]!)) k--;
-  while (s[k] === '.') { k--; while (k >= 0 && /[\s\w$?]/.test(s[k]!)) k--; }
-  if (s[k] !== '(' && s[k] !== ',') return false;
-  const o = ouvrante(s, k);
-  if (o < 0) return false;
-  // L'appelé · un nom, `)`, `]`, ou `>` d'un argument de type (`act<void>(X)`, pas le `=>` d'une flèche), puis `?.` facultatif (`f?.(X)`).
-  const avant = /(?:(?<mot>[A-Za-z_$][\w$]*)|[)\]]|(?<!=)>)\s*(?:\?\.\s*)?$/.exec(s.slice(Math.max(0, o - 40), o));
-  if (!avant) return false;
-  return !(avant.groups!.mot && PAS_UN_APPEL.has(avant.groups!.mot));
+function role(e: ts.Expression): 'appel' | 'valeur' | null {
+  const p = e.parent;
+  if ((ts.isCallExpression(p) || ts.isNewExpression(p)) && p.expression === e) return 'appel';
+  let x: ts.Node = e;
+  while (ts.isParenthesizedExpression(x.parent) || (ts.isConditionalExpression(x.parent) && x.parent.condition !== x)) x = x.parent;
+  const a = x.parent;
+  if (!(ts.isCallExpression(a) || ts.isNewExpression(a)) || !a.arguments?.some((y) => y === x)) return null;
+  const c = nu(a.expression);
+  const nomAppele = ts.isIdentifier(c) ? c.text : ts.isPropertyAccessExpression(c) ? c.name.text : '';
+  return nomAppele === 'expect' ? null : 'valeur';
 }
 
 interface Aide {
@@ -444,41 +480,68 @@ interface Aide {
 /**
  * Les AIDES d'un source · la définition nommée la plus proche qui englobe un sommeil · puis, de
  * proche en proche, celle qui englobe l'APPEL d'une aide (`cliquer` qui appelle `attendre` est la
- * même attente fixe, sous un autre nom). Chacune avec le nombre de ses appels dans le fichier
- * (`X(`, hors sa propre définition, hors commentaires et textes) · pour une variable ou une
- * fonction, `obj.X(` est un autre nom · pour une propriété ou une méthode, `obj.X(` est bien elle.
+ * même attente fixe, sous un autre nom). Chacune avec le nombre de ses appels dans le fichier.
+ * Pour une variable ou une fonction, un nom compte quand il DÉSIGNE l'aide · le vérificateur le
+ * résout (un paramètre, une variable, une déstructuration homonymes désignent autre chose), à
+ * travers ses alias (`const encore = laisser`) · `obj.X` est un autre nom. Pour une propriété ou une
+ * méthode, `obj.X` est bien elle (sans types, l'objet n'est pas lu) · un `X` nu est un homonyme.
  */
-function aides(source: string): Aide[] {
-  const s = masquer(source);
-  const defs: { nom: string; at: number; debut: number; fin: number; membre: boolean }[] = [];
-  for (const m of s.matchAll(DEFINITION)) {
-    const g = [1, 2, 3, 4].find((k) => m[k] !== undefined)!;
-    const nom = m[g]!;
-    if (MOTS_CLES.has(nom)) continue;
-    // Un bloc se lit depuis sa parenthèse (`function X(`) ou son accolade (`X(…) {`) · une valeur, après `=` ou `:`.
-    const bloc = m[2] !== undefined || m[4] !== undefined;
-    const fin = finDefinition(s, m.index! + m[0].length - (bloc ? 1 : 0), bloc);
-    // `indices` · `m[0].indexOf(nom)` tombe dans le mot-clé (`n` de `function n(`, `c` de `const c =`).
-    defs.push({ nom, at: m.indices![g]![0], debut: m.index!, fin, membre: m[3] !== undefined || m[4] !== undefined });
-  }
-  const englobante = (i: number, sauf?: string) => defs.filter((x) => x.debut <= i && i < x.fin && x.nom !== sauf).sort((a, b) => b.debut - a.debut)[0];
-  const parNom = new Map<string, Aide & { sites: number[] }>();
-  const ajouter = (d: (typeof defs)[number], via?: string) => {
-    if (parNom.has(d.nom)) return;
-    const nom = String.raw`(?<![\w$${d.membre ? '' : '.'}])${d.nom.replace(/\$/g, '\\$')}`;
-    // Un appel `X(` · ou l'aide passée en VALEUR, en argument d'un appel (`.then(X)`, `act(X)`, `beforeEach(X)`),
-    // là où le nom la désigne bien (pas un paramètre ni une variable homonymes, `enArgument`, `portees`).
-    const appel = new RegExp(String.raw`${nom}(?<appel>\s*\()|${nom}(?=\s*[,)])`, 'g');
-    const propres = defs.filter((x) => x.nom === d.nom).map((x) => x.at);
-    const masques = portees(s, d.nom, propres);
-    const sites = [...s.matchAll(appel)]
-      .filter((m) => m.groups!.appel !== undefined || (enArgument(s, m.index!) && !masques.some(([a, b]) => a <= m.index! && m.index! < b)))
-      .map((m) => m.index!).filter((i) => !propres.includes(i));
-    parNom.set(d.nom, { nom: d.nom, ligne: ligneDe(source, d.at), appels: sites.length, lignes: sites.map((i) => ligneDe(source, i)), sites, ...(via ? { via } : {}) });
-    for (const i of sites) { const e = englobante(i, d.nom); if (e) ajouter(e, d.nom); }
+function aides(source: string, fichier = 'cas.ts'): Aide[] {
+  if (!PEUT_DORMIR.test(source)) return [];
+  const lu = lire(source, fichier);
+  const { sf } = lu;
+  const dormeurs = sommeils(lu);
+  if (dormeurs.length === 0) return [];
+  const verif = verificateur(lu);
+  // Un nom, à travers ses alias · `const encore = laisser` désigne `laisser`.
+  const cible = (s: ts.Symbol | undefined): ts.Symbol | undefined => {
+    for (let k = 0; s && k < 20; k++) {
+      const d = s.valueDeclaration;
+      const v = d && ts.isVariableDeclaration(d) && d.initializer ? nu(d.initializer) : undefined;
+      const t = v && ts.isIdentifier(v) ? verif.getSymbolAtLocation(v) : undefined;
+      if (!t || t === s) return s;
+      s = t;
+    }
+    return s;
   };
-  for (const i of sommeils(source)) { const d = englobante(i); if (d) ajouter(d); }
-  return [...parNom.values()].map(({ sites: _, ...a }) => a);
+  // Les noms qui ont un rôle · relevés une fois.
+  const usages: { e: ts.Identifier | ts.PropertyAccessExpression; nom: ts.Identifier; role: 'appel' | 'valeur' }[] = [];
+  visiter(sf, (n) => {
+    if (!ts.isIdentifier(n) && !(ts.isPropertyAccessExpression(n) && ts.isIdentifier(n.name))) return;
+    if (ts.isIdentifier(n) && ts.isPropertyAccessExpression(n.parent) && n.parent.name === n) return;
+    const r = role(n);
+    if (r) usages.push({ e: n, nom: ts.isIdentifier(n) ? n : (n.name as ts.Identifier), role: r });
+  });
+  const parNom = new Map<string, { aide: Aide; symboles: Set<ts.Symbol>; membre: boolean; sites: Map<number, number> }>();
+  const ajouter = (d: { nom: ts.Identifier; membre: boolean }, via?: string) => {
+    const nom = d.nom.text;
+    const sym = d.membre ? undefined : verif.getSymbolAtLocation(d.nom);
+    let a = parNom.get(nom);
+    if (a && (d.membre ? a.membre : !sym || a.symboles.has(sym))) return;
+    if (!a) {
+      a = { aide: { nom, ligne: ligne(sf, d.nom.getStart()), appels: 0, lignes: [], ...(via ? { via } : {}) }, symboles: new Set(), membre: false, sites: new Map() };
+      parNom.set(nom, a);
+    }
+    if (d.membre) a.membre = true;
+    else if (sym) a.symboles.add(sym);
+    const nouveaux: ts.Node[] = [];
+    for (const u of usages) {
+      if (u.nom.text !== nom && !ts.isIdentifier(u.e)) continue;
+      const pos = u.nom.getStart();
+      if (a.sites.has(pos)) continue;
+      const sy = ts.isIdentifier(u.e) && a.symboles.size > 0 ? cible(verif.getSymbolAtLocation(u.e)) : undefined;
+      const designe = ts.isIdentifier(u.e) ? sy !== undefined && a.symboles.has(sy) : a.membre;
+      if (!designe) continue;
+      a.sites.set(pos, ligne(sf, pos));
+      nouveaux.push(u.e);
+    }
+    for (const e of nouveaux) { const en = englobante(e, nom); if (en) ajouter(en, nom); }
+  };
+  for (const s of dormeurs) { const d = englobante(s.noeud); if (d) ajouter(d); }
+  return [...parNom.values()].map(({ aide, sites }) => {
+    const pos = [...sites.keys()].sort((x, y) => x - y);
+    return { ...aide, appels: pos.length, lignes: pos.map((p) => sites.get(p)!) };
+  });
 }
 
 function sources(dir: string): string[] {
@@ -502,7 +565,7 @@ const VERS = `${ETAT} · ou, pour une latence simulée ou un \`dormir\` injecté
  */
 function fautesAides(f: string, texte: string, figes: Readonly<Record<string, number>>): string[] {
   const fautes: string[] = [];
-  const trouvees = aides(texte);
+  const trouvees = aides(texte, f);
   for (const a of trouvees) {
     const fige = figes[a.nom] ?? 0;
     const quoi = `${f} · l’aide \`${a.nom}\` (ligne ${a.ligne}, ${a.via ? `elle appelle \`${a.via}\`` : 'une attente fixe'}) est appelée ${a.appels} fois pour ${fige} figé(s)${a.lignes.length ? `, ligne(s) ${a.lignes.join(', ')}` : ''}`;
@@ -550,19 +613,30 @@ describe('le détecteur · il voit chaque forme de sommeil, et seulement elles',
     ['`withResolvers` déstructuré', `const { promise, resolve } = Promise.withResolvers<void>();\n${Z}(resolve, 400);\nawait promise;`],
     ['`withResolvers` déstructuré sous un alias', `const { promise: p, resolve: fin } = Promise.withResolvers();\n${Z}(() => fin(), 400);\nawait p;`],
     ['`withResolvers` gardé dans un objet', `const d = Promise.withResolvers();\n${Z}(d.resolve, 400);\nawait d.promise;`],
-    // Le source est masqué · un commentaire ne cache plus le minuteur.
+    // Un commentaire n'est qu'un jeton · il ne cache pas le minuteur.
     ['un commentaire avant le minuteur', `await new Promise((r) => { /* le montage */ ${Z}(r, 400); });`],
     ['un commentaire de ligne avant le minuteur', `await new Promise((r) => { // le montage\n  ${Z}(r, 400);\n});`],
     ['`withResolvers`, un commentaire dans le minuteur', `const { promise, resolve } = Promise.withResolvers();\n${Z}(/* fin */ resolve, 400);\nawait promise;`],
-    // Les deux lectures ne commencent pas au même endroit · une seule attente.
+    // Un commentaire au-dessus ne dédouble pas l'attente (les regex lisaient deux fois, le brut et le masque).
     ['un commentaire en fin de ligne au-dessus · compté une fois', `charger(); // la suite\nawait new Promise((r) => ${Z}(r, 30));`],
-    // Un backtick dans une expression régulière ouvre un faux gabarit dans le masque · le brut le voit.
-    // (Trois backticks · le troisième ouvre un faux gabarit que referme le gabarit d'en dessous.)
+    // Un backtick dans une expression régulière est un jeton de l'expression · il n'ouvre aucun gabarit.
+    // (Trois backticks · le masque des regex y ouvrait un faux gabarit que refermait celui d'en dessous.)
     ['un backtick dans une expression régulière, au-dessus', `const CODE = /\`([^\`]+)\`/g;\nawait new Promise((r) => ${Z}(r, 400));\nexpect(md).toContain(\`fin\`);`],
     ['`withResolvers`, un backtick dans une expression régulière au-dessus', `const CODE = /\`([^\`]+)\`/g;\nconst { promise, resolve } = Promise.withResolvers();\n${Z}(resolve, 400);\nawait promise;\nexpect(md).toContain(\`fin\`);`],
     // La tête d'instruction se lit par-dessus les retours à la ligne.
     ['une valeur jetée · après un retour à la ligne', `charger();\n  await new Promise((r) => ${Z}(() => r(1), 10));`],
     ['deux `withResolvers`, un seul minuteur · compté une fois', `it('a', async () => { const { promise, resolve } = Promise.withResolvers(); resolve(); await promise; });\nit('b', async () => { const { promise, resolve } = Promise.withResolvers(); ${Z}(resolve, 400); await promise; });`],
+    // Les LIMITES des regex que la lecture par l'AST ferme · une par limite.
+    ['une valeur jetée · après `else`', `if (pret) lire(); else await new Promise((r) => ${Z}(() => r(1), 10));`],
+    ['une valeur jetée · sans point-virgule au-dessus', `charge = true\nawait new Promise((r) => ${Z}(() => r(1), 10))`],
+    ['un rappel `() => void r()`', `await new Promise((r) => ${Z}(() => void r(), 400));`],
+    ['un rappel qui fait autre chose avant de résoudre', `await new Promise((r) => ${Z}(() => { fini = true; r(); }, 400));`],
+    ['un délai rangé dans le corps', `await new Promise((r) => { const ms = 400; ${Z}(r, ms); });`],
+    ['une valeur jetée · imbriquée sur trois niveaux de parenthèses', `await new Promise((r) => ${Z}(() => r(f(g(h(1)))), 400));`],
+    ['`withResolvers` · le second minuteur (le premier est un tour de boucle)', `const { promise, resolve } = Promise.withResolvers();\n${Z}(resolve, 0);\n${Z}(resolve, 400);\nawait promise;`],
+    ['un alias du minuteur · `const st = setTimeout`', `const st = ${Z};\nawait new Promise((r) => st(r, 400));`],
+    ['un alias du minuteur · importé de `node:timers`', `import { ${Z} as st } from 'node:timers';\nawait new Promise((r) => st(r, 400));`],
+    ['un alias de `pasDansAct` · `import { pasDansAct as p }`', "import { pasDansAct as p } from './helpers/attendre-etat';\nawait p(400);"],
   ])('compte · %s', (_, src) => {
     expect(attentesFixes(src), `le détecteur ne voit pas « ${src} »`).toHaveLength(1);
   });
@@ -585,13 +659,16 @@ describe('le détecteur · il voit chaque forme de sommeil, et seulement elles',
     ['`withResolvers`, tour de boucle', `const { promise, resolve } = Promise.withResolvers();\n${Z}(resolve, 0);\nawait promise;`],
     ['`withResolvers`, le minuteur rejette', `const { promise, reject } = Promise.withResolvers();\n${Z}(reject, 400);\nawait promise;`],
     ['`withResolvers`, une valeur rendue', `const { promise, resolve } = Promise.withResolvers();\n${Z}(() => resolve(lire()), 10);\nreturn promise;`],
-    // Une ligne qui prolonge l'instruction d'au-dessus n'est pas une tête d'instruction (plus de drapeau `m`).
+    // Une ligne qui prolonge l'instruction d'au-dessus n'est pas une tête d'instruction · la grammaire le dit.
     ['une valeur gardée · `const v =` puis retour à la ligne', `const vue =\n    await new Promise((r) => ${Z}(() => r(lire()), 10));`],
     ['une valeur gardée · `expect(` puis retour à la ligne', `expect(\n  await new Promise((r) => ${Z}(() => r(lire()), 10)),\n).toBe(1);`],
     ['une valeur gardée · lue par `.then(use)` à la ligne', `await new Promise((r) => ${Z}(() => r(lire()), 10))\n  .then(use);`],
     ['un sommeil cité en commentaire', `// await new Promise((r) => ${Z}(r, 400));\nconst x = 1;`],
     ['un sommeil cité en commentaire de bloc', `/* await new Promise((r) => ${Z}(r, 400)); */\nconst x = 1;`],
     ['un `withResolvers` cité en commentaire', `/*\nconst { promise, resolve } = Promise.withResolvers();\n${Z}(resolve, 400);\n*/`],
+    // Le minuteur se cherche dans tout l'exécuteur · un résolveur qui part AUSSI ailleurs est une course, pas un sommeil.
+    ['une course · le résolveur part aussi sur un événement', `await new Promise((r) => { em.once('pret', r); ${Z}(r, 1000); });`],
+    ['une course · `withResolvers` résolu aussi par un événement', `const { promise, resolve } = Promise.withResolvers();\nem.once('pret', resolve);\n${Z}(resolve, 1000);\nawait promise;`],
   ])('ne compte pas · %s', (_, src) => {
     expect(attentesFixes(src), `le détecteur compte « ${src} »`).toEqual([]);
   });
@@ -666,6 +743,16 @@ describe('les aides · une attente fixe définie une fois est comptée à chaque
     // Les CYCLES · le comptage transitif termine, chaque aide comptée une fois.
     ['cycle · `a` ↔ `b`', `const a = async () => { await new Promise((r) => ${Z}(r, 10)); await b(); };\nconst b = async () => { await a(); };\nawait b();`, [{ nom: 'a', appels: 1 }, { nom: 'b', appels: 2, via: 'a' }]],
     ['cycle · une récursion', `async function boucle(n) {\n  await new Promise((r) => ${Z}(r, 10));\n  if (n > 0) await boucle(n - 1);\n}\nawait boucle(3);`, [{ nom: 'boucle', appels: 2 }]],
+    // Les LIMITES des regex que la lecture par l'AST ferme · une par limite.
+    ['`function X<T>(` · un paramètre de type (faux négatif des regex, `l0-api-ad` ~94)', `async function sousEspion<T>(f: () => Promise<T>) {\n  const r = await f();\n  await new Promise((ok) => ${Z}(ok, 30));\n  return r;\n}\nawait sousEspion(lire);`, [{ nom: 'sousEspion', appels: 1 }]],
+    ['un homonyme APPELÉ · un paramètre `X(` · ne compte pas', `const pause = () => new Promise((r) => ${Z}(r, 30));\nconst f = (pause) => pause();\nit('x', () => { const pause = vi.fn(); pause(); });`, [{ nom: 'pause', appels: 0 }]],
+    ['un homonyme APPELÉ · un `X(` nu pour une aide membre · ne compte pas', `const faux = { create: async () => { await new Promise((r) => ${Z}(r, 40)); } };\nawait faux.create();\nconst create = vi.fn();\ncreate();`, [{ nom: 'create', appels: 1 }]],
+    ['un homonyme dans l’en-tête d’un `for` · sa portée est le corps · ne compte pas', `const laisser = () => new Promise((r) => ${Z}(r, 30));\nfor (const laisser of lignes) lire(laisser);\nawait act(laisser);`, [{ nom: 'laisser', appels: 1 }]],
+    ['un homonyme par déstructuration de paramètre · `({ X }) =>` · ne compte pas', `const laisser = () => new Promise((r) => ${Z}(r, 30));\nconst f = ({ laisser }) => act(laisser);`, [{ nom: 'laisser', appels: 0 }]],
+    ['un alias · `const encore = X` puis `encore()` · compte pour l’aide', `const laisser = () => new Promise((r) => ${Z}(r, 30));\nconst encore = laisser;\nconst plus = (encore);\nawait encore();\nawait act(plus);`, [{ nom: 'laisser', appels: 2 }]],
+    ['une branche de ternaire en argument · `act(c ? x : X)` · compte', `const laisser = () => new Promise((r) => ${Z}(r, 30));\nawait act(vite ? rien : laisser);\nawait act(vite ? laisser : rien);\nawait act(laisser ? x : y);`, [{ nom: 'laisser', appels: 2 }]],
+    ['une parenthèse orpheline dans une expression régulière · la portée de l’homonyme ne déborde plus', `const laisser = () => new Promise((r) => ${Z}(r, 30));\nfunction f(laisser) { return lire(/\\(/, laisser); }\nawait act(laisser);`, [{ nom: 'laisser', appels: 1 }]],
+    ['un backtick dans une expression régulière · la définition et l’appel restent lus', `const CODE = /\`([^\`]+)\`/g;\nconst laisser = () => new Promise((r) => ${Z}(r, 30));\nawait laisser();\nexpect(md).toContain(\`fin\`);`, [{ nom: 'laisser', appels: 1 }]],
   ])('%s', (_, src, attendu) => {
     expect(aides(src).map(({ nom, appels, via }) => ({ nom, appels, ...(via ? { via } : {}) })), `les aides de « ${src} »`).toEqual(attendu);
   });
@@ -682,7 +769,7 @@ describe('les aides · une attente fixe définie une fois est comptée à chaque
 describe('cliquet · aucune attente fixe nouvelle dans les tests de apps/web', () => {
   const fichiers = sources(RACINE).filter((f) => !EXCLUS.has(f));
   const textes = new Map(fichiers.map((f) => [f, readFileSync(join(RACINE, f), 'utf8')] as const));
-  const releve = new Map([...textes].map(([f, t]) => [f, attentesFixes(t)] as const));
+  const releve = new Map([...textes].map(([f, t]) => [f, attentesFixes(t, f)] as const));
 
   it('préalable · le relevé lit les tests (et l’utilitaire exclu existe, avec le nom que le cliquet cherche)', () => {
     expect(fichiers.length, 'préalable · aucun fichier de test relevé').toBeGreaterThan(100);
