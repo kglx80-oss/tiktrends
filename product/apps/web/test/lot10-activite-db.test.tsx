@@ -231,6 +231,26 @@ describe('lot 10 · le journal d’un projet · qui a fait quoi, lu, dans l’or
     expect(hote.querySelector('#taches [data-voir-journal]')?.getAttribute('href')).toBe('#activite');
   });
 
+  it('même instant · deux événements écrits dans UNE transaction se disent dans l’ordre d’écriture, jamais dans celui de leur identifiant', async () => {
+    // Une transaction · `occurred_at` (`now()`, son début) est le MÊME pour les deux, ici comme en
+    // production · seule la base sait lequel a été écrit d'abord (`xmin`, `cmin`). Identifiants
+    // choisis CONTRE l'ordre d'écriture · le premier écrit a le plus grand · départager par lui (le
+    // défaut du run 45035270381, « Devis préparé » contre les consignes) le dirait en tête.
+    const p = await creerProjet({ brandId: ids.brandA1, kind: 'text', title: 'Même instant' });
+    if (!p.ok) throw new Error(JSON.stringify(p));
+    const evenement = (id: string, action: string) => ({
+      id, actorId: ids.ua, effectiveRole: 'espace:member', workspaceId: ids.wsA, brandId: ids.brandA1, action, targetType: 'studio_project', targetId: p.projet.id, traceId: 'st_l10_instant',
+    });
+    await db.transaction(async (tx) => {
+      await tx.insert(schema.studioAuditEvents).values(evenement('ffffffff-ffff-4fff-bfff-ffffffffffff', 'image.consigne.compilee'));
+      await tx.insert(schema.studioAuditEvents).values(evenement('00000000-0000-4000-8000-000000000000', 'video.consigne_plan.compilee'));
+    });
+    const lus = await db.select({ le: schema.studioAuditEvents.occurredAt }).from(schema.studioAuditEvents).where(eq(schema.studioAuditEvents.traceId, 'st_l10_instant'));
+    expect(new Set(lus.map((x) => x.le.getTime())).size, 'les deux à la même date').toBe(1);
+    await activite(p.projet.id);
+    expect(phrases().map((x) => x[0])).toEqual(['Consigne d’image d’un plan compilée et validée', 'Consigne d’image compilée et validée', 'Projet créé']);
+  });
+
   it('pages bornées · 26 événements · deux pages de 20 · « Plus anciens » relit le serveur, « Plus récents » est fermé avec sa raison sur la première', async () => {
     await activite(scene.p3);
     expect(hote.querySelector('[data-resume-journal]')?.textContent).toBe('26 événements · page 1 sur 2');
