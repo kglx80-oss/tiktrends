@@ -4,7 +4,7 @@ import {
   conclusionLot, etatLotSpatial, gagnantesDeLaLignee, gestesClavierLot, gestesGagnantesLot, gestesParAdDeLaLignee, lienIterationDepuis, lienIterationVariable,
   libelleToucheIterer, lireNaissanceGagnante, messageRaccourciFerme, neeDeGagnanteRelue, phraseNeeDeGagnante, projeterLignee, referenceConclusion, resultatsDeLaLignee,
   sansTiretCadratin,
-  type AdRelueGagnante, type DonneesVariantes, type FaitsAdSpatial, type FaitsLotSpatial, type LotPourGagnante, type NaissanceGagnante, type TestLu, type VarianteLue,
+  type AdRelueGagnante, type DonneesVariantes, type FaitsAdSpatial, type FaitsLotSpatialEntier, type LotPourGagnante, type NaissanceGagnante, type TestLu, type VarianteLue,
 } from '../src';
 
 /**
@@ -23,10 +23,10 @@ const ad = (id: string, variante: string, v: 'winner' | 'loser' | null, statut: 
   id, variante, statut: 'done', hypothese: `Si on teste ${variante}, alors ça baisse, parce que.`, variable: 'hook', plateforme: 'meta', texte: null, image: null, manques: [],
   verdict: v ? { calcule: v, retenu: statut === 'validated' ? v : null, statut, comparable: true, raison: null, depense: 1, impressions: 1, achats: 1, cpa: 1 } : null,
 });
-const brut = (id: string, numero: number, ads: FaitsAdSpatial[]): FaitsLotSpatial => ({ id, numero, but: null, statut: 'testing', lanceLe: '2026-09-01T00:00:00Z', ads, protocole: null });
+const brut = (id: string, numero: number, ads: FaitsAdSpatial[]): FaitsLotSpatialEntier => ({ id, numero, but: null, statut: 'testing', lanceLe: '2026-09-01T00:00:00Z', ads, protocole: null });
 const CTX = { maintenant: new Date('2026-11-09T00:00:00Z'), fenetreJours: 14 };
 const REF = brut(u(900), 1, Array.from({ length: 8 }, (_, i) => ad(u(800 + i), `r${i}`, i === 0 ? 'winner' : 'loser')));
-function lu(l: FaitsLotSpatial): LotPourGagnante {
+function lu(l: FaitsLotSpatialEntier): LotPourGagnante {
   const etat = etatLotSpatial(l, CTX);
   return { id: l.id, numero: l.numero, etat, conclusion: conclusionLot(l, etat, referenceConclusion([l, REF], l.id)), ads: l.ads };
 }

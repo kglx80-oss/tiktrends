@@ -56,7 +56,7 @@ vi.mock('../lib/jarvis-memory', async (importOriginal) => ({
 
 import { db, schema, eq } from '@tiktrends/db';
 import {
-  BORNE_MESURE_JARVIS, REFUS_GESTE_JARVIS, lienCorrigerJarvis, lienJarvisContexte, lienTesterJarvis, MESURE_TEMPS_MESURE_JARVIS,
+  BORNES_LECTURE_LOTS, BORNE_MESURE_JARVIS, NON_CALCULE_LECTURE, REFUS_GESTE_JARVIS, lienCorrigerJarvis, lienJarvisContexte, lienTesterJarvis, MESURE_TEMPS_MESURE_JARVIS,
 } from '@tiktrends/core';
 import { semer, session } from './studios-semis';
 import { ctxDe } from './l3-harnais';
@@ -436,5 +436,54 @@ describe('lot 5 quater · autre marque, autre projet, adresse forgée · la mêm
     // Le témoin · la MÊME réponse, dans SON projet · acceptée (le refus vient bien de la portée).
     const ok = dom(renderToStaticMarkup(avecSpatial((await TextesSpatial({ params: Promise.resolve({ id: S.P1 }), searchParams: Promise.resolve(params(lienCorrigerJarvis(S.P1, projet, dansP1)!)) })) as ReactElement)));
     expect(ok.querySelector('[data-consigne-jarvis]')?.textContent).toContain('SECRET_CITATION');
+  });
+});
+
+/* ───────────────────────────── un lien ouvert après que son lot est devenu lu en partie ───────────────────────────── */
+
+describe('lot 5 quater · « Tester » et « Corriger le texte » d’un lot devenu lu en partie · « non calculé », jamais le refus de portée', () => {
+  it('le MÊME lien · accepté tant que le lot est lu en entier · « Non calculé · lecture incomplète » au-delà · Jarvis ne pose plus l’essai', async () => {
+    const Lp = await lot(9, 'Un lot qui grandit');
+    await db.update(schema.ads).set({ batchId: Lp }).where(eq(schema.ads.id, S.adTestee));
+    try {
+      const contexte = { type: 'lot' as const, id: Lp };
+      const msg = await message({ contenu: 'La V1 l’emporte. Teste-la contre une nouvelle accroche. Reformule l’accroche de la V1 : « Dormez enfin, sans pilule ».' });
+      const autre = await message({ contenu: 'SECRET_UR · La V1 l’emporte. Teste-la contre une nouvelle accroche.', user: ids.ur });
+      const ouvrir = async (href: string, page: 'projet' | 'textes') => dom(renderToStaticMarkup(avecSpatial((page === 'projet'
+        ? await ProjetSpatial({ params: Promise.resolve({ id: S.P1 }), searchParams: Promise.resolve(params(href)) })
+        : await TextesSpatial({ params: Promise.resolve({ id: S.P1 }), searchParams: Promise.resolve(params(href)) })) as ReactElement)));
+      const tester = lienTesterJarvis(S.P1, contexte, msg)!;
+      const corriger = lienCorrigerJarvis(S.P1, contexte, msg)!;
+
+      // Le témoin · lot lu en entier (2 pubs) · le lien est accepté, l'essai préparé · l'écran de Jarvis le pose.
+      expect((await ouvrir(tester, 'projet')).querySelector('[data-note-jarvis]')?.textContent, 'témoin · Tester').toContain('V1 a déjà son test');
+      expect((await ouvrir(corriger, 'textes')).querySelector('[data-consigne-jarvis]')?.textContent, 'témoin · Corriger').toContain('Dormez enfin');
+      await demander(lienJarvisContexte('lot', Lp)!, 'Témoin · la V1 l’emporte. Teste-la contre une nouvelle accroche plus directe.');
+      expect(essai('tester'), 'témoin · Jarvis pose « Tester » sous la réponse').toBeTruthy();
+
+      // Le lot grandit au-delà de ce qu'une fiche lit en entier.
+      const c = await chaine(ids.wsA, ids.brandA1, 'Croissance');
+      await db.insert(schema.ads).values(Array.from({ length: BORNES_LECTURE_LOTS.plafondLotSeul }, (_, i) => ({ workspaceId: ids.wsA, conceptId: c, batchId: Lp, variantCode: `G${i + 1}`, status: 'done' as const })));
+      const avant = await traces();
+
+      const t = await ouvrir(tester, 'projet');
+      expect(t.querySelector('[data-note-jarvis]')?.textContent, 'Tester · un lot lu en partie n’est pas un refus de droits').toBe(NON_CALCULE_LECTURE);
+      expect(t.querySelectorAll('[data-formulaire-test]'), 'rien d’ouvert').toHaveLength(0);
+      expect(t.querySelectorAll('[data-essai-variante][aria-pressed="true"]'), 'rien de présélectionné').toHaveLength(0);
+      const x = await ouvrir(corriger, 'textes');
+      expect(x.querySelector('[data-note-jarvis]')?.textContent, 'Corriger · un lot lu en partie n’est pas un refus de droits').toContain(NON_CALCULE_LECTURE);
+      expect(x.querySelector('[data-note-jarvis]')?.textContent).not.toContain(REFUS_GESTE_JARVIS);
+      expect(x.querySelector('[data-consigne-jarvis]'), 'rien de pré-rempli').toBeNull();
+      // La portée passe d'abord · la réponse d'une autre personne · le refus, rien n'est dit de son lot.
+      const r = await ouvrir(lienTesterJarvis(S.P1, contexte, autre)!, 'projet');
+      expect(r.querySelector('[data-note-jarvis]')?.textContent, 'hors portée · le refus').toBe(REFUS_GESTE_JARVIS);
+      expect(await traces(), 'rien d’écrit, aucun appel').toEqual(avant);
+
+      await demander(lienJarvisContexte('lot', Lp)!, 'Après · la V1 l’emporte. Teste-la contre une nouvelle accroche plus directe.');
+      expect(document.querySelector('[data-gestes-jarvis]'), 'préalable · les gestes du lot sont là').toBeTruthy();
+      expect(document.querySelector('[data-essai-jarvis]'), 'Jarvis ne pose pas l’essai d’un lot lu en partie').toBeNull();
+    } finally {
+      await db.update(schema.ads).set({ batchId: S.L1 }).where(eq(schema.ads.id, S.adTestee));
+    }
   });
 });

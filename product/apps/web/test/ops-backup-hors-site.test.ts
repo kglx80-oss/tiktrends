@@ -15,7 +15,15 @@ import { join } from 'node:path';
  *    une barre finale sur TIKTRENDS_REPO ;
  *  · le script entier en copie d'essai (TIKTRENDS_REPO ailleurs) · refus sans projet compose
  *    distinct (la base dumpée serait celle de la PRODUCTION), et avec lui un dump local qui ne part
- *    JAMAIS vers `ovh:`, où il prendrait le nom des vrais.
+ *    JAMAIS vers `ovh:`, où il prendrait le nom des vrais ;
+ *  · `principal` (script sourcé, REPO, BACKUP_DIR et OFFSITE posés à la main) · le dump, la copie
+ *    hors-site du VPS, et un pg_dump en échec qui ne laisse AUCUN fichier ;
+ *  · le dépôt du VPS avec un COMPOSE_PROJECT_NAME qui n'est pas celui de la production · refus
+ *    avant tout appel docker (le dump d'une base d'essai prendrait la place d'un vrai).
+ *
+ * Le nom du projet compose de production est `product` · mesuré (22/11/2026) : docker-compose.yml
+ * n'a pas de clé `name:`, aucun `.env` versionné ne pose COMPOSE_PROJECT_NAME, et
+ * `docker compose config` sans la variable, depuis un dossier `product/`, donne `name: product`.
  *
  * Le défaut réparé · le script lisait `rclone listremotes | grep -q '^ovh:'` sous `pipefail`.
  * `grep -q` sort dès `ovh:` lu et ferme le tube ; rclone (Go, sortie sans tampon : un `write` par
@@ -41,8 +49,14 @@ let bin = '';
 
 const FAUX_DOCKER = `#!/bin/bash
 echo "\${COMPOSE_PROJECT_NAME-<absent>} $*" >> "$JOURNAL_DOCKER"
+# CODE_DOCKER=n · pg_dump interrompu : un début de dump, puis l'échec.
+if [ -n "\${CODE_DOCKER:-}" ]; then echo "-- dump interrompu"; exit "$CODE_DOCKER"; fi
 # docker compose exec -T db sh -c 'pg_dump …' · un faux dump, assez gros pour le seuil de 500 octets.
 echo "-- faux dump"; head -c 3000 /dev/urandom | base64
+`;
+// Un gzip qui ne compresse pas : le résultat ne dépend pas du gzip installé.
+const FAUX_GZIP = `#!/bin/bash
+exec cat
 `;
 const FAUX_RCLONE = `#!/bin/bash
 echo "$*" >> "$JOURNAL_RCLONE"
@@ -59,7 +73,7 @@ exit 0
 /** L'environnement du développeur sans ce qui changerait le mode, le seau ou le projet compose. */
 function environnement(env: Record<string, string>): NodeJS.ProcessEnv {
   const base = { ...process.env } as NodeJS.ProcessEnv;
-  for (const k of ['TIKTRENDS_REPO', 'TIKTRENDS_SAUVEGARDES', 'COMPOSE_PROJECT_NAME', 'COMPOSE_FILE', 'OFFSITE_BUCKET', 'REMOTES', 'BAVARD', 'CODE_LISTREMOTES']) delete base[k];
+  for (const k of ['TIKTRENDS_REPO', 'TIKTRENDS_SAUVEGARDES', 'COMPOSE_PROJECT_NAME', 'COMPOSE_FILE', 'OFFSITE_BUCKET', 'REMOTES', 'BAVARD', 'CODE_LISTREMOTES', 'CODE_DOCKER']) delete base[k];
   return { ...base, PATH: `${bin}:${process.env.PATH}`, ...env };
 }
 const lignes = (f: string) => (existsSync(f) ? readFileSync(f, 'utf8').trim().split('\n').filter(Boolean) : []);
@@ -99,11 +113,61 @@ function essai(env: Record<string, string> = {}) {
   return { code: r.status, sortie: `${r.stdout}${r.stderr}`, dumps: dumpsDe(join(d, 'sauvegardes')), docker: lignes(journalDocker), rclone: lignes(journalRclone) };
 }
 
+/** `principal` seule, script sourcé : REPO, BACKUP_DIR et OFFSITE posés à la main, dossiers neufs. */
+function principal(env: Record<string, string> = {}, offsite = '1') {
+  const d = mkdtempSync(join(racine, 'principal-'));
+  const repo = join(d, 'product');
+  mkdirSync(repo);
+  const dossier = join(d, 'backups');
+  const journalRclone = join(d, 'rclone.log');
+  const journalDocker = join(d, 'docker.log');
+  const r = spawnSync(BASH, ['-c', 'source "$1"; REPO="$2" BACKUP_DIR="$3" OFFSITE="$4"; principal', 'garde', SCRIPT, repo, dossier, offsite], {
+    encoding: 'utf8',
+    env: environnement({ JOURNAL_RCLONE: journalRclone, JOURNAL_DOCKER: journalDocker, REMOTES: 'ovh:\\n', ...env }),
+  });
+  const rclone = lignes(journalRclone);
+  return {
+    code: r.status,
+    sortie: `${r.stdout}${r.stderr}`,
+    fichiers: existsSync(dossier) ? readdirSync(dossier) : [],
+    dumps: dumpsDe(dossier).map((f) => join(dossier, f)),
+    docker: lignes(journalDocker),
+    rclone,
+    copies: rclone.filter((a) => a.startsWith('copy ')),
+  };
+}
+
+/**
+ * Le chemin du VPS de bout en bout (`configurer` puis `principal`), sur un dépôt du VPS NEUF ·
+ * VPS_REPO est réaffecté dans le shell de la garde, après le `source` (jamais par l'environnement).
+ */
+function vps(env: Record<string, string> = {}) {
+  const d = mkdtempSync(join(racine, 'vps-'));
+  mkdirSync(join(d, 'tiktrends', 'product'), { recursive: true });
+  const dossier = join(d, 'backups');
+  const journalRclone = join(d, 'rclone.log');
+  const journalDocker = join(d, 'docker.log');
+  const r = spawnSync(BASH, ['-c', 'source "$1"; VPS_REPO="$2"; configurer || exit $?; principal', 'garde', SCRIPT, join(d, 'tiktrends')], {
+    encoding: 'utf8',
+    env: environnement({ TIKTRENDS_SAUVEGARDES: dossier, JOURNAL_RCLONE: journalRclone, JOURNAL_DOCKER: journalDocker, REMOTES: 'ovh:\\n', ...env }),
+  });
+  const rclone = lignes(journalRclone);
+  return { code: r.status, sortie: `${r.stdout}${r.stderr}`, dumps: dumpsDe(dossier), docker: lignes(journalDocker), copies: rclone.filter((a) => a.startsWith('copy ')) };
+}
+
+/** Le script EXÉCUTÉ comme par le service : `env -i`, un PATH et rien d'autre que `vars`. */
+function executeVide(vars: Record<string, string>) {
+  const d = mkdtempSync(join(racine, 'vide-'));
+  const journalDocker = join(d, 'docker.log');
+  const r = spawnSync('/usr/bin/env', ['-i', `PATH=${bin}:/usr/bin:/bin`, `JOURNAL_DOCKER=${journalDocker}`, ...Object.entries(vars).map(([k, v]) => `${k}=${v}`), 'bash', SCRIPT], { encoding: 'utf8' });
+  return { code: r.status, sortie: `${r.stdout}${r.stderr}`, docker: lignes(journalDocker) };
+}
+
 beforeAll(() => {
   racine = mkdtempSync(join(tmpdir(), 'ops-backup-'));
   bin = join(racine, 'bin');
   mkdirSync(bin);
-  for (const [nom, corps] of [['docker', FAUX_DOCKER], ['rclone', FAUX_RCLONE]] as const) {
+  for (const [nom, corps] of [['docker', FAUX_DOCKER], ['gzip', FAUX_GZIP], ['rclone', FAUX_RCLONE]] as const) {
     writeFileSync(join(bin, nom), corps);
     chmodSync(join(bin, nom), 0o755);
   }
@@ -154,6 +218,8 @@ describe('ops/backup.sh · chemins du VPS par défaut (environnement vide)', () 
     ['TIKTRENDS_REPO du VPS', { TIKTRENDS_REPO: '/home/debian/tiktrends' }],
     ['TIKTRENDS_REPO du VPS, barre finale', { TIKTRENDS_REPO: '/home/debian/tiktrends/' }],
     ['TIKTRENDS_REPO du VPS, deux barres finales', { TIKTRENDS_REPO: '/home/debian/tiktrends//' }],
+    ['COMPOSE_PROJECT_NAME vide', { COMPOSE_PROJECT_NAME: '' }],
+    ['COMPOSE_PROJECT_NAME=product (le nom par défaut, écrit)', { COMPOSE_PROJECT_NAME: 'product' }],
   ])('%s · REPO, BACKUP_DIR et copie hors-site du VPS, aucun refus', (_cas, env: Record<string, string>) => {
     const r = configurer(env);
     expect(r.code, `chemins du VPS REFUSÉS (pris pour une copie d’essai) · ${r.sortie}`).toBe(0);
@@ -184,5 +250,128 @@ describe('ops/backup.sh · copie d’essai (TIKTRENDS_REPO ailleurs que sur le V
     expect(r.dumps, 'dump d’essai absent de son dossier').toHaveLength(1);
     expect(r.rclone, 'rclone appelé depuis une copie d’essai').toEqual([]);
     expect(r.sortie).toContain("Copie hors-site SAUTÉE · copie d'essai (");
+  });
+
+  it('pg_dump en échec · le script entier sort en erreur et ne laisse AUCUN dump partiel', () => {
+    const r = essai({ COMPOSE_PROJECT_NAME: 'tiktrends-essai-d1', CODE_DOCKER: '3' });
+    expect(r.code, r.sortie).toBe(3);
+    expect(r.docker).toHaveLength(1);
+    expect(r.dumps, `dump PARTIEL laissé, que la rotation garderait et que « le plus récent » restaurerait · ${r.sortie}`).toEqual([]);
+  });
+});
+
+const ARRET_VPS = /ARRÊT · dépôt du VPS \(\/home\/debian\/tiktrends\) avec COMPOSE_PROJECT_NAME=.+ · ce n'est pas le projet compose de production \(product\) : son dump prendrait la place des vrais\./;
+
+describe('ops/backup.sh · dépôt du VPS avec un autre projet compose', () => {
+  it.each([
+    ['tiktrends-essai-d1 (le projet de la copie d’essai, resté exporté)', 'tiktrends-essai-d1'],
+    ['tiktrends (ce n’est pas le nom par défaut)', 'tiktrends'],
+    ['tiktrends-recette', 'tiktrends-recette'],
+  ])('COMPOSE_PROJECT_NAME=%s · configurer refuse, code 2', (_cas, nom) => {
+    const r = configurer({ COMPOSE_PROJECT_NAME: nom });
+    expect(r.code, `dépôt du VPS ACCEPTÉ avec COMPOSE_PROJECT_NAME=${nom} · ${r.sortie}`).toBe(2);
+    expect(r.sortie).toMatch(ARRET_VPS);
+    expect(r.sortie, 'chemins posés malgré le refus').not.toContain('REPO=');
+  });
+
+  it('tiktrends-essai-d1 · de bout en bout, aucun appel docker, aucun dump, rien vers ovh:', () => {
+    const r = vps({ COMPOSE_PROJECT_NAME: 'tiktrends-essai-d1' });
+    expect(r.code, `dump de la base d’ESSAI rangé avec ceux de la production · ${r.sortie}`).toBe(2);
+    expect(r.docker, 'docker appelé malgré le refus').toEqual([]);
+    expect(r.dumps).toEqual([]);
+    expect(r.copies).toEqual([]);
+  });
+
+  it('tiktrends-essai-d1 · le script EXÉCUTÉ (env -i, comme le service) refuse avant docker', () => {
+    const r = executeVide({ COMPOSE_PROJECT_NAME: 'tiktrends-essai-d1' });
+    expect(r.code, r.sortie).toBe(2);
+    expect(r.sortie).toMatch(ARRET_VPS);
+    expect(r.docker).toEqual([]);
+  });
+
+  it.each([
+    ['absent', {}],
+    ['vide', { COMPOSE_PROJECT_NAME: '' }],
+    ['product', { COMPOSE_PROJECT_NAME: 'product' }],
+  ])('COMPOSE_PROJECT_NAME %s · de bout en bout, un dump et sa copie vers ovh:', (_cas, env: Record<string, string>) => {
+    const r = vps(env);
+    expect(r.code, r.sortie).toBe(0);
+    expect(r.docker).toHaveLength(1);
+    expect(r.dumps).toHaveLength(1);
+    expect(r.copies, 'copie hors-site du VPS absente').toHaveLength(1);
+  });
+});
+
+describe('ops/backup.sh · principal (le corps du script)', () => {
+  it('OFFSITE=1 · le dump est écrit, PUIS copié vers ovh:', () => {
+    const r = principal();
+    expect(r.code, r.sortie).toBe(0);
+    expect(r.dumps, 'dump absent du dossier de sauvegarde').toHaveLength(1);
+    expect(r.copies, `copie hors-site du VPS JAMAIS lancée · appels rclone : ${r.rclone.join(' | ')}`).toEqual([`copy ${r.dumps[0]} ovh:tiktrends-backups/`]);
+    expect(r.sortie).toContain('Copie hors-site OK -> ovh:tiktrends-backups/');
+  });
+
+  it('OFFSITE=0 · dump local, aucun appel rclone', () => {
+    const r = principal({}, '0');
+    expect(r.code, r.sortie).toBe(0);
+    expect(r.dumps).toHaveLength(1);
+    expect(r.rclone).toEqual([]);
+    expect(r.sortie).toContain('Copie hors-site SAUTÉE');
+  });
+
+  it('pg_dump en échec · son code, AUCUN fichier laissé (ni rotation ni restauration ne le verront), aucune copie', () => {
+    const r = principal({ CODE_DOCKER: '3' });
+    expect(r.code, `échec du dump masqué · ${r.sortie}`).toBe(3);
+    expect(r.fichiers, 'dump PARTIEL laissé dans le dossier de sauvegarde').toEqual([]);
+    expect(r.rclone, 'copie hors-site lancée après un dump en échec').toEqual([]);
+    expect(r.sortie).toMatch(/ÉCHEC · dump de la base interrompu \(code 3\), fichier partiel supprimé : .+tiktrends-\d{8}-\d{6}\.sql\.gz/);
+  });
+});
+
+describe('ops/backup.sh · sourcé ou exécuté', () => {
+  it('exécuté sous env -i (comme le service, copie d’essai) · le corps tourne : un appel docker', () => {
+    const d = mkdtempSync(join(racine, 'execute-'));
+    mkdirSync(join(d, 'tiktrends', 'product'), { recursive: true });
+    const r = executeVide({ TIKTRENDS_REPO: join(d, 'tiktrends'), COMPOSE_PROJECT_NAME: 'tiktrends-essai-d1' });
+    expect(r.code, r.sortie).toBe(0);
+    expect(r.docker, 'script exécuté pris pour un script sourcé').toHaveLength(1);
+    expect(dumpsDe(join(d, 'sauvegardes'))).toHaveLength(1);
+  });
+
+  it('exécuté, dépôt absent · arrêt sur `cd` (set -e actif dans principal), aucun appel docker', () => {
+    const d = mkdtempSync(join(racine, 'sans-depot-'));
+    const r = executeVide({ TIKTRENDS_REPO: join(d, 'tiktrends'), COMPOSE_PROJECT_NAME: 'tiktrends-essai-d1' });
+    expect(r.code, r.sortie).not.toBe(0);
+    expect(r.docker, `le corps a continué après l’échec de cd · ${r.sortie}`).toEqual([]);
+  });
+
+  it('sourcé avec $0 égal au chemin du script · rien ne tourne', () => {
+    const d = mkdtempSync(join(racine, 'source-'));
+    mkdirSync(join(d, 'tiktrends', 'product'), { recursive: true });
+    const journalDocker = join(d, 'docker.log');
+    const r = spawnSync(BASH, ['-c', 'source "$0"; declare -F principal >/dev/null && echo fonctions-definies', SCRIPT], {
+      encoding: 'utf8',
+      env: environnement({ TIKTRENDS_REPO: join(d, 'tiktrends'), COMPOSE_PROJECT_NAME: 'tiktrends-essai-d1', JOURNAL_DOCKER: journalDocker }),
+    });
+    expect(r.status, `${r.stdout}${r.stderr}`).toBe(0);
+    expect(lignes(journalDocker), 'script SOURCÉ pris pour un script exécuté : la sauvegarde a tourné').toEqual([]);
+    expect(r.stdout).toContain('fonctions-definies');
+  });
+});
+
+describe('ops/backup.sh · copie d’essai qui viserait le dossier de la production', () => {
+  it.each([
+    ['/home/debian/backups', '/home/debian/backups'],
+    ['/home/debian/backups/ (barre finale)', '/home/debian/backups/'],
+  ])('TIKTRENDS_SAUVEGARDES=%s · refus, code 2', (_cas, dossier) => {
+    const r = configurer({ TIKTRENDS_REPO: '/srv/essai/tiktrends', COMPOSE_PROJECT_NAME: 'tiktrends-essai-d1', TIKTRENDS_SAUVEGARDES: dossier });
+    expect(r.code, `copie d’essai autorisée à écrire dans le dossier de la production · ${r.sortie}`).toBe(2);
+    expect(r.sortie).toMatch(/ARRÊT · copie d'essai \(\/srv\/essai\/tiktrends\) avec TIKTRENDS_SAUVEGARDES=\/home\/debian\/backups\/? · c'est le dossier des sauvegardes de production, la rotation y supprimerait les vraies\./);
+  });
+
+  it('un autre dossier · accepté', () => {
+    const r = configurer({ TIKTRENDS_REPO: '/srv/essai/tiktrends', COMPOSE_PROJECT_NAME: 'tiktrends-essai-d1', TIKTRENDS_SAUVEGARDES: '/srv/essai/sauvegardes' });
+    expect(r.code, r.sortie).toBe(0);
+    expect(r.sortie).toBe('REPO=/srv/essai/tiktrends/product\nBACKUP_DIR=/srv/essai/sauvegardes\nOFFSITE=0\n');
   });
 });

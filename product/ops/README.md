@@ -293,9 +293,10 @@ gunzip -c ~/backups/tiktrends-20260823-033000.sql.gz \
 ### ⚠️ Copie hors-site (recommandée)
 
 Les dumps sont sur le **même VPS** : si le serveur est perdu, ils le sont aussi.
-Pour une vraie sécurité, activer la copie vers **OVH Object Storage** (S3) —
-créer un bucket, configurer `rclone`, puis décommenter la dernière ligne de
-`backup.sh`. (Demander à Claude de le brancher.)
+Pour une vraie sécurité, activer la copie vers **OVH Object Storage** (S3) :
+créer un bucket `tiktrends-backups`, puis un remote `rclone` nommé `ovh`. La
+copie s'active toute seule dès que ce remote existe (`copie_hors_site` dans
+`backup.sh`), et garde ~30 jours. Aucune ligne à décommenter.
 
 ---
 

@@ -3,7 +3,7 @@ import {
   DEFAULT_VERDICT_CONFIG, compteAConclure, compteAImporter, diagnosticFinPrevue, etatLotSpatial, finPrevueAccueil, finPrevueAuLancement,
   finPrevuePassee, lotAttendDesMesures, lotConcluable, mesuresDuLot, mesureArretee, phraseDiagnosticFinPrevue,
   decalerJour, jourParis,
-  type FaitsAdSpatial, type FaitsLotSpatial, type FaitsVerdictSpatial, type VerdictValue,
+  type FaitsAdSpatial, type FaitsLotSpatialEntier, type FaitsVerdictSpatial, type VerdictValue,
 } from '../src';
 
 /**
@@ -14,7 +14,7 @@ import {
  * ne bouge pas. Pur · horloge fixe · on lit l'état, le compte, la phrase.
  */
 
-type Lot = FaitsLotSpatial & { finPrevue: string | null };
+type Lot = FaitsLotSpatialEntier & { finPrevue: string | null };
 const J = 86_400_000;
 /** Lancé un lundi à 10 h (Paris, UTC+2 en octobre) · fenêtre de 7 jours. */
 const LANCE = new Date('2026-10-05T08:00:00Z');

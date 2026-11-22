@@ -3,6 +3,10 @@ import { verdictEffectif, type VerdictValue } from '../../adsmap/types';
 import { LIBELLE_VERDICT } from '../../adsmap/verdict-libelle';
 import { RAISON_IMPORT_FERME, lienImportLot } from './fin-prevue';
 import { joursEntiersDepuis, mesureArretee } from './mesure-arretee';
+import { NON_CALCULE_LECTURE, TITRE_LECTURE_INCOMPLETE, compteLecture, nombreVariantes, type VariantesDuLot } from './lecture-lot';
+
+/** Ce qu'un dérivé dit d'un lot lu en partie à la place d'une valeur tirée de ses variantes (aucune n'est exposée). */
+export const NON_CALCULE = 'Non calculé';
 
 /**
  * Spatial · Résultats · les LOTS de test, lus sur leurs faits réels.
@@ -68,7 +72,11 @@ export interface FaitsAdSpatial {
   verdict: FaitsVerdictSpatial | null;
 }
 
-export interface FaitsLotSpatial {
+/**
+ * Un lot · ses variantes TOUTES (`ads`) ou AUCUNE (`partielle`, `VariantesDuLot`) ·
+ * un lot lu en partie n'expose aucune variante, chaque dérivé le traite.
+ */
+export type FaitsLotSpatial = {
   id: string;
   numero: number;
   but: string | null;
@@ -76,13 +84,15 @@ export interface FaitsLotSpatial {
   statut: string;
   /** ISO · `null` si jamais lancé dans l'outil. */
   lanceLe: string | null;
-  ads: FaitsAdSpatial[];
   /** Le dernier contrôle de protocole (`protocolCheck`) · `null` s'il n'a pas tourné. */
   protocole: { conforme: boolean | null; resume: string | null } | null;
-}
+} & VariantesDuLot<FaitsAdSpatial[]>;
+/** Un lot lu EN ENTIER · ses `ads` sont là · ce qu'un faisceau construit à la main, ou un lot vérifié (`!l.partielle`), est. */
+export type FaitsLotSpatialEntier = Extract<FaitsLotSpatial, { partielle?: undefined }>;
 
+/** `illisible` · un lot lancé que la lecture n'a pas vu en entier (`lotLuEnEntier`) · aucun état n'est calculé sur une partie de ses variantes. */
 export type EtatLotSpatial =
-  | 'composition' | 'pret' | 'diffusion' | 'a_importer' | 'a_conclure' | 'non_concluant' | 'conclu' | 'importe';
+  | 'composition' | 'pret' | 'diffusion' | 'a_importer' | 'a_conclure' | 'non_concluant' | 'conclu' | 'importe' | 'illisible';
 
 /** Les deux verdicts qui ne disent rien à retenir · même liste que la file de décisions. */
 const NON_CONCLUANTS: ReadonlySet<VerdictValue> = new Set<VerdictValue>(['inconclusive', 'insufficient_delivery']);
@@ -106,11 +116,10 @@ export function verdictAffiche(v: FaitsVerdictSpatial | null): VerdictValue | nu
  * l'est · la lecture légère de « à conclure » (pastille du rail, Accueil) ne
  * porte que cela (`chargerFaitsAConclure`), sans créa ni agrégat.
  */
-export interface FaitsEtatLot {
+export type FaitsEtatLot = {
   statut: string;
   lanceLe: string | null;
-  ads: ReadonlyArray<FaitsVerdictVariante>;
-}
+} & VariantesDuLot<ReadonlyArray<FaitsVerdictVariante>>;
 /** Une variante, vue par l'état de son lot · seulement son verdict (statut, valeur calculée, instant du calcul). */
 export interface FaitsVerdictVariante {
   verdict: Pick<FaitsVerdictSpatial, 'statut' | 'calcule' | 'calculeLe'> | null;
@@ -125,6 +134,8 @@ export function etatLotSpatial(l: FaitsEtatLot, c: ContexteLots): EtatLotSpatial
   if (estLotImporte({ status: l.statut, launchedAt: l.lanceLe })) return 'importe';
   if (l.statut === 'planned' || l.statut === 'in_production') return 'composition';
   if (l.statut === 'ready') return 'pret';
+  // Au-delà, l'état se lit sur les variantes · jamais sur une partie d'entre elles.
+  if (l.partielle) return 'illisible';
   const ads = l.ads;
   if (ads.length > 0 && ads.every((a) => a.verdict?.statut === 'validated')) return 'conclu';
   const jours = joursEntiersDepuis(l.lanceLe, c.maintenant);
@@ -176,6 +187,7 @@ export function categorieVariable(v: string | null | undefined): string {
 
 /** La variable testée par le lot · celle de ses variantes (le témoin ne compte pas). */
 export function categorieLot(l: FaitsLotSpatial): string {
+  if (l.partielle) return NON_CALCULE;
   const vs = [...new Set(l.ads.map((a) => a.variable).filter((v): v is string => !!v && v !== 'none_control'))];
   if (vs.length === 1) return categorieVariable(vs[0]);
   return vs.length > 1 ? 'Plusieurs variables' : CATEGORIE_A_CHOISIR;
@@ -183,6 +195,7 @@ export function categorieLot(l: FaitsLotSpatial): string {
 
 const PLATEFORME: Record<string, string> = { meta: 'Meta', tiktok: 'TikTok', google: 'Google', snapchat: 'Snapchat', pinterest: 'Pinterest' };
 export function plateformesLot(l: FaitsLotSpatial): string {
+  if (l.partielle) return NON_CALCULE;
   const ps = [...new Set(l.ads.map((a) => PLATEFORME[a.plateforme] ?? a.plateforme))];
   return ps.length ? ps.join(' et ') : 'Plateforme à choisir';
 }
@@ -204,6 +217,7 @@ export function segmentsHypothese(s: string): Array<{ texte: string; fort: boole
 
 /** L'hypothèse du lot · celle de sa première variante qui en porte une. */
 export function hypotheseLot(l: FaitsLotSpatial): string | null {
+  if (l.partielle) return null;
   return l.ads.map((a) => a.hypothese?.trim()).find((h): h is string => !!h) ?? null;
 }
 
@@ -219,6 +233,7 @@ export const PRESENTATION_ETAT_LOT: Record<EtatLotSpatial, { statut: string; pil
   non_concluant: { statut: 'Non concluant', pill: '', anneau: 'w', action: 'Voir le lot', primaire: false },
   conclu: { statut: 'Conclu', pill: 'g', anneau: 'g', action: 'Voir le lot', primaire: false },
   importe: { statut: 'Historique importé', pill: '', anneau: '', action: 'Voir le lot', primaire: false },
+  illisible: { statut: TITRE_LECTURE_INCOMPLETE, pill: 'w', anneau: '', action: 'Voir le lot', primaire: false },
 };
 
 export interface PresentationLot {
@@ -227,6 +242,8 @@ export interface PresentationLot {
   etat: EtatLotSpatial;
   titre: string;
   hypothese: string | null;
+  /** Ce qui s'écrit quand `hypothese` est absente · « Aucune hypothèse écrite… » · lu en partie, le compte de la lecture (jamais « aucune »). */
+  sansHypothese: string;
   categorie: string;
   plateformes: string;
   statut: { libelle: string; classe: ClassePill };
@@ -258,6 +275,7 @@ export function presentationLot(l: FaitsLotSpatial, c: ContexteLots): Presentati
     etat,
     titre: l.but?.trim() ? `Lot #${l.numero} · ${l.but.trim()}` : `Lot #${l.numero}`,
     hypothese: hypotheseLot(l),
+    sansHypothese: l.partielle ? `${TITRE_LECTURE_INCOMPLETE} · ${compteLecture(l)} · ses variantes ne sont pas lues ici.` : 'Aucune hypothèse écrite sur ses variantes.',
     categorie: categorieLot(l),
     plateformes: plateformesLot(l),
     statut: { libelle: p.statut, classe: p.pill },
@@ -315,6 +333,8 @@ const ORDRE_GAIN: Record<string, number> = { winner: 0, baby_winner: 1 };
  * n'est jamais présentée comme gagnante.
  */
 export function syntheseLot(l: FaitsLotSpatial, cibleCpa: number | null): SyntheseLot {
+  // Lu en partie · aucune synthèse ne se tire d'une partie du lot (ni « aucune variante », ni une gagnante de ce qui reste).
+  if (l.partielle) return { gagnante: null, titre: NON_CALCULE, phrase: `${TITRE_LECTURE_INCOMPLETE} · ${compteLecture(l)} · le verdict d’ensemble n’est pas calculé sur une partie du lot.`, niveau: 1 };
   const lus = l.ads.map((a) => ({ a, v: verdictAffiche(a.verdict) })).filter((x) => x.v);
   const gagnantes = lus.filter((x) => GAGNANTES.has(x.v!))
     .sort((x, y) => (ORDRE_GAIN[x.v!]! - ORDRE_GAIN[y.v!]!) || ((x.a.verdict?.cpa ?? Infinity) - (y.a.verdict?.cpa ?? Infinity)));
@@ -356,14 +376,23 @@ export function barresCpa(ads: readonly FaitsAdSpatial[]): Array<{ id: string; l
   });
 }
 
-/** Le plus petit volume d'impressions parmi les variantes mesurées · `null` si aucune. */
+/** Le plus petit volume d'impressions parmi les variantes mesurées · `null` si aucune, ou lu en partie. */
 export function volumeMinimumLot(l: FaitsLotSpatial): number | null {
+  if (l.partielle) return null;
   const v = l.ads.map((a) => a.verdict?.impressions).filter((x): x is number => typeof x === 'number');
   return v.length ? Math.min(...v) : null;
 }
 
-/** Préparation d'un lot · quatre étapes réelles (variantes, complétude, noms régie, prêt). */
-export function preparationLot(l: FaitsLotSpatial, nomsGeneres: number): { fait: number; sur: 4 } {
+/** La préparation telle que la boucle l'affiche · la barre et son libellé · lu en partie, « non calculée », jamais « 0/4 ». */
+export function preparationAffichee(l: FaitsLotSpatial, nomsGeneres: number): { part: number; texte: string } {
+  const p = preparationLot(l, nomsGeneres);
+  if (!p) return { part: 0, texte: `Préparation non calculée · ${compteLecture(l)}` };
+  return { part: Math.round((p.fait / p.sur) * 100), texte: `Préparation ${p.fait}/${p.sur}` };
+}
+
+/** Préparation d'un lot · quatre étapes réelles (variantes, complétude, noms régie, prêt) · `null` lu en partie (ni « 0 étape », ni un compte tiré d'une partie). */
+export function preparationLot(l: FaitsLotSpatial, nomsGeneres: number): { fait: number; sur: 4 } | null {
+  if (l.partielle) return null;
   const etapes = [
     l.ads.length > 0,
     l.ads.length > 0 && l.ads.every((a) => a.manques.length === 0),
@@ -398,13 +427,24 @@ export function prochaineActionBoucle(lots: ReadonlyArray<{ presentation: Presen
 
 
 /** La phrase d'ouverture de la vue d'ensemble (`rvlead`) · comptée, jamais interprétée. */
-export function accrocheResultats(vedette: { numero: number; synthese: SyntheseLot; aConclure: boolean } | null, autresEnAttente: number): { avant: string; fort: string; apres: string } {
+/**
+ * Ce que la vue d'ensemble dit sans lot vedette · `lotsNonLus` · des lots lus en
+ * partie (leurs verdicts ne sont pas lus) · « aucun lot n'a de verdict » serait
+ * tiré de rien · la phrase ne parle que des lots lus, et dit combien ne le sont pas.
+ */
+export function videVedetteResultats(lotsNonLus: number): string {
+  if (lotsNonLus <= 0) return 'Aucun lot n’a encore de verdict · un verdict arrive quand les mesures d’un lot lancé remontent.';
+  return `Pas de verdict parmi les lots lus ici · ${lotsNonLus} lot${lotsNonLus > 1 ? 's ne sont pas lus' : ' n’est pas lu'} (${TITRE_LECTURE_INCOMPLETE.toLowerCase()}), ${lotsNonLus > 1 ? 'leurs verdicts ne sont pas comptés' : 'ses verdicts ne sont pas comptés'}.`;
+}
+
+export function accrocheResultats(vedette: { numero: number; synthese: SyntheseLot; aConclure: boolean } | null, autresEnAttente: number, lotsNonLus = 0): { avant: string; fort: string; apres: string } {
   const apres = autresEnAttente === 0 ? 'Aucun autre lot n’attend d’action de ta part.'
     : autresEnAttente === 1 ? 'Un autre attend une action de ta part.' : `${autresEnAttente} autres attendent une action de ta part.`;
   if (!vedette) {
     const attente = autresEnAttente === 0 ? 'Prépare un lot pour ouvrir la boucle.'
       : autresEnAttente === 1 ? 'Un lot attend une action de ta part.' : `${autresEnAttente} lots attendent une action de ta part.`;
-    return { avant: 'Aucun lot n’a encore de verdict.', fort: '', apres: attente };
+    // Des lots lus en partie · leurs verdicts ne sont pas lus · « aucun lot n'a de verdict » serait tiré de rien.
+    return { avant: lotsNonLus > 0 ? 'Pas de verdict parmi les lots lus ici.' : 'Aucun lot n’a encore de verdict.', fort: '', apres: attente };
   }
   return {
     avant: vedette.aConclure ? `Le lot #${vedette.numero} est prêt à donner sa réponse :` : `Dernier verdict, lot #${vedette.numero} :`,
@@ -421,7 +461,10 @@ const dateCourte = (iso: string | null) => {
 };
 
 /** Ce que la carte d'un lot dit de lui, tiré de son état (jamais une interprétation des chiffres). */
-export function phraseLot(p: PresentationLot, s: SyntheseLot, variantes: number): string {
+export function phraseLot(p: PresentationLot, s: SyntheseLot, l: VariantesDuLot<ReadonlyArray<unknown>>): string {
+  // Lu en partie · quel que soit l'état (une préparation de 1 995 brouillons n'est pas « aucune variante rangée »).
+  if (l.partielle) return `${l.partielle.variantesLues === 0 ? 'Non lu' : 'Lu en partie'} · ${compteLecture(l)} · rien n’est calculé sur ses variantes.`;
+  const variantes = l.ads.length;
   switch (p.etat) {
     case 'diffusion': {
       const fin = dateCourte(p.fin);
@@ -434,11 +477,14 @@ export function phraseLot(p: PresentationLot, s: SyntheseLot, variantes: number)
     case 'non_concluant': return 'Aucune variante n’a tranché · sans volume suffisant, rien n’est à retenir.';
     case 'conclu': return s.titre;
     case 'importe': return 'Historique repris du tableau · ses verdicts ne sont pas comparables aux tests suivis ici.';
+    // Inatteignable · un lot `illisible` est lu en partie (traité plus haut) · gardé pour l'exhaustivité.
+    case 'illisible': return 'Lu en partie · rien n’est calculé sur ses variantes.';
   }
 }
 
 /** « Et maintenant » · la suite que les règles autorisent (on n'itère que sur une gagnante, §2.4). */
 export function suiteLot(etat: EtatLotSpatial, s: SyntheseLot): string {
+  if (etat === 'illisible') return 'Ouvre la fiche du lot · elle le lit en entier jusqu’au plafond d’un lot, sinon passe par la fiche de test d’une variante.';
   if (etat === 'a_conclure') return 'Conclure le lot enregistre ce qu’il t’apprend et débloque l’itération sur la gagnante.';
   if (etat === 'non_concluant') return 'Arbitre-le quand même : écrire pourquoi rien n’a tranché évite de relancer le même test.';
   if (s.gagnante) return 'Prépare la suite depuis la gagnante · une seule variable change, le reste est gardé.';
@@ -454,7 +500,7 @@ export function indexLotVedette(lots: ReadonlyArray<{ etat: EtatLotSpatial; aDes
   return c >= 0 ? c : lots.findIndex((l) => l.aDesVerdicts);
 }
 
-const URGENCE: Record<EtatLotSpatial, number> = { a_conclure: 0, a_importer: 1, pret: 2, composition: 3, diffusion: 4, non_concluant: 5, conclu: 6, importe: 7 };
+const URGENCE: Record<EtatLotSpatial, number> = { a_conclure: 0, a_importer: 1, pret: 2, composition: 3, diffusion: 4, non_concluant: 5, conclu: 6, importe: 7, illisible: 8 };
 
 /** Les « autres tests » · au plus `max`, ceux qui attendent une action d'abord (ordre stable sinon). */
 export function indexAutresLots(lots: ReadonlyArray<{ etat: EtatLotSpatial }>, vedette: number, max = 3): number[] {
@@ -477,6 +523,20 @@ export function controlesLot(l: FaitsLotSpatial, p: PresentationLot, minImpressi
   const fini = p.etat !== 'diffusion' && lance;
   const vol = volumeMinimumLot(l);
   const pc = l.protocole;
+  const protocole = {
+    icone: 'lock' as const,
+    titre: !pc || pc.conforme === null ? 'Protocole à contrôler' : pc.conforme ? 'Règle respectée' : 'Protocole non respecté',
+    detail: pc?.resume ?? 'Contrôlé à la première mesure du lot',
+  };
+  // Lu en partie · ni la durée « atteinte » (tirée de l'état), ni le volume (tiré des variantes lues) · le protocole est celui du lot ·
+  // non lancé, l'étiquette du statut (« En préparation », « Historique importé »), jamais « Pas encore lancé » d'un historique.
+  if (l.partielle) {
+    return [
+      { icone: 'cal', titre: lance ? `${p.jour} jour${(p.jour ?? 0) > 1 ? 's' : ''} sur ${p.fenetre}` : PRESENTATION_ETAT_LOT[p.etat].statut, detail: NON_CALCULE_LECTURE },
+      { icone: 'chart', titre: NON_CALCULE, detail: `${TITRE_LECTURE_INCOMPLETE.toLowerCase()} · minimum ${n(minImpressions)}` },
+      protocole,
+    ];
+  }
   return [
     {
       icone: 'cal',
@@ -488,16 +548,15 @@ export function controlesLot(l: FaitsLotSpatial, p: PresentationLot, minImpressi
       titre: vol !== null ? `${n(vol)} impressions` : 'Aucune mesure',
       detail: `${vol !== null ? 'par variante, au plus bas · ' : ''}minimum ${n(minImpressions)}`,
     },
-    {
-      icone: 'lock',
-      titre: !pc || pc.conforme === null ? 'Protocole à contrôler' : pc.conforme ? 'Règle respectée' : 'Protocole non respecté',
-      detail: pc?.resume ?? 'Contrôlé à la première mesure du lot',
-    },
+    protocole,
   ];
 }
 
 /** Ce que la fiche dit à côté de l'orbe · l'étape suivante, d'après l'état (aucun texte généré). */
-export function coachLot(p: PresentationLot, s: SyntheseLot, variantes: number): { avant: string; fort: string; apres: string } {
+export function coachLot(p: PresentationLot, s: SyntheseLot, l: VariantesDuLot<ReadonlyArray<unknown>>): { avant: string; fort: string; apres: string } {
+  // Lu en partie · aucun conseil tiré d'une partie du lot, quel que soit l'état (« Lot en préparation : 0 variante » serait faux).
+  if (l.partielle) return { avant: `${TITRE_LECTURE_INCOMPLETE} :`, fort: 'non calculé', apres: `· ${compteLecture(l)} · aucun conseil n’est tiré d’une partie du lot.` };
+  const variantes = nombreVariantes(l);
   switch (p.etat) {
     case 'a_conclure': return { avant: 'Les verdicts sont calculés, il reste à les arbitrer. Le moteur retient :', fort: s.titre, apres: '· écris ce que chaque variante t’apprend pour conclure le lot.' };
     case 'non_concluant': return { avant: 'Aucune variante n’a tranché :', fort: s.titre, apres: '· arbitre quand même pour garder la trace de ce qui n’a rien donné.' };
@@ -507,5 +566,7 @@ export function coachLot(p: PresentationLot, s: SyntheseLot, variantes: number):
     case 'composition': return { avant: 'Lot en préparation :', fort: `${variantes} variante${variantes > 1 ? 's' : ''}`, apres: '· range, complète et prépare avant de lancer.' };
     case 'pret': return { avant: 'Toutes les variantes sont prêtes :', fort: 'lance-les dans Meta avec les noms générés', apres: '· puis marque le lot lancé ici.' };
     case 'importe': return { avant: 'Historique importé :', fort: s.titre, apres: '· ses verdicts ne sont pas comparables aux tests suivis ici.' };
+    // Inatteignable · un lot `illisible` est lu en partie (traité plus haut).
+    case 'illisible': return { avant: `${TITRE_LECTURE_INCOMPLETE} :`, fort: 'non calculé', apres: '· aucun conseil n’est tiré d’une partie du lot.' };
   }
 }

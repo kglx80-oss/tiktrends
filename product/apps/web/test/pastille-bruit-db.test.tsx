@@ -141,8 +141,13 @@ afterEach(() => { h.session = null; h.marque = null; vi.mocked(pastilleImport).m
 const brut = (el: ReactNode) => renderToStaticMarkup(el as ReactElement);
 const dom = (html: string) => { const d = document.createElement('div'); d.innerHTML = html; return d; };
 const net = (s: string | null | undefined) => (s ?? '').replace(/\s+/g, ' ').trim();
-/** Les lectures des variantes (`adsmap_ads`) et les écritures, parmi les requêtes notées. */
-const lecturesVariantes = (r: readonly string[]) => r.filter((t) => /from "adsmap_ads"/i.test(t)).length;
+/**
+ * Les lectures des variantes (`adsmap_ads` en tête de la requête) et les écritures, parmi les requêtes notées.
+ * Les COMPTES des variantes par lot (`lotsAvecComptes` · « adsmap_batches » joint au compte de « adsmap_ads »,
+ * pour lire chaque lot en entier) sont une requête à part, comptée à part · une fois par coquille, elle aussi.
+ */
+const lecturesVariantes = (r: readonly string[]) => r.filter((t) => /from "adsmap_ads"/i.test(t) && !/from "adsmap_batches"/i.test(t)).length;
+const comptesVariantes = (r: readonly string[]) => r.filter((t) => /from "adsmap_batches" left join \(select .*from "adsmap_ads"/is.test(t)).length;
 const ecritures = (r: readonly string[]) => r.filter((t) => /^\s*(insert|update|delete|truncate|alter|create|drop)\b/i.test(t));
 
 /** La VRAIE coquille · la pastille « à importer », l'entrée Résultats · et les requêtes de CETTE coquille. */
@@ -274,6 +279,7 @@ describe('UNE lecture pour les deux comptes du rail · qui voit quoi · rien éc
     const r = await rail();
     expect([r.importer?.n, r.conclure], 'préalable · les deux pastilles sont posées').toEqual([1, 'Un lot à conclure']);
     expect(lecturesVariantes(r.requetes), `les deux comptes du rail lisent les variantes ${lecturesVariantes(r.requetes)} fois`).toBe(1);
+    expect(comptesVariantes(r.requetes), `les deux comptes du rail comptent les variantes ${comptesVariantes(r.requetes)} fois`).toBe(1);
     expect(vi.mocked(pastilleImport)).toHaveBeenCalledTimes(1);
     expect(ecritures(r.requetes), 'la coquille écrit').toEqual([]);
     h.requetes.length = 0;
@@ -292,6 +298,7 @@ describe('UNE lecture pour les deux comptes du rail · qui voit quoi · rien éc
     expect(vi.mocked(pastilleImport), 'le compte « à importer » est lu pour un membre').not.toHaveBeenCalled();
     expect(r.conclure, 'le membre ne voit plus le même compte « à conclure »').toBe('Un lot à conclure');
     expect(lecturesVariantes(r.requetes)).toBe(1);
+    expect(comptesVariantes(r.requetes)).toBe(1);
     await expect(ImportSpatial({ searchParams: Promise.resolve({}) }), 'préalable · l’écran d’import refuse le membre').rejects.toThrow('REDIRECT /adsmap');
     expect(ecritures(r.requetes)).toEqual([]);
     expect(await traces()).toEqual(avantT);

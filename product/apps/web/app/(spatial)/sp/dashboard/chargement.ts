@@ -132,7 +132,7 @@ export async function chargerAccueilSpatial(s: Session, params: Record<string, s
   ]);
   const aConclure = etats?.aConclure ?? null;
   // Un lot conclu reste `testing` en base · ni « En diffusion » ni « fin prévue passée » · lu en entier seulement
-  // (`lotConcluAccueil` · la lecture des états est bornée) · états illisibles ou partiels, rien n'est caché.
+  // (`lotConcluAccueil` · un lot lu en partie est `illisible`, jamais conclu) · états illisibles ou partiels, rien n'est caché.
   const lots: LotAccueil[] | null = lotsLus ? lotsLus.map((l) => ({ ...l, conclu: lotConcluAccueil(l, etats?.conclus) })) : null;
 
   /* ── Reporting Meta ─────────────────────────────────────────────────── */

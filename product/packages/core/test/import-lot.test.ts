@@ -3,7 +3,7 @@ import {
   CHEMIN_IMPORT_RESULTATS, DEFAULT_VERDICT_CONFIG, RAISON_IMPORT_FERME, adresseListeLot, etatLotSpatial, importFicheLot, lienImportLot,
   listeLotImport, lotAttendDesMesures, lotImport, phraseSansMesureApres, presentationLot, prochaineActionBoucle, syntheseLot,
   variantesSansMesureApres,
-  type EtatLotSpatial, type FaitsAdSpatial, type FaitsLotSpatial, type FaitsVerdictSpatial, type VerdictValue,
+  type EtatLotSpatial, type FaitsAdSpatial, type FaitsLotSpatialEntier, type FaitsVerdictSpatial, type VerdictValue,
 } from '../src';
 
 /**
@@ -23,7 +23,7 @@ const verdict = (calcule: VerdictValue | null, o: Partial<FaitsVerdictSpatial> =
 const ad = (id: string, v: FaitsVerdictSpatial | null, o: Partial<FaitsAdSpatial> = {}): FaitsAdSpatial => ({
   id, variante: id, statut: 'live', hypothese: 'h', variable: 'hook', plateforme: 'meta', texte: 't', image: null, manques: [], verdict: v, ...o,
 });
-const lot = (id: string, numero: number, o: Partial<FaitsLotSpatial & { finPrevue: string | null }> = {}): FaitsLotSpatial & { finPrevue: string | null } => ({
+const lot = (id: string, numero: number, o: Partial<FaitsLotSpatialEntier & { finPrevue: string | null }> = {}): FaitsLotSpatialEntier & { finPrevue: string | null } => ({
   id, numero, but: `But ${numero}`, statut: 'testing', lanceLe: ilYa(10), finPrevue: null, protocole: null, ads: [ad('v1', null), ad('v2', null)], ...o,
 });
 
@@ -140,7 +140,7 @@ describe('après le dépôt d’un export · les variantes du lot choisi qui res
 
 describe('la fiche d’un lot « Mesures à importer »', () => {
   const l = lot('a', 4);
-  const f = (etat: EtatLotSpatial, refus: 'role' | 'plan' | null, x: FaitsLotSpatial = l) => importFicheLot({ etat, lot: x, variantes: x.ads, seuil: SEUIL, acces: { refus } });
+  const f = (etat: EtatLotSpatial, refus: 'role' | 'plan' | null, x: FaitsLotSpatialEntier = l) => importFicheLot({ etat, lot: x, variantes: x.ads, seuil: SEUIL, acces: { refus } });
   it('admin · le cas mesuré et l’import ouvert sur CE lot', () => {
     expect(f('a_importer', null)).toEqual({ lotId: 'a', texte: 'Lot #4 · aucune mesure reçue depuis le lancement', geste: { etat: 'ouvert', libelle: 'Importer les mesures du lot #4', href: '/adsmap/import?lot=a' } });
   });

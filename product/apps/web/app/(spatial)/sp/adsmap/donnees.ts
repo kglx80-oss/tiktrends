@@ -1,10 +1,10 @@
 import 'server-only';
 import { redirect } from 'next/navigation';
-import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
   DEFAULT_VERDICT_CONFIG, conclusionLot, manquesAvantTest, etatLotSpatial, presentationLot, referenceConclusion, lireOrigineHypothese, lireProvenanceJarvis, lireProvenanceCommentaire, lireProvenanceNote, sommeRetenues,
-  compteAConclure, compteAImporter, lotsConclusLus,
+  compteAConclure, compteAImporter, lotsConclusLus, lotsALire, lectureDuLot, estLuEnEntier, BORNES_LECTURE_LOTS, type VariantesDuLot,
   type EstimationHypothese, type OrigineHypotheseLibre, type ProvenanceJarvis, type ProvenanceCommentaire, type ProvenanceNote, type VerdictConfig, type VerdictValue, type FaitsAdSpatial, type FaitsLotSpatial, type ContexteLots, type AgregatMesures,
   type FaitsHypotheseAd, type CompteAConclure, type FaitsVerdictSpatial, type SeuilMinimumMoteur, type VarianteFinPrevue,
   type CompteAImporter, type FaitsLotAImporter,
@@ -83,12 +83,20 @@ export interface AdLue extends FaitsAdSpatial {
   note?: ProvenanceNote | null;
 }
 
-export interface LotLu extends FaitsLotSpatial {
-  ads: AdLue[];
+/**
+ * Un lot lu · ses variantes TOUTES (`ads`) ou AUCUNE (`partielle` · ce que la
+ * base compte, ce que la lecture a vu) · `lectureDuLot` · jamais une partie
+ * qu'on parcourrait comme si elle était complète (`VariantesDuLot`, noyau).
+ */
+export type LotLu = {
+  id: string; numero: number; but: string | null; statut: string; lanceLe: string | null;
+  protocole: FaitsLotSpatial['protocole'];
   creeLe: string;
   /** `planned_end_at` (ISO) · `null` sans fin prévue · lue par la liste « Lot » de l'import (`casMesuresLot`). */
   finPrevue: string | null;
-}
+} & VariantesDuLot<AdLue[]>;
+/** Un lot lu en entier · ses `ads` sont là. */
+export type LotLuEntier = Extract<LotLu, { partielle?: undefined }>;
 
 export interface DonneesLots {
   lots: LotLu[];
@@ -104,14 +112,63 @@ export interface DonneesLots {
 /**
  * La PORTÉE des ads lues pour les lots · la liste (`chargerLots`) et les comptes
  * du rail (`chargerFaitsRail`) la partagent · même espace, même
- * graphe (concept → angle → désir → persona → marque), même ordre, même borne ·
- * sinon la pastille et la liste pourraient voir deux ensembles de variantes.
- * L'ordre finit par l'identifiant · à la borne, les deux lectures retiennent
- * les MÊMES ads (un code de variante seul départage mal · « v1 » dans chaque lot).
+ * graphe (concept → angle → désir → persona → marque), même ordre, mêmes
+ * bornes · sinon la pastille et la liste pourraient voir deux ensembles de variantes.
+ *
+ * Chaque lot est lu EN ENTIER, ou pas du tout (`lotsALire`, noyau) · la base
+ * compte d'abord les variantes de chaque lot sous cette portée
+ * (`lotsAvecComptes`), le noyau choisit les lots à lire (les plus récents,
+ * chacun entier, `BORNES_LECTURE_LOTS`), puis on lit leurs variantes. Un lot
+ * non retenu garde son compte · il est lu en partie (`lotLuEnEntier`), et son
+ * état le dit (`illisible`) au lieu d'être calculé sur ce qui reste. Avant, une
+ * borne globale (2 000 variantes par code, tous lots mêlés) coupait les derniers
+ * codes de nombreux lots. Coût mesuré · `MESURE_LECTURE_LOTS` (noyau).
+ *
+ * L'ordre finit par l'identifiant · deux lectures retiennent les MÊMES ads
+ * (un code de variante seul départage mal · « v1 » dans chaque lot).
  */
-const LIMITE_ADS_LOTS = 2000;
 const adsDeLaMarque = (workspaceId: string, brandId: string) => and(eq(schema.ads.workspaceId, workspaceId), eq(schema.personas.brandId, brandId));
 const ORDRE_ADS_LOTS = [asc(schema.ads.variantCode), asc(schema.ads.id)] as const;
+/**
+ * La borne d'une lecture de variantes qui ne calcule l'état d'AUCUN lot · les
+ * annonces hors lot de la marque (`chargerLots`) et les variantes d'un seul lot
+ * pour son diagnostic (`chargerVariantesFinPrevue`).
+ */
+const LIMITE_ADS_LOTS = 2000;
+
+/** Le nombre de variantes de chaque lot de la marque, sous la portée de la lecture (`adsDeLaMarque`) · une ligne par lot qui en a. */
+function comptesParLot(workspaceId: string, brandId: string) {
+  return db!.select({ lot: schema.ads.batchId, n: sql<number>`count(*)::int`.as('n') })
+    .from(schema.ads)
+    .innerJoin(schema.concepts, eq(schema.ads.conceptId, schema.concepts.id))
+    .innerJoin(schema.angles, eq(schema.concepts.angleId, schema.angles.id))
+    .innerJoin(schema.desires, eq(schema.angles.desireId, schema.desires.id))
+    .innerJoin(schema.personas, eq(schema.desires.personaId, schema.personas.id))
+    .where(and(adsDeLaMarque(workspaceId, brandId), isNotNull(schema.ads.batchId)))
+    .groupBy(schema.ads.batchId)
+    .as('comptes');
+}
+
+/** Les lots de la marque, le plus récent d'abord, chacun avec le nombre de ses variantes en base (`comptesParLot`) · en UNE requête. */
+function lotsAvecComptes(workspaceId: string, brandId: string) {
+  const c = comptesParLot(workspaceId, brandId);
+  return db!.select({
+    id: schema.batches.id, number: schema.batches.number, goal: schema.batches.goal, status: schema.batches.status,
+    launchedAt: schema.batches.launchedAt, plannedEndAt: schema.batches.plannedEndAt, protocolCheck: schema.batches.protocolCheck, createdAt: schema.batches.createdAt,
+    enBase: sql<number>`coalesce(${c.n}, 0)::int`,
+  }).from(schema.batches).leftJoin(c, eq(c.lot, schema.batches.id)).where(eq(schema.batches.brandId, brandId)).orderBy(desc(schema.batches.number));
+}
+
+/**
+ * Les lots à lire en entier (`lotsALire`, la règle du noyau) · `ids` · ceux qui ont des variantes (un lot vide est lu
+ * en entier sans requête) · `n` · le total de leurs variantes, la borne de la lecture · `lotEntier` · le lot d'une fiche.
+ */
+function lotsRetenus(lots: ReadonlyArray<{ id: string; enBase: number }>, lotEntier?: string): { ids: string[]; n: number } {
+  const lus = lotsALire(lots.map((l) => ({ id: l.id, variantesEnBase: Number(l.enBase) })), BORNES_LECTURE_LOTS, lotEntier);
+  const retenus = lots.filter((l) => lus.has(l.id) && Number(l.enBase) > 0);
+  return { ids: retenus.map((l) => l.id), n: retenus.reduce((s, l) => s + Number(l.enBase), 0) };
+}
+
 /** Le verdict tel que l'état d'un lot le lit · sa valeur, son statut, et l'instant de son dernier calcul (`computed_at` · une mesure arrêtée avant la fin de la fenêtre · l'état, `mesureArretee` · la phrase, `mesuresArretees` → `mesureArreteeConstatee`). */
 const verdictLu = (v: { status: string | null; computed: string | null; computedAt: Date | null }): Pick<FaitsVerdictSpatial, 'statut' | 'calcule' | 'calculeLe'> => ({
   calcule: (v.computed ?? null) as VerdictValue | null,
@@ -119,45 +176,61 @@ const verdictLu = (v: { status: string | null; computed: string | null; computed
   calculeLe: v.computedAt ? v.computedAt.toISOString() : null,
 });
 
-/** Tous les lots de la marque, leurs variantes et leurs verdicts · en deux requêtes. */
-export async function chargerLots(workspaceId: string, brandId: string, maintenant = new Date()): Promise<DonneesLots> {
+/** Les variantes de la marque telles que la liste les lit · créa, concept, verdict · la portée posée, le filtre (lots retenus, hors lot) à ajouter. */
+function selectAdsLues(workspaceId: string, brandId: string, filtre: ReturnType<typeof and>) {
+  return db!.select({
+    ad: {
+      id: schema.ads.id, batchId: schema.ads.batchId, variantCode: schema.ads.variantCode, status: schema.ads.status,
+      hypothesis: schema.ads.hypothesis, testedVariable: schema.ads.testedVariable, platform: schema.ads.platform,
+      adType: schema.ads.adType, offerId: schema.ads.offerId, landingPageId: schema.ads.landingPageId,
+      assetUrl: schema.ads.assetUrl, generatedName: schema.ads.generatedName,
+      sourceRef: schema.ads.sourceRef, iceImpact: schema.ads.iceImpact, iceConfidence: schema.ads.iceConfidence, iceEffort: schema.ads.iceEffort,
+    },
+    concept: schema.concepts.title, callout: schema.concepts.callout, prelaunch: schema.concepts.prelaunchScore,
+    thumb: schema.creatives.thumbUrl, storage: schema.creatives.storageUrl,
+    v: {
+      computed: schema.verdicts.computed, validated: schema.verdicts.validated, status: schema.verdicts.status,
+      comparable: schema.verdicts.comparable, agg: schema.verdicts.metricsAgg, adId: schema.verdicts.adId, computedAt: schema.verdicts.computedAt,
+    },
+  })
+    .from(schema.ads)
+    .innerJoin(schema.concepts, eq(schema.ads.conceptId, schema.concepts.id))
+    .innerJoin(schema.angles, eq(schema.concepts.angleId, schema.angles.id))
+    .innerJoin(schema.desires, eq(schema.angles.desireId, schema.desires.id))
+    .innerJoin(schema.personas, eq(schema.desires.personaId, schema.personas.id))
+    .leftJoin(schema.verdicts, eq(schema.verdicts.adId, schema.ads.id))
+    .leftJoin(schema.creatives, jointureCreaDeLaMarque(brandId))
+    .where(and(adsDeLaMarque(workspaceId, brandId), filtre))
+    .orderBy(...ORDRE_ADS_LOTS);
+}
+
+/**
+ * Tous les lots de la marque, leurs variantes et leurs verdicts · chaque lot lu
+ * en entier ou pas du tout (`lotsALire`), son compte en base à côté · les
+ * annonces hors lot, bornées à part (aucun état n'est calculé sur elles).
+ * `o.lotEntier` · la fiche d'UN lot le lit en entier hors budget (jusqu'à
+ * `plafondLotSeul`) · un lot ancien, repoussé hors de la liste par les plus
+ * récents, reste lisible et arbitrable sur sa fiche · les autres lots sont lus
+ * comme dans la liste.
+ */
+export async function chargerLots(workspaceId: string, brandId: string, maintenant = new Date(), o: { lotEntier?: string } = {}): Promise<DonneesLots> {
   if (!db) return { lots: [], horsLot: [], config: DEFAULT_VERDICT_CONFIG, configEnregistree: false, structure: 'abo_one_adset_per_ad', ctx: { maintenant, fenetreJours: DEFAULT_VERDICT_CONFIG.evaluationWindowDays } };
-  const [lignes, lots, [vc], [tp]] = await Promise.all([
-    db.select({
-      ad: {
-        id: schema.ads.id, batchId: schema.ads.batchId, variantCode: schema.ads.variantCode, status: schema.ads.status,
-        hypothesis: schema.ads.hypothesis, testedVariable: schema.ads.testedVariable, platform: schema.ads.platform,
-        adType: schema.ads.adType, offerId: schema.ads.offerId, landingPageId: schema.ads.landingPageId,
-        assetUrl: schema.ads.assetUrl, generatedName: schema.ads.generatedName,
-        sourceRef: schema.ads.sourceRef, iceImpact: schema.ads.iceImpact, iceConfidence: schema.ads.iceConfidence, iceEffort: schema.ads.iceEffort,
-      },
-      concept: schema.concepts.title, callout: schema.concepts.callout, prelaunch: schema.concepts.prelaunchScore,
-      thumb: schema.creatives.thumbUrl, storage: schema.creatives.storageUrl,
-      v: {
-        computed: schema.verdicts.computed, validated: schema.verdicts.validated, status: schema.verdicts.status,
-        comparable: schema.verdicts.comparable, agg: schema.verdicts.metricsAgg, adId: schema.verdicts.adId, computedAt: schema.verdicts.computedAt,
-      },
-    })
-      .from(schema.ads)
-      .innerJoin(schema.concepts, eq(schema.ads.conceptId, schema.concepts.id))
-      .innerJoin(schema.angles, eq(schema.concepts.angleId, schema.angles.id))
-      .innerJoin(schema.desires, eq(schema.angles.desireId, schema.desires.id))
-      .innerJoin(schema.personas, eq(schema.desires.personaId, schema.personas.id))
-      .leftJoin(schema.verdicts, eq(schema.verdicts.adId, schema.ads.id))
-      .leftJoin(schema.creatives, jointureCreaDeLaMarque(brandId))
-      .where(adsDeLaMarque(workspaceId, brandId))
-      .orderBy(...ORDRE_ADS_LOTS)
-      .limit(LIMITE_ADS_LOTS),
-    db.select({
-      id: schema.batches.id, number: schema.batches.number, goal: schema.batches.goal, status: schema.batches.status,
-      launchedAt: schema.batches.launchedAt, plannedEndAt: schema.batches.plannedEndAt, protocolCheck: schema.batches.protocolCheck, createdAt: schema.batches.createdAt,
-    }).from(schema.batches).where(eq(schema.batches.brandId, brandId)).orderBy(desc(schema.batches.number)),
+  // `execute()` · une promesse, lue deux fois · un constructeur de requête relancerait la requête à chaque `then`.
+  const lotsP = lotsAvecComptes(workspaceId, brandId).execute();
+  const [lots, lignes, lignesHorsLot, [vc], [tp]] = await Promise.all([
+    lotsP,
+    lotsP.then((l) => {
+      const { ids, n } = lotsRetenus(l, o.lotEntier);
+      // Garde-fou · une écriture entre le compte et la lecture ne fait jamais lire plus que ce qui a été compté · un lot coupé reste lu en partie.
+      return ids.length ? selectAdsLues(workspaceId, brandId, inArray(schema.ads.batchId, ids)).limit(n) : [];
+    }),
+    selectAdsLues(workspaceId, brandId, isNull(schema.ads.batchId)).limit(LIMITE_ADS_LOTS),
     db.select({ config: schema.verdictConfigs.config }).from(schema.verdictConfigs).where(eq(schema.verdictConfigs.brandId, brandId)).limit(1),
     db.select({ structure: schema.testProtocols.structure }).from(schema.testProtocols).where(eq(schema.testProtocols.brandId, brandId)).limit(1),
   ]);
   const config: VerdictConfig = { ...DEFAULT_VERDICT_CONFIG, ...((vc?.config as Partial<VerdictConfig>) ?? {}) };
 
-  const ads: AdLue[] = lignes.map((r) => {
+  const ads: AdLue[] = [...lignes, ...lignesHorsLot].map((r) => {
     const agg = (r.v?.agg ?? {}) as Record<string, unknown>;
     const bande = (r.prelaunch as { band?: unknown } | null)?.band;
     return {
@@ -192,7 +265,12 @@ export async function chargerLots(workspaceId: string, brandId: string, maintena
   });
 
   const parLot = new Map<string, AdLue[]>();
-  for (const a of ads) if (a.lotId) parLot.set(a.lotId, [...(parLot.get(a.lotId) ?? []), a]);
+  // Une variante ajoutée à SON lot, sans recopier le lot · un lot lu en entier par sa fiche peut compter des milliers de variantes.
+  for (const a of ads) {
+    if (!a.lotId) continue;
+    const du = parLot.get(a.lotId);
+    if (du) du.push(a); else parLot.set(a.lotId, [a]);
+  }
 
   return {
     lots: lots.map((b) => {
@@ -202,7 +280,8 @@ export async function chargerLots(workspaceId: string, brandId: string, maintena
         lanceLe: b.launchedAt ? (b.launchedAt as Date).toISOString() : null,
         finPrevue: b.plannedEndAt ? (b.plannedEndAt as Date).toISOString() : null,
         creeLe: (b.createdAt as Date).toISOString(),
-        ads: parLot.get(b.id) ?? [],
+        // Toutes les variantes, ou aucune · `partielle` quand la lecture n'a pas vu autant de variantes que la base en compte.
+        ...lectureDuLot(parLot.get(b.id) ?? [], Number(b.enBase)),
         protocole: pc ? { conforme: typeof pc.compliant === 'boolean' ? pc.compliant : null, resume: typeof pc.summary === 'string' ? pc.summary : null } : null,
       };
     }),
@@ -213,6 +292,18 @@ export async function chargerLots(workspaceId: string, brandId: string, maintena
     ctx: { maintenant, fenetreJours: config.evaluationWindowDays },
   };
 }
+
+/**
+ * Les variantes d'un lot LU EN ENTIER, par son identifiant · pour les règles qui
+ * prennent un lot de `faitsHypotheses` (qui ne porte que des lots lus en entier) ·
+ * un lot lu en partie n'y est pas · aucun `[]` ne se substitue à lui (`VariantesDuLot`).
+ */
+export function variantesDesLotsEntiers(d: Pick<DonneesLots, 'lots'>): (lotId: string) => readonly AdLue[] {
+  const lus = new Map(d.lots.filter(estLuEnEntier).map((l) => [l.id, l.ads] as const));
+  return (lotId) => lus.get(lotId) ?? AUCUNE_VARIANTE;
+}
+/** Inatteignable depuis `faitsHypotheses` · un identifiant hors des lots lus en entier n'a aucune variante à prêter. */
+const AUCUNE_VARIANTE: readonly AdLue[] = Object.freeze([]);
 
 /** Les états des lots, dans l'ordre de la liste. */
 export const etatsLots = (d: DonneesLots) => d.lots.map((l) => etatLotSpatial(l, d.ctx));
@@ -230,8 +321,9 @@ export interface FaitsRail { lots: LotRailLu[]; ctx: ContexteLots; seuil: SeuilM
  * elles n'en font plus qu'une, et la coquille la partage entre ses deux
  * pastilles (`PartageRail`, `lib/spatial/coquille.ts`). La MÊME portée que `chargerLots`
  * (lots de la marque, ads sous `adsDeLaMarque`), le même ordre
- * (`ORDRE_ADS_LOTS`, départagé par l'identifiant), la même borne
- * (`LIMITE_ADS_LOTS`) · par variante · son lot, son statut, sa plateforme, son
+ * (`ORDRE_ADS_LOTS`, départagé par l'identifiant), les mêmes lots lus en
+ * entier (`lotsAvecComptes` → `lotsALire`), chacun avec son compte en base ·
+ * un lot lu en partie n'est compté nulle part (`illisible`) · par variante · son lot, son statut, sa plateforme, son
  * verdict (statut, valeur calculée) et les DEUX nombres de l'agrégat que le
  * minimum du moteur lit (dépense, impressions, extraits en base · le reste de
  * l'agrégat ne quitte pas la base) · par lot · son statut, son lancement, sa
@@ -239,31 +331,37 @@ export interface FaitsRail { lots: LotRailLu[]; ctx: ContexteLots; seuil: SeuilM
  * réglages du verdict de la MARQUE (le seuil du moteur, la fenêtre). Les
  * règles restent au noyau.
  *
- * Coût mesuré · `MESURE_LECTURE_RAIL` plus bas.
+ * Coût mesuré · `MESURE_LECTURE_RAIL` plus bas (la borne globale d'avant) ·
+ * `MESURE_LECTURE_LOTS` (noyau · chaque lot lu en entier).
  */
 export async function chargerFaitsRail(workspaceId: string, brandId: string, maintenant = new Date()): Promise<FaitsRail> {
   if (!db) return { lots: [], ctx: { maintenant, fenetreJours: DEFAULT_VERDICT_CONFIG.evaluationWindowDays }, seuil: DEFAULT_VERDICT_CONFIG };
-  const [lignes, lots, [vc]] = await Promise.all([
-    db.select({
-      lot: schema.ads.batchId, statut: schema.ads.status, plateforme: schema.ads.platform,
-      adId: schema.verdicts.adId, status: schema.verdicts.status, computed: schema.verdicts.computed, computedAt: schema.verdicts.computedAt,
-      depense: sql<string | null>`(${schema.verdicts.metricsAgg}->'spend')::text`, impressions: sql<string | null>`(${schema.verdicts.metricsAgg}->'impressions')::text`,
-    })
-      .from(schema.ads)
-      .innerJoin(schema.concepts, eq(schema.ads.conceptId, schema.concepts.id))
-      .innerJoin(schema.angles, eq(schema.concepts.angleId, schema.angles.id))
-      .innerJoin(schema.desires, eq(schema.angles.desireId, schema.desires.id))
-      .innerJoin(schema.personas, eq(schema.desires.personaId, schema.personas.id))
-      .leftJoin(schema.verdicts, eq(schema.verdicts.adId, schema.ads.id))
-      .where(adsDeLaMarque(workspaceId, brandId))
-      .orderBy(...ORDRE_ADS_LOTS)
-      .limit(LIMITE_ADS_LOTS),
-    db.select({ id: schema.batches.id, numero: schema.batches.number, statut: schema.batches.status, lanceLe: schema.batches.launchedAt, finPrevue: schema.batches.plannedEndAt })
-      .from(schema.batches).where(eq(schema.batches.brandId, brandId)).orderBy(desc(schema.batches.number)),
+  // `execute()` · une promesse, lue deux fois · un constructeur de requête relancerait la requête à chaque `then`.
+  const lotsP = lotsAvecComptes(workspaceId, brandId).execute();
+  const [lots, lignes, [vc]] = await Promise.all([
+    lotsP,
+    lotsP.then((l) => {
+      const { ids, n } = lotsRetenus(l);
+      if (!ids.length) return [];
+      return db!.select({
+        lot: schema.ads.batchId, statut: schema.ads.status, plateforme: schema.ads.platform,
+        adId: schema.verdicts.adId, status: schema.verdicts.status, computed: schema.verdicts.computed, computedAt: schema.verdicts.computedAt,
+        depense: sql<string | null>`(${schema.verdicts.metricsAgg}->'spend')::text`, impressions: sql<string | null>`(${schema.verdicts.metricsAgg}->'impressions')::text`,
+      })
+        .from(schema.ads)
+        .innerJoin(schema.concepts, eq(schema.ads.conceptId, schema.concepts.id))
+        .innerJoin(schema.angles, eq(schema.concepts.angleId, schema.angles.id))
+        .innerJoin(schema.desires, eq(schema.angles.desireId, schema.desires.id))
+        .innerJoin(schema.personas, eq(schema.desires.personaId, schema.personas.id))
+        .leftJoin(schema.verdicts, eq(schema.verdicts.adId, schema.ads.id))
+        .where(and(adsDeLaMarque(workspaceId, brandId), inArray(schema.ads.batchId, ids)))
+        .orderBy(...ORDRE_ADS_LOTS)
+        .limit(n);
+    }),
     db.select({ config: schema.verdictConfigs.config }).from(schema.verdictConfigs).where(eq(schema.verdictConfigs.brandId, brandId)).limit(1),
   ]);
   const config: VerdictConfig = { ...DEFAULT_VERDICT_CONFIG, ...((vc?.config as Partial<VerdictConfig>) ?? {}) };
-  const parLot = new Map<string, LotRailLu['ads'][number][]>();
+  const parLot = new Map<string, NonNullable<LotRailLu['ads']>[number][]>();
   for (const r of lignes) {
     if (!r.lot) continue;
     const v = {
@@ -275,7 +373,7 @@ export async function chargerFaitsRail(workspaceId: string, brandId: string, mai
   }
   const iso = (d: unknown) => (d ? (d as Date).toISOString() : null);
   return {
-    lots: lots.map((b) => ({ id: b.id, numero: b.numero, statut: b.statut, lanceLe: iso(b.lanceLe), finPrevue: iso(b.finPrevue), ads: parLot.get(b.id) ?? [] })),
+    lots: lots.map((b): LotRailLu => ({ id: b.id, numero: b.number, statut: b.status, lanceLe: iso(b.launchedAt), finPrevue: iso(b.plannedEndAt), ...lectureDuLot(parLot.get(b.id) ?? [], Number(b.enBase)) })),
     ctx: { maintenant, fenetreJours: config.evaluationWindowDays },
     seuil: config,
   };
@@ -301,7 +399,7 @@ export async function chargerFaitsRail(workspaceId: string, brandId: string, mai
  * #1080 seule (les deux lectures de main recopiées telles quelles dans le
  * banc, 04d6270b), mesurée dans le MÊME passage (la charge de la machine pèse sur
  * les trois colonnes à la fois). Semis · 8 lots × 2, 60 × 8, 250 × 8 (la
- * borne `LIMITE_ADS_LOTS` atteinte), variantes Meta diffusées, un verdict sur
+ * borne globale d'alors atteinte, 2 000 variantes par code), variantes Meta diffusées, un verdict sur
  * trois sous le minimum du moteur, une variante sur quatre sans verdict, un
  * lot sur deux avec une fin prévue. Égalité vérifiée à chaque taille · mêmes
  * lots et mêmes variantes par lot que chacune des deux lectures de main et que
@@ -334,7 +432,7 @@ export function faitsRailPartages(workspaceId: string, brandId: string, maintena
  * (`compteAConclure`) ET les lots conclus avec le nombre de variantes LUES de
  * chacun (`lotsConclusLus` · toutes leurs variantes lues arbitrées · l'Accueil
  * ne les écarte de « En diffusion » et de « fin prévue passée » que lus en
- * entier, `lotConcluAccueil` · la lecture est bornée, `LIMITE_ADS_LOTS`) ·
+ * entier, `lotConcluAccueil` · un lot lu en partie n'est jamais conclu, `illisible`) ·
  * tirés de LA même lecture (`faitsRailPartages`).
  */
 export async function lireEtatsAccueil(workspaceId: string, brandId: string, maintenant = new Date()): Promise<{ aConclure: CompteAConclure; conclus: ReadonlyMap<string, number> }> {
@@ -402,7 +500,8 @@ export async function chargerVariantesFinPrevue(workspaceId: string, brandId: st
  */
 export function faitsHypotheses(d: DonneesLots): Array<FaitsHypotheseAd & { ad: AdLue }> {
   return [
-    ...d.lots.flatMap((l) => {
+    // Un lot lu en partie n'expose aucune variante · aucune carte d'hypothèse ne se tire de lui.
+    ...d.lots.filter(estLuEnEntier).flatMap((l) => {
       const p = presentationLot(l, d.ctx);
       const conclusion = conclusionLot(l, p.etat, referenceConclusion(d.lots, l.id));
       return l.ads.map((a) => ({ ad: a, concept: a.concept, bande: a.bande, origine: a.origine, estimation: a.estimation, lot: { id: l.id, numero: l.numero, etat: p.etat, jour: p.etat === 'diffusion' ? p.jour : null, conclusion } }));

@@ -4,7 +4,7 @@ import {
   PROVENANCES_TEST, RAISON_ITERER_SANS_GAGNANTE, RESTE_MAX_BILAN, RESTE_MAX_NIVEAU_BILAN,
   bilanProvenances, cartesHypotheses, conclusionLot, entreesBilanProvenances, etatLotSpatial, gestesPersonaLot, lecturePersonas,
   niveauBilanProvenances, provenanceCarte, provenanceDuTest, referenceConclusion, regleBilanProvenances, resultatHypothese, wilsonInterval,
-  type EntreeLecturePersona, type FaitsAdSpatial, type FaitsLotSpatial, type LectureConclusion, type OrigineHypotheseLibre, type ProvenanceTest,
+  type EntreeLecturePersona, type FaitsAdSpatial, type FaitsLotSpatialEntier, type LectureConclusion, type OrigineHypotheseLibre, type ProvenanceTest,
 } from '../src';
 
 /**
@@ -27,12 +27,12 @@ const ad = (id: string, v: 'winner' | 'loser' | null, o: Partial<FaitsAdSpatial>
     ...reste,
   };
 };
-const lot = (id: string, numero: number, ads: FaitsAdSpatial[], o: Partial<FaitsLotSpatial> = {}): FaitsLotSpatial => ({ id, numero, but: null, statut: 'testing', lanceLe: '2026-09-01T00:00:00Z', ads, protocole: null, ...o });
+const lot = (id: string, numero: number, ads: FaitsAdSpatial[], o: Partial<FaitsLotSpatialEntier> = {}): FaitsLotSpatialEntier => ({ id, numero, but: null, statut: 'testing', lanceLe: '2026-09-01T00:00:00Z', ads, protocole: null, ...o });
 const CTX = { maintenant: new Date('2026-11-09T00:00:00Z'), fenetreJours: 14 };
 const TAG: OrigineHypotheseLibre = { type: 'tag', tag: 'Hook UGC', cle: 'hook ugc', savedAdIds: [], total: 3 };
 
 /** Le lot testé et sa référence (les autres lots), puis la conclusion telle que la page la calcule. */
-function conclure(cible: FaitsLotSpatial, autres: FaitsLotSpatial[]): { etat: ReturnType<typeof etatLotSpatial>; c: LectureConclusion } {
+function conclure(cible: FaitsLotSpatialEntier, autres: FaitsLotSpatialEntier[]): { etat: ReturnType<typeof etatLotSpatial>; c: LectureConclusion } {
   const lots = [cible, ...autres];
   const etat = etatLotSpatial(cible, CTX);
   return { etat, c: conclusionLot(cible, etat, referenceConclusion(lots, cible.id)) };

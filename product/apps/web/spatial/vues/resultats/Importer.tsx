@@ -110,7 +110,8 @@ function LotCible({ lot }: { lot: LotImport }) {
     <section className="tile sec" data-lot-cible={lot.id} aria-label={`Mesures du lot #${lot.numero}`} style={{ marginTop: 0, marginBottom: 14 }}>
       <h2>{lot.titre} · ses mesures</h2>
       {lot.mesures && <p className="muted" role="note" data-cas-mesures={lot.mesures.cas} style={{ fontSize: '12.5px' }}>{lot.mesures.texte}</p>}
-      {lot.diagnostic && <p className="muted" data-diagnostic="" style={{ fontSize: '12.5px' }}>{lot.diagnostic}</p>}
+      {/* Lu en partie, le diagnostic se tait (`lotImport`) · la phrase de lecture prend sa place, sans enfant de plus. */}
+      {lot.lecture ? <p className="muted" role="note" data-lecture-incomplete="" style={{ fontSize: '12.5px' }}>{lot.lecture}</p> : lot.diagnostic && <p className="muted" data-diagnostic="" style={{ fontSize: '12.5px' }}>{lot.diagnostic}</p>}
       {lot.sansSource && <p className="muted" role="note" data-sans-source="" style={{ fontSize: '12.5px' }}>{lot.sansSource}</p>}
       <div className="mtable" style={{ marginTop: 10 }} data-tableau="variantes-lot">
         <div className="mrow h" style={{ gridTemplateColumns: COLONNES_LOT }}><span>Variante</span><span>Nom régie</span><span>Mesures</span></div>

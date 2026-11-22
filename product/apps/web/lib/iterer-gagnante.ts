@@ -1,14 +1,14 @@
 import 'server-only';
 import { and, eq, inArray } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import {
+import { variantesDesLotsLus,
   etatPlanGagnante, gagnanteDeLHypothese, gagnantesDuLot, lotDeLaCarte, peutCreerIteration,
   gagnantesDeLaLignee, gestesParAdDeLaLignee, lireNaissanceGagnante,
   type AdRelueGagnante, type DemandeProvenanceGagnante, type GagnanteDuFil, type GagnanteDuNoeud, type LignePlanSpatial, type LotPourGagnante,
   type NaissanceGagnante, type PlanDesGagnantes, type ResultatDeLignee, type SuiteNee,
 } from '@tiktrends/core';
 import { iterationPlanAction } from '../app/actions/adsmap-iterate';
-import { chargerLots, faitsHypotheses, gardeResultats } from '../app/(spatial)/sp/adsmap/donnees';
+import { chargerLots, faitsHypotheses, gardeResultats, variantesDesLotsEntiers } from '../app/(spatial)/sp/adsmap/donnees';
 import { gardeStudio } from './studios/garde';
 
 /**
@@ -77,9 +77,10 @@ export async function planDesGagnantes(workspaceId: string, gagnantes: readonly 
 export async function lireGagnantesDepuis(workspaceId: string, brandId: string, d: DemandeProvenanceGagnante): Promise<{ lot: { id: string; numero: number }; gagnantes: GagnanteDuFil[] } | null> {
   if (!db || !UUID.test(d.id)) return null;
   try {
-    const dl = await chargerLots(workspaceId, brandId);
+    // Le lot de départ est lu en entier, hors budget (`lotEntier`), comme sa fiche · l'arrivée accepte ce que la fiche a ouvert.
+    const dl = await chargerLots(workspaceId, brandId, new Date(), d.source === 'lot' ? { lotEntier: d.id } : {});
     const faits = faitsHypotheses(dl);
-    const adsDuLot = (lotId: string) => dl.lots.find((l) => l.id === lotId)?.ads ?? [];
+    const adsDuLot = variantesDesLotsEntiers(dl);
     const id = d.id.toLowerCase();
     const f = d.source === 'lot' ? faits.find((x) => x.lot?.id.toLowerCase() === id) : faits.find((x) => x.ad.id.toLowerCase() === id);
     const lot = f ? lotDeLaCarte(f, adsDuLot) : null;
@@ -131,9 +132,9 @@ export async function lireGagnantesLignee(workspaceId: string, projet: { id: str
   }
   if (!naissances.size && !resultats.some((r) => r.enLot)) return {};
   const dl = await chargerLots(workspaceId, projet.brandId);
-  const parAd = new Map<string, AdRelueGagnante>([...dl.lots.flatMap((l) => l.ads), ...dl.horsLot].map((a) => [a.id.toLowerCase(), a]));
+  const parAd = new Map<string, AdRelueGagnante>([...variantesDesLotsLus(dl.lots), ...dl.horsLot].map((a) => [a.id.toLowerCase(), a]));
   const faits = faitsHypotheses(dl);
-  const adsDuLot = (lotId: string) => dl.lots.find((l) => l.id === lotId)?.ads ?? [];
+  const adsDuLot = variantesDesLotsEntiers(dl);
   const lots = [...new Map(faits.flatMap((f) => (f.lot ? [[f.lot.id, f] as const] : []))).values()]
     .map((f) => lotDeLaCarte(f, adsDuLot)).filter((x): x is LotPourGagnante => !!x);
   const base = { naissances, relue: (adId: string) => parAd.get(adId), lots };

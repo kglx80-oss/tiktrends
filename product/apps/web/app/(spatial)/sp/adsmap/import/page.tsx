@@ -1,4 +1,4 @@
-import { PARAM_LOT_IMPORT, estLotImporte, listeLotImport, lotCibleImport, lotImport, mesuresDuLot, quandCourt, remontees, sousNavResultats } from '@tiktrends/core';
+import { PARAM_LOT_IMPORT, estLotImporte, lotDemande, nombreVariantes, variantesDesLotsLus, listeLotImport, lotCibleImport, lotImport, mesuresDuLot, quandCourt, remontees, sousNavResultats } from '@tiktrends/core';
 import { Importer } from '../../../../../spatial/vues/resultats/Importer';
 import { RefusResultats } from '../../../../../spatial/vues/resultats/communs';
 import { chargerConnexion, chargerLots, gardeResultats } from '../donnees';
@@ -15,7 +15,7 @@ export const dynamic = 'force-dynamic';
  * (`lotCibleImport`). Rien n'est écrit à l'affichage.
  * La liste « Lot » (I06 · `listeLotImport`) · les lots de la marque qui
  * attendent des mesures, parmi ceux DÉJÀ lus ici (`chargerLots` · même ordre,
- * même borne), regroupés par cas (`casMesuresLot` · « mesures manquantes »,
+ * mêmes lots lus en entier), regroupés par cas (`casMesuresLot` · « mesures manquantes »,
  * que la pastille du rail compte, puis « mesures en cours ») · la sélection
  * est l'adresse (`?lot=`) · « Tous les lots », l'écran tel qu'il était. Aucun
  * lot à choisir · aucune liste. La section du lot dit son cas (`mesuresDuLot`, la même règle).
@@ -25,18 +25,26 @@ export default async function ImportSpatial({ searchParams }: { searchParams: Pr
   if (!g.ok) return <RefusResultats titre="Importer des résultats" raison={g.raison} />;
 
   const maintenant = new Date();
-  const [d, c, journal, params] = await Promise.all([chargerLots(g.s.workspaceId, g.marque.id, maintenant), chargerConnexion(g.marque.id), lireRemontees(g.marque.id), searchParams]);
-  const mesurees = [...d.lots.flatMap((l) => l.ads), ...d.horsLot].filter((a) => a.verdict?.calcule).length;
+  const params = await searchParams;
+  // Le lot de l'adresse est lu en entier, hors budget de la marque (`lotEntier`) · comme sa fiche.
+  // `?lot=a&lot=b` · une seule valeur, lue une fois (`lotDemande`) · la même pour la lecture et pour la cible.
+  const demande = lotDemande(params[PARAM_LOT_IMPORT]);
+  const [d, c, journal] = await Promise.all([
+    chargerLots(g.s.workspaceId, g.marque.id, maintenant, demande ? { lotEntier: demande } : {}),
+    chargerConnexion(g.marque.id), lireRemontees(g.marque.id),
+  ]);
+  const mesurees = [...variantesDesLotsLus(d.lots), ...d.horsLot].filter((a) => a.verdict?.calcule).length;
   const liste = remontees({
     mesureLe: c.mesureLe,
     journal,
     variantesMesurees: mesurees,
-    lotsImportes: d.lots.filter((l) => estLotImporte({ status: l.statut, launchedAt: l.lanceLe })).map((l) => ({ numero: l.numero, variantes: l.ads.length, le: l.creeLe })),
+    lotsImportes: d.lots.filter((l) => estLotImporte({ status: l.statut, launchedAt: l.lanceLe })).map((l) => ({ numero: l.numero, variantes: nombreVariantes(l), le: l.creeLe })),
   });
-  const cible = lotCibleImport(d.lots, params[PARAM_LOT_IMPORT]);
+  const cible = lotCibleImport(d.lots, demande);
   const lot = cible
     ? {
-      ...lotImport(cible, cible.ads.map((a) => ({
+      // Lu en partie · aucune variante exposée · `lotImport` le dit, sans diagnostic tiré d'une partie.
+      ...lotImport(cible, cible.partielle ? { partielle: cible.partielle } : cible.ads.map((a) => ({
         code: a.variante, nomRegie: a.nomGenere, statut: a.statut, plateforme: a.plateforme,
         verdict: a.verdict ? { calcule: a.verdict.calcule, statut: a.verdict.statut, calculeLe: a.verdict.calculeLe, impressions: a.verdict.impressions, depense: a.verdict.depense } : null,
       })), d.config, { ...d.ctx, lanceLe: cible.lanceLe }),

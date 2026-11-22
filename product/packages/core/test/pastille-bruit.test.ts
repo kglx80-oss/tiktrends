@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_VERDICT_CONFIG, LIBELLE_GROUPE_LISTE_LOT, casMesuresLot, compteAConclure, compteAImporter, etatLotSpatial, finPrevuePassee,
   groupesListeLot, listeLotImport, lotAttendDesMesures, lotsFinPrevuePassee, mesuresDuLot, pastilleAConclure, pastilleAImporter,
-  type CasMesuresLot, type EtatLotSpatial, type FaitsAdSpatial, type FaitsLotSpatial, type FaitsVerdictSpatial, type VerdictValue,
+  type CasMesuresLot, type EtatLotSpatial, type FaitsAdSpatial, type FaitsLotSpatialEntier, type FaitsVerdictSpatial, type VerdictValue,
 } from '../src';
 
 /**
@@ -26,7 +26,7 @@ const ilYa = (j: number) => ms(MAINTENANT, -j * JOUR);
 const SEUIL = DEFAULT_VERDICT_CONFIG;
 const SEUIL_MARQUE = { ...DEFAULT_VERDICT_CONFIG, minImpressions: 15_000 };
 
-type Lot = FaitsLotSpatial & { finPrevue: string | null };
+type Lot = FaitsLotSpatialEntier & { finPrevue: string | null };
 const verdict = (calcule: VerdictValue | null, o: Partial<FaitsVerdictSpatial> = {}): FaitsVerdictSpatial => ({
   calcule, retenu: null, statut: 'computed', comparable: true, raison: 'r', depense: 150, impressions: 20_000, achats: 3, cpa: 30, ...o,
 });
