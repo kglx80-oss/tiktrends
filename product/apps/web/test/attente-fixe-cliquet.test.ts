@@ -85,7 +85,10 @@ import { join, relative } from 'node:path';
  * sommeils IDENTIQUES (49 dans 41 fichiers, mêmes lignes), aides et appels IDENTIQUES (46 dans 25
  * fichiers, mêmes lignes) À DEUX ÉCARTS PRÈS, deux faux négatifs des regex, figés ici avec leur
  * raison · `sousEspion<T>(` (`l0-api-ad` ~94, 7 appels · `l0-jalons` ~54, 1 appel) · son paramètre de
- * type cachait la définition à `function X\s*\(`, chaque appel attend 30 ms.
+ * type cachait la définition à `function X\s*\(`, chaque appel attend 30 ms. Ces deux-là sont MIGRÉS
+ * (main bacc67e5) · les 30 ms laissaient partir un « fire and forget » avant de lire l'espion, c'est
+ * une ABSENCE d'écriture, désormais tenue par `attendreAbsence` · exemptions RETIRÉES. Relevé après
+ * migration · 47 sommeils dans 39 fichiers, 46 aides dans 25 fichiers (257 appels figés).
  *
  * Les LIMITES · ce cliquet protège contre l'ERREUR (on recopie une attente fixe voisine, on
  * rappelle l'aide du fichier), pas contre la MALVEILLANCE · il lit le source, il n'exécute rien et
@@ -113,7 +116,6 @@ const INJECTE = 'le `dormir` injecté au code testé (son propre sondage, borné
 const LATENCE = 'latence simulée dans un faux (fournisseur, fetch, verrou, processus enfant) · le test provoque un chevauchement, il n’attend pas un état';
 const SONDAGE = 'boucle de sondage maison, bornée, sur la condition vraie · même forme que celles migrées par ce lot, à passer par `attendreEtat`';
 const FIXE = 'attente fixe avant constat (montage, action serveur, focus) · dette à migrer vers `attendreEtat` / `attendreMontageStable`';
-const FEU = 'laisse partir le « fire and forget » avant de lire l’espion · une absence, à passer par `attendreAbsence`';
 const VERROU = 'course de verrou Postgres à délai fixe (`pause(400)`) · même cas que `e2-controle-vision-pg` et `fd-revocation-pg`, à passer par `pg_blocking_pids`';
 
 interface Exemption {
@@ -144,9 +146,6 @@ const EXEMPTIONS: Readonly<Record<string, Exemption>> = {
   'iterer-gagnante-db.test.tsx': { n: 1, raison: SONDAGE },
   'lot9-personas-db.test.tsx': { n: 2, raison: SONDAGE },
   'lot9bis-offres-db.test.tsx': { n: 1, appels: { attendreQue: 4 }, raison: SONDAGE },
-  // `sousEspion<T>(` · le paramètre de type cachait la définition aux regex (tour 4, AST) · chaque appel attend 30 ms.
-  'l0-api-ad.test.ts': { n: 1, appels: { sousEspion: 7 }, raison: FEU },
-  'l0-jalons.test.ts': { n: 1, appels: { sousEspion: 1 }, raison: FEU },
   // Les aides `attendre` / `laisser` / `monter` à durée fixe.
   'analyse-crea-marque-db.test.tsx': { n: 1, appels: { laisser: 1, attendre: 2 }, raison: FIXE },
   'boucles-hypothese-db.test.tsx': { n: 1, appels: { cliquer: 11 }, raison: FIXE },
@@ -770,7 +769,7 @@ describe('les aides · une attente fixe définie une fois est comptée à chaque
     ['cycle · `a` ↔ `b`', `const a = async () => { await new Promise((r) => ${Z}(r, 10)); await b(); };\nconst b = async () => { await a(); };\nawait b();`, [{ nom: 'a', appels: 1 }, { nom: 'b', appels: 2, via: 'a' }]],
     ['cycle · une récursion', `async function boucle(n) {\n  await new Promise((r) => ${Z}(r, 10));\n  if (n > 0) await boucle(n - 1);\n}\nawait boucle(3);`, [{ nom: 'boucle', appels: 2 }]],
     // Les LIMITES des regex que la lecture par l'AST ferme · une par limite.
-    ['`function X<T>(` · un paramètre de type (faux négatif des regex, `l0-api-ad` ~94)', `async function sousEspion<T>(f: () => Promise<T>) {\n  const r = await f();\n  await new Promise((ok) => ${Z}(ok, 30));\n  return r;\n}\nawait sousEspion(lire);`, [{ nom: 'sousEspion', appels: 1 }]],
+    ['`function X<T>(` · un paramètre de type (faux négatif des regex, l’ancien `sousEspion` de `l0-api-ad`)', `async function sousEspion<T>(f: () => Promise<T>) {\n  const r = await f();\n  await new Promise((ok) => ${Z}(ok, 30));\n  return r;\n}\nawait sousEspion(lire);`, [{ nom: 'sousEspion', appels: 1 }]],
     ['un homonyme APPELÉ · un paramètre `X(` · ne compte pas', `const pause = () => new Promise((r) => ${Z}(r, 30));\nconst f = (pause) => pause();\nit('x', () => { const pause = vi.fn(); pause(); });`, [{ nom: 'pause', appels: 0 }]],
     ['un homonyme APPELÉ · un `X(` nu pour une aide membre · ne compte pas', `const faux = { create: async () => { await new Promise((r) => ${Z}(r, 40)); } };\nawait faux.create();\nconst create = vi.fn();\ncreate();`, [{ nom: 'create', appels: 1 }]],
     ['un homonyme dans l’en-tête d’un `for` · sa portée est le corps · ne compte pas', `const laisser = () => new Promise((r) => ${Z}(r, 30));\nfor (const laisser of lignes) lire(laisser);\nawait act(laisser);`, [{ nom: 'laisser', appels: 1 }]],
