@@ -286,7 +286,9 @@ vers `ovh:`, et la sauvegarde suivante le supprime. Un `tiktrends-*.sql.gz` est 
 
 Une seule sauvegarde à la fois · un passage lancé pendant un autre (à la main pendant celui de 03h30)
 s'arrête aussitôt, sans rien toucher, sur « ARRÊT · sauvegarde déjà en cours », code 75 : relance-le
-une fois le premier fini. Le verrou est le fichier caché `~/backups/.tiktrends-backup.lock` (à laisser).
+une fois le premier fini. Le verrou est tenu sur le dossier `~/backups` lui-même : aucun fichier de
+verrou. Un `~/backups/.tiktrends-backup.lock` laissé par une ancienne version ne sert plus à rien et
+ne gêne pas · `rm -f ~/backups/.tiktrends-backup.lock` (avec `sudo` s'il appartient à root).
 
 ### Restaurer une sauvegarde
 
