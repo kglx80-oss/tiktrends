@@ -1,4 +1,4 @@
-import { ANCRE_CONCLURE_LOT, RAISON_GESTE_RIEN_A_CONCLURE, RAISON_GESTE_SANS_GAGNANTE_LOT, gagnanteArbitree, raisonsLotLuEnPartie } from '../jarvis/gestes';
+import { ANCRE_CONCLURE_LOT, RAISON_GESTE_SANS_GAGNANTE_LOT, gagnanteArbitree, raisonConclureFerme, raisonsLotLuEnPartie } from '../jarvis/gestes';
 import { lienIterationVariable } from '../studios/iterer-variable';
 import { lotConcluable, type EtatLotSpatial, type FaitsAdSpatial } from './lots';
 import type { VariantesDuLot } from './lecture-lot';
@@ -88,7 +88,8 @@ export function gestesClavierLot(f: FaitsClavierLot): { conclure: GesteClavierLo
   const ordre = verdictDAbord(gagnantes, f.gagnante);
   const adId = ordre.find((id) => f.planIds.has(id)) ?? null;
   return {
-    conclure: concluable ? { href: `#${ANCRE_CONCLURE_LOT}`, raison: null } : { href: null, raison: RAISON_GESTE_RIEN_A_CONCLURE },
+    // Fermé · le statut d'abord (un brouillon, un historique) · « aucun verdict n'attend » serait faux d'un brouillon où un verdict calculé est rangé.
+    conclure: concluable ? { href: `#${ANCRE_CONCLURE_LOT}`, raison: null } : { href: null, raison: raisonConclureFerme(f.etat) },
     iterer: itererDepuisGagnante(f) ?? (adId
       ? { href: lienIterationVariable({ adId }), adId, raison: null }
       : { href: null, adId: null, raison: gagnantes.length ? RAISON_ITERER_HORS_PLAN_LOT : RAISON_GESTE_SANS_GAGNANTE_LOT }),

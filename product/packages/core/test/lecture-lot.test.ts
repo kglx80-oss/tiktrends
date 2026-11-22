@@ -3,7 +3,7 @@ import {
   BORNES_LECTURE_LOTS, DEFAULT_VERDICT_CONFIG, MESURE_LECTURE_LOTS, MESURE_LECTURE_LOT_SEUL, PRESENTATION_ETAT_LOT, TITRE_LECTURE_INCOMPLETE,
   compteAConclure, compteAImporter, dansFiltreLots, etatLotSpatial, lotArbitrable, lotImport, lotLuEnEntier, lotsALire, lotsConclusLus,
   noteLectureLots, phraseLotLuEnPartie, presentationLot, syntheseLot, controlesLot, coachLot, conclusionLot, phraseLot, indexAutresLots, resumerContexteJarvis,
-  NON_CALCULE_LECTURE, NON_CALCULE, RAISON_CONCLURE_NON_LANCE, RAISON_CONCLURE_HISTORIQUE, gestesClavierLot, gestesContexteJarvis, variantesDe, RAISON_GESTE_LECTURE_INCOMPLETE, lectureDuLot, nombreVariantes, categorieLot, plateformesLot, hypotheseLot, preparationLot, suiteLot,
+  NON_CALCULE_LECTURE, NON_CALCULE, RAISON_CONCLURE_NON_LANCE, RAISON_CONCLURE_HISTORIQUE, gestesClavierLot, gestesContexteJarvis, variantesDe, RAISON_GESTE_LECTURE_INCOMPLETE, lectureDuLot, nombreVariantes, hypotheseDansLaLecture, categorieLot, plateformesLot, hypotheseLot, preparationLot, suiteLot,
   type EtatLotSpatial, type FaitsAdSpatial, type FaitsLotSpatial, type FaitsVerdictSpatial, type VerdictValue,
 } from '../src';
 
@@ -240,5 +240,22 @@ describe('ce que l’écran dit d’un lot lu en partie', () => {
     const e = lotImport({ id: 'l', numero: 22, but: null }, [v], DEFAULT_VERDICT_CONFIG, { ...CTX, lanceLe: LANCE.toISOString() });
     expect(e.lecture).toBeNull();
     expect(e.diagnostic).not.toBeNull();
+  });
+});
+
+describe('`hypotheseDansLaLecture` · l’ad d’une hypothèse · lue, non lue (son lot est lu en partie), ou hors portée', () => {
+  const a = (id: string) => ({ id });
+  const lots = [{ id: 'entier', ads: [a('x')] }, { id: 'partiel', partielle: { variantesEnBase: 501, variantesLues: 0 } }];
+  const NON_LUE = { partielle: { variantesEnBase: 1, variantesLues: 0 } };
+  it('lue dans un lot lu en entier ou hors lot · l’ad elle-même', () => {
+    expect(hypotheseDansLaLecture('x', lots, [])).toEqual({ ad: { id: 'x' } });
+    expect(hypotheseDansLaLecture('h', lots, [a('h')])).toEqual({ ad: { id: 'h' } });
+  });
+  it('introuvable · rien n’est dit avant que la portée donne son lot · puis « non lue » seulement si CE lot de la marque est lu en partie', () => {
+    expect(hypotheseDansLaLecture('y', lots, []), 'pas relue dans la portée (ou hors portée) · le refus').toBeNull();
+    expect(hypotheseDansLaLecture('y', lots, [], 'partiel'), 'rangée dans un lot lu en partie').toEqual(NON_LUE);
+    expect(hypotheseDansLaLecture('y', lots, [], null), 'hors lot, au-delà de la borne des annonces hors lot').toEqual(NON_LUE);
+    expect(hypotheseDansLaLecture('y', lots, [], 'entier'), 'son lot est lu en entier et ne la contient pas').toBeNull();
+    expect(hypotheseDansLaLecture('y', lots, [], 'autre-marque'), 'un lot absent de la lecture (une autre marque) ne dit rien').toBeNull();
   });
 });
