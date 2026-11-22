@@ -43,6 +43,7 @@ vi.mock('../lib/auth', () => ({ getSession: async () => h.session }));
 vi.mock('../lib/brands', async (orig) => ({ ...(await orig<typeof import('../lib/brands')>()), getActiveBrand: async () => ({ id: ids.brand, name: 'Neva', logoUrl: null, url: null, category: null }) }));
 
 import { db, schema, eq } from '@tiktrends/db';
+import { attendreAbsence } from './helpers/attendre-etat';
 
 async function empreinte(): Promise<string> {
   const j = await db.select().from(schema.statMilestones).orderBy(schema.statMilestones.id);
@@ -50,13 +51,26 @@ async function empreinte(): Promise<string> {
   return JSON.stringify({ j, v });
 }
 
-/** Lance une lecture sous espion · rend les instructions d'écriture vues. */
+/**
+ * Lance une lecture sous espion · rend les instructions d'écriture vues.
+ *
+ * L'ancien `jarvisStats` datait les jalons sans les attendre · une insertion partie APRÈS le
+ * retour de la lecture. Ce qu'on attend n'est pas une durée, c'est une ABSENCE · aucune écriture,
+ * tenue dans la durée (`attendreAbsence`), l'espion toujours armé. La première écriture vue la
+ * viole aussitôt · elle est rendue au test, dont l'`expect` la nomme.
+ *
+ * Délai MESURÉ · l'ancien défaut remis (`void recordMilestones(…)` dans `jarvisStats`), l'insertion
+ * arrive pendant `jarvisSnapshot`, AVANT le retour de `f` (8 à 12 ms avant au repos, 31 à 55 ms
+ * sous 12 boucles CPU, 10 passages, 22/11/2026) · le premier sondage la voit. La fenêtre (~200 ms)
+ * voit aussi une insertion plus tardive · partie 80 ms après la lecture, elle passait sous
+ * l'ancienne attente fixe (30 ms) sans bruit.
+ */
 async function sousEspion<T>(f: () => Promise<T>): Promise<{ r: T; ecritures: string[] }> {
   espion.ecritures = []; espion.actif = true;
   try {
     const r = await f();
-    // Laisse partir ce qui serait « fire and forget » (void …) avant de regarder.
-    await new Promise((ok) => setTimeout(ok, 30));
+    await attendreAbsence('aucune écriture SQL ne part de la lecture, même après son retour (« fire and forget »)', () => espion.ecritures.length === 0)
+      .catch((e: unknown) => { if (espion.ecritures.length === 0) throw e; });
     return { r, ecritures: [...espion.ecritures] };
   } finally { espion.actif = false; }
 }

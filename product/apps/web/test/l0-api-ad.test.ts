@@ -78,6 +78,7 @@ vi.mock('@tiktrends/integrations/src/safe-fetch', async () => {
 
 import { db, schema, eq } from '@tiktrends/db';
 import { cleObjetRendu, _oublierPresents } from '../lib/ad-store';
+import { attendreAbsence } from './helpers/attendre-etat';
 
 const owner = () => ({ user: { id: ids.owner, email: 'owner@l0.test', name: null }, workspaceId: ids.ws, workspaceName: 'L0', role: 'owner', plan: 'plus', equipe: null });
 const viewer = () => ({ user: { id: ids.viewer, email: 'viewer@l0.test', name: null }, workspaceId: ids.ws, workspaceName: 'L0', role: 'client_viewer', plan: 'plus', equipe: null });
@@ -90,13 +91,34 @@ async function empreinte(): Promise<string> {
   return JSON.stringify({ g });
 }
 
-/** Lance une lecture sous espion · rend les instructions d'écriture vues. */
+/**
+ * Lance une lecture sous espion · rend les instructions d'écriture vues.
+ *
+ * Le GET répond AVANT d'avoir fini · `void rangerRendu(…)` range le PNG dans le bucket après la
+ * réponse, et c'est derrière ce « fire and forget » que l'ancien code notait l'index des rendus
+ * dans la génération · une écriture SQL partie APRÈS le retour de `f`. Ce qu'on attend n'est pas
+ * une durée, c'est une ABSENCE · aucune écriture, tenue dans la durée (`attendreAbsence`), l'espion
+ * toujours armé. La première écriture vue la viole aussitôt · elle est rendue au test, dont
+ * l'`expect` la nomme.
+ *
+ * Délai MESURÉ de l'écriture que cette absence doit voir · l'ancien défaut remis (l'index noté
+ * derrière `rangerRendu`, sans l'attendre), du retour de `f` à la première écriture vue, tout le
+ * fichier en boucle, 22/11/2026, machine de 4 cœurs :
+ *
+ *   régime                     passages    n    p50    max
+ *   au repos                        4     16    0,1    0,5 ms
+ *   12 boucles CPU actives          6     24    0,1   12,2 ms
+ *
+ * La fenêtre de `attendreAbsence` (`SONDAGES_ABSENCE` sondages, ~200 ms) couvre ce pire plus de
+ * seize fois · l'ancienne attente fixe (30 ms) un peu plus de deux, et une écriture partie 80 ms
+ * après la réponse passait dessous sans bruit.
+ */
 async function sousEspion<T>(f: () => Promise<T>): Promise<{ r: T; ecritures: string[] }> {
   espion.ecritures = []; espion.actif = true;
   try {
     const r = await f();
-    // Laisse partir ce qui serait « fire and forget » (void …) avant de regarder.
-    await new Promise((ok) => setTimeout(ok, 30));
+    await attendreAbsence('aucune écriture SQL ne part de la lecture, même après sa réponse (« fire and forget »)', () => espion.ecritures.length === 0)
+      .catch((e: unknown) => { if (espion.ecritures.length === 0) throw e; });
     return { r, ecritures: [...espion.ecritures] };
   } finally { espion.actif = false; }
 }
