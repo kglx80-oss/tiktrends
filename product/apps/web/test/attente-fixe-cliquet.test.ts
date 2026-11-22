@@ -14,14 +14,20 @@ import { join, relative } from 'node:path';
  * Ce qu'on compte · dans `apps/web/test` (tous les `.ts` / `.tsx`, sous-dossiers compris), chaque
  * PROMESSE DE SOMMEIL · `new Promise((r) => setTimeout(r, N))` dont le délai N n'est pas `0`, sous
  * toutes ses écritures courantes (détail sur `SOMMEIL`) · résolveur entre parenthèses ou non, typé
- * (`(r: () => void)`), suivi d'un second paramètre (`(r, _j)`), ou en `function (r) {` · minuteur
- * nu ou `globalThis.setTimeout` · rappel qui est le résolveur (`r`) ou qui l'appelle sans valeur
- * (`() => r()`). Un délai écrit par une variable (`ms`, `faux.latenceMs`) compte aussi, il n'est
- * pas 0 par construction. Comptent encore · chaque APPEL de `pasDansAct(N)` à délai non nul (le
- * sommeil qu'exporte l'utilitaire exclu ci-dessous · `{ pas: pasDansAct }` n'en est pas un) et
- * chaque import de `timers/promises` (le même sommeil, sous un autre nom). Ne comptent PAS · le
- * tour de boucle `setTimeout(r, 0)` (ou sans délai), une valeur rendue en différé
- * (`setTimeout(() => r(v), 10)`), un délai de garde qui REJETTE (`setTimeout(() => rej(…))`).
+ * (`(r: () => void)`), suivi d'un second paramètre (`(r, _j)`), `async (r)`, ou en `function (r) {`
+ * · minuteur nu ou `globalThis.setTimeout`, gardé (`const t = setTimeout(…)`, `t = …`) ou jeté
+ * (`void setTimeout(…)`) · rappel qui est le résolveur, transtypé ou non (`r`, `r as () => void`),
+ * ou qui l'appelle avec RIEN (`() => r()`, `r(undefined)`, `r(void 0)`) ou avec une valeur JETÉE
+ * (`await new Promise((r) => setTimeout(() => r(true), 400));` en tête d'instruction · le résultat
+ * ne va nulle part, il ne reste que la durée). Un délai écrit par une variable (`ms`,
+ * `faux.latenceMs`) compte aussi, il n'est pas 0 par construction. Comptent encore · le même
+ * sommeil en deux instructions (`Promise.withResolvers()` puis `setTimeout(resolve, N)`), chaque
+ * APPEL de `pasDansAct(N)` à délai non nul (le sommeil qu'exporte l'utilitaire exclu ci-dessous ·
+ * `{ pas: pasDansAct }` n'en est pas un) et chaque import de `timers/promises` (le même sommeil,
+ * sous un autre nom). Ne comptent PAS · le tour de boucle `setTimeout(r, 0)` (ou sans délai), une
+ * valeur rendue, affectée ou passée (`mockImplementation(() => new Promise((r) => setTimeout(() =>
+ * r(v), 10)))`, un faux qui RÉPOND après une latence · `const v = await …`, `Promise.race([…])`),
+ * un délai de garde qui REJETTE (`setTimeout(() => rej(…))`).
  *
  * C'est plus large que « un sommeil suivi d'un `expect` » · une attente cachée dans une AIDE
  * (`const laisser = (ms = 400) => … setTimeout(r, ms) …`, puis `await laisser(); expect(…)`) est le
@@ -29,9 +35,11 @@ import { join, relative } from 'node:path';
  * aide est la définition nommée la plus proche qui englobe un sommeil (`const X = (…) =>`,
  * `function X(`, une propriété `X: () =>`, une méthode `X() {`), puis, de proche en proche, celle
  * qui appelle une aide (`cliquer` qui appelle `attendre`). Ses appels dans le fichier sont COMPTÉS
- * et FIGÉS (`appels`) au même titre que les sommeils · une aide sans compte figé vaut 0 appel. Le
- * cas légitime (un faux qui simule une latence, un `dormir` injecté au code testé) se DÉCLARE ici,
- * avec sa raison.
+ * et FIGÉS (`appels`) au même titre que les sommeils · un appel `X(`, ou l'aide passée en VALEUR en
+ * argument (`.then(X)`, `act(X)`, `.map(X)`, `beforeEach(X)` · hors `{ pas: X }`, le pas d'un
+ * sondage) · une aide sans compte figé vaut 0 appel. Le comptage de proche en proche termine sur un
+ * cycle (`a` ↔ `b`, une récursion) · chaque aide n'est relevée qu'une fois. Le cas légitime (un
+ * faux qui simule une latence, un `dormir` injecté au code testé) se DÉCLARE ici, avec sa raison.
  *
  * Exclus · `helpers/attendre-etat.ts` (le seul sommeil légitime · le pas entre deux sondages) et
  * ce fichier (il décrit les formes qu'il cherche).
@@ -46,16 +54,25 @@ import { join, relative } from 'node:path';
  * (b86d4762) · 46 aides dans 25 fichiers. Les formes élargies (rappel `() => r()`, `function (r)`,
  * résolveur typé ou à deux paramètres, `globalThis.setTimeout`, `pasDansAct(N)`) n'y trouvent
  * AUCUN usage de plus · aucune exemption nouvelle (`parcours-image-focus-course`, ligne ~119, rend
- * une VALEUR en différé · `() => r({ ok, vue })` · ce n'est pas un sommeil).
+ * une VALEUR en différé · `() => r({ ok, vue })` · ce n'est pas un sommeil). Les formes de la suite
+ * (valeur rien ou jetée, transtypage, minuteur gardé ou `void`, `async (r)`, `withResolvers`, aide
+ * passée en valeur) mesurées sur tout `apps/web/test` (main 28856104) · AUCUN compte ne bouge, ni
+ * sommeil ni appel · le seul rappel à valeur du dépôt reste `parcours-image-focus-course` (~119),
+ * dont la valeur est RENDUE au code testé, pas jetée.
  *
  * Les LIMITES · ce cliquet protège contre l'ERREUR (on recopie une attente fixe voisine, on
  * rappelle l'aide du fichier), pas contre la MALVEILLANCE · il lit le texte, il n'exécute rien.
  * Il ne voit pas · `promisify(setTimeout)` ; une boucle de `setTimeout(r, 0)` (chaque tour est un
  * tour de boucle, la somme est une durée) ; un nom calculé ou un alias (`globalThis['set' +
  * 'Timeout']`, `const st = setTimeout`, `import { pasDansAct as p }`, `const encore = laisser`) ;
- * une aide passée en valeur puis appelée sous un autre nom ; un appel d'aide caché par un littéral
- * d'expression régulière qui contient une apostrophe ou `//` (le relevé des appels blanchit
- * commentaires et textes, pas les expressions régulières).
+ * une aide rangée dans un objet (`{ onFin: laisser }`) ou appelée par un autre nom ; une valeur
+ * constante GARDÉE (`const v = await new Promise((r) => setTimeout(() => r(1), N))` · on la croit
+ * utile) ; une promesse à valeur attendue plus loin (`const p = new Promise(… r(v) …); await p`) ;
+ * un second minuteur sur un `withResolvers` (seul le premier qui le résout est lu) ; un
+ * `differe()` maison résolu par un minuteur ; une valeur imbriquée sur plus de deux niveaux de
+ * parenthèses ; un appel d'aide caché par un littéral d'expression régulière qui contient une
+ * apostrophe ou `//` (le relevé des appels blanchit commentaires et textes, pas les expressions
+ * régulières).
  */
 
 const RACINE = __dirname;
@@ -128,22 +145,44 @@ const EXEMPTIONS: Readonly<Record<string, Exemption>> = {
 const NOM = String.raw`[A-Za-z_$][\w$]*`;
 /** L'annotation d'un paramètre · `: number`, `: () => void`, `: (v: unknown) => void`. */
 const TYPE = String.raw`(?:\s*:\s*(?:\([^()]*\)\s*=>\s*[\w$.<>\[\]| ]+?|[\w$.<>\[\]| ]+?))?`;
+/** Un transtypage · `as () => void`, `as never`, `as unknown as () => void`. */
+const CAST = String.raw`(?:\s+as\s+(?:\([^()]*\)\s*=>\s*[\w$.<>\[\]| ]+?|[\w$.<>\[\]| ]+?))*`;
+/** Le MINUTEUR · `setTimeout`, ou `globalThis.` / `window.` / `global.` / `self.setTimeout`, précédé ou non de `void`, `const t =`, `t =`. */
+const MINUTEUR = String.raw`(?:(?:(?:const|let|var)\s+${NOM}${TYPE}\s*=(?!=)|${NOM}(?:\s*\.\s*${NOM})*\s*=(?!=)|void)\s*)?`
+  + String.raw`(?:(?:globalThis|window|global|self)\s*\.\s*)?setTimeout\s*\(\s*`;
+/** La valeur passée au résolveur · des parenthèses imbriquées sur deux niveaux (`r({ vue: vueImage({…}) })`). */
+const VALEUR = String.raw`\s*(?<val>(?:[^()]|\((?:[^()]|\([^()]*\))*\))*?)\s*`;
 /**
- * Une promesse de sommeil · `new Promise[<T>](RÉSOLVEUR => [{] MINUTEUR(RAPPEL[, délai])` où
- *  · RÉSOLVEUR · `(r)`, `r`, `(r: () => void)`, `(r, _j)`, ou `function [nom](r) {` ;
- *  · MINUTEUR · `setTimeout`, ou `globalThis.` / `window.` / `global.` / `self.setTimeout` ;
- *  · RAPPEL · le résolveur LUI-MÊME (`r`), ou un rappel qui l'appelle SANS valeur (`() => r()`,
- *    `() => { r(); }`, `function () { r(); }`) · avec une valeur (`() => r(v)`), c'est une valeur
- *    différée, pas un sommeil.
- * Groupe 1 · le nom du résolveur · groupe 2 · le délai.
+ * Le RAPPEL du minuteur, pour un résolveur `res` (un motif) · le résolveur LUI-MÊME, transtypé ou
+ * non (`r`, `r as () => void`), ou un rappel qui l'appelle (`() => r(…)`, `() => { r(…); }`,
+ * `function () { r(…); }`) · puis le délai. Groupes · `val` (la valeur, absente pour le résolveur
+ * lui-même) · `delai`.
+ */
+const rappel = (res: string) => String.raw`(?:${res}${CAST}|\(\s*\)\s*=>\s*(?:\{\s*)?${res}\s*\(${VALEUR}\)\s*;?\s*\}?|function\s*\(\s*\)\s*\{\s*${res}\s*\(${VALEUR.replace('?<val>', '?<val2>')}\)\s*;?\s*\})`
+  + String.raw`\s*(?:,\s*(?<delai>[^)]*?)\s*)?\)`;
+/**
+ * Une promesse de sommeil · `[await] new Promise[<T>](RÉSOLVEUR => [{] MINUTEUR(RAPPEL[, délai])` où
+ *  · RÉSOLVEUR · `(r)`, `r`, `async (r)`, `(r: () => void)`, `(r, _j)`, ou `function [nom](r) {` ;
+ *  · MINUTEUR, RAPPEL · ci-dessus.
+ * Un rappel qui rend une VALEUR (`() => r(v)`) est un sommeil quand la valeur est RIEN (`r()`,
+ * `r(undefined)`, `r(void 0)`) ou quand elle est JETÉE · la promesse est attendue en tête
+ * d'instruction (`; await new Promise(…)`, `{ await …`), son résultat ne va nulle part, il ne reste
+ * que la durée. Une valeur rendue, affectée ou passée (`mockImplementation(() => new Promise((r) =>
+ * setTimeout(() => r({ ok, vue }), 10)))`, une latence simulée qui RÉPOND) n'en est pas un.
+ * Groupes · `jete` (la promesse est attendue en tête d'instruction) · `res` · `val` / `val2` · `delai`.
  */
 const SOMMEIL = new RegExp(
-  String.raw`new\s+Promise\s*(?:<[^>]*>)?\s*\(\s*(?:function\s*(?:${NOM}\s*)?)?\(?\s*(${NOM})${TYPE}\s*(?:,\s*${NOM}${TYPE}\s*)?\)?\s*(?:=>)?\s*\{?\s*`
-  + String.raw`(?:(?:globalThis|window|global|self)\s*\.\s*)?setTimeout\s*\(\s*`
-  + String.raw`(?:\1|\(\s*\)\s*=>\s*(?:\{\s*)?\1\s*\(\s*\)\s*;?\s*\}?|function\s*\(\s*\)\s*\{\s*\1\s*\(\s*\)\s*;?\s*\})`
-  + String.raw`\s*(?:,\s*([^)]*?)\s*)?\)`,
-  'g',
+  String.raw`(?:(?<=(?:^|[;{})])[ \t]*)(?<jete>await)\s+)?`
+  + String.raw`new\s+Promise\s*(?:<[^>]*>)?\s*\(\s*(?:async\s+)?(?:function\s*(?:${NOM}\s*)?)?\(?\s*(?<res>${NOM})${TYPE}\s*(?:,\s*${NOM}${TYPE}\s*)?\)?\s*(?:=>)?\s*\{?\s*`
+  + MINUTEUR + rappel(String.raw`\k<res>`),
+  'gm',
 );
+/**
+ * `Promise.withResolvers()` · `const { promise, resolve } = Promise.withResolvers()` (ou `resolve: r`,
+ * ou `const d = …` puis `d.resolve`) suivi d'un MINUTEUR qui appelle son résolveur · le même sommeil,
+ * écrit en deux instructions. On lit le premier minuteur qui suit, avant le `withResolvers` suivant.
+ */
+const AVEC_RESOLVEURS = new RegExp(String.raw`(?:const|let|var)\s+(?:\{(?<champs>[^{}]*)\}|(?<objet>${NOM}))\s*(?::[^=;]+)?=\s*Promise\s*\.\s*withResolvers\s*(?:<[^>]*>)?\s*\(\s*\)`, 'g');
 const TIMERS_PROMESSES = /from\s+['"](?:node:)?timers\/promises['"]|require\(\s*['"](?:node:)?timers\/promises['"]\s*\)/g;
 /**
  * `pasDansAct(ms)` · le sommeil (dans `act`) qu'exporte l'utilitaire exclu · un APPEL à délai non
@@ -153,11 +192,29 @@ const TIMERS_PROMESSES = /from\s+['"](?:node:)?timers\/promises['"]|require\(\s*
 const PAS_DANS_ACT = /(?<![\w$.])pasDansAct\s*\(\s*([^)]*?)\s*\)/g;
 
 const delaiNul = (d: string | undefined) => { const t = (d ?? '').trim(); return t === '' || /^0+$/.test(t); };
+/** Une valeur qui n'en est pas une · `r()`, `r(undefined)`, `r(void 0)`. */
+const rien = (v: string | undefined) => v === undefined || /^(?:|undefined|void\s+0)$/.test(v.trim());
 
-/** Les sommeils à délai non nul d'un source · leur position (promesses et appels de `pasDansAct`). */
+/** Les sommeils à délai non nul d'un source · leur position (promesses, `withResolvers`, appels de `pasDansAct`). */
 function sommeils(source: string): number[] {
   const out: number[] = [];
-  for (const m of source.matchAll(SOMMEIL)) if (!delaiNul(m[2])) out.push(m.index!);
+  for (const m of source.matchAll(SOMMEIL)) {
+    const g = m.groups!;
+    if (!delaiNul(g.delai) && (rien(g.val ?? g.val2) || g.jete)) out.push(m.index!);
+  }
+  const bornes = [...source.matchAll(AVEC_RESOLVEURS)];
+  bornes.forEach((m, k) => {
+    const g = m.groups!;
+    // Le nom du résolveur · `d.resolve`, `resolve`, ou l'alias de `resolve: fin`.
+    const champ = g.objet ? null : new RegExp(String.raw`\bresolve\b(?:\s*:\s*(${NOM}))?`).exec(g.champs!);
+    if (!g.objet && !champ) return;
+    const nom = g.objet ? String.raw`${g.objet.replace(/\$/g, '\\$')}\s*\.\s*resolve` : (champ![1] ?? 'resolve').replace(/\$/g, '\\$');
+    const fin = bornes[k + 1]?.index ?? source.length;
+    const t = new RegExp(String.raw`(?<![\w$.])` + MINUTEUR + rappel(nom), 'g');
+    t.lastIndex = m.index! + m[0].length;
+    const u = t.exec(source);
+    if (u && u.index < fin && !delaiNul(u.groups!.delai) && rien(u.groups!.val ?? u.groups!.val2)) out.push(u.index);
+  });
   for (const m of source.matchAll(PAS_DANS_ACT)) if (!delaiNul(m[1])) out.push(m.index!);
   return out;
 }
@@ -264,7 +321,9 @@ function aides(source: string): Aide[] {
   const parNom = new Map<string, Aide & { sites: number[] }>();
   const ajouter = (d: (typeof defs)[number], via?: string) => {
     if (parNom.has(d.nom)) return;
-    const appel = new RegExp(String.raw`(?<![\w$${d.membre ? '' : '.'}])${d.nom.replace(/\$/g, '\\$')}\s*\(`, 'g');
+    const nom = String.raw`(?<![\w$${d.membre ? '' : '.'}])${d.nom.replace(/\$/g, '\\$')}`;
+    // Un appel `X(` · ou l'aide passée en VALEUR, en argument (`.then(X)`, `act(X)`, `beforeEach(X)`), hors `{ pas: X }`.
+    const appel = new RegExp(String.raw`${nom}\s*\(|(?<!\bpas\s*:\s*)${nom}(?=\s*[,)])`, 'g');
     const propres = defs.filter((x) => x.nom === d.nom).map((x) => x.at);
     const sites = [...s.matchAll(appel)].map((m) => m.index!).filter((i) => !propres.includes(i));
     parNom.set(d.nom, { nom: d.nom, ligne: ligneDe(source, d.at), appels: sites.length, sites, ...(via ? { via } : {}) });
@@ -285,7 +344,28 @@ function sources(dir: string): string[] {
   return out.sort();
 }
 
-const VERS = 'attendre un ÉTAT, jamais une durée · passe par `attendreEtat` (un état qu’on attend de voir venir) ou `attendreAbsence` (une absence tenue dans la durée), `test/helpers/attendre-etat.ts` · ou, pour une latence simulée ou un `dormir` injecté, déclare-la dans `EXEMPTIONS` de `test/attente-fixe-cliquet.test.ts` avec sa raison';
+const ETAT = 'attendre un ÉTAT, jamais une durée · passe par `attendreEtat` (un état qu’on attend de voir venir) ou `attendreAbsence` (une absence tenue dans la durée), `test/helpers/attendre-etat.ts`';
+const VERS = `${ETAT} · ou, pour une latence simulée ou un \`dormir\` injecté, déclare-la dans \`EXEMPTIONS\` de \`test/attente-fixe-cliquet.test.ts\` avec sa raison`;
+
+/**
+ * Les fautes d'un fichier sur ses AIDES · chaque aide trouvée comparée à son compte figé. Un appel de
+ * plus nomme le CHAMP à écrire (`appels.X: N` à l'entrée du fichier) · un renommage d'aide arrive
+ * ici, et « déclare-la dans EXEMPTIONS » seul ne dit pas quoi écrire.
+ */
+function fautesAides(f: string, texte: string, figes: Readonly<Record<string, number>>): string[] {
+  const fautes: string[] = [];
+  const trouvees = aides(texte);
+  for (const a of trouvees) {
+    const fige = figes[a.nom] ?? 0;
+    const quoi = `${f} · l’aide \`${a.nom}\` (ligne ${a.ligne}, ${a.via ? `elle appelle \`${a.via}\`` : 'une attente fixe'}) est appelée ${a.appels} fois pour ${fige} figé(s)`;
+    if (a.appels > fige) fautes.push(`${quoi} · un appel de plus est une attente fixe nouvelle · ${ETAT} · ou, si c’est un renommage ou une latence légitime, ajoute \`appels.${a.nom}: ${a.appels}\` à l’entrée de \`${f}\` dans \`EXEMPTIONS\``);
+    if (a.appels < fige) fautes.push(`${quoi} · compte périmé, abaisse \`appels.${a.nom}\` à ${a.appels}${a.appels === 0 ? ' (retire-la)' : ''}`);
+  }
+  for (const nom of Object.keys(figes)) {
+    if (!trouvees.some((a) => a.nom === nom)) fautes.push(`${f} · appels figés pour \`${nom}\`, qui n’est plus une aide à attente fixe · retire \`appels.${nom}\``);
+  }
+  return fautes;
+}
 
 describe('le détecteur · il voit chaque forme de sommeil, et seulement elles', () => {
   const Z = 'setTime' + 'out';
@@ -304,6 +384,25 @@ describe('le détecteur · il voit chaque forme de sommeil, et seulement elles',
     ['le minuteur de `globalThis`', `await new Promise((r) => globalThis.${Z}(r, 400));`],
     ['tout à la fois', `await new Promise<void>(function attendre(r: (v?: unknown) => void, _j: unknown) { globalThis.${Z}(function () { r(); }, 400); });`],
     ['un appel de `pasDansAct` à délai non nul', 'await pasDansAct(400);'],
+    // Une valeur RIEN, ou une valeur JETÉE · le sommeil reste un sommeil.
+    ['une valeur jetée · attendue en tête d’instruction', `await new Promise((r) => ${Z}(() => r(true), 400));`],
+    ['une valeur jetée · dans un bloc (`{ await …`)', `await act(async () => { await new Promise((r) => ${Z}(() => r(1), 5)); });`],
+    ['une valeur jetée · rappel `function`', `await new Promise(function (r) { ${Z}(function () { r(true); }, 400); });`],
+    ['une valeur jetée · des parenthèses sur deux niveaux', `await new Promise((r) => ${Z}(() => r(lire(a, f(b))), 400));`],
+    ['`r(undefined)`, promesse gardée', `const p = new Promise((r) => ${Z}(() => r(undefined), 400));`],
+    ['`r(void 0)`, promesse gardée', `const p = new Promise((r) => ${Z}(() => { r(void 0); }, 400));`],
+    // Le résolveur transtypé, le minuteur affecté ou jeté, le résolveur `async`.
+    ['un résolveur transtypé', `await new Promise((resolve) => ${Z}(resolve as () => void, 400));`],
+    ['un résolveur transtypé deux fois', `await new Promise((resolve) => ${Z}(resolve as unknown as () => void, 400));`],
+    ['un minuteur gardé dans une constante', `await new Promise((r) => { const t = ${Z}(r, 400); void t; });`],
+    ['un minuteur gardé dans une variable', `await new Promise((r) => { minuteur = ${Z}(r, 400); });`],
+    ['un minuteur jeté par `void`', `await new Promise((r) => void ${Z}(r, 400));`],
+    ['un résolveur `async`', `await new Promise(async (r) => { ${Z}(r, 400); });`],
+    // `Promise.withResolvers()` · le même sommeil, en deux instructions.
+    ['`withResolvers` déstructuré', `const { promise, resolve } = Promise.withResolvers<void>();\n${Z}(resolve, 400);\nawait promise;`],
+    ['`withResolvers` déstructuré sous un alias', `const { promise: p, resolve: fin } = Promise.withResolvers();\n${Z}(() => fin(), 400);\nawait p;`],
+    ['`withResolvers` gardé dans un objet', `const d = Promise.withResolvers();\n${Z}(d.resolve, 400);\nawait d.promise;`],
+    ['deux `withResolvers`, un seul minuteur · compté une fois', `it('a', async () => { const { promise, resolve } = Promise.withResolvers(); resolve(); await promise; });\nit('b', async () => { const { promise, resolve } = Promise.withResolvers(); ${Z}(resolve, 400); await promise; });`],
   ])('compte · %s', (_, src) => {
     expect(attentesFixes(src), `le détecteur ne voit pas « ${src} »`).toHaveLength(1);
   });
@@ -317,6 +416,15 @@ describe('le détecteur · il voit chaque forme de sommeil, et seulement elles',
     ['un minuteur nu', `${Z}(() => champ.focus(), 50);`],
     ['`pasDansAct` passé en option à `attendreEtat`', "await attendreEtat('x', () => ok, { pas: pasDansAct });"],
     ['`pasDansAct(0)`', 'await pasDansAct(0);'],
+    // Une valeur RENDUE, affectée ou passée · une latence simulée qui répond (`parcours-image-focus-course`).
+    ['une valeur rendue par un faux', `m.lire.mockImplementation(() => new Promise((r) => ${Z}(() => r({ ok: true, vue: vueImage({ devis: D as never }) }), 10)));`],
+    ['une valeur gardée · affectée', `const vue = await new Promise((r) => ${Z}(() => r(lire()), 10));`],
+    ['une valeur gardée · rendue', `return await new Promise((r) => ${Z}(() => r(lire()), 10));`],
+    ['une valeur gardée · garde de course', `const v = await Promise.race([travail(), new Promise((r) => ${Z}(() => r('DELAI'), 500))]);`],
+    ['un minuteur jeté par `void`, tour de boucle', `await new Promise((r) => void ${Z}(r, 0));`],
+    ['`withResolvers`, tour de boucle', `const { promise, resolve } = Promise.withResolvers();\n${Z}(resolve, 0);\nawait promise;`],
+    ['`withResolvers`, le minuteur rejette', `const { promise, reject } = Promise.withResolvers();\n${Z}(reject, 400);\nawait promise;`],
+    ['`withResolvers`, une valeur rendue', `const { promise, resolve } = Promise.withResolvers();\n${Z}(() => resolve(lire()), 10);\nreturn promise;`],
   ])('ne compte pas · %s', (_, src) => {
     expect(attentesFixes(src), `le détecteur compte « ${src} »`).toEqual([]);
   });
@@ -333,8 +441,28 @@ describe('les aides · une attente fixe définie une fois est comptée à chaque
     ['une propriété d’un faux · appelée par `obj.X(`', `const faux = { create: async () => { await new Promise((r) => ${Z}(r, 40)); } };\nawait faux.create();`, [{ nom: 'create', appels: 1 }]],
     ['un `pasDansAct` dans une aide', 'const souffler = () => pasDansAct(400);\nawait souffler();', [{ nom: 'souffler', appels: 1 }]],
     ['un sommeil hors de toute définition nommée · aucune aide', `it('x', async () => {\n  await new Promise((r) => ${Z}(r, 40));\n});`, []],
+    // Une aide passée en VALEUR · l'appel a lieu ailleurs, la durée est la même.
+    ['passée à `.then`', `const laisser = () => new Promise((r) => ${Z}(r, 30));\nawait charger().then(laisser);`, [{ nom: 'laisser', appels: 1 }]],
+    ['passée à `act`, en premier de deux arguments', `const laisser = async () => { await new Promise((r) => ${Z}(r, 30)); };\nawait act(laisser, 1);`, [{ nom: 'laisser', appels: 1 }]],
+    ['passée à `.map`, puis à `beforeEach`', `const laisser = () => new Promise((r) => ${Z}(r, 30));\nawait Promise.all(lignes.map(laisser));\nbeforeEach(laisser);`, [{ nom: 'laisser', appels: 2 }]],
+    ['passée en valeur DANS une aide · celle-ci en hérite', `const laisser = () => new Promise((r) => ${Z}(r, 30));\nconst cliquer = async (e) => { e.click(); await act(laisser); };\nawait cliquer(a);`, [{ nom: 'laisser', appels: 1 }, { nom: 'cliquer', appels: 1, via: 'laisser' }]],
+    ['passée en option `{ pas: X }` · ne compte pas', `const souffler = () => new Promise((r) => ${Z}(r, 5));\nawait attendreEtat('x', () => ok, { pas: souffler });`, [{ nom: 'souffler', appels: 0 }]],
+    ['passée en option `{ pas: X, … }` · ne compte pas', `const souffler = () => new Promise((r) => ${Z}(r, 5));\nawait attendreEtat('x', () => ok, { pas: souffler, borneMs: 50 });`, [{ nom: 'souffler', appels: 0 }]],
+    ['lue hors argument (`typeof X`, `X.name`) · ne compte pas', `const laisser = () => new Promise((r) => ${Z}(r, 30));\ntype L = ReturnType<typeof laisser>;\nconst n = laisser.name;`, [{ nom: 'laisser', appels: 0 }]],
+    ['`obj.X` en valeur est un autre nom qu’une variable `X`', `const laisser = () => new Promise((r) => ${Z}(r, 30));\nawait p.then(w.laisser);`, [{ nom: 'laisser', appels: 0 }]],
+    // Les CYCLES · le comptage transitif termine, chaque aide comptée une fois.
+    ['cycle · `a` ↔ `b`', `const a = async () => { await new Promise((r) => ${Z}(r, 10)); await b(); };\nconst b = async () => { await a(); };\nawait b();`, [{ nom: 'a', appels: 1 }, { nom: 'b', appels: 2, via: 'a' }]],
+    ['cycle · une récursion', `async function boucle(n) {\n  await new Promise((r) => ${Z}(r, 10));\n  if (n > 0) await boucle(n - 1);\n}\nawait boucle(3);`, [{ nom: 'boucle', appels: 2 }]],
   ])('%s', (_, src, attendu) => {
     expect(aides(src).map(({ nom, appels, via }) => ({ nom, appels, ...(via ? { via } : {}) })), `les aides de « ${src} »`).toEqual(attendu);
+  });
+
+  it('un appel de plus nomme le champ à écrire · `appels.X: N` à l’entrée du fichier', () => {
+    const src = `const laisser = () => new Promise((r) => ${Z}(r, 30));\nawait laisser();\nawait laisser();`;
+    const [faute, ...reste] = fautesAides('x-ecran.test.tsx', src, { laisser: 1 });
+    expect(reste).toEqual([]);
+    expect(faute).toContain('l’aide `laisser` (ligne 1, une attente fixe) est appelée 2 fois pour 1 figé(s)');
+    expect(faute).toMatch(/ou, si c’est un renommage ou une latence légitime, ajoute `appels\.laisser: 2` à l’entrée de `x-ecran\.test\.tsx` dans `EXEMPTIONS`$/);
   });
 });
 
@@ -369,20 +497,7 @@ describe('cliquet · aucune attente fixe nouvelle dans les tests de apps/web', (
   });
 
   it('une aide à attente fixe garde EXACTEMENT ses appels · un appel de plus est une attente nouvelle, un de moins un compte périmé', () => {
-    const fautes: string[] = [];
-    for (const [f, t] of textes) {
-      const trouvees = aides(t);
-      const figes = EXEMPTIONS[f]?.appels ?? {};
-      for (const a of trouvees) {
-        const fige = figes[a.nom] ?? 0;
-        const quoi = `${f} · l’aide \`${a.nom}\` (ligne ${a.ligne}, ${a.via ? `elle appelle \`${a.via}\`` : 'une attente fixe'}) est appelée ${a.appels} fois pour ${fige} figé(s)`;
-        if (a.appels > fige) fautes.push(`${quoi} · un appel de plus est une attente fixe nouvelle · ${VERS}`);
-        if (a.appels < fige) fautes.push(`${quoi} · compte périmé, abaisse \`appels.${a.nom}\` à ${a.appels}${a.appels === 0 ? ' (retire-la)' : ''}`);
-      }
-      for (const nom of Object.keys(figes)) {
-        if (!trouvees.some((a) => a.nom === nom)) fautes.push(`${f} · appels figés pour \`${nom}\`, qui n’est plus une aide à attente fixe · retire \`appels.${nom}\``);
-      }
-    }
+    const fautes = [...textes].flatMap(([f, t]) => fautesAides(f, t, EXEMPTIONS[f]?.appels ?? {}));
     expect(fautes).toEqual([]);
   });
 });
