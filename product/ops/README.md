@@ -278,6 +278,12 @@ ls -lh ~/backups                             # les dumps
 journalctl -u tiktrends-backup -n 20 --no-pager
 ```
 
+Un dump s'écrit d'abord dans `tiktrends-AAAAMMJJ-HHMMSS.sql.gz.part`, et ne prend son nom
+`….sql.gz` qu'une fois terminé et contrôlé (au moins 500 octets). Un `.part` dans `~/backups` est
+donc un dump INTERROMPU (`systemctl stop`, arrêt ou redémarrage du VPS en pleine sauvegarde) · la
+rotation (14) ne le compte pas, la restauration « le plus récent » ne le choisit pas, il ne part pas
+vers `ovh:`, et la sauvegarde suivante le supprime. Un `tiktrends-*.sql.gz` est un dump allé jusqu'au bout.
+
 ### Restaurer une sauvegarde
 
 ```bash
