@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   RACCOURCIS, PORTEES_RACCOURCIS, PORTEES_AIDE_PROJET, TOUCHES_RECENSEES, REGLES_CLAVIER, ANCRE_CONCLURE_LOT,
-  RAISON_GESTE_RIEN_A_CONCLURE, RAISON_GESTE_SANS_GAGNANTE_LOT, RAISON_ITERER_HORS_PLAN_LOT,
+  RAISON_GESTE_RIEN_A_CONCLURE, RAISON_GESTE_SANS_GAGNANTE_LOT, RAISON_ITERER_HORS_PLAN_LOT, RAISON_CONCLURE_NON_LANCE, RAISON_CONCLURE_HISTORIQUE,
+  gestesContexteJarvis,
   conflitsRaccourcis, raccourciDeLaFrappe, raccourciFicheLot, raccourciDeVue, groupesAideRaccourcis, libelleAideFiltree,
   astuceRaccourcisAccueil, messageRaccourciFerme, gestesClavierLot, exigeCoupure, lienIterationVariable, sansTiretCadratin,
   type ContexteFrappeVue, type FaitsAdSpatial, type FrappeClavier, type Raccourci,
@@ -100,8 +101,14 @@ describe('Lot 13 bis · `gestesClavierLot` · la règle des gestes, rien de plus
     const attend = ad(1, { statut: 'computed', retenu: null });
     expect(gestesClavierLot({ etat: 'a_conclure', ads: [attend], planIds: new Set() }).conclure).toEqual({ href: `#${ANCRE_CONCLURE_LOT}`, raison: null });
     expect(gestesClavierLot({ etat: 'non_concluant', ads: [attend], planIds: new Set() }).conclure.href).toBe('#conclure');
-    for (const etat of ['composition', 'pret', 'diffusion', 'a_importer', 'conclu', 'importe'] as const) {
+    for (const etat of ['diffusion', 'a_importer', 'conclu'] as const) {
       expect(gestesClavierLot({ etat, ads: [attend], planIds: new Set() }).conclure, etat).toEqual({ href: null, raison: RAISON_GESTE_RIEN_A_CONCLURE });
+    }
+    // Un brouillon ou un historique · le STATUT dit pourquoi · « aucun verdict n'attend » serait faux · `attend` y est rangée.
+    for (const [etat, raison] of [['composition', RAISON_CONCLURE_NON_LANCE], ['pret', RAISON_CONCLURE_NON_LANCE], ['importe', RAISON_CONCLURE_HISTORIQUE]] as const) {
+      expect(gestesClavierLot({ etat, ads: [attend], planIds: new Set() }).conclure, `fiche · ${etat}`).toEqual({ href: null, raison });
+      const j = gestesContexteJarvis({ type: 'lot', id: ID(9), ads: [attend], lot: { id: ID(9), etat, ads: [attend] } })!;
+      expect([j.conclure.cible, j.conclure.raison], `Jarvis · ${etat} · la même raison que la fiche`).toEqual([null, raison]);
     }
     expect(gestesClavierLot({ etat: 'a_conclure', ads: [ad(1, {})], planIds: new Set() }).conclure, 'tout est arbitré').toEqual({ href: null, raison: RAISON_GESTE_RIEN_A_CONCLURE });
   });

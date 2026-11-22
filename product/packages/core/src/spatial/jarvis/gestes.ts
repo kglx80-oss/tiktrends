@@ -102,10 +102,31 @@ export const RAISON_GESTE_SANS_GAGNANTE_LOT = 'Aucune variante de ce lot n’est
 export const RAISON_GESTE_SANS_GAGNANTE_HYPOTHESE = 'Cette hypothèse n’a pas de verdict gagnant arbitré · une itération part d’une gagnante.';
 export const RAISON_GESTE_HORS_LOT = 'Cette hypothèse n’est rangée dans aucun lot · il n’y a pas de lot à conclure.';
 export const RAISON_GESTE_RIEN_A_CONCLURE = 'Aucun verdict du moteur n’attend d’être arbitré dans ce lot · il se conclut quand le moteur a tranché ses variantes.';
-/** Conclure un lot lu en partie et NON lancé · tiré du STATUT seul (un brouillon ne s'arbitre pas), vrai quel que soit son contenu. */
+/** Conclure un lot NON lancé · tiré du STATUT seul (un brouillon ne s'arbitre pas), vrai quel que soit son contenu, lu en entier ou en partie. */
 export const RAISON_CONCLURE_NON_LANCE = 'Ce lot n’est pas lancé · il se conclut après sa diffusion.';
-/** Conclure un lot lu en partie et importé · tiré du STATUT seul (un historique ne s'arbitre pas ici), vrai quel que soit son contenu. */
+/** Conclure un lot importé · tiré du STATUT seul (un historique ne s'arbitre pas ici), vrai quel que soit son contenu, lu en entier ou en partie. */
 export const RAISON_CONCLURE_HISTORIQUE = 'Ce lot est un historique importé · il ne se conclut pas ici.';
+
+/**
+ * La raison de STATUT d'un « Conclure » fermé · un lot non lancé (`composition`, `pret`) ou importé ne s'arbitre
+ * jamais (`lotArbitrable` faux), quel que soit son contenu · vraie qu'il soit lu en entier ou en partie · `null` pour
+ * un autre état (la raison vient alors du contenu, ou de la lecture).
+ */
+export function raisonConclureStatut(etat: EtatLotSpatial | null): string | null {
+  if (etat === 'composition' || etat === 'pret') return RAISON_CONCLURE_NON_LANCE;
+  if (etat === 'importe') return RAISON_CONCLURE_HISTORIQUE;
+  return null;
+}
+
+/**
+ * « Conclure » fermé sur un lot LU EN ENTIER · le statut d'abord, sinon « aucun verdict n'attend » · UNE règle pour
+ * la touche C de la fiche (`gestesClavierLot`) et le geste sous une réponse de Jarvis (`gestesContexteJarvis`).
+ * Avant, un lot en préparation disait « Aucun verdict du moteur n'attend d'être arbitré » · faux quand une ad au
+ * verdict calculé (mesurée hors lot, à l'import) y est rangée (`decisionRangementLot` ne refuse que `testing` et `analyzed`).
+ */
+export function raisonConclureFerme(etat: EtatLotSpatial): string {
+  return raisonConclureStatut(etat) ?? RAISON_GESTE_RIEN_A_CONCLURE;
+}
 
 /**
  * Les raisons des deux gestes fermés d'un lot LU EN PARTIE · rien n'y est tiré du contenu (on ne le lit pas en entier) :
@@ -114,8 +135,8 @@ export const RAISON_CONCLURE_HISTORIQUE = 'Ce lot est un historique importé · 
  * peut être rangée dans un lot en préparation, dans la partie non lue.
  */
 export function raisonsLotLuEnPartie(etat: EtatLotSpatial | null): { conclure: string; iterer: string } {
-  if (etat === 'composition' || etat === 'pret') return { conclure: RAISON_CONCLURE_NON_LANCE, iterer: NON_CALCULE_LECTURE };
-  if (etat === 'importe') return { conclure: RAISON_CONCLURE_HISTORIQUE, iterer: NON_CALCULE_LECTURE };
+  const statut = raisonConclureStatut(etat);
+  if (statut) return { conclure: statut, iterer: NON_CALCULE_LECTURE };
   return { conclure: RAISON_GESTE_LECTURE_INCOMPLETE, iterer: RAISON_GESTE_LECTURE_INCOMPLETE };
 }
 export const EFFET_GESTES_JARVIS = 'Ouvre l’écran, pré-rempli · rien n’est créé ni conclu sans ton clic là-bas.';
@@ -162,7 +183,7 @@ export function gestesContexteJarvis(f: FaitsGestesJarvis): { iterer: GesteJarvi
   const conclure: GesteJarvis = {
     cle: 'conclure', libelle: 'Conclure le lot',
     cible: concluable ? { type: 'conclure', lotId: l!.id } : null,
-    raison: concluable ? null : !l ? RAISON_GESTE_HORS_LOT : l.partielle ? partiel.conclure : RAISON_GESTE_RIEN_A_CONCLURE,
+    raison: concluable ? null : !l ? RAISON_GESTE_HORS_LOT : l.partielle ? partiel.conclure : raisonConclureFerme(l.etat),
   };
   return { iterer, conclure };
 }

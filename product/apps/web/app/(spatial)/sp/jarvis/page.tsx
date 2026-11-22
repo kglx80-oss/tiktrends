@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { and, desc, eq, inArray } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { annonceConversationJarvis, RELANCE_META, completudeFicheJarvis, encartKpiJarvis, encartKpiJarvisMeta, extraitConversation, iterationsRecentes, lireQuestionJarvis, lireContexteAdresse, REFUS_CONTEXTE_JARVIS, type IterationRecente } from '@tiktrends/core';
+import { annonceConversationJarvis, RELANCE_META, completudeFicheJarvis, encartKpiJarvis, encartKpiJarvisMeta, extraitConversation, iterationsRecentes, lireQuestionJarvis, lireContexteAdresse, NON_CALCULE_LECTURE, REFUS_CONTEXTE_JARVIS, type IterationRecente } from '@tiktrends/core';
 import { getSession } from '../../../../lib/auth';
 import { refusJarvis, TEXTE_REFUS_JARVIS } from '../../../../lib/jarvis-acces';
 import { getActiveBrand } from '../../../../lib/brands';
@@ -82,11 +82,14 @@ export default async function JarvisSpatial({ searchParams }: { searchParams?: P
   }
 
   const chiffresOuverts = canAccess(effectiveAccess(s), ANALYTICS);
-  const [r, fiche, projets, lus, resolu] = await Promise.all([
+  const [r, fiche, projets, lus, resolution] = await Promise.all([
     chatThreadAction(null), ficheMarqueLue(brand.id), projetsPourColonneJarvis(brand.id),
     chiffresOuverts ? lireChiffresClesMeta(brand.id, s.workspaceId, maintenant).catch(() => null) : Promise.resolve(null),
     resoudreContexteJarvis(s, brand, demande, maintenant),
   ]);
+  // Une hypothèse dans la portée, rangée dans un lot lu en partie · rien n'est joint, l'écran dit « non calculé », jamais le refus de droits.
+  const nonLu = !!resolution?.partielle;
+  const resolu = resolution && !resolution.partielle ? resolution : null;
   let contexte: ContexteJoint | null = null;
   if (resolu) {
     // Un projet rouvre SON fil (la conversation liée, lecture seule) · sans fil lié, le premier envoi le crée.
@@ -145,7 +148,7 @@ export default async function JarvisSpatial({ searchParams }: { searchParams?: P
       brouillon={brouillon}
       annexes={{ projets, completude: completude && { score: completude.score, faits: completude.faits, total: completude.total, ficheHref: completude.ficheHref } }}
       contexte={contexte}
-      refusContexte={(demande && !resolu) || demandeMalFormee ? REFUS_CONTEXTE_JARVIS : null}
+      refusContexte={nonLu ? NON_CALCULE_LECTURE : (demande && !resolu) || demandeMalFormee ? REFUS_CONTEXTE_JARVIS : null}
     />
   );
 }
