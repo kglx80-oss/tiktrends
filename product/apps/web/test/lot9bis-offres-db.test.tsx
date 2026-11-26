@@ -64,6 +64,7 @@ import {
   construireBriefV5, faitOffre, offreDuBrief, saisieBriefVide, texteOffreBrief, type BriefCanonique,
 } from '@tiktrends/core';
 import { avecSpatial } from './spatial/fournisseur';
+import { attendreEtat, pasDansAct } from './helpers/attendre-etat';
 import { contexteDepuisSession } from '../lib/studios/garde';
 import { creerProjet as creerProjetDepot } from '../lib/studios/depot';
 import { projetAvecBrief, lancerLot, executer, sortiesDuJob, KEYFRAMES, saisieTest, briefCanonique, contenuImages } from './l4c-harnais';
@@ -93,7 +94,8 @@ const visible = (html: string) => { const d = document.createElement('div'); d.i
 const pageOffre = async (id = I.bA!) => visible(renderToStaticMarkup(avecSpatial(await OffreSpatiale({ params: Promise.resolve({ id }) }))));
 const pageLot = async (id: string) => visible(renderToStaticMarkup(avecSpatial(await LotSpatial({ params: Promise.resolve({ id }) }))));
 const pageNouveau = async (sp: Record<string, string>) => visible(renderToStaticMarkup(avecSpatial(await PreparerProjetPage({ searchParams: Promise.resolve(sp) }))));
-const attendreQue = async (cond: () => Promise<boolean>) => { for (let i = 0; i < 100 && !(await cond()); i++) await act(async () => { await new Promise((r) => setTimeout(r, 20)); }); };
+/** Une écriture partie par la fiche montée · la base sondée dans `act` jusqu'à ce que l'`expect` tienne. */
+const attendreQue = (condition: string, sonde: () => Promise<unknown>) => attendreEtat(condition, async () => { await sonde(); return true; }, { pas: pasDansAct, intervalleMs: 20 });
 async function monter(el: ReactElement) {
   const hote = document.createElement('div');
   document.body.appendChild(hote);
@@ -163,7 +165,7 @@ describe('créer et modifier une offre, une allégation · par la VRAIE fiche ·
     saisir(form, 'type', 'remise');
     saisir(form, 'conditions', '−20 % dès 2 achetés');
     await soumettre(form);
-    await attendreQue(async () => (await offres()).length === 1);
+    await attendreQue('la base a la nouvelle offre', async () => expect(await offres()).toHaveLength(1));
     await fin();
     const [o] = await offres();
     expect(o).toMatchObject({ label: 'Duo sérum', kind: 'remise', conditions: '−20 % dès 2 achetés', active: true, workspaceId: I.wsA });
@@ -192,7 +194,7 @@ describe('créer et modifier une offre, une allégation · par la VRAIE fiche ·
     saisir(form, 'intitule', 'Duo sérum hiver');
     saisir(form, 'conditions', '−25 % dès 2 achetés');
     await soumettre(form);
-    await attendreQue(async () => (await offres())[0]!.label === 'Duo sérum hiver');
+    await attendreQue('la base a l’intitulé modifié', async () => expect((await offres())[0]!.label).toBe('Duo sérum hiver'));
     await fin();
     expect((await offres())[0]).toMatchObject({ label: 'Duo sérum hiver', kind: 'remise', conditions: '−25 % dès 2 achetés' });
     expect((await pageOffre()).texte).toContain('Duo sérum hiver');
@@ -213,7 +215,7 @@ describe('créer et modifier une offre, une allégation · par la VRAIE fiche ·
     const form = document.querySelector<HTMLFormElement>('form[data-fiche-offre="nouvelle-allegation"]')!;
     saisir(form, 'texte', 'Hydrate 24 h');
     await soumettre(form);
-    await attendreQue(async () => (await db.select().from(schema.brandClaims).where(eq(schema.brandClaims.brandId, I.bA!))).length === 1);
+    await attendreQue('la base a la nouvelle allégation', async () => expect(await db.select().from(schema.brandClaims).where(eq(schema.brandClaims.brandId, I.bA!))).toHaveLength(1));
     await fin();
     const [a] = await db.select().from(schema.brandClaims).where(eq(schema.brandClaims.brandId, I.bA!));
     expect(a).toMatchObject({ text: 'Hydrate 24 h', proof: null, status: 'a_prouver', archivedAt: null });
@@ -275,7 +277,7 @@ describe('« Créer une pub » d’une offre · Nouveau projet la présélection
     });
     await act(async () => { document.querySelector<HTMLButtonElement>('[data-bouton="creer-projet"]')!.click(); });
     const projets = () => db.select().from(schema.studioProjects).where(eq(schema.studioProjects.brandId, I.bA!));
-    await attendreQue(async () => (await projets()).length === 1);
+    await attendreQue('la base a le projet créé', async () => expect(await projets()).toHaveLength(1));
     await fin();
     const [p] = await projets();
     const [v] = await db.select().from(schema.studioProjectVersions).where(eq(schema.studioProjectVersions.projectId, p!.id));

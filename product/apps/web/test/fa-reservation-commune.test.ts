@@ -37,6 +37,7 @@ vi.mock('@tiktrends/ai', async (importOriginal) => {
 import { db, schema, eq, reglerDepense, annulerDepense, reserverDepense, type BaseDepense } from '@tiktrends/db';
 import { costOfTokens, reservationTexteLiberable, REFUS_CERTAINS_TEXTE } from '@tiktrends/core';
 import { guardedAnthropic, sousPlafond, annuleCoutFixe, guardFixedCost, spentUsd, SpendBlockedError, coutMaximalAppel } from '../lib/spend-guard';
+import { attendreEtat } from './helpers/attendre-etat';
 
 const CLE = 'AI_SPEND_CAP_USD';
 const avant = process.env[CLE];
@@ -93,10 +94,12 @@ describe('Anthropic · le maximum est réservé AVANT l’appel', () => {
     // réservations en base seraient faites à temps (40 à 79 ms mesurés sous une charge de 15) ;
     // lu trop tôt, le compte tombe à 0 appel en vol.
     // Bon plafond ⇒ 2 partis + 1 refusé ; plafond qui ne réserve pas avant l'appel ⇒ 3 partis.
-    for (let i = 0; faux.appels + tranches < 3; i++) {
-      if (i > 2_000) throw new Error(`les trois appels ne sont pas tranchés · ${faux.appels} parti(s), ${tranches} refusé(s)`);
-      await new Promise((r) => setTimeout(r, 5));
-    }
+    // Borne · celle de l'ancienne boucle (2 000 sondages de 5 ms, ≈ 10 s), dite explicitement ·
+    // le dernier constat garde son compte (partis, refusés).
+    await attendreEtat('les trois appels sont tranchés (partis chez le fournisseur ou refusés)', () => {
+      if (faux.appels + tranches < 3) throw new Error(`les trois appels ne sont pas tranchés · ${faux.appels} parti(s), ${tranches} refusé(s)`);
+      return true;
+    }, { borneMs: 10_000, intervalleMs: 5 });
     const appelsEnVol = faux.appels;
     liberer();
     const r = await issues;

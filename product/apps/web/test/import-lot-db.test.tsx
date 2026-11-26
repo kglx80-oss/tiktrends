@@ -66,6 +66,7 @@ vi.mock('../app/actions/assistant', () => ({ askAssistant: async () => ({}) }));
 import { db, schema } from '@tiktrends/db';
 import { RAISON_IMPORT_FERME } from '@tiktrends/core';
 import { avecSpatial } from './spatial/fournisseur';
+import { attendreEtat, pasDansAct } from './helpers/attendre-etat';
 import ImportSpatial from '../app/(spatial)/sp/adsmap/import/page';
 import LotSpatial from '../app/(spatial)/sp/adsmap/lots/[id]/page';
 import { sansNomsAjoutes } from './helpers/noms-accessibles';
@@ -402,7 +403,7 @@ describe('la liste « Lot » de l’écran d’import', () => {
       Object.defineProperty(ev, 'dataTransfer', { value: { files: [new File([csv], 'export.csv', { type: 'text/csv' })] } });
       hote.querySelector('.drop')!.dispatchEvent(ev);
     });
-    for (let k = 0; k < 50 && !hote.querySelector('[data-lot-cible-compte]'); k++) await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
+    await attendreEtat('l’aperçu dit ce qui va au lot (`[data-lot-cible-compte]` rendu)', () => hote.querySelector('[data-lot-cible-compte]'), { pas: pasDansAct, intervalleMs: 20 });
     expect(net(hote.querySelector('[data-lot-cible-compte]')?.textContent), 'l’aperçu ne dit pas ce qui va au lot').toBe('1 annonce de ce fichier va aux variantes du lot #3.');
     expect(net(hote.querySelector('[data-lot-cible-restantes]')?.textContent), 'l’aperçu ne dit pas quelles variantes restent sans mesure').toBe('1 variante du lot #3 reste sans mesure après ce fichier · v3.');
     expect(hote.querySelector('[data-geste="ecrire-mesures"]'), 'la confirmation existante a disparu').not.toBeNull();

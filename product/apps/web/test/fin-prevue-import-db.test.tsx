@@ -60,6 +60,7 @@ vi.mock('../app/actions/adsmap-attribution', () => ({ attributionViewAction: asy
 import { db, schema } from '@tiktrends/db';
 import { LIEN_A_CONCLURE, RAISON_IMPORT_FERME, phraseFinPrevuePassee } from '@tiktrends/core';
 import { avecSpatial } from './spatial/fournisseur';
+import { attendreEtat, pasDansAct } from './helpers/attendre-etat';
 import AccueilSpatial from '../app/(spatial)/sp/dashboard/page';
 import ImportSpatial from '../app/(spatial)/sp/adsmap/import/page';
 import LotsSpatial from '../app/(spatial)/sp/adsmap/lots/page';
@@ -230,7 +231,7 @@ describe('fin prévue passée sans mesure · « Importer les mesures du lot #n �
       Object.defineProperty(ev, 'dataTransfer', { value: { files: [new File([csv], 'export.csv', { type: 'text/csv' })] } });
       hote.querySelector('.drop')!.dispatchEvent(ev);
     });
-    for (let k = 0; k < 50 && !hote.querySelector('[data-lot-cible-compte]'); k++) await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
+    await attendreEtat('l’aperçu dit ce qui va au lot (`[data-lot-cible-compte]` rendu)', () => hote.querySelector('[data-lot-cible-compte]'), { pas: pasDansAct, intervalleMs: 20 });
     expect(net(hote.querySelector('[data-lot-cible-compte]')?.textContent), 'l’aperçu ne dit pas ce qui va au lot').toBe('1 annonce de ce fichier va aux variantes du lot #1.');
     act(() => root.unmount()); hote.remove();
     expect(await traces(), 'l’aperçu a écrit').toEqual(avant);

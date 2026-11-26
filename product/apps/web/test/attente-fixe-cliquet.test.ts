@@ -92,7 +92,11 @@ import { join, relative } from 'node:path';
  * `pause(400)` de `l2-revocation-course-pg` (seule exemption `VERROU`) attend désormais l'état
  * réel (l'évaluation bloquée sur le verrou de la révocation, `pg_blocking_pids`, ou déjà finie) ·
  * exemption et raison RETIRÉES · 46 sommeils dans 38 fichiers, 45 aides dans 24 fichiers (256
- * appels figés).
+ * appels figés). Les boucles de sondage maison (`fa-reservation-commune`, `l3-worker`,
+ * `import-lot-db`, `fin-prevue-import-db`, `iterer-gagnante-db`, `lot9-personas-db`,
+ * `lot9bis-offres-db` et son aide `attendreQue`) passent par `attendreEtat`, même condition, même
+ * borne quand elle était dite · exemptions `SONDAGE` et raison RETIRÉES. Relevé après les deux ·
+ * 38 sommeils dans 31 fichiers, 44 aides dans 23 fichiers (252 appels figés).
  *
  * Les LIMITES · ce cliquet protège contre l'ERREUR (on recopie une attente fixe voisine, on
  * rappelle l'aide du fichier), pas contre la MALVEILLANCE · il lit le source, il n'exécute rien et
@@ -118,7 +122,6 @@ const EXCLUS = new Set(['helpers/attendre-etat.ts', 'attente-fixe-cliquet.test.t
 /* Les raisons, par nature · chaque exemption en nomme une. */
 const INJECTE = 'le `dormir` injecté au code testé (son propre sondage, borné par `attente`) · pas une attente du test';
 const LATENCE = 'latence simulée dans un faux (fournisseur, fetch, verrou, processus enfant) · le test provoque un chevauchement, il n’attend pas un état';
-const SONDAGE = 'boucle de sondage maison, bornée, sur la condition vraie · même forme que celles migrées par ce lot, à passer par `attendreEtat`';
 const FIXE = 'attente fixe avant constat (montage, action serveur, focus) · dette à migrer vers `attendreEtat` / `attendreMontageStable`';
 
 interface Exemption {
@@ -140,13 +143,6 @@ const EXEMPTIONS: Readonly<Record<string, Exemption>> = {
   'logos-charte-etat.test.ts': { n: 1, raison: LATENCE },
   'adsmap-import-verrou-db.test.ts': { n: 1, raison: LATENCE },
   'fa-course-mixte-pg.test.ts': { n: 3, appels: { create: 2, vague: 2 }, raison: `${LATENCE} · et le départ synchronisé des deux vagues de la course (rendez-vous, échelonnement)` },
-  'fa-reservation-commune.test.ts': { n: 1, raison: SONDAGE },
-  'l3-worker.test.ts': { n: 1, raison: SONDAGE },
-  'import-lot-db.test.tsx': { n: 1, raison: SONDAGE },
-  'fin-prevue-import-db.test.tsx': { n: 1, raison: SONDAGE },
-  'iterer-gagnante-db.test.tsx': { n: 1, raison: SONDAGE },
-  'lot9-personas-db.test.tsx': { n: 2, raison: SONDAGE },
-  'lot9bis-offres-db.test.tsx': { n: 1, appels: { attendreQue: 4 }, raison: SONDAGE },
   // Les aides `attendre` / `laisser` / `monter` à durée fixe.
   'analyse-crea-marque-db.test.tsx': { n: 1, appels: { laisser: 1, attendre: 2 }, raison: FIXE },
   'boucles-hypothese-db.test.tsx': { n: 1, appels: { cliquer: 11 }, raison: FIXE },

@@ -59,6 +59,7 @@ vi.mock('../lib/spend-guard', async (importOriginal) => ({ ...(await importOrigi
 import { db, schema, eq, and } from '@tiktrends/db';
 import { construireBriefV5, saisieBriefVide, REFUS_PERSONA_INTROUVABLE, MIN_VERDICTS_PERSONA } from '@tiktrends/core';
 import { avecSpatial } from './spatial/fournisseur';
+import { attendreEtat, pasDansAct } from './helpers/attendre-etat';
 import { contexteDepuisSession } from '../lib/studios/garde';
 import { projetAvecBrief, lancerLot, executer, sortiesDuJob, KEYFRAMES, saisieTest, briefCanonique, contenuImages } from './l4c-harnais';
 import { creerVariante } from '../lib/studios/variantes/variantes';
@@ -251,7 +252,7 @@ describe('modifier un persona · relu partout, rang respecté', () => {
     form.querySelector<HTMLSelectElement>('select[name="rang"]')!.value = '1';
     form.querySelector<HTMLTextAreaElement>('textarea[name="desirs"]')!.value = 'Gagner du temps\nDormir enfin';
     await act(async () => { form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })); });
-    for (let i = 0; i < 50 && (await persona(I.lea!)).name !== 'Léa, 35 ans'; i++) await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
+    await attendreEtat('la base a le nouveau nom de Léa', async () => { expect((await persona(I.lea!)).name).toBe('Léa, 35 ans'); return true; }, { pas: pasDansAct, intervalleMs: 20 });
     await fin();
 
     expect(await persona(I.lea!)).toMatchObject({ name: 'Léa, 35 ans', segment: 'Jeunes parents', rank: 1, desires: ['Gagner du temps', 'Dormir enfin'], pains: ['Prix'], objections: ['Trop cher'] });
@@ -296,7 +297,7 @@ describe('modifier un persona · relu partout, rang respecté', () => {
     const valider = hote.querySelector<HTMLButtonElement>('[data-geste-persona="valider"]')!;
     expect(valider.textContent).toContain('Valider ce persona');
     await act(async () => { valider.click(); });
-    for (let i = 0; i < 50 && (await persona(I.sam!)).status !== 'validated'; i++) await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
+    await attendreEtat('la base a Sam validé', async () => { expect((await persona(I.sam!)).status).toBe('validated'); return true; }, { pas: pasDansAct, intervalleMs: 20 });
     await fin();
     expect((await persona(I.sam!)).status).toBe('validated');
   });
