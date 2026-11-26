@@ -3,6 +3,7 @@ export * from './profil';
 export * from './tagging';
 export * from './retours';
 export * from './services';
+export * from './exploitation';
 export * from './journal';
 export * from './connexions';
 export * from './support';

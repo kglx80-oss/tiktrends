@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import type { PreferenceTheme } from '@tiktrends/core';
+import type { LigneExploitation, PreferenceTheme } from '@tiktrends/core';
 import { SectionApparence } from './Apparence';
 import { EnTete, Ic, Lien, SousNav, Vue } from '../../communs';
 import { CarteNavigable, RenommerEspace, StockageEspace, type ActionsStockage } from './interactifs';
@@ -46,6 +46,12 @@ export interface GestionEspace {
     inactif: { texte: string; lien: { libelle: string; href: string } | null } | null;
     actions: ActionsStockage;
   };
+  /**
+   * Ce qui manque pour que les Studios et les passages planifiés tournent
+   * (`exploitationPlateforme`, noyau) · l'équipe de la plateforme seulement ·
+   * absent pour un administrateur d'espace client (aucune variable à son écran).
+   */
+  exploitation?: ReadonlyArray<LigneExploitation> | null;
 }
 
 /** Les tuiles des gestes V5 portés · même langage que la maquette (`.tile`, `.nprefs`, `.npr`, `.pill`). */
@@ -75,7 +81,31 @@ function TuilesGestion({ espace, g }: { espace: string; g: GestionEspace }) {
           ))}
         </div>
       </section>
+      {g.exploitation && <TuileExploitation lignes={g.exploitation} />}
     </>
+  );
+}
+
+/** « Exploitation de la plateforme » · présent / absent, jamais une valeur secrète. */
+function TuileExploitation({ lignes }: { lignes: ReadonlyArray<LigneExploitation> }) {
+  const manquent = lignes.filter((x) => !x.ok).length;
+  return (
+    <section className="tile" data-geste="exploitation" style={{ gridColumn: '1/-1' }}>
+      <div className="sech" style={{ margin: '0 0 10px' }}><h2>Exploitation de la plateforme</h2><span className="faint" style={{ fontSize: '12.5px' }}>{manquent ? `${manquent} à regarder` : 'rien ne manque'}</span></div>
+      <p className="muted" style={{ fontSize: 12.5, margin: '0 0 10px' }}>Visible par l’équipe de la plateforme seulement · on lit la présence des clés, jamais leur valeur.</p>
+      <div className="nprefs">
+        {lignes.map((x) => (
+          <div className="npr" key={x.cle} data-ligne={x.cle}>
+            <div>
+              <strong>{x.libelle}</strong>
+              <small>{x.detail}</small>
+              <small className="faint">{x.ou.genre === 'ecran' ? <>Où agir · <Lien href={x.ou.href}>{x.ou.libelle}</Lien></> : <>Où agir · {x.ou.texte}</>}</small>
+            </div>
+            <span className={`pill${x.ok ? ' g' : ''}`}>{x.etat}</span>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 
