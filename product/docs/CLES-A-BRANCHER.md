@@ -7,8 +7,11 @@ l'application, jamais ici.
 Où poser une clé : sur le VPS, dans `/home/debian/tiktrends/product/.env.deploy`
 (chargé par `docker-compose.yml` via `env_file`, le MÊME fichier pour le web et
 le worker). Le gabarit à jour est `product/.env.deploy.example` · un test
-(`apps/web/test/env-recensement.test.ts`) échoue si le code lit une variable
-que le gabarit ne déclare pas.
+(`apps/web/test/env-recensement.test.ts`) échoue si `apps/web` ou
+`apps/workers` lit une variable par son nom littéral (`process.env.X`) que le
+gabarit ne déclare pas. Il ne couvre ni les lectures des paquets
+(`packages/*`, par exemple les modèles fal) ni les noms construits
+(`process.env[nom]`) · pour ceux-là, le gabarit est tenu à la main.
 
 Après avoir ajouté ou modifié une clé :
 
@@ -93,14 +96,16 @@ clé, contrôle de la parole des prises), payée à l'usage chez le fournisseur.
 **Le worker Studios exige AUSSI le stockage** (section 5) · sans `FAL_KEY` ou
 sans les quatre `S3_*`, il ne démarre pas son fournisseur et écrit
 `worker studio non démarré, jobs laissés en file, rien facturé.`
-(`packages/core/src/studios/fournisseurs/choix.ts`).
+(règle `decisionFournisseurStudio` dans
+`packages/core/src/studios/fournisseurs/choix.ts`, message dans
+`apps/workers/src/studios/fournisseurs.ts`).
 
-Modèles · optionnels, laisser vides (défauts du code) :
+Modèles · optionnels, commentés dans le gabarit (défauts du code) :
 
 ```
-FAL_IMAGE_MODEL=          # génération sans référence
-FAL_IMAGE_MODEL_EDIT=     # mise en scène produit
-FAL_VIDEO_MODEL_STUDIO=   # animation des plans · vide = Kling 2.5 turbo pro
+# FAL_IMAGE_MODEL=          # génération sans référence
+# FAL_IMAGE_MODEL_EDIT=     # mise en scène produit
+# FAL_VIDEO_MODEL_STUDIO=   # animation des plans · absent = Kling 2.5 turbo pro
 ```
 
 `FAL_VIDEO_MODEL_STUDIO` est choisi parmi le catalogue chiffré

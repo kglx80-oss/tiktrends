@@ -201,11 +201,13 @@ async function portesFondateur() {
     baremeCredits: (await redirection(() => CreditsPage())) === null,
     jarvisExploitation: props(await SourcesPage()).fondateur !== null,
     stockageOperateur: (props(await SettingsPage()).gestion as { stockage: { operateur: boolean } }).stockage.operateur,
+    // « Exploitation de la plateforme » (#1146) · noms de variables et plafond · l'équipe seulement (recette #106).
+    exploitation: (props(await SettingsPage()).gestion as { exploitation?: unknown }).exploitation != null,
     lienTour: (props(await ProfilPage()).liens as Array<{ href: string }>).some((l) => l.href === '/admin'),
   };
 }
-const TOUT_OUVERT = { creditsIllimites: true, tour: true, depenses: true, sousNavTour: true, railAdmin: true, baremeCredits: true, jarvisExploitation: true, stockageOperateur: true, lienTour: true };
-const TOUT_FERME = { creditsIllimites: false, tour: false, depenses: false, sousNavTour: false, railAdmin: false, baremeCredits: false, jarvisExploitation: false, stockageOperateur: false, lienTour: false };
+const TOUT_OUVERT = { creditsIllimites: true, tour: true, depenses: true, sousNavTour: true, railAdmin: true, baremeCredits: true, jarvisExploitation: true, stockageOperateur: true, exploitation: true, lienTour: true };
+const TOUT_FERME = { creditsIllimites: false, tour: false, depenses: false, sousNavTour: false, railAdmin: false, baremeCredits: false, jarvisExploitation: false, stockageOperateur: false, exploitation: false, lienTour: false };
 
 describe('1 · une adresse de `FOUNDER_EMAILS` (non codée) n’ouvre aucun pouvoir fondateur', () => {
   it('portes de lecture · toutes fermées', async () => {
