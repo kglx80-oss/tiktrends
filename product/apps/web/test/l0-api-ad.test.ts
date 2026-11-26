@@ -24,7 +24,6 @@ const ids = vi.hoisted(() => {
     pubSansMesure: randomUUID(), pubMesuree: randomUUID(), pubIndexee: randomUUID(), pubAutreEspace: randomUUID(),
   };
 });
-const espion = vi.hoisted(() => ({ actif: false, ecritures: [] as string[] }));
 const h = vi.hoisted(() => ({
   session: null as unknown,
   rendus: [] as Array<{ light: unknown; width?: number; height?: number }>,
@@ -34,18 +33,10 @@ const h = vi.hoisted(() => ({
   heads: [] as string[],
 }));
 
-/** Une instruction qui modifie la base · le reste (select, with … select) est une lecture. */
-const ECRITURE = /\binsert\s+into\b|\bupdate\s+"?[a-z_]+"?\s+set\b|\bdelete\s+from\b|\btruncate\b|\bmerge\s+into\b/i;
-
 vi.mock('@tiktrends/db', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@tiktrends/db')>();
-  const { PGlite } = await import('@electric-sql/pglite');
-  const proto = PGlite.prototype as unknown as { query: (sql: string, ...rest: unknown[]) => Promise<unknown> };
-  const query = proto.query;
-  proto.query = function (this: unknown, sql: string, ...rest: unknown[]) {
-    if (espion.actif && ECRITURE.test(sql)) espion.ecritures.push(sql.replace(/\s+/g, ' ').slice(0, 160));
-    return query.call(this, sql, ...rest);
-  };
+  // Chaque instruction est espionnée · l'espion commun (`helpers/espion-ecritures.ts`).
+  (await import('./helpers/espion-ecritures')).espionnerEcritures();
   const { pgMemoire } = await import('./helpers/pg-memoire');
   const db = await pgMemoire(actual.schema as unknown as Record<string, unknown>);
   return { ...actual, db };
@@ -78,7 +69,7 @@ vi.mock('@tiktrends/integrations/src/safe-fetch', async () => {
 
 import { db, schema, eq } from '@tiktrends/db';
 import { cleObjetRendu, _oublierPresents } from '../lib/ad-store';
-import { attendreAbsence } from './helpers/attendre-etat';
+import { sousEspion } from './helpers/espion-ecritures';
 
 const owner = () => ({ user: { id: ids.owner, email: 'owner@l0.test', name: null }, workspaceId: ids.ws, workspaceName: 'L0', role: 'owner', plan: 'plus', equipe: null });
 const viewer = () => ({ user: { id: ids.viewer, email: 'viewer@l0.test', name: null }, workspaceId: ids.ws, workspaceName: 'L0', role: 'client_viewer', plan: 'plus', equipe: null });
@@ -89,38 +80,6 @@ async function empreinte(): Promise<string> {
   const g = await db.select({ id: schema.generations.id, input: schema.generations.input, output: schema.generations.output, status: schema.generations.status })
     .from(schema.generations).orderBy(schema.generations.id);
   return JSON.stringify({ g });
-}
-
-/**
- * Lance une lecture sous espion · rend les instructions d'écriture vues.
- *
- * Le GET répond AVANT d'avoir fini · `void rangerRendu(…)` range le PNG dans le bucket après la
- * réponse, et c'est derrière ce « fire and forget » que l'ancien code notait l'index des rendus
- * dans la génération · une écriture SQL partie APRÈS le retour de `f`. Ce qu'on attend n'est pas
- * une durée, c'est une ABSENCE · aucune écriture, tenue dans la durée (`attendreAbsence`), l'espion
- * toujours armé. La première écriture vue la viole aussitôt · elle est rendue au test, dont
- * l'`expect` la nomme.
- *
- * Délai MESURÉ de l'écriture que cette absence doit voir · l'ancien défaut remis (l'index noté
- * derrière `rangerRendu`, sans l'attendre), du retour de `f` à la première écriture vue, tout le
- * fichier en boucle, 22/11/2026, machine de 4 cœurs :
- *
- *   régime                     passages    n    p50    max
- *   au repos                        4     16    0,1    0,5 ms
- *   12 boucles CPU actives          6     24    0,1   12,2 ms
- *
- * La fenêtre de `attendreAbsence` (`SONDAGES_ABSENCE` sondages, ~200 ms) couvre ce pire plus de
- * seize fois · l'ancienne attente fixe (30 ms) un peu plus de deux, et une écriture partie 80 ms
- * après la réponse passait dessous sans bruit.
- */
-async function sousEspion<T>(f: () => Promise<T>): Promise<{ r: T; ecritures: string[] }> {
-  espion.ecritures = []; espion.actif = true;
-  try {
-    const r = await f();
-    await attendreAbsence('aucune écriture SQL ne part de la lecture, même après sa réponse (« fire and forget »)', () => espion.ecritures.length === 0)
-      .catch((e: unknown) => { if (espion.ecritures.length === 0) throw e; });
-    return { r, ecritures: [...espion.ecritures] };
-  } finally { espion.actif = false; }
 }
 
 async function chargerRoute() {
