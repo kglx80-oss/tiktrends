@@ -2,19 +2,45 @@ import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { DESCRIPTIF_FORMULES, formuleDeReference, FUSEAU_ACCUEIL, ORDRE_FORMULES, domaineConcurrent, initialeNom, lienNouveauProjet, panneauStockage, servicesEspace, teinteAvatar, THEME_COOKIE, preferenceDepuisCookie } from '@tiktrends/core';
+import { DESCRIPTIF_FORMULES, exploitationPlateforme, formuleDeReference, FUSEAU_ACCUEIL, ORDRE_FORMULES, domaineConcurrent, initialeNom, lienNouveauProjet, panneauStockage, servicesEspace, teinteAvatar, THEME_COOKIE, preferenceDepuisCookie, type EtatConsignes } from '@tiktrends/core';
 import { storageConfigured } from '@tiktrends/integrations';
 import { getSession } from '../../../../lib/auth';
 import { canAccess, FEATURES, PLAN_CREDITS, PLAN_LABEL, roleAtLeast, type Plan } from '../../../../lib/rbac';
 import { effectiveAccess } from '../../../../lib/access';
 import { getActiveBrand } from '../../../../lib/brands';
 import { aPouvoirsFondateur } from '../../../../lib/founder';
+import { etatInterrupteurs } from '../../../../lib/studios/interrupteurs';
+import { releaseActive } from '../../../../lib/studios/prompts/depot-prompts';
 import { saveWorkspaceNameAction } from '../../../actions/admin';
 import { configureBucketAction, embeddedImagesStatusAction, migrateEmbeddedImagesAction, testStorageAction } from '../../../actions/storage';
 import { Espace } from '../../../../spatial/vues/reglages/Espace';
 import { SOUS_NAV_REGLAGES } from '../../../../spatial/vues/reglages/sous-nav';
 
 export const dynamic = 'force-dynamic';
+
+/** L'état des consignes IA des Studios, comme le résolveur le lit (pointeur global, révocation) · jamais une exception. */
+async function etatConsignes(): Promise<EtatConsignes> {
+  try {
+    const c = await releaseActive();
+    if (!c) return 'absente';
+    return c.noyau.revocation ? 'revoquee' : 'publiee';
+  } catch {
+    return 'illisible';
+  }
+}
+
+/**
+ * « Exploitation de la plateforme » · l'équipe de la plateforme seulement
+ * (même `operateur` que les consignes du Stockage) · un administrateur
+ * d'espace client n'en reçoit rien, pas même la lecture.
+ */
+async function exploitation(workspaceId: string) {
+  const [interrupteurs, consignes] = await Promise.all([
+    etatInterrupteurs(workspaceId).catch(() => null),
+    etatConsignes(),
+  ]);
+  return exploitationPlateforme({ env: process.env, decisions: interrupteurs?.decisions ?? null, consignes });
+}
 
 export default async function EspaceSpatial() {
   const s = await getSession();
@@ -39,6 +65,7 @@ export default async function EspaceSpatial() {
   // Gestes de l'écran V5 `/settings` (vague 2) · même garde admin (posée plus haut).
   const operateur = aPouvoirsFondateur(s.user.email);
   const stockageActif = storageConfigured();
+  const lignesExploitation = operateur ? await exploitation(s.workspaceId) : null;
 
   return (
     <Espace
@@ -55,6 +82,7 @@ export default async function EspaceSpatial() {
       gestion={{
         renommer: saveWorkspaceNameAction,
         services: servicesEspace(process.env),
+        exploitation: lignesExploitation,
         stockage: {
           ...panneauStockage({ actif: stockageActif, operateur }), actif: stockageActif, operateur,
           actions: { configurer: configureBucketAction, tester: testStorageAction, etat: embeddedImagesStatusAction, ranger: migrateEmbeddedImagesAction },

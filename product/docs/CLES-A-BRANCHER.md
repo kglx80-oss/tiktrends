@@ -1,176 +1,229 @@
-# Clés à brancher — mémo
+# Clés à brancher · mémo
 
-Où : sur le VPS, dans `/home/debian/tiktrends/product/.env.deploy`
-(le fichier chargé par `docker-compose.yml` via `env_file`).
+**Cette page ne dit pas ce qui est branché.** Elle dit ce que chaque clé ouvre,
+ce qui se passe sans elle, et **où vérifier**. L'état réel se lit dans
+l'application, jamais ici.
 
-Après avoir ajouté/modifié une clé :
+Où poser une clé : sur le VPS, dans `/home/debian/tiktrends/product/.env.deploy`
+(chargé par `docker-compose.yml` via `env_file`, le MÊME fichier pour le web et
+le worker). Le gabarit à jour est `product/.env.deploy.example` · un test
+(`apps/web/test/env-recensement.test.ts`) échoue si le code lit une variable
+que le gabarit ne déclare pas.
+
+Après avoir ajouté ou modifié une clé :
 
 ```bash
 cd /home/debian/tiktrends/product
 docker compose up -d --build web workers
 ```
 
-Le tableau **Réglages → Intégrations serveur** (dans l'app, espace admin) affiche
-en direct ce qui est **BRANCHÉ** / **À BRANCHER**.
+## Où vérifier
+
+| Écran | Qui le voit | Ce qu'il dit |
+| --- | --- | --- |
+| Réglages → Espace → **Services activés** | administrateurs de l'espace | « Branché » / « À brancher » par capacité (IA, bibliothèque pub, image et vidéo, stockage, e-mails, paiement…), sans nom de variable |
+| Réglages → Espace → **Exploitation de la plateforme** | équipe de la plateforme (pouvoirs fondateur) | `CRON_SECRET` présent ou absent, plafond de dépense effectif et sa source, état de chaque capacité Studios, version des consignes publiée ou non |
+| Jarvis (fondateur) | fondateur | dépense sur 30 jours, bandeau « Ce serveur » (build, migrations) |
+| `/admin/studios-interrupteurs` | équipe (`provider.configure`) | capacités Studios par espace, réglables sans redémarrage |
+| `/admin/prompts/registre` | équipe (`prompt.read`) | versions des consignes, releases, publication |
+
+Aucun de ces écrans ne montre la valeur d'une clé · seulement sa présence.
 
 ---
 
-## 1. IA — Claude (Anthropic) — priorité n°1
+## 1. Passages planifiés · `CRON_SECRET`
 
 ```
-ANTHROPIC_API_KEY=sk-ant-...
+CRON_SECRET=          # une chaîne aléatoire longue
 ```
 
-Débloque d'un coup :
-- Studio IA (angles, hooks, script, textes)
-- Assistant conversationnel de la home + bulle d'aide
-- Pré-remplissage de marque depuis le site
-- Import produits depuis le site
-- Analyse concurrent (hooks, angles, USP…)
+**Ouvre** · le worker appelle les routes `/api/cron/*` du web avec ce secret :
+remontée Meta (ADSMAP), radar de veille, suivi des concurrents, récap
+hebdomadaire, allocations mensuelles des annuels, bascule des forfaits, suivi
+des vidéos historiques.
 
-Modèles (optionnel, valeurs par défaut sinon) :
-```
-ANTHROPIC_GEN_MODEL=claude-sonnet-5
-```
+**Sans elle · SILENCIEUX côté interface.** Le worker ne déclenche rien et écrit
+seulement `[<tâche>] CRON_SECRET absent · passage non déclenché.`
+(`apps/workers/src/adsmap.ts`). Les routes répondent 503 `cron_disabled`.
 
-## 2. Image IA — Fal.ai (Flux / Ideogram)
+**Où vérifier** · Réglages → Espace → Exploitation de la plateforme (ligne
+« Passages planifiés »), et l'écran Connexions, qui dit que la remontée
+planifiée est fermée.
 
-```
-FAL_KEY=...
-```
-
-Active le **Studio → Image IA** (texte → image, mise en scène produit, texte lisible).
-Paiement à l'usage chez Fal (~2 à 8 centimes/image selon le modèle).
-
-Options (valeurs par défaut sinon) :
-```
-FAL_IMAGE_MODEL=fal-ai/nano-banana-2             # texte -> image (réaliste)
-FAL_IMAGE_MODEL_I2I=fal-ai/flux/dev/image-to-image
-FAL_IMAGE_MODEL_TEXT=fal-ai/ideogram/v3          # image avec texte lisible
-FAL_IMAGE_MODEL_EDIT=fal-ai/nano-banana-2/edit   # mise en scène produit : proportions + réalisme
-```
-
-**La vidéo passe aussi par cette clé Fal** · image ET vidéo avec une seule clé.
-
-Ancien « Vidéo IA » uniquement (défaut Kling 2.5 turbo pro) · ces deux variables
-ne pilotent PLUS les Studios :
-```
-FAL_VIDEO_MODEL=fal-ai/kling-video/v2.5-turbo/pro/text-to-video
-FAL_VIDEO_MODEL_I2V=fal-ai/kling-video/v2.5-turbo/pro/image-to-video
-FAL_QUEUE_URL=https://queue.fal.run
-```
-
-Studios (animation des plans) · variable PROPRE, choisie parmi le catalogue
-chiffré (`packages/core/src/studios/fournisseurs/catalogue-video.ts`) :
-```
-FAL_VIDEO_MODEL_STUDIO=                                    # vide = Kling 2.5 turbo pro (5 ou 10 s, muet, 0,07 $/s)
-# FAL_VIDEO_MODEL_STUDIO=fal-ai/veo3.1/fast/image-to-video  # 4/6/8 s, 0,10 $/s muet, 0,15 $/s avec voix
-# FAL_VIDEO_MODEL_STUDIO=fal-ai/veo3.1/lite/image-to-video  # 4/6/8 s, 720p 0,03 / 0,05 $/s, 1080p 0,05 / 0,08 $/s
-```
-Un modèle hors de ce catalogue est refusé au devis (« modèle vidéo non chiffré
-au catalogue »). Kling 2 master n'est plus recommandé pour les Studios. Si
-`FAL_VIDEO_MODEL_I2V` est posée sans `FAL_VIDEO_MODEL_STUDIO`, le worker le dit
-au démarrage et les Studios utilisent Kling 2.5 turbo pro. La voix française de
-Veo est à valider à l'écoute sur un premier clip.
-
-## 3. Vidéo IA — Higgsfield (optionnel)
-
-`FAL_KEY` suffit pour la vidéo (Kling). Higgsfield reste **optionnel** : ne le
-branche que si tu veux ses contrôles caméra/presets spécifiques. Si `FAL_KEY`
-est présente, c'est Fal (Kling) qui est utilisé en priorité.
+## 2. Plafond de dépense IA · `AI_SPEND_CAP_USD`
 
 ```
-HIGGSFIELD_API_KEY=...
+AI_SPEND_CAP_USD=     # en dollars, 30 jours glissants, web + worker
 ```
 
-Active la section **Vidéo IA** du Studio (texte → vidéo verticale).
+**Ouvre** · fixe le plafond DUR de toute dépense payante (Anthropic, fal),
+partagé par le web (`apps/web/lib/spend-guard.ts`) et le worker. Au-delà,
+aucune requête payante ne part.
 
-Options si le contrat d'API l'exige (à confirmer avec la doc Higgsfield) :
-```
-HIGGSFIELD_API_SECRET=          # si auth « Key id:secret »
-HIGGSFIELD_BASE_URL=            # def: https://platform.higgsfield.ai
-HIGGSFIELD_T2V_PATH=            # def: /v1/text2video  (texte → vidéo)
-HIGGSFIELD_I2V_PATH=            # def: /v1/image2video (image → vidéo)
-HIGGSFIELD_JOB_PATH=            # def: /v1/jobs   (statut: {JOB_PATH}/{id})
-HIGGSFIELD_MODEL=              # optionnel
-```
+**Sans elle · SILENCIEUX.** Absente, vide, illisible ou négative : repli sur
+la valeur par défaut du code (`DEFAULT_CAP_USD` dans `spend-guard.ts`, la même
+que `PLAFOND_DEFAUT_USD` du noyau, comparées par test). `0` bloque toute dépense.
 
-> Le code lit ces variables : si l'endpoint réel diffère des valeurs par défaut,
-> il suffit d'ajuster `HIGGSFIELD_BASE_URL` / `..._T2V_PATH` / `..._JOB_PATH`
-> dans `.env.deploy`, **sans toucher au code**.
+**Où vérifier** · Réglages → Espace → Exploitation de la plateforme (ligne
+« Plafond de dépense IA » · valeur effective, et « défini » ou « valeur par
+défaut »). La dépense courante est sur Jarvis.
 
-## 2 bis. ADMIN+ — vue plateforme (fondateur)
-
-**`FOUNDER_EMAILS` n'ouvre plus rien** (décision du propriétaire, « Codé seul »,
-suivi de #1115). Les pouvoirs fondateur (Tour de contrôle, dépenses IA, barème
-des crédits, formules et dons de crédits, bêta, stockage, diagnostic Stripe,
-exploitation de Jarvis, crédits illimités) sont réservés aux fondateurs
-**inscrits dans le code** (`apps/web/lib/founder.ts`, liste `FONDATEURS`,
-règle `pouvoirFondateur` du noyau). Raison · aucun e-mail n'est vérifié à la
-création d'un compte : quiconque créait le premier le compte d'une adresse de
-la variable recevait tous ces pouvoirs.
-
-La variable est encore lue, **sans pouvoir** · un compte dont l'adresse y
-figure lit, sur `/admin/equipe`, pourquoi il n'a rien et comment rejoindre
-l'équipe. Elle peut rester vide.
-
-Pour ajouter un fondateur : l'inscrire dans `FONDATEURS` (un déploiement
-suffit). Pour un membre de l'équipe sans pouvoirs fondateur : l'inscrire dans
-`/admin/equipe` (Admin+ ou Admin) une fois son compte créé.
-
-## 3. Bibliothèque pub — Trendtrack (déjà branché)
+## 3. IA rédactionnelle · `ANTHROPIC_API_KEY`
 
 ```
-TRENDTRACK_API_KEY=...
+ANTHROPIC_API_KEY=
+# ANTHROPIC_GEN_MODEL=   # optionnel · laisser commenté, le défaut du code s'applique
 ```
 
-Alimente l'Inspo, les suivis et l'analyse concurrent.
+**Ouvre** · textes et analyses des Studios, Jarvis (assistant), pré-remplissage
+de marque, analyse concurrent.
 
-## 4. (Plus tard) E-mail — notifications
+**Sans elle · visible** · « À brancher » dans Services activés ; les gestes
+concernés le disent.
 
-```
-SMTP_URL=smtp://user:pass@host:587
-```
-
-## 5. (Plus tard) Slack
+## 4. Images, clips et contrôle de la parole · `FAL_KEY` + stockage
 
 ```
-SLACK_BOT_TOKEN=xoxb-...
-SLACK_SIGNING_SECRET=...
+FAL_KEY=
 ```
 
-## 5bis. Stockage objet — OVH Object Storage (S3)
+**Ouvre** · la génération des Studios (images, clips animés depuis l'image
+clé, contrôle de la parole des prises), payée à l'usage chez le fournisseur.
 
-Active l'upload direct des gros fichiers (rushs vidéo jusqu'à 1 Go) dans **Assets**.
+**Le worker Studios exige AUSSI le stockage** (section 5) · sans `FAL_KEY` ou
+sans les quatre `S3_*`, il ne démarre pas son fournisseur et écrit
+`worker studio non démarré, jobs laissés en file, rien facturé.`
+(`packages/core/src/studios/fournisseurs/choix.ts`).
+
+Modèles · optionnels, laisser vides (défauts du code) :
+
+```
+FAL_IMAGE_MODEL=          # génération sans référence
+FAL_IMAGE_MODEL_EDIT=     # mise en scène produit
+FAL_VIDEO_MODEL_STUDIO=   # animation des plans · vide = Kling 2.5 turbo pro
+```
+
+`FAL_VIDEO_MODEL_STUDIO` est choisi parmi le catalogue chiffré
+(`packages/core/src/studios/fournisseurs/catalogue-video.ts`) · un modèle hors
+catalogue est refusé au devis (« modèle vidéo non chiffré au catalogue »).
+`FAL_VIDEO_MODEL_I2V` ne pilote PAS les Studios · si elle est posée sans
+`FAL_VIDEO_MODEL_STUDIO`, le worker le dit au démarrage.
+
+**Une clé ne suffit pas** · les capacités payantes sont coupées par défaut
+(section 6) et rien ne tourne sans consignes publiées (section 7).
+
+## 5. Stockage objet · `S3_*` (OVH Object Storage)
 
 ```
 S3_ENDPOINT=s3.gra.io.cloud.ovh.net      # hôte du service (sans https://)
-S3_REGION=gra                            # gra, sbg, de, uk…
+S3_REGION=gra
 S3_BUCKET=tiktrends-media
-S3_ACCESS_KEY_ID=...
-S3_SECRET_ACCESS_KEY=...
-S3_PUBLIC_BASE_URL=                       # optionnel (CDN) · défaut https://{endpoint}/{bucket}
+S3_ACCESS_KEY_ID=
+S3_SECRET_ACCESS_KEY=
+S3_PUBLIC_BASE_URL=                       # optionnel (CDN)
 ```
 
-Prérequis côté bucket / conteneur :
-- **Lecture publique** des objets (pour afficher images/vidéos dans l'app).
-- **CORS** autorisant la méthode **PUT** depuis `APP_URL` (upload direct navigateur).
-  Exemple de règle CORS : origine `https://app.tiktrends.co`, méthodes `PUT, GET`, headers `*`.
+**Ouvre** · upload direct des gros fichiers dans la Bibliothèque, et la
+conservation des résultats des Studios (déposés puis relus par le worker).
 
-Sans ces variables, Assets fonctionne quand même : images optimisées + vidéos/audio par lien.
+**Prérequis du bucket · objets PRIVÉS.** L'application lit par liens signés
+(`packages/integrations/src/storage.ts`) · **ne jamais rendre le bucket
+public**. Seul le CORS est à poser (méthode PUT depuis `APP_URL`) : le bouton
+« Configurer le stockage privé (CORS) » de Réglages → Espace → Stockage le fait,
+puis « tester » vérifie la lecture signée et le refus des accès anonymes.
 
-## 6. (Plus tard) Paiement — Stripe
+**Sans elles · visible** · « À brancher » dans Services activés, le panneau
+Stockage dit quoi poser. Le worker Studios ne démarre pas (section 4).
+
+## 6. Capacités Studios · interrupteurs
+
+Coupées par défaut (`packages/core/src/studios/interrupteurs.ts`) :
+`generation_image`, `controle_visuel`, `video`, `voix`, `shadow`,
+`benchmark_reel`. Le reste (projets, éditeur, textes, export, canvas,
+propositions, identités) est ouvert.
+
+Trois façons de les ouvrir :
 
 ```
-STRIPE_SECRET_KEY=sk_live_...
-STRIPE_WEBHOOK_SECRET=whsec_...
+STUDIOS_CAPACITES_GENERALES=      # tous les espaces (ex. generation_image,video)
+STUDIOS_ESPACES_PILOTES=          # identifiants d'espace
+STUDIOS_CAPACITES_PILOTES=        # capacités ouvertes aux seuls espaces pilotes
+STUDIOS_CAPACITES_COUPEES=        # coupure d'urgence, l'emporte sur tout
 ```
+
+ou l'écran `/admin/studios-interrupteurs` (réglage en base, par espace, sans
+redémarrage). `benchmark_reel` ne s'ouvre que par `STUDIOS_CAPACITES_GENERALES`.
+
+**Sans elles · visible au geste** · un geste coupé répond « … · non activé pour
+cet espace. Rien n'a été écrit ni débité. » **Où vérifier** · Réglages →
+Espace → Exploitation de la plateforme (état et source de chaque capacité pour
+l'espace courant), ou l'écran des interrupteurs pour un autre espace.
+
+## 7. Consignes IA des Studios · publier une version
+
+Pas une clé, une **action** · sur `/admin/prompts/registre`, importer le pack,
+valider les versions, créer une release, l'évaluer, puis la **publier**
+(onglet Releases). En production, une release ne devient active qu'approuvée
+sur son empreinte (benchmark, ou recette manuelle nominative) ·
+`apps/web/lib/studios/prompts/environnement.ts`.
+
+**Sans version publiée · toute tâche IA des Studios est refusée**
+(`RELEASE_ACTIVE_ABSENTE` · « Aucune release globale publiée · aucun prompt de
+repli », `apps/web/lib/studios/prompts/resolveur.ts`). Une release révoquée
+refuse de même.
+
+**Où vérifier** · Réglages → Espace → Exploitation de la plateforme (ligne
+« Consignes IA des Studios »), ou l'onglet Releases du registre.
+
+## 8. Courriels · `SMTP_URL`
+
+```
+SMTP_URL=             # smtp://utilisateur:motdepasse@hote:587
+# MAIL_FROM=          # optionnel · laisser commenté, le défaut du code s'applique
+```
+
+**Ouvre** · bienvenue, invitation, réinitialisation de mot de passe, courriels
+du récap hebdomadaire.
+
+**Sans elle · SILENCIEUX pour l'utilisateur.** Chaque envoi est sauté, une ligne
+`[mail:skip]` au journal web (`apps/web/lib/mailer.ts`) · le récap répond 503
+`smtp_absent` (voir plus bas). **Où vérifier** · « À brancher » dans Services
+activés (ligne « E-mails transactionnels »).
+
+## 9. Autres intégrations
+
+| Variable(s) | Ouvre | Sans elle |
+| --- | --- | --- |
+| `TRENDTRACK_API_KEY` | Veille, suivis, analyse concurrent (bibliothèque pub) | « À brancher » dans Services activés |
+| `META_APP_ID`, `META_APP_SECRET` | connexion Meta en un clic, remontée ADSMAP | pas de connexion Meta en un clic · la remontée planifiée exige AUSSI `CRON_SECRET` |
+| `SHOPIFY_API_KEY`, `SHOPIFY_API_SECRET` | connexion Shopify en un clic | pas de connexion Shopify en un clic |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_API_KEY`, `GOOGLE_APP_ID` | dossier Google Drive (synchro assets) | pas de connexion Google Drive |
+| `TOKEN_ENC_KEY` | chiffrement dédié des jetons stockés | repli silencieux sur `AUTH_SECRET` |
+| `KLAVIYO_API_KEY` | e-mails marketing (profils, flows) | chaque événement sauté (`[klaviyo:skip]`), « À brancher » dans Services activés |
+| `STRIPE_*` | paiement, abonnements (prix détaillés dans le gabarit) | `/billing` dit « paiement pas encore disponible » |
+| `HIGGSFIELD_API_KEY` | ancien moteur vidéo · seulement le suivi des vidéos historiques encore en cours | « À brancher » dans Services activés |
+| `SLACK_BOT_TOKEN` | messagerie d'équipe (à venir) | « À brancher » dans Services activés |
+
+## Admin+ · `FOUNDER_EMAILS` n'ouvre plus rien
+
+Décision du propriétaire (« Codé seul », suivi de #1115) · les pouvoirs
+fondateur sont réservés aux fondateurs **inscrits dans le code**
+(`apps/web/lib/founder.ts`, liste `FONDATEURS`, règle `pouvoirFondateur` du
+noyau). Raison · aucun e-mail n'est vérifié à la création d'un compte.
+
+La variable est encore lue, **sans pouvoir** · un compte dont l'adresse y
+figure lit, sur `/admin/equipe`, pourquoi il n'a rien. Elle peut rester vide.
+Pour un membre de l'équipe sans pouvoirs fondateur : `/admin/equipe` une fois
+son compte créé.
 
 ---
 
 ### Rappel sécurité
-Ne jamais committer `.env.deploy` ni coller une clé dans le chat / le code.
-Le tableau des intégrations ne montre que **présent / absent**, jamais la valeur.
+
+Ne jamais committer `.env.deploy` ni coller une clé dans le chat ou le code.
+Les écrans ne montrent que **présent / absent**, jamais la valeur · un test de
+rendu (`apps/web/test/reglages-exploitation-rendu.test.tsx`) échoue si une
+valeur secrète apparaît.
 
 ## Récapitulatif hebdomadaire
 
@@ -182,6 +235,9 @@ S'il en reste une sur la machine qui tape cette route (`crontab -l`,
 `/etc/cron.d/`), **la retirer** : elle ne doublerait rien (verrou
 `digest:<semaine ISO>` dans `app_settings`, qui note chaque destinataire servi),
 mais la lettre partirait à l'heure de celui des deux qui arrive le premier.
+
+**Sans `CRON_SECRET`**, le worker ne l'appelle pas et l'endpoint répond 503 ·
+il est fermé par défaut.
 
 Un passage en échec répond 500 et le worker le retente (6 tentatives, attente
 exponentielle depuis 1 min) · la reprise ne sert que ce qui manque. Un passage
@@ -195,12 +251,12 @@ personne n'est abandonné (cause commune probable : relais, quota) · la semaine
 reste interrompue et le worker écrit `[digest] ALERTE · disjoncteur des
 courriels …` sans retenter.
 
-**Sans `SMTP_URL`** (classée « plus tard » plus haut) · les notifications de
-l'application partent, aucun courriel n'est tenté, la route répond 503
-`smtp_absent` et le worker écrit UNE ligne `[digest] SMTP non configuré ·
-lettres servies dans l'application · courriels non envoyés`, sans retente ni
-ALERTE. Une fois `SMTP_URL` posée (et le conteneur web redémarré), un appel à
-la main la même semaine envoie les courriels sans redoubler les notifications.
+**Sans `SMTP_URL`** · les notifications de l'application partent, aucun
+courriel n'est tenté, la route répond 503 `smtp_absent` et le worker écrit UNE
+ligne `[digest] SMTP non configuré · lettres servies dans l'application ·
+courriels non envoyés`, sans retente ni ALERTE. Une fois `SMTP_URL` posée (et
+le conteneur web redémarré), un appel à la main la même semaine envoie les
+courriels sans redoubler les notifications.
 
 Si la semaine reste non servie, le journal du worker l'écrit en clair :
 `[digest] ALERTE · récap hebdomadaire NON SERVI …` (ou `NON CONFIRMÉ` si le
@@ -209,18 +265,12 @@ job a été perdu · vérifier alors le verrou `digest:<semaine>` dans
 
 Il ne dépense **rien** : la lettre est calculée à partir de comptes, jamais
 rédigée par un modèle. Et il n'envoie pas de lettre aux marques dont la semaine
-n'a rien porté · trois « rien de neuf » et personne ne l'ouvre plus.
-
-Sans `CRON_SECRET`, l'endpoint répond 503. Il est fermé par défaut.
+n'a rien porté.
 
 ## Migrations · où en est la base
 
-**Cette page ne dit pas ce qui est appliqué.** Elle l'a fait, et elle a eu tort :
-la liste des « migrations en attente » y est restée figée pendant des semaines
-après leur application, et elle a envoyé chercher une panne qui n'existait plus.
-
-Un document ne peut pas savoir ce qu'une base a exécuté. Deux endroits le
-savent, et un seul suffit :
+**Cette page ne dit pas ce qui est appliqué.** Un document ne peut pas savoir ce
+qu'une base a exécuté. Deux endroits le savent, et un seul suffit :
 
 **Dans l'application** · le bloc de déploiement de la page Jarvis (fondateur).
 Il affiche la version de maquette, l'empreinte du build et le retard de
@@ -264,15 +314,12 @@ c'est correct, elles n'ont jamais eu de génération.
 La page Jarvis affiche, pour le fondateur, un bandeau « Ce serveur » : version de
 maquette, migrations appliquées sur migrations embarquées, et empreinte du build.
 
-Pour que l'empreinte apparaisse, passer le commit au build :
+L'empreinte vient de `BUILD_SHA`, passé au build par le déploiement
+(`docker-compose.yml`, `args`) puis exposé à l'application
+(`ENV BUILD_SHA=$BUILD_SHA` dans le Dockerfile) · ce n'est pas une variable de
+`.env.deploy`.
 
-```
-docker build --build-arg BUILD_SHA=$(git rev-parse HEAD) ...
-```
-
-et l'exposer à l'application (`ENV BUILD_SHA=$BUILD_SHA` dans le Dockerfile).
-
-**Sans cette variable, le reste fonctionne** · le bandeau dit simplement « build
-inconnu ». Ce qui compte le plus est le compte de migrations : il vire à l'orange
-dès qu'une migration embarquée n'est pas appliquée, et c'est exactement l'état où
-le code attend des colonnes que la base n'a pas.
+**Sans elle, le reste fonctionne** · le bandeau dit simplement « build
+inconnu ». Ce qui compte le plus est le compte de migrations : il vire à
+l'orange dès qu'une migration embarquée n'est pas appliquée, et c'est
+exactement l'état où le code attend des colonnes que la base n'a pas.
