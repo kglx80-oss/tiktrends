@@ -34,6 +34,7 @@ import { randomUUID } from 'node:crypto';
 import { db, schema, eq, inArray } from '@tiktrends/db';
 import { CREDIT_COSTS, inspecterMedia, type FournisseurStudio } from '@tiktrends/core';
 import { semer } from './studios-semis';
+import { attendreEtat } from './helpers/attendre-etat';
 import { ctxDe, poserSolde, solde, projetTest, banc, secondWorker, jusquAuBout, etatEnBase } from './l3-harnais';
 import { creerDevis, approuverEtMettreEnFile, annulerJob, etatJob, deciderQualite } from '../lib/studios/execution/commandes';
 import { MoteurStudio } from '../../workers/src/studios/moteur';
@@ -195,7 +196,10 @@ describe('COST-07 · crash APRÈS soumission · réconciliation, jamais de resou
     const mourant = new MoteurStudio({ base: db, fournisseur: bloque, stockage: A.stockage, decodeur: new DecodeurSharp(), workerId: 'worker-mourant', bailMs: 30_000, horloge: A.horloge });
     const j = await mourant.reclamer();
     void mourant.etape(j!);
-    for (let i = 0; i < 50 && (await etatEnBase(db, id)).job.state !== 'running'; i++) await new Promise((r) => setTimeout(r, 5));
+    await attendreEtat('le worker mourant a posé `running` (clé fournisseur posée avant la soumission)', async () => {
+      expect((await etatEnBase(db, id)).job.state, 'l’état du job').toBe('running');
+      return true;
+    }, { intervalleMs: 5 });
     expect((await etatEnBase(db, id)).tentatives[0]!.providerIdempotencyKey).toMatch(/^tt-studio-/);
     A.avancer(31_000);
     expect(await jusquAuBout(db, A.moteur, id)).toBe('reconciliation_required');

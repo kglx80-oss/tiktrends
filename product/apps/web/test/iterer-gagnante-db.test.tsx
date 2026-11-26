@@ -72,7 +72,7 @@ import { semer, session } from './studios-semis';
 import { ctxDe } from './l3-harnais';
 import { projetAvecBrief, lancerLot, executer, sortiesDuJob, KEYFRAMES, saisieTest } from './l4c-harnais';
 import { avecSpatial } from './spatial/fournisseur';
-import { attendreMontageStable } from './helpers/attendre-etat';
+import { attendreEtat, attendreMontageStable, pasDansAct } from './helpers/attendre-etat';
 import { creerVariante } from '../lib/studios/variantes/variantes';
 import { rattacherVarianteAuTest } from '../lib/studios/variantes/tests';
 import { commenterProjet } from '../app/actions/studios/activite';
@@ -364,10 +364,10 @@ describe('le geste · l’écran Itérer EXISTANT, la gagnante présélectionné
       expect(await lignes(), 'rien de créé avant le clic').toEqual(avant);
       await cliquer(document.querySelector('#orn [data-geste="creer-iteration"]'), 'créer l’itération');
       let arete: { childAdId: string } | undefined;
-      for (let i = 0; i < 80 && !arete; i += 1) {
+      await attendreEtat('une itération est créée depuis la gagnante (son arête)', async () => {
         [arete] = await db.select({ childAdId: schema.iterationEdges.childAdId }).from(schema.iterationEdges).where(eq(schema.iterationEdges.parentAdId, gagnante));
-        if (!arete) await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
-      }
+        return arete;
+      }, { pas: pasDansAct, intervalleMs: 20 });
       expect(arete, 'aucune itération depuis la gagnante').toBeTruthy();
       const [enfant] = await db.select().from(schema.ads).where(eq(schema.ads.id, arete!.childAdId));
       const ref = enfant!.sourceRef as Record<string, unknown>;
