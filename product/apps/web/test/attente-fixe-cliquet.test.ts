@@ -88,7 +88,11 @@ import { join, relative } from 'node:path';
  * type cachait la définition à `function X\s*\(`, chaque appel attend 30 ms. Ces deux-là sont MIGRÉS
  * (main bacc67e5) · les 30 ms laissaient partir un « fire and forget » avant de lire l'espion, c'est
  * une ABSENCE d'écriture, désormais tenue par `attendreAbsence` · exemptions RETIRÉES. Relevé après
- * migration · 47 sommeils dans 39 fichiers, 46 aides dans 25 fichiers (257 appels figés).
+ * migration · 47 sommeils dans 39 fichiers, 46 aides dans 25 fichiers (257 appels figés). Le
+ * `pause(400)` de `l2-revocation-course-pg` (seule exemption `VERROU`) attend désormais l'état
+ * réel (l'évaluation bloquée sur le verrou de la révocation, `pg_blocking_pids`, ou déjà finie) ·
+ * exemption et raison RETIRÉES · 46 sommeils dans 38 fichiers, 45 aides dans 24 fichiers (256
+ * appels figés).
  *
  * Les LIMITES · ce cliquet protège contre l'ERREUR (on recopie une attente fixe voisine, on
  * rappelle l'aide du fichier), pas contre la MALVEILLANCE · il lit le source, il n'exécute rien et
@@ -116,7 +120,6 @@ const INJECTE = 'le `dormir` injecté au code testé (son propre sondage, borné
 const LATENCE = 'latence simulée dans un faux (fournisseur, fetch, verrou, processus enfant) · le test provoque un chevauchement, il n’attend pas un état';
 const SONDAGE = 'boucle de sondage maison, bornée, sur la condition vraie · même forme que celles migrées par ce lot, à passer par `attendreEtat`';
 const FIXE = 'attente fixe avant constat (montage, action serveur, focus) · dette à migrer vers `attendreEtat` / `attendreMontageStable`';
-const VERROU = 'course de verrou Postgres à délai fixe (`pause(400)`) · même cas que `e2-controle-vision-pg` et `fd-revocation-pg`, à passer par `pg_blocking_pids`';
 
 interface Exemption {
   /** Les sommeils écrits dans le fichier. */
@@ -137,8 +140,6 @@ const EXEMPTIONS: Readonly<Record<string, Exemption>> = {
   'logos-charte-etat.test.ts': { n: 1, raison: LATENCE },
   'adsmap-import-verrou-db.test.ts': { n: 1, raison: LATENCE },
   'fa-course-mixte-pg.test.ts': { n: 3, appels: { create: 2, vague: 2 }, raison: `${LATENCE} · et le départ synchronisé des deux vagues de la course (rendez-vous, échelonnement)` },
-  // Le même défaut que celui réparé ici, hors du périmètre de ce lot.
-  'l2-revocation-course-pg.test.ts': { n: 1, appels: { pause: 1 }, raison: VERROU },
   'fa-reservation-commune.test.ts': { n: 1, raison: SONDAGE },
   'l3-worker.test.ts': { n: 1, raison: SONDAGE },
   'import-lot-db.test.tsx': { n: 1, raison: SONDAGE },
