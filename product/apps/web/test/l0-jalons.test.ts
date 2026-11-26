@@ -20,21 +20,12 @@ const ids = vi.hoisted(() => {
   const { randomUUID } = require('node:crypto') as typeof import('node:crypto');
   return { ws: randomUUID(), owner: randomUUID(), brand: randomUUID(), brand2: randomUUID() };
 });
-const espion = vi.hoisted(() => ({ actif: false, ecritures: [] as string[] }));
 const h = vi.hoisted(() => ({ session: null as unknown }));
-
-/** Une instruction qui modifie la base · le reste (select, with … select) est une lecture. */
-const ECRITURE = /\binsert\s+into\b|\bupdate\s+"?[a-z_]+"?\s+set\b|\bdelete\s+from\b|\btruncate\b|\bmerge\s+into\b/i;
 
 vi.mock('@tiktrends/db', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@tiktrends/db')>();
-  const { PGlite } = await import('@electric-sql/pglite');
-  const proto = PGlite.prototype as unknown as { query: (sql: string, ...rest: unknown[]) => Promise<unknown> };
-  const query = proto.query;
-  proto.query = function (this: unknown, sql: string, ...rest: unknown[]) {
-    if (espion.actif && ECRITURE.test(sql)) espion.ecritures.push(sql.replace(/\s+/g, ' ').slice(0, 160));
-    return query.call(this, sql, ...rest);
-  };
+  // Chaque instruction est espionnée · l'espion commun (`helpers/espion-ecritures.ts`).
+  (await import('./helpers/espion-ecritures')).espionnerEcritures();
   const { pgMemoire } = await import('./helpers/pg-memoire');
   const db = await pgMemoire(actual.schema as unknown as Record<string, unknown>);
   return { ...actual, db };
@@ -43,36 +34,12 @@ vi.mock('../lib/auth', () => ({ getSession: async () => h.session }));
 vi.mock('../lib/brands', async (orig) => ({ ...(await orig<typeof import('../lib/brands')>()), getActiveBrand: async () => ({ id: ids.brand, name: 'Neva', logoUrl: null, url: null, category: null }) }));
 
 import { db, schema, eq } from '@tiktrends/db';
-import { attendreAbsence } from './helpers/attendre-etat';
+import { sousEspion } from './helpers/espion-ecritures';
 
 async function empreinte(): Promise<string> {
   const j = await db.select().from(schema.statMilestones).orderBy(schema.statMilestones.id);
   const v = await db.select().from(schema.verdicts).orderBy(schema.verdicts.adId);
   return JSON.stringify({ j, v });
-}
-
-/**
- * Lance une lecture sous espion · rend les instructions d'écriture vues.
- *
- * L'ancien `jarvisStats` datait les jalons sans les attendre · une insertion partie APRÈS le
- * retour de la lecture. Ce qu'on attend n'est pas une durée, c'est une ABSENCE · aucune écriture,
- * tenue dans la durée (`attendreAbsence`), l'espion toujours armé. La première écriture vue la
- * viole aussitôt · elle est rendue au test, dont l'`expect` la nomme.
- *
- * Délai MESURÉ · l'ancien défaut remis (`void recordMilestones(…)` dans `jarvisStats`), l'insertion
- * arrive pendant `jarvisSnapshot`, AVANT le retour de `f` (8 à 12 ms avant au repos, 31 à 55 ms
- * sous 12 boucles CPU, 10 passages, 22/11/2026) · le premier sondage la voit. La fenêtre (~200 ms)
- * voit aussi une insertion plus tardive · partie 80 ms après la lecture, elle passait sous
- * l'ancienne attente fixe (30 ms) sans bruit.
- */
-async function sousEspion<T>(f: () => Promise<T>): Promise<{ r: T; ecritures: string[] }> {
-  espion.ecritures = []; espion.actif = true;
-  try {
-    const r = await f();
-    await attendreAbsence('aucune écriture SQL ne part de la lecture, même après son retour (« fire and forget »)', () => espion.ecritures.length === 0)
-      .catch((e: unknown) => { if (espion.ecritures.length === 0) throw e; });
-    return { r, ecritures: [...espion.ecritures] };
-  } finally { espion.actif = false; }
 }
 
 /** Une chaîne Adsmap qui franchit le seuil (≥ 3 verdicts concluants sur `demo`). */
